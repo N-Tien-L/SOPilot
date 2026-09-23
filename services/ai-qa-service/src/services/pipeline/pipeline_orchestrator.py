@@ -39,31 +39,45 @@ class PipelineOrchestrator:
 
     def __init__(
         self,
-        toxic_filter: ToxicFilterService,
-        intent_classifier: IntentClassifierService,
-        layer2_responder: Layer2Responder,
-        query_refiner: QueryRefiner,
-        hybrid_search: Any,
-        llm_client: Any,
-        prompt_builder: Any,
-        conversation_service: Any,
-        message_repository: Any,
-        knowledge_gap_detector: Any,
+        toxic_filter: Optional[ToxicFilterService] = None,
+        intent_classifier: Optional[IntentClassifierService] = None,
+        layer2_responder: Optional[Layer2Responder] = None,
+        query_refiner: Optional[QueryRefiner] = None,
+        hybrid_search: Optional[Any] = None,
+        llm_client: Optional[Any] = None,
+        prompt_builder: Optional[Any] = None,
+        conversation_service: Optional[Any] = None,
+        message_repository: Optional[Any] = None,
+        knowledge_gap_detector: Optional[Any] = None,
         reranker_service: Optional[Any] = None,
         settings: Optional[Any] = None,
     ):
-        self.toxic_filter = toxic_filter
-        self.intent_classifier = intent_classifier
-        self.layer2_responder = layer2_responder
-        self.query_refiner = query_refiner
-        self.hybrid_search = hybrid_search
-        self.llm_client = llm_client
-        self.prompt_builder = prompt_builder
-        self.conversation_service = conversation_service
-        self.message_repository = message_repository
-        self.knowledge_gap_detector = knowledge_gap_detector
+        from .layer1_toxic_filter import ToxicFilterService
+        from .layer2_intent_classifier import IntentClassifierService
+        from .layer2_responder import Layer2Responder
+        from .query_refiner import QueryRefiner
+        from ..retrieval.hybrid_search import hybrid_search_service
+        from ..generation.llm_client import llm_client as default_llm_client
+        from ..generation.prompt_builder import prompt_builder as default_prompt_builder
+        from ..conversation.manager import conversation_service as default_conversation_service
+        from ...db.repositories.message_repo import message_repository as default_message_repository
+        from ..knowledge_gap import knowledge_gap_detector as default_knowledge_gap_detector
+        from ...config.settings import settings as default_settings
+
+        self.settings = settings if settings is not None else default_settings
+        groq_key = getattr(self.settings, "groq_api_key", "")
+
+        self.toxic_filter = toxic_filter if toxic_filter is not None else ToxicFilterService(groq_api_key=groq_key)
+        self.intent_classifier = intent_classifier if intent_classifier is not None else IntentClassifierService(groq_api_key=groq_key)
+        self.layer2_responder = layer2_responder if layer2_responder is not None else Layer2Responder(groq_api_key=groq_key)
+        self.query_refiner = query_refiner if query_refiner is not None else QueryRefiner(groq_api_key=groq_key)
+        self.hybrid_search = hybrid_search if hybrid_search is not None else hybrid_search_service
+        self.llm_client = llm_client if llm_client is not None else default_llm_client
+        self.prompt_builder = prompt_builder if prompt_builder is not None else default_prompt_builder
+        self.conversation_service = conversation_service if conversation_service is not None else default_conversation_service
+        self.message_repository = message_repository if message_repository is not None else default_message_repository
+        self.knowledge_gap_detector = knowledge_gap_detector if knowledge_gap_detector is not None else default_knowledge_gap_detector
         self.reranker_service = reranker_service
-        self.settings = settings
 
     def _detect_and_translate_warning(self, message: str) -> str:
         """Detect user language and return appropriate warning message."""

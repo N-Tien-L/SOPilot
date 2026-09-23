@@ -8,8 +8,8 @@ from datetime import datetime
 import structlog
 
 from ...config.settings import settings
-from ...services.orchestrator.pipeline import PipelineOrchestrator
-from ...services.rate_limiter import rate_limit
+from ...services.pipeline.pipeline_orchestrator import PipelineOrchestrator
+from ..dependencies.rate_limit import rate_limit
 from ...db.repositories.message_repo import message_repository
 from ..dependencies import get_user_context, UserContext
 from ...services.conversation.manager import conversation_service

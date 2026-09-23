@@ -27,6 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.poliwise.auth.feign.FeedbackServiceClient;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -59,6 +60,9 @@ class AuthServiceTest {
     @Mock
     private AuthEventPublisher authEventPublisher;
 
+    @Mock
+    private FeedbackServiceClient feedbackServiceClient;
+
     private PasswordEncoder passwordEncoder;
     private AuthService authService;
     private ClientMetadata testMetadata;
@@ -73,7 +77,8 @@ class AuthServiceTest {
                 passwordEncoder,
                 jwtTokenProvider,
                 refreshTokenService,
-                authEventPublisher
+                authEventPublisher,
+                feedbackServiceClient
         );
         testMetadata = new ClientMetadata("127.0.0.1", "Mozilla/5.0", "Desktop");
     }

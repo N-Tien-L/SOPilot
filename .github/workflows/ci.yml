@@ -2,20 +2,21 @@ name: Poliwise CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   backend-java:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [auth-service, feedback-service, knowledge-service, metadata-service, user-service]
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'temurin'
@@ -23,11 +24,14 @@ jobs:
     - name: Build and Test
       run: |
         cd services/${{ matrix.service }}
+        chmod +x mvnw
+        if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
         ./mvnw verify -B
 
   backend-python:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [ai-qa-service, ingestion-service]
     steps:
@@ -37,16 +41,20 @@ jobs:
       with:
         python-version: '3.12'
     - name: Install uv
-      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
     - name: Test with pytest
       run: |
         cd services/${{ matrix.service }}
-        uv sync
+        if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
+        uv sync --extra dev
         uv run pytest
 
   frontend-and-gateway:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         app: [frontend/web, services/api-gateway]
     steps:
