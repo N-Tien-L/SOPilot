@@ -1,0 +1,110 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Playwright MCP (test artifacts)
+.playwright-mcp/
+
+# MinIO data & local DB storage
+data/minio/
+data/postgres/
+data/
+
+# Token files
+*.token.txt
+*_token.txt
+
+# Qwen settings
+.qwen/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyi
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Java build artifacts
+target/
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+
+# Node modules
+node_modules/
+
+# Base dataset (large files, local only)
+base_dataset/
+
+# Generated diffs and logs
+changes.diff
+ingestion.log
+*.log
+
+# Environment backup (local only)
+environment_setup/
+
+# AI/Editor rules
+.cursor/
+.roo/
+.claude/
+.agent/
+.agentrules/
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local LLM server
+local_llm_server/
+
+# Claude/OpenClaude profiles
+.openclaude-profile.json
+
+# OpenCode/Agent artifacts
+opencode.json
+.pytest_cache/
+
+# Temporary/corrupt files
+*.sqlaLmcGG
+*_download.sql
+
+# Root package files (monorepo uses individual service package.json)
+package.json
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Environment configs (local overrides)
+config/rabbitmq.env
+
+# Reports (local drafts, keep source files only)
+reports/
+
+# Test artifacts
+test-*.ps1
+test-*.bat
+test-*.js
+test-*.ts
+test-*.md
+!codebase-map.json
+
+# Database backups (local only)
+*.sql.bak
+poliwise-database-backup.sql
+infrastructure/init-db/010_seed_data.sql
+infrastructure/seed/seed_data.sql
+.agentrules

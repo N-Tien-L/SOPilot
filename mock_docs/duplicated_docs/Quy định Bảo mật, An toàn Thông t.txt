@@ -1,0 +1,30 @@
+# Quy định Bảo mật, An toàn Thông tin và Chính sách Sử dụng Hệ thống Gitlab (Tài liệu nội bộ - Dữ liệu mẫu)
+
+## 1. Giới thiệu chung
+Tài liệu này quy định các nguyên tắc về bảo mật thông tin cũng như quản lý mã nguồn, áp dụng cho toàn bộ nhân viên, cộng tác viên và các đối tác bên thứ ba khi truy cập và sử dụng hệ thống quản lý mã nguồn Gitlab của Công ty. Việc tuân thủ các quy định tại đây là yêu cầu bắt buộc nhằm đảm bảo an ninh thông tin và hạn chế tối đa các rủi ro về pháp lý có thể phát sinh.
+
+## 2. Quản lý Tài khoản và Quyền Truy cập
+* **Bật Xác thực hai yếu tố (2FA):** Mọi tài khoản Gitlab đều phải được kích hoạt 2FA thông qua ứng dụng Authenticator (Google Authenticator, Microsoft Authenticator…) hoặc khóa bảo mật phần cứng (YubiKey, Token FIDO2).
+* **Nguyên tắc đặc quyền tối thiểu (Least Privilege):** Quyền truy cập (Guest, Reporter, Developer, Maintainer, Owner) chỉ được cấp phát ở mức vừa đủ, tương ứng với phạm vi công việc được phân công.
+* **Không chia sẻ tài khoản:** Nghiêm cấm việc dùng chung tài khoản cá nhân, tiết lộ mật khẩu hoặc chuyển giao mã OTP cho bất kỳ cá nhân nào khác. Mọi thao tác trên hệ thống cần được truy vết đến đúng một cá nhân chịu trách nhiệm.
+
+## 3. Quy định về Cam kết Mã nguồn (Commit & Push Code)
+* **Bảo vệ thông tin nhạy cảm (Credentials & Secrets):**
+    * **TUYỆT ĐỐI KHÔNG** commit các thông tin nhạy cảm lên repository, bao gồm: API Keys, mật khẩu, private keys, SSH keys, token JWT, hoặc chuỗi kết nối cơ sở dữ liệu (Connection Strings) – ngay cả đối với kho lưu trữ riêng tư (Private Repository).
+    * Các giá trị bí mật phải được lưu trữ thông qua Gitlab CI/CD Variables (được đánh dấu Masked / Protected) hoặc các giải pháp quản lý tập trung như HashiCorp Vault, AWS Secrets Manager, GCP Secret Manager.
+    * Khuyến nghị tích hợp các công cụ quét pre-commit hook (ví dụ: git-secrets, trufflehog) để phát hiện sớm rò rỉ thông tin trước khi push lên remote.
+* **Kiểm tra mã nguồn (Code Review):** Các nhánh chính (`main`, `master`, `production`) bắt buộc phải được cấu hình Protected Branches. Mỗi Merge Request cần có tối thiểu 02 nhân sự phê duyệt (Approve), đồng thời phải vượt qua toàn bộ các bài kiểm tra tự động trong CI/CD Pipeline trước khi được phép hợp nhất.
+
+## 4. Chính sách Sử dụng Gitlab CI/CD
+* **Tối ưu tài nguyên Runner:** Hạn chế chạy các vòng lặp vô hạn, job nặng hoặc các tiến trình thử nghiệm tốn kém tài nguyên trên Shared Runners. Với tác vụ nặng nên chuyển sang Self-hosted Runner để tránh ảnh hưởng người dùng khác.
+* **Bảo mật Runner và Docker Image:** Chỉ sử dụng các Docker image chính thức từ nhà cung cấp đáng tin cậy hoặc đã được đội ngũ Security review và phê duyệt trong file cấu hình `.gitlab-ci.yml`.
+
+## 5. Quy trình Giám sát và Xử lý Sự cố
+* Đội ngũ Giám sát An ninh mạng (SOC) chịu trách nhiệm quét liên tục toàn bộ kho lưu trữ nhằm phát hiện sớm rò rỉ dữ liệu (Secret Detection) và các lỗ hổng phụ thuộc (Dependency Scanning).
+* Khi phát hiện vi phạm nghiêm trọng (ví dụ: lộ mã nguồn cốt lõi của sản phẩm, rò rỉ khóa API của khách hàng), tài khoản có liên quan sẽ bị tạm khóa ngay lập tức để phục vụ công tác điều tra, xác minh.
+
+## 6. Điều khoản Thi hành
+Mọi hành vi cố ý vi phạm các quy định nêu trên, tùy thuộc vào mức độ nghiêm trọng của sự việc, sẽ bị xử lý kỷ luật theo Quy chế lao động của Công ty hoặc chuyển giao hồ sơ cho cơ quan chức năng có thẩm quyền xử lý theo quy định pháp luật.
+
+---
+*Tài liệu này được tạo tự động phục vụ mục đích thử nghiệm hệ thống Ingest dữ liệu (Mock Data). Không có giá trị pháp lý trong thực tế.*

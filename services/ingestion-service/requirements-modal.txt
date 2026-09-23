@@ -1,0 +1,2 @@
+# Modal-specific requirements
+modal>=0.70.0

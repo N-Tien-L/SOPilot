@@ -1,0 +1,106 @@
+.wrapper {
+  width: 100%;
+  overflow: hidden;
+}
+
+.tableContainer {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.th:first-child {
+  padding-left: 1rem;
+}
+
+.th:last-child {
+  padding-right: 1rem;
+}
+
+.td {
+  padding: 0.875rem 1rem;
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.td:first-child {
+  padding-left: 1rem;
+}
+
+.td:last-child {
+  padding-right: 1rem;
+}
+
+.row {
+  transition: background 0.1s;
+}
+
+.row:last-child .td {
+  border-bottom: none;
+}
+
+.row:hover {
+  background: var(--muted);
+}
+
+.row.selected {
+  background: rgba(79, 70, 229, 0.05);
+}
+
+.row.clickable {
+  cursor: pointer;
+}
+
+.checkboxCell {
+  width: 3rem;
+  text-align: center !important;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.emptyCell {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+/* Skeleton */
+.skeletonRow .td {
+  padding: 1rem;
+}
+
+.skeleton {
+  height: 1rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, var(--muted) 25%, var(--secondary) 50%, var(--muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

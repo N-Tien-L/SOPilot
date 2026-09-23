@@ -1,0 +1,453 @@
+@layer components {
+  /* ====== Layout ====== */
+  .container {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 2rem;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* ====== Header ====== */
+  .header {
+    margin-bottom: 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0 0 0.375rem;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    color: var(--muted-foreground);
+    font-size: 0.9375rem;
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .periodSelect {
+    min-width: 140px;
+  }
+
+  /* ====== Stats Grid ====== */
+  .statsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .statCardInner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .statIconWrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .statIconPrimary {
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+
+  .statIconSuccess {
+    background: var(--success-soft);
+    color: var(--success-foreground);
+  }
+
+  .statIconInfo {
+    background: var(--info-soft);
+    color: var(--info-foreground);
+  }
+
+  .statIconWarning {
+    background: var(--warning-soft);
+    color: var(--warning-foreground);
+  }
+
+  .statIconWrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .statContent {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .statLabel {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    font-weight: 500;
+  }
+
+  .statValue {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .statValueRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .changeBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  .changePositive {
+    background: var(--success-soft);
+    color: var(--success-foreground);
+  }
+
+  .changeNegative {
+    background: var(--danger-soft);
+    color: var(--danger-foreground);
+  }
+
+  .statMeta {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* ====== Charts Grid ====== */
+  .chartsGrid {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .chartCard {
+    min-height: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+
+  .chartCard:hover {
+    border-color: var(--ring);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .chartEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    gap: 0.75rem;
+    color: var(--muted-foreground);
+    background: var(--primary-soft);
+    margin: 0.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .chartEmpty span {
+    font-size: 0.875rem;
+  }
+
+  /* ====== Trend Metrics ====== */
+  .trendMetrics {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+  }
+
+  .trendMetrics span {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .trendMetrics span::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0.5;
+  }
+
+  /* ====== Top Lists Grid ====== */
+  .listsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .topList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .topItem {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.75rem;
+    transition: all 0.15s ease;
+    background: var(--background);
+    border: 1px solid transparent;
+  }
+
+  .topItem:hover {
+    background: var(--muted);
+    border-color: var(--border);
+  }
+
+  .topRank {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .topInfo {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .topQuestion {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topMeta {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .topMeta::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--muted-foreground);
+  }
+
+  .emptyText {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    text-align: center;
+    padding: 2.5rem;
+    margin: 0;
+  }
+
+  /* ====== Loading ====== */
+  .loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+  }
+
+  /* ====== Responsive ====== */
+  @media (max-width: 1400px) {
+    .statsGrid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (max-width: 1200px) {
+    .statsGrid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .statsGrid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .chartsGrid,
+    .listsGrid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      padding: 1rem;
+    }
+
+    .header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1.25rem;
+    }
+
+    .actions {
+      flex-wrap: wrap;
+    }
+
+    .statsGrid {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .statCardInner {
+      gap: 0.875rem;
+    }
+
+    .statIconWrap {
+      width: 48px;
+      height: 48px;
+    }
+
+    .statValue {
+      font-size: 1.375rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .actions {
+      flex-direction: column;
+    }
+
+    .periodSelect {
+      width: 100%;
+    }
+  }
+}
+
+/* ====== Global Stat Card Enhancements ====== */
+/* These enhance the Card component within stats grid */
+.container :global(.statsGrid) > div {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.container :global(.statsGrid) > div:hover {
+  border-color: var(--ring);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* ====== Chart Header Enhancements ====== */
+.container :global(.chartsGrid) :global(.cardHeader) {
+  padding: 1.25rem 1.25rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.container :global(.chartsGrid) :global(.cardTitle) {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.container :global(.chartsGrid) :global(.cardContent) {
+  padding: 0 1.25rem 1.25rem;
+}
+
+/* ====== List Card Enhancements ====== */
+.container :global(.listsGrid) > div {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.container :global(.listsGrid) :global(.cardHeader) {
+  padding: 1.25rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  background: linear-gradient(to bottom, var(--muted), transparent);
+}
+
+.container :global(.listsGrid) :global(.cardTitle) {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.container :global(.listsGrid) :global(.cardContent) {
+  padding: 0.75rem;
+}
+
+/* ====== Recharts Tooltip Enhancement ====== */
+:global(.recharts-tooltip-wrapper) {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+}
+
+/* ====== ApiHealthCard Enhancement ====== */
+.container :global(.statsGrid) > div:has([class*="apiHealth"]) {
+  cursor: pointer;
+}
+
+/* ====== Smooth Transitions ====== */
+.container :global(button),
+.container :global(select) {
+  transition: all 0.15s ease;
+}

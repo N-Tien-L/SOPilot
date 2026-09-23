@@ -1,0 +1,74 @@
+poliwise:
+  jwt:
+    secret: ${POLIWISE_JWT_SECRET:change-me-in-production}
+    issuer: ${POLIWISE_JWT_ISSUER:poliwise-auth-service}
+  service-token: ${INTERNAL_SERVICE_TOKEN:}
+  cleanup:
+    audit-retention-days: 90
+    report-expiry-days: 7
+    usage-stats-retention-days: 7
+    hourly-aggregate-retention-days: 30
+
+server:
+  port: 8085
+
+spring:
+  application:
+    name: feedback-service
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+app:
+  services:
+    user-service-url: ${USER_SERVICE_URL:http://localhost:8082}
+    knowledge-service-url: ${KNOWLEDGE_SERVICE_URL:http://localhost:8083}
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
+    username: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
+    password: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:?RABBITMQ_HOST is required}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:?RABBITMQ_USERNAME is required}
+    password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+    virtual-host: ${RABBITMQ_VHOST:?RABBITMQ_VHOST is required}
+
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 5
+        queue-capacity: 100
+      thread-name-prefix: ReportExport-
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

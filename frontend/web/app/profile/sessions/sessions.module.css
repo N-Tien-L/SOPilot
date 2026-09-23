@@ -1,0 +1,80 @@
+.container {
+  padding: 1.5rem;
+  max-width: 56rem;
+}
+
+.error {
+  padding: 0.875rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius);
+  color: var(--destructive);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  color: var(--primary);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.cardContent {
+  padding: 0 !important;
+}
+
+.table {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.deviceIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+}
+
+.sessionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.browser {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.ip {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-family: monospace;
+}
+
+.time {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.sessionActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

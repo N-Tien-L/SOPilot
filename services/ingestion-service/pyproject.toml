@@ -1,0 +1,76 @@
+[project]
+name = "poliwise-ingestion"
+version = "0.1.0"
+description = "Poliwise document ingestion service for extraction, chunking, and embedding"
+requires-python = ">=3.11"
+
+dependencies = [
+    # FastAPI & Web
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+
+    # Database
+    "asyncpg>=0.30.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "pgvector>=0.3.0",
+
+    # Message Queue
+    "aio-pika>=9.4.0",
+
+    # Configuration
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+
+    # Document Extraction (local libraries only — no AI model required)
+    "PyMuPDF>=1.23.0",        # PDF — text extraction + OCR fallback
+    "python-docx>=1.1.0",     # DOCX — heading detection, tables
+    "openpyxl>=3.1.0",        # XLSX — sheet to markdown
+    "pytesseract>=0.3.10",    # OCR for scanned images/PDFs
+    "Pillow>=10.0.0",         # Image processing
+    "ruamel.yaml>=0.18.0",    # Hugo frontmatter parsing (preserves comments)
+
+    # NLP, LLM & Tokenization
+    "groq>=0.11.0",           # Fast LLM inference for metadata suggestion
+    "instructor>=1.6.0",      # Structured JSON output from LLMs
+    "tiktoken>=0.7.0",       # Fast tokenization for chunking
+    "transformers>=4.38.0",   # Accurate token counting for BGE-M3
+    "underthesea>=6.8.0",     # Vietnamese NLP
+
+    # HTTP Client
+    "httpx>=0.27.0",
+
+    # Object Storage
+    "minio>=7.2.0",
+
+    # Observability
+    "structlog>=24.1.0",
+    "prometheus-client>=0.21.0",
+    "starlette-exporter>=0.21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.27.0",
+    "ruff>=0.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]

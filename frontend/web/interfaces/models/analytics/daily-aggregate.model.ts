@@ -1,0 +1,29 @@
+export interface DailyAggregate {
+  id: string;
+  date: Date;
+  totalQuestions: number;
+  totalConversations: number;
+  uniqueUsersAsked: number;
+  totalLikes: number;
+  totalDislikes: number;
+  feedbackRatio: number;
+  avgResponseTimeMs: number;
+  p50ResponseTimeMs: number;
+  p95ResponseTimeMs: number;
+  p99ResponseTimeMs: number;
+  totalRequests: number;
+  totalErrors: number;
+  errorRate: number;
+  totalTokensUsed: number;
+  avgTokensPerQuestion: number;
+  avgChunksRetrieved: number;
+  documentsUploaded: number;
+  documentsPublished: number;
+  uniqueActiveUsers: number;
+  newUsers: number;
+  unansweredQuestions: number;
+  resolvedQuestions: number;
+  computedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}

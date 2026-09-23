@@ -1,0 +1,545 @@
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: poliwise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poliwise
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: poliwise
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U poliwise" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - poliwise
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: poliwise-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: poliwise
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "check_running" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - poliwise
+
+  minio:
+    image: minio/minio:RELEASE.2024-05-10T01-41-38Z
+    container_name: poliwise-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - poliwise
+
+  redis:
+    image: redis:7-alpine
+    container_name: poliwise-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - poliwise
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+
+
+  # ============================================================
+  # Microservices
+  # ============================================================
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: poliwise-auth-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=core
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      AUTH_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      AUTH_JWT_ISSUER: poliwise-auth-service
+      AUTH_ACCESS_TOKEN_TTL: PT15M
+      AUTH_REFRESH_TOKEN_TTL: P7D
+      AUTH_MAX_FAILED_ATTEMPTS: 5
+      AUTH_LOCK_DURATION: PT15M
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@poliwise.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@123456}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      EMAIL_USERNAME: ${EMAIL_USER:-}
+      EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Poliwise Support}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@poliwise.com}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -Xss256k -XX:MaxRAMPercentage=75.0 -Xms96m -Xmx192m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - poliwise
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: poliwise-user-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
+      POLIWISE_JWT_ISSUER: poliwise-auth-service
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -Xss256k -XX:MaxRAMPercentage=75.0 -Xms96m -Xmx192m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - poliwise
+
+  knowledge-service:
+    build:
+      context: ./services/knowledge-service
+      dockerfile: Dockerfile
+    container_name: poliwise-knowledge-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=knowledge
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-poliwise-documents}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      INGESTION_SERVICE_URL: http://ingestion-service:8088
+      KNOWLEDGE_INGESTION_INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      METADATA_SERVICE_URL: http://metadata-service:8084
+      KNOWLEDGE_INGESTION_SUGGESTION_TIMEOUT_SECONDS: 30
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -Xss256k -XX:MaxRAMPercentage=75.0 -Xms96m -Xmx192m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8083/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - poliwise
+
+  metadata-service:
+    build:
+      context: ./services/metadata-service
+      dockerfile: Dockerfile
+    container_name: poliwise-metadata-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8084
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=metadata
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      POLIWISE_JWT_ISSUER: poliwise-auth-service
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -Xss256k -XX:MaxRAMPercentage=75.0 -Xms96m -Xmx192m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8084/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - poliwise
+
+  feedback-service:
+    build:
+      context: ./services/feedback-service
+      dockerfile: Dockerfile
+    container_name: poliwise-feedback-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8085
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=analytics
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      SPRING_RABBITMQ_VIRTUAL_HOST: /
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_REPORT_BUCKET: ${MINIO_REPORT_BUCKET:-poliwise-reports}
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -Xss256k -XX:MaxRAMPercentage=75.0 -Xms96m -Xmx192m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8085/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - poliwise
+
+  # ============================================================
+  # Document Ingestion Service (FastAPI)
+  # ============================================================
+
+  ingestion-service:
+    build:
+      context: ./services/ingestion-service
+      dockerfile: Dockerfile
+    container_name: poliwise-ingestion-service
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8088
+      LOG_LEVEL: info
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/poliwise
+      DATABASE_SCHEMA: knowledge
+      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: poliwise.events
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_SECURE: "false"
+      EMBEDDING_URL: ${EMBEDDING_URL:-https://api.jina.ai}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-jina-embeddings-v3}
+      RERANKER_URL: ${RERANKER_URL:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8088/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - poliwise
+
+  # ============================================================
+  # AI Q&A Service (FastAPI)
+  # ============================================================
+
+  ai-qa-service:
+    build:
+      context: ./services/ai-qa-service
+      dockerfile: Dockerfile
+    container_name: poliwise-ai-qa-service
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8086
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/poliwise
+      DATABASE_SCHEMA: conversation
+      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: poliwise.events
+      EMBEDDING_URL: ${EMBEDDING_URL:-https://api.jina.ai}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-jina-embeddings-v3}
+      RERANKER_URL: ${RERANKER_URL:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      LLM_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
+      LOCAL_MODEL_NAME: ${LOCAL_MODEL_NAME:-qwen3-8b}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: poliwise-auth-service
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
+      GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
+      LAYER1_MODEL: ${LAYER1_MODEL:-meta-llama/llama-prompt-guard-2-86m}
+      LAYER2_MODEL: ${LAYER2_MODEL:-llama-3.1-8b-instant}
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.15}
+      USE_RERANKER: ${USE_RERANKER:-false}
+      QUERY_REFINER_HISTORY_LIMIT: ${QUERY_REFINER_HISTORY_LIMIT:-10}
+      TITLE_GENERATION_ENABLED: ${TITLE_GENERATION_ENABLED:-true}
+      TITLE_DEFAULT_PATTERNS: ${TITLE_DEFAULT_PATTERNS:-New Conversation,}
+      CONTEXT_LAYER3_ONLY: ${CONTEXT_LAYER3_ONLY:-true}
+      MAX_LAYER3_CONTEXT_PAIRS: ${MAX_LAYER3_CONTEXT_PAIRS:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8086/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - poliwise
+
+  # ============================================================
+  # API Gateway
+  # ============================================================
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: poliwise-api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: poliwise-auth-service
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
+      KNOWLEDGE_SERVICE_URL: ${KNOWLEDGE_SERVICE_URL:-http://knowledge-service:8083}
+      METADATA_SERVICE_URL: ${METADATA_SERVICE_URL:-http://metadata-service:8084}
+      FEEDBACK_SERVICE_URL: ${FEEDBACK_SERVICE_URL:-http://feedback-service:8085}
+      AI_QA_SERVICE_URL: ${AI_QA_SERVICE_URL:-http://ai-qa-service:8086}
+      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://ingestion-service:8088}
+      THROTTLE_TTL: 60000
+      THROTTLE_LIMIT_USER: 100
+      THROTTLE_LIMIT_MANAGER: 200
+      THROTTLE_LIMIT_ADMIN: 500
+      THROTTLE_LIMIT_PUBLIC: 200
+      CIRCUIT_BREAKER_TIMEOUT: 30000
+      CIRCUIT_BREAKER_VOLUME_THRESHOLD: 10
+      LOG_LEVEL: info
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+    ports:
+      - "3001:3001"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      knowledge-service:
+        condition: service_healthy
+      metadata-service:
+        condition: service_healthy
+      feedback-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - poliwise
+
+  # ============================================================
+  # Frontend
+  # ============================================================
+
+  frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    container_name: poliwise-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - poliwise
+
+networks:
+  poliwise:
+    name: poliwise-network
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  minio_data:
+  redis_data:

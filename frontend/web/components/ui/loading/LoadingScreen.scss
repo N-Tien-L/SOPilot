@@ -1,0 +1,326 @@
+// Colour palette
+$bg-deep: #040d1a;
+$bg-mid: #071428;
+$cyan-bright: #00d4ff;
+$cyan-mid: #0099cc;
+$cyan-dark: #005f88;
+$blue-soft: #1a6bff;
+$blue-pale: #a8d8ff;
+$text-primary: #cce9ff;
+
+// Keyframes
+
+// Dot: opacity pulse + colour shift bright → dark
+@keyframes dotBlink {
+  0% {
+    opacity: 0.15;
+    color: $cyan-dark;
+  }
+  40% {
+    opacity: 1;
+    color: $cyan-bright;
+  }
+  60% {
+    opacity: 1;
+    color: $cyan-bright;
+  }
+  100% {
+    opacity: 0.15;
+    color: $cyan-dark;
+  }
+}
+
+// Optional subtle float for dots
+@keyframes dotFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+// Star: appear → hold → disappear + slight scale
+@keyframes starTwinkle {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--star-rotate, 0deg)) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: rotate(var(--star-rotate, 0deg)) scale(1.1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: rotate(var(--star-rotate, 0deg)) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: rotate(var(--star-rotate, 0deg)) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--star-rotate, 0deg)) scale(0.4);
+  }
+}
+
+// Glow ring pulse
+@keyframes ringPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.06);
+  }
+}
+
+// Icon subtle breathe
+@keyframes iconBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.03);
+    filter: brightness(1.08);
+  }
+}
+
+// Loading text fade cycle
+@keyframes textFade {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+// Scanline shimmer (optional ambience on the container)
+@keyframes scanline {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 0% 100%;
+  }
+}
+
+// Container
+.pattern-loading-user {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // Layered background: radial soft glow at centre + deep gradient
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 50%, #0a1f3a 0%, transparent 70%),
+    linear-gradient(160deg, #050f1f 0%, $bg-deep 50%, #020810 100%);
+
+  // Subtle scanline texture for depth
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 200, 255, 0.012) 3px,
+      rgba(0, 200, 255, 0.012) 4px
+    );
+    z-index: 1;
+  }
+}
+
+// Dot-light particles
+.pattern-loading-user-dot-light {
+  position: absolute;
+  width: var(--dot-size, 4px);
+  height: var(--dot-size, 4px);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow:
+    0 0 calc(var(--dot-size, 4px) * 2) currentColor,
+    0 0 calc(var(--dot-size, 4px) * 4) rgba(0, 180, 255, 0.3);
+  filter: blur(var(--dot-blur, 0px));
+  z-index: 2;
+
+  // Blink animation
+  animation:
+    dotBlink var(--dot-duration, 3s) ease-in-out var(--dot-delay, 0s) infinite,
+    dotFloat calc(var(--dot-duration, 3s) * 1.5) ease-in-out
+      var(--dot-delay, 0s) infinite;
+
+  // Colour variants
+  &.variant-1 {
+    color: $cyan-bright;
+  }
+  &.variant-2 {
+    color: $cyan-mid;
+  }
+  &.variant-3 {
+    color: $blue-soft;
+  }
+}
+
+// Star-light particles
+.pattern-loading-user-star-light {
+  position: absolute;
+  width: var(--star-size, 10px);
+  height: var(--star-size, 10px);
+  z-index: 2;
+  pointer-events: none;
+
+  animation: starTwinkle var(--star-duration, 3.5s) ease-in-out
+    var(--star-delay, 0s) infinite;
+
+  // 4-point star using two rotated pseudo-elements
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: center;
+    background: $cyan-bright;
+    border-radius: 40%;
+  }
+
+  // Horizontal bar
+  &::before {
+    width: 100%;
+    height: 20%;
+    transform: translate(-50%, -50%);
+    box-shadow:
+      0 0 6px 1px $cyan-bright,
+      0 0 14px 2px rgba(0, 212, 255, 0.4);
+  }
+
+  // Vertical bar
+  &::after {
+    width: 20%;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    box-shadow:
+      0 0 6px 1px $cyan-bright,
+      0 0 14px 2px rgba(0, 212, 255, 0.4);
+  }
+}
+
+// Centre content wrapper
+.pattern-loading-user-center {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+// Icon wrapper & glow ring
+.pattern-loading-user-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Animated glow ring behind the icon
+.pattern-loading-user-ring {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 212, 255, 0.35);
+  box-shadow:
+    0 0 24px 6px rgba(0, 180, 255, 0.18),
+    inset 0 0 24px 6px rgba(0, 180, 255, 0.1);
+  animation: ringPulse 3s ease-in-out infinite;
+  pointer-events: none;
+
+  // Second, slightly larger outer ring
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    animation: ringPulse 3s ease-in-out 1.5s infinite;
+  }
+}
+
+// Icon image
+.pattern-loading-user-icon {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  animation: iconBreathe 4s ease-in-out infinite;
+
+  // Soft cyan vignette overlay on the icon
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: inset 0 0 30px 8px rgba(0, 20, 60, 0.5);
+    pointer-events: none;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+// Loading text
+.pattern-loading-user-text {
+  color: $text-primary;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: clamp(0.75rem, 2vw, 0.9rem);
+  font-weight: 500;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  text-align: center;
+  margin: 0;
+
+  // Subtle text glow
+  text-shadow:
+    0 0 12px rgba(0, 212, 255, 0.6),
+    0 0 28px rgba(0, 150, 220, 0.3);
+
+  animation: textFade 2.4s ease-in-out infinite;
+}
+
+// Responsive
+@media (max-width: 640px) {
+  .pattern-loading-user-ring {
+    width: 180px;
+    height: 180px;
+  }
+
+  .pattern-loading-user-icon {
+    width: 140px;
+    height: 140px;
+  }
+
+  .pattern-loading-user-center {
+    gap: 20px;
+  }
+}

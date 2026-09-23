@@ -1,0 +1,77 @@
+# OnlyOffice Document Server + Redis (session cache)
+# Runs alongside the main Poliwise docker-compose stack
+services:
+  onlyoffice-document-server:
+    image: onlyoffice/documentserver:8.1.0
+    container_name: poliwise-onlyoffice
+    restart: unless-stopped
+    environment:
+      # JWT secret MUST match KNOWLEDGE_SERVICE_ONLYOFFICE_JWT_SECRET
+      # Generate with: openssl rand -base64 32  (>= 256 bits required)
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-ChangeMeInProductionPleaseUseAtLeast256Bits!}
+      # Use internal Redis for document server session cache
+      REDIS_SERVER_HOST: onlyoffice-redis
+      REDIS_SERVER_PORT: 6379
+      REDIS_SERVER_PASS: ${ONLYOFFICE_REDIS_PASSWORD:-onlyoffice_redis_pass}
+      # Disable example site
+      USE_UNAUTHORIZED: "false"
+      # Document server license (leave empty for Community Edition)
+      LICENSE_KEY: ${ONLYOFFICE_LICENSE_KEY:-}
+    volumes:
+      # Document server data directories
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_cache:/var/lib/onlyoffice/documentserver/files
+    ports:
+      - "8888:80"      # HTTP (nginx serves here)
+      - "8443:443"     # HTTPS
+    depends_on:
+      onlyoffice-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 2G
+    networks:
+      - poliwise
+
+  onlyoffice-redis:
+    image: redis:7-alpine
+    container_name: poliwise-onlyoffice-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${ONLYOFFICE_REDIS_PASSWORD:-onlyoffice_redis_pass}
+    volumes:
+      - onlyoffice_redis_data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${ONLYOFFICE_REDIS_PASSWORD:-onlyoffice_redis_pass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - poliwise
+
+volumes:
+  onlyoffice_data:
+    driver: local
+  onlyoffice_logs:
+    driver: local
+  onlyoffice_cache:
+    driver: local
+  onlyoffice_redis_data:
+    driver: local
+
+networks:
+  poliwise:
+    name: poliwise-network
+    external: true

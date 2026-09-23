@@ -1,0 +1,30 @@
+services:
+  auth-service:
+    ports:
+      - "8081:8081"
+
+  user-service:
+    ports:
+      - "8082:8082"
+
+  knowledge-service:
+    ports:
+      - "8083:8083"
+
+  metadata-service:
+    ports:
+      - "8084:8084"
+
+  feedback-service:
+    ports:
+      - "8085:8085"
+
+  ingestion-service:
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./services/ingestion-service/src:/app/src
+
+  ai-qa-service:
+    ports:
+      - "8086:8086"

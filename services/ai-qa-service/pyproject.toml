@@ -1,0 +1,41 @@
+[project]
+name = "poliwise-ai-qa"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "AI Q&A Service for Poliwise - RAG, conversation management, knowledge gap detection"
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sse-starlette>=2.0.0",
+    "asyncpg>=0.30.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "pgvector>=0.3.0",
+    "aio-pika>=9.4.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "openai>=1.50.0",
+    "groq>=0.11.0",
+    "httpx>=0.27.0",
+    "structlog>=24.1.0",
+    "prometheus-client>=0.21.0",
+    "redis>=5.0.0",
+    "PyJWT>=2.10.1",
+    "google-generativeai>=0.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]

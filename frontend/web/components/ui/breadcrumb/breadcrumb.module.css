@@ -1,0 +1,39 @@
+.breadcrumb {
+  margin-bottom: 1rem;
+}
+
+.list {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.link {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.link:hover:not(.current) {
+  color: var(--primary);
+}
+
+.current {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.separator {
+  color: var(--muted-foreground);
+}

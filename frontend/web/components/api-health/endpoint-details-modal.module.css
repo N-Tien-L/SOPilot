@@ -1,0 +1,245 @@
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--muted);
+  border-radius: var(--radius-card);
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summaryLabel {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.summaryValue {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.thead {
+  background: var(--muted);
+}
+
+.th {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.tr:last-child {
+  border-bottom: none;
+}
+
+.tr:hover {
+  background: var(--muted);
+}
+
+.td {
+  padding: 0.625rem 0.75rem;
+  vertical-align: middle;
+}
+
+.path {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--foreground);
+  word-break: break-all;
+}
+
+.total {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.success,
+.failure,
+.noErrors {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 500;
+}
+
+.noErrors {
+  color: var(--muted-foreground);
+}
+
+.rateCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 100px;
+}
+
+.barBg {
+  flex: 1;
+  height: 6px;
+  background: var(--muted);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.barFill[data-health='success'] {
+  background: var(--success);
+}
+
+.barFill[data-health='warning'] {
+  background: var(--warning);
+}
+
+.barFill[data-health='danger'] {
+  background: var(--danger);
+}
+
+.successTone {
+  color: var(--success-foreground);
+}
+
+.warningTone {
+  color: var(--warning-foreground);
+}
+
+.dangerTone {
+  color: var(--danger-foreground);
+}
+
+.neutralTone {
+  color: var(--muted-foreground);
+}
+
+.rateValue {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.responseTime {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.expandBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background 0.1s;
+}
+
+.expandBtn:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.expandedRow {
+  background: var(--muted);
+}
+
+.expandedCell {
+  padding: 0;
+}
+
+.errorsList {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.errorsTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.errorItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.errorTime {
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  min-width: 140px;
+}
+
+.errorMethod {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--foreground);
+  min-width: 3rem;
+}
+
+.errorStatus {
+  font-weight: 700;
+  min-width: 2.5rem;
+}
+
+.errorPath {
+  font-family: var(--font-mono);
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.empty span {
+  font-size: 0.875rem;
+}

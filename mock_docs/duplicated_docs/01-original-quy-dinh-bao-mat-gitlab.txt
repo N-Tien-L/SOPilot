@@ -1,0 +1,66 @@
+# Quy định Bảo mật, An toàn Thông tin và Chính sách Sử dụng Hệ thống Gitlab Nội bộ (Tài liệu gốc - Mock Data)
+
+## 1. Giới thiệu chung và Mục đích
+
+Tài liệu này quy định các nguyên tắc về bảo mật thông tin cũng như quản lý mã nguồn, áp dụng cho toàn bộ nhân viên, cộng tác viên và các đối tác bên thứ ba khi truy cập và sử dụng hệ thống quản lý mã nguồn Gitlab nội bộ của Công ty Cổ phần Công nghệ Poliwise. Việc tuân thủ các quy định tại đây là yêu cầu bắt buộc nhằm đảm bảo an ninh thông tin, bảo vệ tài sản trí tuệ và hạn chế tối đa các rủi ro về pháp lý có thể phát sinh trong quá trình phát triển, vận hành và bảo trì hệ thống phần mềm.
+
+## 2. Phạm vi áp dụng và Đối tượng liên quan
+
+Chính sách này áp dụng cho toàn thể nhân viên chính thức (bao gồm nhân viên toàn thời gian và bán thời gian), các cộng tác viên, freelancer, nhà thầu phát triển phần mềm cũng như đối tác kinh doanh có quyền truy cập vào hệ thống Gitlab của Công ty. Mọi hệ thống mã nguồn, kho lưu trữ (repository), nhánh mã (branch), thẻ phiên bản (tag), cũng như các công cụ liên quan như CI/CD pipeline, Container Registry và Package Registry đều thuộc phạm vi quản lý của chính sách này.
+
+## 3. Quản lý Tài khoản và Quyền Truy cập
+
+### 3.1 Xác thực hai yếu tố (2FA)
+Mọi tài khoản Gitlab đều phải được kích hoạt Xác thực hai yếu tố thông qua ứng dụng Authenticator (Google Authenticator, Microsoft Authenticator, Authy) hoặc khóa bảo mật phần cứng FIDO2/U2F (YubiKey, Google Titan Key). Phương thức SMS OTP chỉ được sử dụng như phương án dự phòng cuối cùng khi không có thiết bị di động thông minh.
+
+### 3.2 Nguyên tắc đặc quyền tối thiểu (Least Privilege)
+Quyền truy cập (Guest, Reporter, Developer, Maintainer, Owner) chỉ được cấp phát ở mức vừa đủ, tương ứng với phạm vi công việc được phân công. Việc nâng cấp quyền phải được phê duyệt bằng văn bản bởi Quản lý trực tiếp và Phòng Công nghệ Thông tin. Khuyến khích rà soát và thu hồi quyền định kỳ mỗi quý một lần.
+
+### 3.3 Chính sách mật khẩu
+Mật khẩu phải có độ dài tối thiểu 12 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt. Mật khẩu phải được thay đổi định kỳ 90 ngày một lần. Hệ thống sẽ khóa tài khoản sau 5 lần đăng nhập thất bại liên tiếp. Lịch sử 10 mật khẩu gần nhất sẽ được lưu lại để ngăn chặn việc sử dụng lại.
+
+### 3.4 Nghiêm cấm chia sẻ tài khoản
+Nghiêm cấm tuyệt đối việc dùng chung tài khoản cá nhân, tiết lộ mật khẩu, mã OTP hoặc bất kỳ thông tin xác thực nào cho người khác, kể cả đồng nghiệp hoặc cấp trên. Mọi thao tác trên hệ thống cần được truy vết đến đúng một cá nhân chịu trách nhiệm thông qua nhật ký truy cập (audit log) được lưu trữ tối thiểu 12 tháng.
+
+## 4. Quy định về Cam kết Mã nguồn (Commit & Push Code)
+
+### 4.1 Bảo vệ thông tin nhạy cảm (Credentials & Secrets)
+**TUYỆT ĐỐI KHÔNG** commit các thông tin nhạy cảm lên repository, bao gồm nhưng không giới hạn ở: API Keys, mật khẩu cơ sở dữ liệu, private keys SSH/GPG, token JWT, OAuth client secrets, session secrets, cookie encryption keys, hoặc chuỗi kết nối cơ sở dữ liệu (Connection Strings) – ngay cả đối với kho lưu trữ riêng tư (Private Repository).
+
+Các giá trị bí mật phải được lưu trữ thông qua Gitlab CI/CD Variables (được đánh dấu Masked và Protected) hoặc các giải pháp quản lý tập trung như HashiCorp Vault, AWS Secrets Manager, GCP Secret Manager. Khuyến nghị tích hợp các công cụ quét pre-commit hook (ví dụ: git-secrets, trufflehog, gitleaks) để phát hiện sớm rò rỉ thông tin trước khi push lên remote origin.
+
+### 4.2 Kiểm tra mã nguồn (Code Review) và Bảo vệ nhánh chính
+Các nhánh chính (`main`, `master`, `production`, `release/*`) bắt buộc phải được cấu hình Protected Branches với chính sách "no one can push directly". Mỗi Merge Request cần có tối thiểu 02 nhân sự phê duyệt (Approve), trong đó ít nhất 01 người phải có quyền Maintainer. Đồng thời, mọi Merge Request phải vượt qua toàn bộ các bài kiểm tra tự động trong CI/CD Pipeline (unit test, integration test, security scan, code quality gate) trước khi được phép hợp nhất vào nhánh chính.
+
+### 4.3 Quy ước đặt tên nhánh và commit message
+Nhánh phải tuân thủ quy ước đặt tên: `feature/[Mã dự án]-[Mô tả ngắn]`, `bugfix/[Mã dự án]-[Mô tả lỗi]`, `hotfix/[Mã dự án]-[Mô tả sửa lỗi khẩn]`, `release/[Phiên bản]`, `chore/[Mô tả công việc]`. Commit message phải tuân thủ chuẩn Conventional Commits, có tiêu đề không quá 72 ký tự và phần mô tả chi tiết khi cần thiết.
+
+## 5. Chính sách Sử dụng Gitlab CI/CD
+
+### 5.1 Tối ưu tài nguyên Runner
+Hạn chế chạy các vòng lặp vô hạn, job nặng hoặc các tiến trình thử nghiệm tốn kém tài nguyên trên Shared Runners. Với tác vụ nặng (training mô hình, big data processing) nên chuyển sang Self-hosted Runner để tránh ảnh hưởng người dùng khác. Nghiêm cấm sử dụng tài nguyên Runner cho mục đích khai thác tiền mã hóa (cryptocurrency mining) hoặc các tác vụ phi pháp.
+
+### 5.2 Bảo mật Runner và Docker Image
+Chỉ sử dụng các Docker image chính thức từ nhà cung cấp đáng tin cậy (Docker Hub Official Images, GitLab Container Registry nội bộ) hoặc đã được đội ngũ Security review và phê duyệt trong file cấu hình `.gitlab-ci.yml`. Trước khi sử dụng image mới, cần thực hiện quét lỗ hổng bằng công cụ Trivy với mức cảnh báo tối thiểu HIGH và CRITICAL.
+
+### 5.3 Quản lý cache và artifacts
+Cache trong CI/CD chỉ nên được sử dụng cho các dependencies (node_modules, .m2/repository, pip cache) và phải được cấu hình key theo branch. Artifacts chứa dữ liệu nhạy cảm phải được đánh dấu "expire_in" tối đa 7 ngày và tuyệt đối không commit trực tiếp vào kho lưu trữ. Báo cáo kiểm thử (test reports) cần được tải lên Gitlab để theo dõi xu hướng chất lượng theo thời gian.
+
+## 6. Quy trình Giám sát và Xử lý Sự cố
+
+### 6.1 Giám sát liên tục
+Đội ngũ Giám sát An ninh mạng (SOC) chịu trách nhiệm quét liên tục toàn bộ kho lưu trữ nhằm phát hiện sớm rò rỉ dữ liệu (Secret Detection), các lỗ hổng phụ thuộc (Dependency Scanning) và mã nguồn có chất lượng kém. Các công cụ SAST (Semgrep, SonarQube) và DAST (OWASP ZAP) được tích hợp tự động trong pipeline để phát hiện sớm các lỗ hổng bảo mật tiềm ẩn ngay từ giai đoạn phát triển.
+
+### 6.2 Xử lý vi phạm
+Khi phát hiện vi phạm nghiêm trọng (ví dụ: lộ mã nguồn cốt lõi của sản phẩm, rò rỉ khóa API của khách hàng, commit credentials production), tài khoản có liên quan sẽ bị tạm khóa ngay lập tức để phục vụ công tác điều tra, xác minh. Mọi sự cố phải được báo cáo cho Ban Giám đốc và Phòng Pháp chế trong vòng 24 giờ kể từ khi phát hiện.
+
+### 6.3 Phân loại mức độ vi phạm
+Mức NGHIÊM TRỌNG dành cho rò rỉ API key production hoặc lộ mã nguồn cốt lõi (hậu quả: khóa tài khoản, điều tra, kỷ luật). Mức CAO dành cho push credentials lên repository công khai (hậu quả: cảnh cáo, đào tạo bắt buộc). Mức TRUNG BÌNH dành cho bypass code review hoặc commit trực tiếp vào main (hậu quả: cảnh cáo bằng văn bản). Mức THẤP dành cho vi phạm thủ tục hành chính như đặt tên nhánh sai quy định (hậu quả: nhắc nhở).
+
+## 7. Điều khoản Thi hành và Đào tạo
+
+Mọi hành vi cố ý hoặc vô tình vi phạm các quy định nêu trên, tùy thuộc vào mức độ nghiêm trọng của sự việc, sẽ bị xử lý kỷ luật theo Quy chế lao động của Công ty hoặc chuyển giao hồ sơ cho cơ quan chức năng có thẩm quyền xử lý theo quy định pháp luật Việt Nam về An ninh mạng. Nhân viên mới phải hoàn thành khóa đào tạo bảo mật cơ bản trước khi được cấp quyền truy cập hệ thống. Lập trình viên tham gia khóa đào tạo Secure Coding và OWASP Top 10 mỗi quý một lần.
+
+---
+
+*Tài liệu này được tạo tự động phục vụ mục đích thử nghiệm hệ thống Ingest dữ liệu (Mock Data). Không có giá trị pháp lý trong thực tế.*

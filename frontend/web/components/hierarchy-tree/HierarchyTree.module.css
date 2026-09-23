@@ -1,0 +1,555 @@
+/* ============================================================================
+   HIERARCHY TREE - Modern Card-Based Design
+   ============================================================================ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.25rem;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 1rem 1rem 0 0;
+}
+
+.toolbarLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6366f1;
+  letter-spacing: 0.01em;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.toolbarBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.4375rem 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: white;
+  color: #4b5563;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.toolbarBtn:hover {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.toolbarBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Tree Container ── */
+.tree {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 1rem 1rem;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* ── Tree Content (indented) ── */
+.treeContent {
+  padding: 1rem;
+}
+
+/* ── Node Card ── */
+.nodeWrapper {
+  position: relative;
+}
+
+.rootNode {
+  margin-bottom: 0.75rem;
+}
+
+.rootNode:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Node Card Styling ── */
+.nodeCard {
+  position: relative;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: default;
+  overflow: hidden;
+}
+
+.nodeCard::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 0.75rem 0 0 0.75rem;
+  transition: all 0.25s ease;
+}
+
+.nodeCard:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1), 0 2px 4px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.nodeCard:hover::before {
+  background: #6366f1;
+}
+
+/* Root nodes get purple accent */
+.rootNode .nodeCard::before {
+  background: #8b5cf6;
+}
+
+.rootNode .nodeCard:hover::before {
+  background: #7c3aed;
+}
+
+/* Child nodes get emerald accent */
+.childNode .nodeCard::before {
+  background: #10b981;
+}
+
+.childNode .nodeCard:hover::before {
+  background: #059669;
+}
+
+/* Inactive state */
+.inactive .nodeCard {
+  background: #f9fafb;
+  border-color: #f3f4f6;
+}
+
+.inactive .nodeCard::before {
+  background: #d1d5db !important;
+}
+
+.inactive .nodeCard:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+/* ── Card Header (Toggle + Icon) ── */
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+/* ── Toggle Button ── */
+.toggleBtn {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toggleBtn.hasChildren {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  color: #7c3aed;
+}
+
+.toggleBtn.hasChildren:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  transform: scale(1.05);
+}
+
+.toggleBtn:disabled {
+  background: transparent;
+  cursor: default;
+}
+
+.toggleBtn svg {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggleBtn.expanded svg {
+  transform: rotate(180deg);
+}
+
+/* ── Department Icon ── */
+.deptIcon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.rootIcon {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+}
+
+.childIcon {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+}
+
+.inactiveIcon {
+  background: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%);
+  color: white;
+  box-shadow: none;
+}
+
+/* ── Node Info ── */
+.nodeInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nodeNameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.nodeName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.inactiveText {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.nodeCode {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.nodeMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Badges ── */
+.childBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.625rem;
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  color: #7c3aed;
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+.childBadgeExpanded {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+}
+
+.userCountBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  background: #f0fdf4;
+  color: #059669;
+  border-radius: 9999px;
+}
+
+.nodeDesc {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Status Indicator ── */
+.statusWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.statusDot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.statusDot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.3;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.3); opacity: 0; }
+}
+
+.statusActive {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.statusInactive {
+  background: #d1d5db;
+  box-shadow: none;
+}
+
+.statusInactive::after {
+  display: none;
+}
+
+.statusLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statusLabelActive {
+  color: #059669;
+}
+
+.statusLabelInactive {
+  color: #9ca3af;
+}
+
+/* ── Card Actions ── */
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0;
+  transform: translateX(4px);
+  transition: all 0.2s ease;
+}
+
+.nodeCard:hover .cardActions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: #f9fafb;
+  color: #111827;
+  border-color: #d1d5db;
+  transform: scale(1.05);
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actionBtn.actionDanger:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.actionBtn.actionSuccess:hover:not(:disabled) {
+  background: #f0fdf4;
+  color: #059669;
+  border-color: #bbf7d0;
+}
+
+/* ── Children Container ── */
+.childrenContainer {
+  margin-top: 0.625rem;
+  margin-left: 2.75rem;
+  padding-left: 1.5rem;
+  border-left: 2px dashed #e5e7eb;
+  position: relative;
+}
+
+.childrenContainer::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -0.75rem;
+  width: 1.5rem;
+  height: 2px;
+  background: #e5e7eb;
+}
+
+/* ── Empty State ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #9ca3af;
+  gap: 1rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: white;
+}
+
+.emptyIcon {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* ── Animations ── */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nodeWrapper {
+  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nodeWrapper:nth-child(2) { animation-delay: 0.05s; }
+.nodeWrapper:nth-child(3) { animation-delay: 0.1s; }
+.nodeWrapper:nth-child(4) { animation-delay: 0.15s; }
+.nodeWrapper:nth-child(5) { animation-delay: 0.2s; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  
+  .toolbarActions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  
+  .toolbarBtn {
+    flex: 1;
+    justify-content: center;
+  }
+  
+  .nodeCard {
+    padding: 0.875rem 1rem;
+  }
+  
+  .nodeNameRow {
+    flex-wrap: wrap;
+  }
+  
+  .cardActions {
+    opacity: 1;
+    transform: none;
+  }
+  
+  .childrenContainer {
+    margin-left: 1.5rem;
+    padding-left: 1rem;
+  }
+}

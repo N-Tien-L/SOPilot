@@ -1,0 +1,29 @@
+# Quy định Bảo mật và Chính sách Sử dụng Hệ thống Gitlab (Nội bộ - Tài liệu giả định)
+
+## 1. Giới thiệu chung
+Chính sách này quy định các nguyên tắc bảo mật thông tin và quản lý mã nguồn dành cho toàn thể nhân viên, cộng tác viên và bên thứ ba khi tiếp cận hệ thống tài nguyên Gitlab của Công ty. Việc tuân thủ chính sách này là bắt buộc để đảm bảo an toàn thông tin và tránh các rủi ro pháp lý.
+
+## 2. Quản lý Tài khoản và Quyền Truy cập
+* **Xác thực hai yếu tố (2FA):** Tất cả tài khoản Gitlab bắt buộc phải kích hoạt 2FA (Xác thực hai yếu tố) qua ứng dụng Authenticator hoặc khóa bảo mật vật lý.
+* **Nguyên tắc đặc quyền tối thiểu (Least Privilege):** Nhân viên chỉ được cấp quyền truy cập (Guest, Reporter, Developer, Maintainer, Owner) vừa đủ để hoàn thành nhiệm vụ được giao.
+* **Chia sẻ tài khoản:** Tuyệt đối không chia sẻ tài khoản cá nhân, mật khẩu hoặc mã OTP cho bất kỳ ai. Mỗi hành động trên hệ thống phải được định danh chính xác tới một cá nhân.
+
+## 3. Quy định về Cam kết Mã nguồn (Commit & Push Code)
+* **Bảo mật thông tin nhạy cảm (Credentials & Secrets):**
+    * **NGHIÊM CẤM** đẩy các thông tin nhạy cảm như: API Keys, Mật khẩu, private keys, SSH keys, hoặc chuỗi kết nối cơ sở dữ liệu (Connection Strings) lên mã nguồn (kể cả kho lưu trữ riêng tư - Private Repository).
+    * Phải sử dụng Gitlab CI/CD Variables (được ẩn hoặc bảo vệ) hoặc các giải pháp quản lý bí mật như HashiCorp Vault, AWS Secrets Manager.
+* **Kiểm tra mã nguồn (Code Review):** Tất cả các nhánh mã nguồn chính (`main`, `master`, `production`) phải được bảo vệ (Protected Branches). Việc trộn mã (Merge Request) bắt buộc phải có ít nhất 02 nhân sự phê duyệt (Approve) và vượt qua các bài kiểm tra tự động (CI/CD Pipeline).
+
+## 4. Chính sách Sử dụng Gitlab CI/CD
+* **Tối ưu hóa tài nguyên:** Tránh việc chạy các vòng lặp vô hạn hoặc các tiến trình thử nghiệm tốn kém tài nguyên trên Shared Runners.
+* **Bảo mật Runner:** Chỉ sử dụng các Docker image chính thức hoặc đã được đội ngũ Security kiểm duyệt trong file cấu hình `.gitlab-ci.yml`.
+
+## 5. Quy trình Giám sát và Xử lý Sự cố
+* Đội ngũ Giám sát An ninh mạng (SOC) sẽ quét liên tục các kho lưu trữ để phát hiện rò rỉ dữ liệu (Secret Detection) và lỗ hổng phụ thuộc (Dependency Scanning).
+* Nếu phát hiện vi phạm nghiêm trọng (ví dụ: lộ mã nguồn cốt lõi, rò rỉ khóa API của khách hàng), tài khoản liên quan sẽ bị tạm khóa ngay lập tức để phục vụ điều tra.
+
+## 6. Điều khoản Thi hành
+Mọi hành vi cố tình vi phạm chính sách này, tùy theo mức độ nghiêm trọng, sẽ bị xử lý kỷ luật theo Quy chế lao động của Công ty hoặc chuyển giao cho cơ quan pháp luật xử lý.
+
+---
+*Tài liệu này được tạo tự động cho mục đích thử nghiệm hệ thống Ingest dữ liệu (Mock Data). Không có giá trị pháp lý thực tế.*

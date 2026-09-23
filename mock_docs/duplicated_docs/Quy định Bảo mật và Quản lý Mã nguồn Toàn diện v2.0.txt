@@ -1,0 +1,346 @@
+# Quy định Bảo mật, An toàn Thông tin và Quản lý Mã nguồn Cho Nhân viên, Cộng tác viên và Đối tác
+
+## Phiên bản: 2.0
+## Ngày ban hành: 01/01/2025
+## Đơn vị ban hành: Phòng Công nghệ Thông tin & An ninh Mạng
+
+---
+
+## 1. Mục đích và Phạm vi áp dụng
+
+### 1.1 Mục đích
+Chính sách bảo mật thông tin và quản lý mã nguồn này được ban hành nhằm:
+- Thiết lập các tiêu chuẩn và quy trình bảo mật thông tin tối thiểu cho toàn bộ hệ thống công nghệ thông tin của Công ty
+- Đảm bảo tính toàn vẹn, bảo mật và khả dụng của mã nguồn và tài nguyên số
+- Phòng ngừa các rủi ro về an ninh thông tin, rò rỉ dữ liệu và vi phạm pháp luật
+- Tạo dựng văn hóa an ninh thông tin xuyên suốt tổ chức
+
+### 1.2 Phạm vi áp dụng
+Chính sách này áp dụng cho:
+- Toàn thể nhân viên chính thức của Công ty (bao gồm nhân viên toàn thời gian và bán thời gian)
+- Các cộng tác viên, freelancer, và nhà thầu có quyền truy cập hệ thống
+- Đối tác kinh doanh, khách hàng và bên thứ ba được cấp quyền truy cập
+- Tất cả các hệ thống, ứng dụng, cơ sở dữ liệu và kho mã nguồn (Gitlab, GitHub, Bitbucket)
+
+---
+
+## 2. Quản lý Tài khoản và Xác thực Người dùng
+
+### 2.1 Yêu cầu về Mật khẩu
+| Tiêu chí | Yêu cầu tối thiểu |
+|-----------|---------------------|
+| Độ dài | Tối thiểu 12 ký tự |
+| Độ phức tạp | Chữ hoa, chữ thường, số, ký tự đặc biệt |
+| Thời hạn đổi mật khẩu | 90 ngày |
+| Lịch sử mật khẩu | Không được sử dụng lại 10 mật khẩu gần nhất |
+| Khóa tài khoản | Khóa sau 5 lần đăng nhập thất bại |
+
+### 2.2 Xác thực Hai Yếu tố (2FA)
+**Bắt buộc** đối với tất cả tài khoản:
+- **Phương thức ưu tiên:** Ứng dụng Authenticator (Google Authenticator, Microsoft Authenticator, Authy)
+- **Phương thức thay thế:** Khóa bảo mật vật lý FIDO2/U2F (YubiKey, Google Titan Key)
+- **Phương thức dự phòng:** SMS OTP (chỉ khi không có thiết bị di động thông minh)
+- **Thời hạn hết hạn phiên:** Tối đa 8 giờ làm việc
+
+### 2.3 Nguyên tắc Đặc quyền Tối thiểu (Principle of Least Privilege)
+Các vai trò và quyền truy cập được phân cấp như sau:
+
+1. **Guest (Khách):** Chỉ có quyền đọc các dự án được công khai
+2. **Reporter (Người báo cáo):** Có quyền đọc và tạo issue
+3. **Developer (Lập trình viên):** Có quyền đọc, ghi và tạo merge request
+4. **Maintainer (Người bảo trì):** Có quyền quản lý nhánh, tag, và cài đặt dự án
+5. **Owner (Chủ sở hữu):** Toàn quyền quản trị dự án
+
+**Nguyên tắc:** Nhân viên chỉ được cấp vai trò tối thiểu cần thiết để hoàn thành công việc. Việc nâng cấp quyền phải được phê duyệt bằng văn bản bởi Quản lý trực tiếp và Phòng IT.
+
+### 2.4 Nghiêm cấm Chia sẻ Tài khoản
+- **TUYỆT ĐỐI NGHIÊM CẤM** việc chia sẻ tài khoản cá nhân dưới bất kỳ hình thức nào
+- Mỗi cá nhân phải có tài khoản riêng biệt được gắn với định danh thực
+- Mật khẩu, mã OTP, và thông tin xác thực không được tiết lộ cho bất kỳ ai, kể cả đồng nghiệp hoặc quản lý
+- Mọi hành động trên hệ thống phải có thể truy nguyên đến một cá nhân cụ thể
+
+---
+
+## 3. Quy định về Quản lý Mã nguồn (Source Code Management)
+
+### 3.1 Cấu trúc Kho lưu trữ (Repository Structure)
+Mỗi dự án phải tuân thủ cấu trúc thư mục chuẩn:
+```
+project-root/
+├── .gitlab/               # Cấu hình Gitlab CI/CD
+├── docs/                   # Tài liệu dự án
+├── src/ hoặc lib/         # Mã nguồn chính
+├── tests/                  # Bài kiểm tra (unit, integration, e2e)
+├── scripts/                # Script tự động hóa
+├── configs/                # File cấu hình
+├── README.md               # Hướng dẫn sử dụng
+└── LICENSE                 # Giấy phép sử dụng
+```
+
+### 3.2 Bảo vệ Nhánh Chính (Protected Branches)
+Các nhánh sau **BẮT BUỘC** phải được bảo vệ:
+- `main` hoặc `master`
+- `production`
+- `release/*`
+- Các nhánh chứa mã triển khai thực tế
+
+**Yêu cầu khi Merge/Pull Request:**
+| Tiêu chí | Yêu cầu |
+|-----------|----------|
+| Số người phê duyệt tối thiểu | 2 người |
+| Kiểm tra CI/CD | Phải vượt qua 100% |
+| Kiểm tra bảo mật | Không được có lỗ hổng nghiêm trọng |
+| Code review | Ít nhất 1 người có quyền Maintainer |
+| Squash commit | Khuyến nghị bật |
+
+### 3.3 Quy ước Đặt tên Nhánh (Branch Naming Convention)
+```
+feature/[Mã dự án]-[Mô tả ngắn]
+bugfix/[Mã dự án]-[Mô tả lỗi]
+hotfix/[Mã dự án]-[Mô tả sửa lỗi khẩn]
+release/[Phiên bản]
+chore/[Mô tả công việc]
+```
+
+---
+
+## 4. Chính sách Bảo mật Thông tin Nhạy cảm trong Mã nguồn
+
+### 4.1 Danh mục Thông tin Nhạy cảm BỊ NGHIÊM CẤM Đưa vào Mã nguồn
+
+#### A. Thông tin Xác thực (Credentials)
+- API Keys và Secret Keys của bất kỳ dịch vụ nào (AWS, Google Cloud, Azure, Stripe, PayPal...)
+- Client Secrets và Access Tokens
+- Private Keys SSH và GPG
+- Mật khẩu kết nối cơ sở dữ liệu (Connection Strings)
+- Session Keys và Cookie Secrets
+- OAuth Client IDs và Client Secrets
+
+#### B. Thông tin Cá nhân (PII)
+- Số Chứng minh nhân dân (CMND/CCCD)
+- Số Bảo hiểm Xã hội (BHXH)
+- Địa chỉ email và số điện thoại cá nhân
+- Thông tin tài khoản ngân hàng
+- Thông tin y tế và hồ sơ sức khỏe
+
+#### C. Thông tin Doanh nghiệp Nhạy cảm
+- Chiến lược kinh doanh và kế hoạch phát triển sản phẩm chưa công bố
+- Thông tin tài chính nội bộ
+- Mã nguồn cốt lõi thuộc sở hữu trí tuệ độc quyền
+- Thông tin khách hàng và đối tác được bảo mật
+
+### 4.2 Giải pháp Thay thế cho Việc Lưu Trữ Thông tin Nhạy cảm
+
+#### A. Gitlab CI/CD Variables (Khuyến nghị)
+```yaml
+# Sử dụng biến môi trường được bảo vệ
+variables:
+  DATABASE_URL: ${PROTECTED_DATABASE_URL}
+  API_KEY: ${PROTECTED_API_KEY}
+```
+
+**Hướng dẫn thiết lập:**
+1. Điều hướng đến **Settings > CI/CD > Variables**
+2. Tạo biến với **"Protected variable"** được bật
+3. Chọn **"Masked variable"** để ẩn giá trị trong log
+4. Giới hạn quyền truy cập theo nhánh (Protected branches only)
+
+#### B. HashiCorp Vault (Cho tổ chức lớn)
+```bash
+# Truy xuất secrets từ Vault
+vault kv get -field=api_key secret/myapp/production
+```
+
+#### C. AWS Secrets Manager / Parameter Store
+```bash
+# AWS Systems Manager Parameter Store
+aws ssm get-parameter --name /myapp/production/api-key --with-decryption
+```
+
+### 4.3 Công cụ Phát hiện Rò rỉ Thông tin Nhạy cảm
+Đội ngũ DevOps đã triển khai các công cụ tự động quét:
+
+1. **GitLab Secret Detection:** Quét tự động trên mọi commit và merge request
+2. **Trufflehog:** Công cụ quét mã nguồn mở phát hiện hardcoded secrets
+3. **Gitleaks:** Quét trên local và CI/CD pipeline
+4. **Dependabot:** Phát hiện dependencies có lỗ hổng bảo mật
+
+**Phản ứng khi phát hiện rò rỉ:**
+1. **Ngay lập tức:** Xóa/thay đổi thông tin bị rò rỉ
+2. **Trong 24 giờ:** Thu hồi và tạo lại credentials bị lộ
+3. **Điều tra:** Xác định nguyên nhân và phạm vi ảnh hưởng
+4. **Báo cáo:** Báo cáo sự cố cho Phòng An ninh Mạng
+
+---
+
+## 5. Chính sách GitLab CI/CD
+
+### 5.1 Nguyên tắc Sử dụng Shared Runners
+| Hành vi | Cho phép | Nghiêm cấm |
+|---------|----------|------------|
+| Chạy job build/test | ✅ | ❌ |
+| Deploy lên môi trường dev | ✅ | ❌ |
+| Deploy lên production | ❌ Cần phê duyệt | ❌ |
+| Vòng lặp vô hạn | - | ❌ |
+| Tải file lớn (trên 100MB) | - | ❌ |
+| Sử dụng cryptocurrency mining | - | ❌ NGHIÊM CẤM |
+| Scan tấn công bảo mật | - | ❌ |
+
+### 5.2 Yêu cầu về Docker Images
+**Chỉ sử dụng các Docker images đã được phê duyệt:**
+- Images chính thức từ Docker Hub (đã verify)
+- Images nội bộ được build và scan bởi đội ngũ Security
+- Images từ GitLab Container Registry nội bộ
+
+**Kiểm tra bảo mật image trước khi sử dụng:**
+```bash
+# Quét image bằng Trivy
+trivy image --severity HIGH,CRITICAL your-image:tag
+```
+
+### 5.3 Best Practices cho .gitlab-ci.yml
+```yaml
+stages:
+  - test
+  - build
+  - deploy
+
+# Cache chỉ cho dependencies, không cache sensitive data
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - .m2/repository/
+
+# Bảo mật variables trong CI/CD
+variables:
+  DANGEROUS_SECRETS: $PROTECTED_DANGEROUS_SECRETS
+
+# Job security
+security_scan:
+  stage: test
+  script:
+    - trivy fs --severity HIGH,CRITICAL .
+    - semgrep --config=auto .
+```
+
+---
+
+## 6. Quy trình Giám sát, Phát hiện và Phản ứng Sự cố
+
+### 6.1 Giám sát Liên tục (Continuous Monitoring)
+Đội ngũ Security Operations Center (SOC) thực hiện giám sát 24/7:
+
+**Các hoạt động giám sát:**
+- Quét Secret Detection trên tất cả repositories (chạy hàng giờ)
+- Dependency Scanning để phát hiện vulnerabilities
+- SAST (Static Application Security Testing) trên mã nguồn
+- DAST (Dynamic Application Security Testing) trên ứng dụng đang chạy
+- Giám sát truy cập bất thường vào repositories
+
+### 6.2 Phân loại Mức độ Vi phạm
+| Mức độ | Mô tả | Ví dụ | Hậu quả |
+|--------|-------|-------|---------|
+| **NGHIÊM TRỌNG** | Rò rỉ thông tin nhạy cảm cấp độ cao | Lộ API key production, mã nguồn cốt lõi | Khóa tài khoản, điều tra, kỷ luật |
+| **CAO** | Vi phạm chính sách bảo mật nghiêm trọng | Push credentials lên repository công khai | Cảnh cáo, đào tạo bắt buộc |
+| **TRUNG BÌNH** | Vi phạm quy trình kỹ thuật | Bypass code review, commit trực tiếp vào main | Cảnh cáo bằng văn bản |
+| **THẤP** | Vi phạm thủ tục hành chính | Đặt tên nhánh không đúng quy định | Nhắc nhở, không xử lý |
+
+### 6.3 Quy trình Xử lý Sự cố
+```
+1. PHÁT HIỆN (Detection)
+   └── Hệ thống giám sát phát hiện vi phạm
+       hoặc User báo cáo sự cố
+
+2. PHÂN TÍCH (Analysis)
+   └── SOC điều tra, xác định nguyên nhân
+       và phạm vi ảnh hưởng
+
+3. NGĂN CHẶN (Containment)
+   └── Thu hồi credentials, khóa tài khoản,
+       xóa thông tin rò rỉ
+
+4. XỬ LÝ (Remediation)
+   └── Sửa lỗi, cập nhật hệ thống,
+       vá lỗ hổng
+
+5. PHỤC HỒI (Recovery)
+   └── Khôi phục dịch vụ, reset permissions,
+       verify không còn rủi ro
+
+6. RÚT KINH NGHIỆM (Lessons Learned)
+   └── Cập nhật chính sách, đào tạo nhân viên
+```
+
+---
+
+## 7. Đào tạo và Nâng cao Nhận thức
+
+### 7.1 Chương trình Đào tạo Bắt buộc
+| Đối tượng | Tần suất | Nội dung |
+|-----------|----------|----------|
+| Nhân viên mới | Trước khi truy cập hệ thống | Orientation bảo mật cơ bản |
+| Lập trình viên | Hàng quý | Secure coding practices, OWASP Top 10 |
+| Quản lý dự án | Hàng năm | Governance và compliance |
+| Đội ngũ DevOps/SRE | Hàng quý | Infrastructure security, incident response |
+
+### 7.2 Chứng chỉ Khuyến khích
+- AWS Certified Security - Specialty
+- Certified Ethical Hacker (CEH)
+- GIAC Security Essentials (GSEC)
+- CompTIA Security+
+
+---
+
+## 8. Điều khoản Thi hành và Kỷ luật
+
+### 8.1 Trách nhiệm Tuân thủ
+- **Nhân viên:** Tuân thủ nghiêm ngặt các quy định trong chính sách này
+- **Quản lý:** Đảm bảo nhân viên được đào tạo và giám sát việc tuân thủ
+- **Phòng IT/An ninh mạng:** Triển khai công cụ, giám sát và xử lý vi phạm
+- **Phòng Nhân sự:** Phối hợp xử lý kỷ luật theo quy định
+
+### 8.2 Biện pháp Xử lý Kỷ luật
+Việc cố tình hoặc vô tình vi phạm chính sách này sẽ bị xử lý theo mức độ nghiêm trọng:
+
+1. **Cảnh cáo bằng văn bản** cho các vi phạm nhỏ (lần đầu)
+2. **Đình chỉ quyền truy cập tạm thời** (1-30 ngày) cho vi phạm trung bình
+3. **Kỷ luật theo Quy chế lao động** cho vi phạm nghiêm trọng hoặc tái phạm
+4. **Chuyển hồ sơ cho cơ quan pháp luật** khi có dấu hiệu hình sự (theo quy định pháp luật Việt Nam về An ninh mạng)
+
+### 8.3 Báo cáo Vi phạm
+Mọi vi phạm hoặc nghi ngờ vi phạm cần được báo cáo ngay lập tức qua:
+- **Email:** security@congty.com.vn
+- **Hotline:** 1900-XXXX (nội bộ)
+- **Hệ thống ticket:** Jira Security Channel
+
+---
+
+## 9. Tài liệu Liên quan
+
+- Chính sách Bảo mật Thông tin Công ty
+- Quy chế Sử dụng Thiết bị Cá nhân (BYOD)
+- Quy trình Ứng phó Sự cố An ninh Mạng
+- Tiêu chuẩn Mã hóa Dữ liệu
+- Chính sách Sao lưu và Phục hồi Dữ liệu
+
+---
+
+## 10. Lịch sử Phiên bản
+
+| Phiên bản | Ngày | Người sửa | Mô tả thay đổi |
+|-----------|------|-----------|-----------------|
+| 1.0 | 01/01/2024 | Phòng IT | Ban hành lần đầu |
+| 1.1 | 01/06/2024 | Phòng IT | Bổ sung hướng dẫn Vault |
+| 2.0 | 01/01/2025 | Phòng An ninh Mạng | Cập nhật toàn diện, bổ sung CI/CD |
+
+---
+
+*Tài liệu này được phê duyệt bởi Ban Giám đốc và có hiệu lực kể từ ngày ban hành.*
+
+*Người biên soạn: Phòng Công nghệ Thông tin & An ninh Mạng*
+*Người phê duyệt: Giám đốc Công nghệ (CTO)*
+*Ngày phê duyệt: 01/01/2025*
+
+---
+*Tài liệu này được tạo tự động cho mục đích thử nghiệm hệ thống Ingest dữ liệu (Mock Data). Không có giá trị pháp lý thực tế.*
