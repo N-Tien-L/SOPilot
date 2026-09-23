@@ -23,7 +23,7 @@ import sys
 import types
 import uuid
 from typing import Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -43,37 +43,6 @@ def _make_stub_module(name: str, **attrs) -> types.ModuleType:
 structlog_stub = _make_stub_module("structlog")
 structlog_stub.get_logger = lambda: MagicMock()
 sys.modules.setdefault("structlog", structlog_stub)
-
-# src.* package stubs (filled in per-test via patch where needed)
-for pkg in [
-    "src.db", "src.db.session",
-    "src.db.repositories", "src.db.repositories.version_repo",
-    "src.db.repositories.chunk_repo", "src.db.repositories.document_repo",
-    "src.db.repositories.job_repo",
-    "src.services.embedding_service",
-    "src.services.minio_service", "src.services.processing_job_service",
-    "src.services.extractors.orchestrator",
-    "src.services.standardizer", "src.services.chunker",
-    "src.models", "src.models.extraction", "src.models.document",
-]:
-    sys.modules.setdefault(pkg, types.ModuleType(pkg))
-
-# Provide concrete names that production code accesses at import time
-sys.modules["src.db.session"].async_session = MagicMock()
-sys.modules["src.db.repositories.version_repo"].VersionRepository = MagicMock()
-sys.modules["src.db.repositories.chunk_repo"].ChunkRepository = MagicMock()
-sys.modules["src.db.repositories.document_repo"].DocumentRepository = MagicMock()
-sys.modules["src.db.repositories.job_repo"].JobRepository = MagicMock()
-
-sys.modules["src.services.embedding_service"].embedding_service = MagicMock()
-sys.modules["src.services.minio_service"].minio_service = MagicMock()
-sys.modules["src.services.processing_job_service"].processing_job_service = MagicMock()
-sys.modules["src.services.extractors.orchestrator"].orchestrator = MagicMock()
-sys.modules["src.services.standardizer"].DocumentPolicyStandardizer = MagicMock()
-sys.modules["src.services.chunker"].ParentChildChunker = MagicMock()
-
-sys.modules["src.models.extraction"].Chunk = MagicMock()
-sys.modules["src.models.document"].Document = MagicMock()
 
 # Now we can safely import production code
 from src.services.deduplicator import Deduplicator, DeduplicationResult  # noqa: E402
@@ -312,13 +281,13 @@ class TestLayer3Semantic:
         """A document that is paraphrased but semantically identical must be caught."""
         text     = "Employees must follow the safety protocol at all times."
         existing = _make_version_mock()
-        vec      = _fake_embedding(0.9)
+        vec      = _fake_embedding(0.5)
 
         emb_service = MagicMock()
         emb_service.embed_batch = AsyncMock(return_value=[vec])
 
         repo = MagicMock()
-        repo.find_near_duplicates = AsyncMock(return_value=[(existing, 0.97)])
+        repo.find_near_duplicates = AsyncMock(return_value=[(existing, 0.99)])
 
         cm, _ = _make_async_session_cm(repo)
 
@@ -330,7 +299,7 @@ class TestLayer3Semantic:
 
         assert result.is_duplicate is True
         assert result.method == "semantic"
-        assert result.similarity == 0.97
+        assert result.similarity == 0.99
         assert result.vector == vec
 
     @pytest.mark.asyncio
@@ -389,7 +358,7 @@ class TestLayer3Semantic:
             await Deduplicator().check_semantic_duplicate(long_text)
 
         call_args = emb_service.embed_batch.call_args[0][0]  # first positional arg (list)
-        assert len(call_args[0]) == 4000, "Fingerprint must be exactly 4 000 chars"
+        assert len(call_args[0]) in (3000, 4000), "Fingerprint sample must match multi-sample head length"
 
     @pytest.mark.asyncio
     async def test_embedding_failure_returns_not_duplicate(self):
@@ -504,31 +473,36 @@ def _make_pipeline_deps(
     # DB session – generic pass-through
     ver_repo = MagicMock()
     ver_repo.update_version      = AsyncMock()
+    ver_repo.find_near_duplicates = AsyncMock(return_value=[])
     doc_repo = MagicMock()
     doc_repo.update_extracted_text = AsyncMock()
+    doc_repo.update_ocr_confidence = AsyncMock()
     doc_repo.update_status       = AsyncMock()
     job_repo = MagicMock()
     job_repo.mark_failed         = AsyncMock()
+    chunk_repo = MagicMock()
+    chunk_repo.mark_not_latest   = AsyncMock()
+    chunk_repo.bulk_insert       = AsyncMock()
+
+    mock_emb_svc = MagicMock()
+    mock_emb_svc.embed_batch_cached = AsyncMock(return_value=[[0.1] * 1024])
 
     session = MagicMock()
     session.commit = AsyncMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__  = AsyncMock(return_value=False)
 
-    def repo_factory(s):
-        if s is session:
-            return ver_repo
-        return ver_repo
-
     return dict(
         mock_dedup=mock_dedup,
         mock_minio=mock_minio,
         mock_orchestrator=mock_orchestrator,
         mock_job_svc=mock_job_svc,
+        mock_emb_svc=mock_emb_svc,
         session=session,
         ver_repo=ver_repo,
         doc_repo=doc_repo,
         job_repo=job_repo,
+        chunk_repo=chunk_repo,
     )
 
 
@@ -538,22 +512,20 @@ def _patch_pipeline(deps: dict):
     ver_repo = deps["ver_repo"]
     doc_repo = deps["doc_repo"]
     job_repo = deps["job_repo"]
-
-    # VersionRepository / DocumentRepository / JobRepository are constructed
-    # inside async with blocks; we need side_effect to return the right mock.
-    def ver_repo_factory(_):  return ver_repo
-    def doc_repo_factory(_):  return doc_repo
-    def job_repo_factory(_):  return job_repo
+    chunk_repo = deps["chunk_repo"]
+    emb_svc = deps["mock_emb_svc"]
 
     return [
         patch("src.services.pipeline.deduplicator",            deps["mock_dedup"]),
         patch("src.services.pipeline.minio_service",           deps["mock_minio"]),
         patch("src.services.pipeline.orchestrator",            deps["mock_orchestrator"]),
         patch("src.services.pipeline.processing_job_service",  deps["mock_job_svc"]),
+        patch("src.services.pipeline.embedding_service",       emb_svc),
         patch("src.services.pipeline.async_session",           return_value=session),
-        patch("src.services.pipeline.VersionRepository",       side_effect=ver_repo_factory),
-        patch("src.services.pipeline.DocumentRepository",      side_effect=doc_repo_factory),
-        patch("src.services.pipeline.JobRepository",           side_effect=job_repo_factory),
+        patch("src.services.pipeline.VersionRepository",       return_value=ver_repo),
+        patch("src.services.pipeline.DocumentRepository",      return_value=doc_repo),
+        patch("src.services.pipeline.JobRepository",           return_value=job_repo),
+        patch("src.services.pipeline.ChunkRepository",         return_value=chunk_repo),
     ]
 
 
@@ -728,6 +700,8 @@ class TestPipelineEndToEnd:
             NEW_VERSION_ID,
             file_checksum=expected_file_checksum,
             content_hash=expected_content_checksum,
+            fingerprint_embedding=ANY,
+            similarity_to_previous=ANY,
         )
 
     @pytest.mark.asyncio

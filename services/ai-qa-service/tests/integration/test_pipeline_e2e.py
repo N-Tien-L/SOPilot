@@ -13,8 +13,15 @@ async def live_client() -> AsyncClient:
         "X-Role": "ADMIN",
         "X-Department-Id": "00000000-0000-0000-0000-000000000000"
     }
-    async with AsyncClient(base_url=API_BASE_URL, headers=headers, timeout=30.0) as client:
-        yield client
+    client = AsyncClient(base_url=API_BASE_URL, headers=headers, timeout=2.0)
+    try:
+        res = await client.get("/health", timeout=0.2)
+        if res.status_code != 200:
+            pytest.skip("Local AI-QA service not running on port 8086")
+    except Exception:
+        pytest.skip("Local AI-QA service not running on port 8086")
+    yield client
+    await client.aclose()
 
 @pytest.mark.asyncio
 async def test_toxic_path(live_client: AsyncClient):

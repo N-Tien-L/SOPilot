@@ -228,6 +228,8 @@ async def test_full_success_path(pipeline, base_params, mock_session):
     ) as mock_chunk_save, patch(
         "src.db.repositories.version_repo.VersionRepository.update_version", new_callable=AsyncMock
     ) as mock_ver_save, patch(
+        "src.db.repositories.version_repo.VersionRepository.find_near_duplicates", new_callable=AsyncMock, return_value=[]
+    ), patch(
         "src.db.repositories.document_repo.DocumentRepository.update_extracted_text", new_callable=AsyncMock
     ), patch(
         "src.db.repositories.document_repo.DocumentRepository.update_status", new_callable=AsyncMock
