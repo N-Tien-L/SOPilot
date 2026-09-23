@@ -87,7 +87,7 @@ class IngestionPipeline:
 
         try:
             # --- 0. VALIDATION ---
-            ALLOWED_BUCKETS = ["poliwise-documents"]
+            ALLOWED_BUCKETS = ["poliwise-documents", "docs"]
             if bucket_name not in ALLOWED_BUCKETS:
                 raise ValueError(f"Unauthorized bucket access: {bucket_name}")
 

@@ -10,6 +10,7 @@ jobs:
   backend-java:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [auth-service, feedback-service, knowledge-service, metadata-service, user-service]
     steps:
@@ -30,6 +31,7 @@ jobs:
   backend-python:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [ai-qa-service, ingestion-service]
     steps:
@@ -52,6 +54,7 @@ jobs:
   frontend-and-gateway:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         app: [frontend/web, services/api-gateway]
     steps:
