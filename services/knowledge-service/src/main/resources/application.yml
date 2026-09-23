@@ -1,0 +1,45 @@
+poliwise:
+  jwt:
+    secret: ${POLIWISE_JWT_SECRET:change-me-in-production}
+    issuer: ${POLIWISE_JWT_ISSUER:poliwise-auth-service}
+  internal-api-key: ${INTERNAL_API_KEY:change-me-in-production}
+
+server:
+  port: 8083
+
+spring:
+  application:
+    name: knowledge-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres?schema=knowledge&pgbouncer=true}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres.yokxvdwwmibopyauwocp}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

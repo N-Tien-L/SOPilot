@@ -83,10 +83,10 @@ opencode.json
 *_download.sql
 
 # Root package files (monorepo uses individual service package.json)
-package.json
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
+/package.json
+/package-lock.json
+/pnpm-lock.yaml
+/yarn.lock
 
 # Environment configs (local overrides)
 config/rabbitmq.env

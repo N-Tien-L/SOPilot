@@ -33,7 +33,7 @@ build/
 .vscode/
 
 ### Application Configuration ###
-application.yml
-application-*.yml
+# application.yml
+# application-*.yml
 .env
 *.env
