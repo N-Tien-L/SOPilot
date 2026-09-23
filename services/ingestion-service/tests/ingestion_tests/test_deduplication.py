@@ -52,7 +52,7 @@ for pkg in [
     "src.db.repositories.job_repo",
     "src.services.embedding_service",
     "src.services.minio_service", "src.services.processing_job_service",
-    "src.services.extractors", "src.services.extractors.orchestrator",
+    "src.services.extractors.orchestrator",
     "src.services.standardizer", "src.services.chunker",
     "src.models", "src.models.extraction", "src.models.document",
 ]:

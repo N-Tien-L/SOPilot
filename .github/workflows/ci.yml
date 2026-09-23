@@ -24,6 +24,7 @@ jobs:
       run: |
         cd services/${{ matrix.service }}
         chmod +x mvnw
+        if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
         ./mvnw verify -B
 
   backend-python:
@@ -44,6 +45,7 @@ jobs:
     - name: Test with pytest
       run: |
         cd services/${{ matrix.service }}
+        if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
         uv sync --extra dev
         uv run pytest
 
