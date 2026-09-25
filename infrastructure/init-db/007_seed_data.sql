@@ -31,17 +31,25 @@ INSERT INTO metadata.tags (id, name, slug, color) VALUES
 ON CONFLICT (slug) DO NOTHING;
 
 -- ============================================================
--- SEED: Default Admin User
+-- SEED: Default Admin User Profile (If admin user exists)
 -- ============================================================
 -- NOTE: Admin user is created by AdminInitializer.java at service startup
--- This script creates the admin profile after the user exists
-INSERT INTO core.user_profiles (id, user_id, full_name)
-VALUES (
-    uuid_generate_v4(),
-    (SELECT id FROM core.users WHERE username = 'admin' LIMIT 1),
-    'System Administrator'
-)
-ON CONFLICT (user_id) DO NOTHING;
+-- This creates the admin profile only if the admin user already exists
+DO $$
+DECLARE
+    v_admin_id UUID;
+BEGIN
+    SELECT id INTO v_admin_id FROM core.users WHERE username = 'admin' LIMIT 1;
+    IF v_admin_id IS NOT NULL THEN
+        INSERT INTO core.user_profiles (id, user_id, full_name)
+        VALUES (
+            uuid_generate_v4(),
+            v_admin_id,
+            'System Administrator'
+        )
+        ON CONFLICT (user_id) DO NOTHING;
+    END IF;
+END $$;
 
 -- ============================================================
 -- SEED: Default Department

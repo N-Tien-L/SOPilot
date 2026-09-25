@@ -47,7 +47,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 if (-not $Force) {
-    Write-Host "This will remove Docker volume 'poliwise_postgres_data' and reinitialize the database." -ForegroundColor Yellow
+    Write-Host "This will remove Docker volume 'sopilot_postgres_data' (or 'postgres_data') and reinitialize the database." -ForegroundColor Yellow
     $confirmation = Read-Host "Type YES to continue"
     if ($confirmation -ne "YES") {
         Write-Host "Cancelled by user." -ForegroundColor Yellow
@@ -57,35 +57,41 @@ if (-not $Force) {
 
 Invoke-Step -Message "Stopping compose services" -Action {
     docker compose down --remove-orphans
+    try {
+        docker compose -p poliwise down --remove-orphans 2>&1 | Out-Null
+    } catch {}
 }
 
 Invoke-Step -Message "Removing postgres volume (if it exists)" -Action {
-    $volumeName = "poliwise_postgres_data"
-    $existingVolume = docker volume ls --format "{{.Name}}" | Where-Object { $_ -eq $volumeName }
-
-    if ($existingVolume) {
-        docker volume rm $volumeName
-        Write-Host "Removed volume: $volumeName" -ForegroundColor Green
-    }
-    else {
-        Write-Host "Volume not found, skipping removal: $volumeName" -ForegroundColor DarkYellow
+    $volumeNames = @("sopilot_postgres_data", "poliwise_postgres_data", "postgres_data")
+    foreach ($vol in $volumeNames) {
+        $existingVolumes = docker volume ls --format "{{.Name}}" | Where-Object { $_ -match $vol }
+        foreach ($v in $existingVolumes) {
+            if ($v) {
+                try {
+                    docker volume rm $v 2>&1 | Out-Null
+                    Write-Host "Removed volume: $v" -ForegroundColor Green
+                } catch {}
+            }
+        }
     }
 }
 
-Invoke-Step -Message "Starting infrastructure services (postgres, rabbitmq, minio)" -Action {
-    docker compose up -d postgres rabbitmq minio
+Invoke-Step -Message "Starting infrastructure services (postgres, rabbitmq, minio, redis)" -Action {
+    docker compose up -d postgres rabbitmq minio redis
 }
 
 Invoke-Step -Message "Waiting for infrastructure to be ready" -Action {
-    Wait-ContainerHealthy -ContainerName "poliwise-postgres"
-    Wait-ContainerHealthy -ContainerName "poliwise-rabbitmq"
-    Wait-ContainerHealthy -ContainerName "poliwise-minio"
+    Wait-ContainerHealthy -ContainerName "sopilot-postgres"
+    Wait-ContainerHealthy -ContainerName "sopilot-rabbitmq"
+    Wait-ContainerHealthy -ContainerName "sopilot-minio"
+    Wait-ContainerHealthy -ContainerName "sopilot-redis"
 }
 
 Invoke-Step -Message "Verifying schemas" -Action {
-    docker compose exec -T postgres psql -U poliwise -d poliwise -c "\dn"
+    docker compose exec -T postgres psql -U sopilot -d sopilot -c "\dn"
 
-    $schemaCount = docker compose exec -T postgres psql -U poliwise -d poliwise -t -A -c "SELECT COUNT(*) FROM pg_namespace WHERE nspname IN ('core', 'metadata', 'knowledge', 'conversation', 'analytics');"
+    $schemaCount = docker compose exec -T postgres psql -U sopilot -d sopilot -t -A -c "SELECT COUNT(*) FROM pg_namespace WHERE nspname IN ('core', 'metadata', 'knowledge', 'conversation', 'analytics');"
     $schemaCount = $schemaCount.Trim()
 
     if ($schemaCount -ne "5") {
@@ -93,9 +99,10 @@ Invoke-Step -Message "Verifying schemas" -Action {
     }
 }
 
-Invoke-Step -Message "Verifying seed data" -Action {
-    docker compose exec -T postgres psql -U poliwise -d poliwise -c "SELECT COUNT(*) AS users_count FROM core.users;"
-    docker compose exec -T postgres psql -U poliwise -d poliwise -c "SELECT COUNT(*) AS categories_count FROM metadata.categories;"
+Invoke-Step -Message "Verifying seed data and roster schema" -Action {
+    docker compose exec -T postgres psql -U sopilot -d sopilot -c "SELECT COUNT(*) AS users_count FROM core.users;"
+    docker compose exec -T postgres psql -U sopilot -d sopilot -c "SELECT COUNT(*) AS categories_count FROM metadata.categories;"
+    docker compose exec -T postgres psql -U sopilot -d sopilot -c "SELECT COUNT(*) AS roster_count FROM core.employee_roster;"
 }
 
 Write-Host "`nDatabase reset and bootstrap completed successfully." -ForegroundColor Green
