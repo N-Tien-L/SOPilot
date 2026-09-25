@@ -2,6 +2,7 @@ package com.poliwise.user.config;
 
 import com.poliwise.user.security.JwtAuthenticationFilter;
 import com.poliwise.user.security.InternalStatsTokenFilter;
+import com.poliwise.user.security.InternalServiceAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,12 +26,15 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final InternalStatsTokenFilter internalStatsTokenFilter;
+    private final InternalServiceAuthFilter internalServiceAuthFilter;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            InternalStatsTokenFilter internalStatsTokenFilter) {
+            InternalStatsTokenFilter internalStatsTokenFilter,
+            InternalServiceAuthFilter internalServiceAuthFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.internalStatsTokenFilter = internalStatsTokenFilter;
+        this.internalServiceAuthFilter = internalServiceAuthFilter;
     }
 
     @Bean
@@ -42,10 +46,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/internal/**").hasRole("INTERNAL")
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/stats").hasRole("INTERNAL")
+                        .requestMatchers("/api/v1/users/roster/**").hasAnyRole("ADMIN", "HR")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(internalStatsTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(internalServiceAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

@@ -49,6 +49,21 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "INVALID_DEPARTMENT_OPERATION", ex.getMessage());
     }
 
+    @ExceptionHandler(RosterNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleRosterNotFound(RosterNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, "ROSTER_NOT_FOUND", ex.getMessage());
+    }
+
+    @ExceptionHandler(RosterAlreadyClaimedException.class)
+    public ResponseEntity<ErrorResponse> handleRosterAlreadyClaimed(RosterAlreadyClaimedException ex) {
+        return build(HttpStatus.CONFLICT, "ROSTER_ALREADY_CLAIMED", ex.getMessage());
+    }
+
+    @ExceptionHandler(RosterDeactivatedException.class)
+    public ResponseEntity<ErrorResponse> handleRosterDeactivated(RosterDeactivatedException ex) {
+        return build(HttpStatus.FORBIDDEN, "ROSTER_DEACTIVATED", ex.getMessage());
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return build(HttpStatus.FORBIDDEN, "ACCESS_DENIED", ex.getMessage());

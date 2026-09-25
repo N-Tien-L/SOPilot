@@ -30,6 +30,7 @@ public class InternalServiceAuthFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(InternalServiceAuthFilter.class);
     private static final String INTERNAL_SERVICE_HEADER = "X-Internal-Service";
+    private static final String INTERNAL_TOKEN_HEADER = "X-Internal-Token";
     private static final String SERVICE_NAME = "internal-service";
 
     private final String serviceToken;
@@ -50,26 +51,37 @@ public class InternalServiceAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        String internalService = request.getHeader(INTERNAL_SERVICE_HEADER);
+        String path = resolvePath(request);
+        String token = request.getHeader(INTERNAL_SERVICE_HEADER);
+        if (token == null || token.isBlank()) {
+            token = request.getHeader(INTERNAL_TOKEN_HEADER);
+        }
 
-        if (internalService != null && !internalService.isBlank()) {
-            if (!internalService.equals(serviceToken)) {
-                log.warn("Internal service call with invalid token: service={}", internalService);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid internal service token");
+        if (token != null && !token.isBlank()) {
+            if (!token.equals(serviceToken)) {
+                log.warn("Internal service call with invalid token");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Invalid internal service token\"}");
                 return;
             }
 
-            log.debug("Internal service call authenticated: service={}", internalService);
+            log.debug("Internal service call authenticated");
             var authentication = new UsernamePasswordAuthenticationToken(
-                    SERVICE_NAME + ":" + internalService,
+                    SERVICE_NAME,
                     null,
-                    List.of(
-                            new SimpleGrantedAuthority("ROLE_INTERNAL"),
-                            new SimpleGrantedAuthority("ROLE_" + internalService.toUpperCase().replace("-", "_"))
-                    )
+                    List.of(new SimpleGrantedAuthority("ROLE_INTERNAL"))
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
             filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (path.startsWith("/internal/")) {
+            log.warn("Internal service call missing token for path: {}", path);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"Missing internal service token\"}");
             return;
         }
 
@@ -78,7 +90,15 @@ public class InternalServiceAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Only filter API paths
-        return !request.getServletPath().startsWith("/api/");
+        String path = resolvePath(request);
+        return !path.startsWith("/api/") && !path.startsWith("/internal/");
+    }
+
+    private String resolvePath(HttpServletRequest request) {
+        String path = request.getServletPath();
+        if (path == null || path.isBlank()) {
+            path = request.getRequestURI();
+        }
+        return path != null ? path : "";
     }
 }
