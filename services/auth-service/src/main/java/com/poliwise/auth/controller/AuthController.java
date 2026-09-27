@@ -71,6 +71,15 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/google/verify")
+    public ResponseEntity<TokenResponse> verifyGoogle(
+            @Valid @RequestBody GoogleVerifyRequest request,
+            HttpServletRequest httpRequest) {
+        ClientMetadata metadata = extractMetadata(httpRequest);
+        TokenResponse response = authService.loginWithGoogle(request.idToken(), metadata);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(
             @Valid @RequestBody RefreshTokenRequest request,

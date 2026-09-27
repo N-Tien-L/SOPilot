@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 8081
 
 spring:
@@ -40,6 +40,18 @@ auth:
     refresh-token-ttl: ${AUTH_REFRESH_TOKEN_TTL:P7D}
     max-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
     lock-duration: ${AUTH_LOCK_DURATION:PT15M}
+  oauth:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:sopilot-google-client-id}
+      jwks-uri: ${GOOGLE_JWKS_URI:https://www.googleapis.com/oauth2/v3/certs}
+      jwks-cache-ttl-minutes: ${GOOGLE_JWKS_CACHE_TTL_MINUTES:60}
+
+app:
+  services:
+    user-service-url: ${USER_SERVICE_URL:http://localhost:8082}
+
+poliwise:
+  service-token: ${INTERNAL_SERVICE_TOKEN:poliwise_internal_token_secret}
 
 management:
   endpoints:

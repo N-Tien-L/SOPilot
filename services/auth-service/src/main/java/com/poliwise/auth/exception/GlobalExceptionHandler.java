@@ -100,6 +100,30 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(RosterNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleRosterNotFoundException(RosterNotFoundException ex) {
+        log.warn("Roster not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(
+                        HttpStatus.FORBIDDEN.value(),
+                        "ROSTER_NOT_FOUND",
+                        ex.getMessage(),
+                        Instant.now()
+                ));
+    }
+
+    @ExceptionHandler(RosterDeactivatedException.class)
+    public ResponseEntity<ErrorResponse> handleRosterDeactivatedException(RosterDeactivatedException ex) {
+        log.warn("Roster deactivated: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(
+                        HttpStatus.FORBIDDEN.value(),
+                        "ROSTER_DEACTIVATED",
+                        ex.getMessage(),
+                        Instant.now()
+                ));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         log.error("Unhandled exception in auth-service: {} - {}", ex.getClass().getName(), ex.getMessage(), ex);

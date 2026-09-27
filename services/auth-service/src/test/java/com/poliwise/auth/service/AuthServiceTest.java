@@ -5,6 +5,11 @@ import com.poliwise.auth.dto.auth.ClientMetadata;
 import com.poliwise.auth.dto.auth.LoginRequest;
 import com.poliwise.auth.dto.auth.RegisterRequest;
 import com.poliwise.auth.dto.auth.TokenResponse;
+import com.poliwise.auth.dto.auth.GoogleTokenPayload;
+import com.poliwise.auth.dto.roster.ClaimRosterRequest;
+import com.poliwise.auth.dto.roster.ClaimRosterResponse;
+import com.poliwise.auth.exception.RosterDeactivatedException;
+import com.poliwise.auth.exception.RosterNotFoundException;
 import com.poliwise.auth.dto.event.UserRegisteredEvent;
 import com.poliwise.auth.entity.LoginHistory;
 import com.poliwise.auth.entity.RefreshToken;
@@ -28,6 +33,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.poliwise.auth.feign.FeedbackServiceClient;
+import com.poliwise.auth.feign.UserServiceClient;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -63,6 +70,12 @@ class AuthServiceTest {
     @Mock
     private FeedbackServiceClient feedbackServiceClient;
 
+    @Mock
+    private GoogleTokenVerifierService googleTokenVerifierService;
+
+    @Mock
+    private UserServiceClient userServiceClient;
+
     private PasswordEncoder passwordEncoder;
     private AuthService authService;
     private ClientMetadata testMetadata;
@@ -78,7 +91,9 @@ class AuthServiceTest {
                 jwtTokenProvider,
                 refreshTokenService,
                 authEventPublisher,
-                feedbackServiceClient
+                feedbackServiceClient,
+                googleTokenVerifierService,
+                userServiceClient
         );
         testMetadata = new ClientMetadata("127.0.0.1", "Mozilla/5.0", "Desktop");
     }
@@ -321,6 +336,158 @@ class AuthServiceTest {
             assertEquals(5, count);
             verify(refreshTokenService).revokeAll(userId, "LOGOUT_ALL_DEVICES");
             verify(jwtTokenProvider).blacklistToken("access-token", userId, "LOGOUT_ALL_DEVICES");
+        }
+    }
+
+    @Nested
+    @DisplayName("Google JIT Login Tests")
+    class GoogleLoginTests {
+
+        @Test
+        @DisplayName("Should successfully claim roster and issue tokens for new employee")
+        void loginWithGoogle_NewUser_Success() {
+            String idToken = "valid-google-id-token";
+            String email = "new.employee@sopilot.com";
+            String sub = "google-sub-12345";
+            UUID newUserId = UUID.randomUUID();
+            UUID deptId = UUID.randomUUID();
+
+            GoogleTokenPayload payload = new GoogleTokenPayload(email, sub, "New Employee", "https://avatar.url", true);
+            when(googleTokenVerifierService.verify(idToken)).thenReturn(payload);
+            when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.empty());
+
+            ClaimRosterResponse claimResponse = new ClaimRosterResponse(
+                    newUserId, "new_employee", email, "New Employee", UserRole.USER, deptId, "Engineering", "ENG"
+            );
+            when(userServiceClient.claimRoster(any(ClaimRosterRequest.class))).thenReturn(claimResponse);
+
+            User newUser = User.builder()
+                    .id(newUserId)
+                    .username("new_employee")
+                    .email(email)
+                    .role(UserRole.USER)
+                    .status(AccountStatus.ACTIVE)
+                    .departmentId(deptId)
+                    .createdAt(OffsetDateTime.now())
+                    .updatedAt(OffsetDateTime.now())
+                    .build();
+            when(userRepository.findById(newUserId)).thenReturn(Optional.of(newUser));
+
+            when(jwtTokenProvider.createAccessToken(newUser)).thenReturn("access-token-jwt");
+            when(jwtTokenProvider.getAccessTokenTtl()).thenReturn(java.time.Duration.ofMinutes(15));
+            when(refreshTokenService.createRefreshToken(eq(newUser), any(ClientMetadata.class))).thenReturn("refresh-token-uuid");
+
+            TokenResponse response = authService.loginWithGoogle(idToken, testMetadata);
+
+            assertNotNull(response);
+            assertEquals("access-token-jwt", response.accessToken());
+            assertEquals("refresh-token-uuid", response.refreshToken());
+            assertEquals(email, response.user().email());
+
+            verify(userServiceClient).claimRoster(new ClaimRosterRequest(email, sub));
+
+            ArgumentCaptor<LoginHistory> captor = ArgumentCaptor.forClass(LoginHistory.class);
+            verify(loginHistoryRepository).save(captor.capture());
+            assertEquals(LoginStatus.SUCCESS, captor.getValue().getStatus());
+            assertEquals(newUserId, captor.getValue().getUserId());
+        }
+
+        @Test
+        @DisplayName("Should throw RosterNotFoundException and log failure when email is not in roster")
+        void loginWithGoogle_NewUser_RosterNotFound_ThrowsException() {
+            String idToken = "valid-google-id-token";
+            String email = "unknown@sopilot.com";
+
+            GoogleTokenPayload payload = new GoogleTokenPayload(email, "google-sub", "Unknown", null, true);
+            when(googleTokenVerifierService.verify(idToken)).thenReturn(payload);
+            when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.empty());
+
+            when(userServiceClient.claimRoster(any(ClaimRosterRequest.class)))
+                    .thenThrow(new RosterNotFoundException("Tài khoản chưa nằm trong danh bạ nhân sự của tổ chức. Vui lòng liên hệ HR."));
+
+            RosterNotFoundException ex = assertThrows(RosterNotFoundException.class, () ->
+                    authService.loginWithGoogle(idToken, testMetadata));
+
+            assertTrue(ex.getMessage().contains("chưa nằm trong danh bạ"));
+
+            ArgumentCaptor<LoginHistory> captor = ArgumentCaptor.forClass(LoginHistory.class);
+            verify(loginHistoryRepository).save(captor.capture());
+            assertEquals(LoginStatus.FAILED_CREDENTIALS, captor.getValue().getStatus());
+            assertEquals("ROSTER_NOT_FOUND", captor.getValue().getFailureReason());
+        }
+
+        @Test
+        @DisplayName("Should throw RosterDeactivatedException and log failure when roster is deactivated")
+        void loginWithGoogle_NewUser_RosterDeactivated_ThrowsException() {
+            String idToken = "valid-google-id-token";
+            String email = "deactivated@sopilot.com";
+
+            GoogleTokenPayload payload = new GoogleTokenPayload(email, "google-sub", "Deactivated", null, true);
+            when(googleTokenVerifierService.verify(idToken)).thenReturn(payload);
+            when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.empty());
+
+            when(userServiceClient.claimRoster(any(ClaimRosterRequest.class)))
+                    .thenThrow(new RosterDeactivatedException("Định danh nhân sự của tài khoản này đã bị vô hiệu hóa. Vui lòng liên hệ HR."));
+
+            assertThrows(RosterDeactivatedException.class, () ->
+                    authService.loginWithGoogle(idToken, testMetadata));
+
+            ArgumentCaptor<LoginHistory> captor = ArgumentCaptor.forClass(LoginHistory.class);
+            verify(loginHistoryRepository).save(captor.capture());
+            assertEquals(LoginStatus.FAILED_DEACTIVATED, captor.getValue().getStatus());
+            assertEquals("ROSTER_DEACTIVATED", captor.getValue().getFailureReason());
+        }
+
+        @Test
+        @DisplayName("Should directly login returning employee without calling user-service claim")
+        void loginWithGoogle_ReturningUser_Success() {
+            String idToken = "valid-google-id-token";
+            String email = "existing@sopilot.com";
+
+            GoogleTokenPayload payload = new GoogleTokenPayload(email, "google-sub", "Existing User", null, true);
+            when(googleTokenVerifierService.verify(idToken)).thenReturn(payload);
+
+            User existingUser = createTestUser(AccountStatus.ACTIVE, "password");
+            existingUser.setEmail(email);
+            when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(existingUser));
+
+            when(jwtTokenProvider.createAccessToken(existingUser)).thenReturn("access-token-jwt");
+            when(jwtTokenProvider.getAccessTokenTtl()).thenReturn(java.time.Duration.ofMinutes(15));
+            when(refreshTokenService.createRefreshToken(eq(existingUser), any(ClientMetadata.class))).thenReturn("refresh-token-uuid");
+
+            TokenResponse response = authService.loginWithGoogle(idToken, testMetadata);
+
+            assertNotNull(response);
+            assertEquals("access-token-jwt", response.accessToken());
+            verify(userServiceClient, never()).claimRoster(any());
+
+            ArgumentCaptor<LoginHistory> captor = ArgumentCaptor.forClass(LoginHistory.class);
+            verify(loginHistoryRepository).save(captor.capture());
+            assertEquals(LoginStatus.SUCCESS, captor.getValue().getStatus());
+        }
+
+        @Test
+        @DisplayName("Should reject returning user if account is DEACTIVATED")
+        void loginWithGoogle_ReturningUser_Deactivated_ThrowsForbidden() {
+            String idToken = "valid-google-id-token";
+            String email = "deactivated@sopilot.com";
+
+            GoogleTokenPayload payload = new GoogleTokenPayload(email, "google-sub", "User", null, true);
+            when(googleTokenVerifierService.verify(idToken)).thenReturn(payload);
+
+            User deactivatedUser = createTestUser(AccountStatus.DEACTIVATED, "password");
+            deactivatedUser.setEmail(email);
+            when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(deactivatedUser));
+
+            ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                    authService.loginWithGoogle(idToken, testMetadata));
+
+            assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+            verify(userServiceClient, never()).claimRoster(any());
+
+            ArgumentCaptor<LoginHistory> captor = ArgumentCaptor.forClass(LoginHistory.class);
+            verify(loginHistoryRepository).save(captor.capture());
+            assertEquals(LoginStatus.FAILED_DEACTIVATED, captor.getValue().getStatus());
         }
     }
 

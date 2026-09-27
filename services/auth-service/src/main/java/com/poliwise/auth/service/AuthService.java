@@ -14,11 +14,18 @@ import com.poliwise.auth.enums.AccountStatus;
 import com.poliwise.auth.enums.LoginStatus;
 import com.poliwise.auth.enums.UserRole;
 import com.poliwise.auth.event.AuthEventPublisher;
+import com.poliwise.auth.dto.auth.GoogleTokenPayload;
+import com.poliwise.auth.dto.roster.ClaimRosterRequest;
+import com.poliwise.auth.dto.roster.ClaimRosterResponse;
+import com.poliwise.auth.exception.RosterDeactivatedException;
+import com.poliwise.auth.exception.RosterNotFoundException;
 import com.poliwise.auth.feign.FeedbackServiceClient;
+import com.poliwise.auth.feign.UserServiceClient;
 import com.poliwise.auth.repository.LoginHistoryRepository;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
 import com.poliwise.auth.security.JwtAuthenticationToken;
+import feign.FeignException;
 import io.jsonwebtoken.JwtException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -52,6 +59,8 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final AuthEventPublisher authEventPublisher;
     private final FeedbackServiceClient feedbackServiceClient;
+    private final GoogleTokenVerifierService googleTokenVerifierService;
+    private final UserServiceClient userServiceClient;
 
     @Transactional
     public AuthUserView register(RegisterRequest request, UUID registeredBy) {
@@ -165,6 +174,71 @@ public class AuthService {
         }
 
         resetLockStateIfNeeded(user, now);
+        saveSuccessHistory(user, metadata);
+
+        String accessToken = jwtTokenProvider.createAccessToken(user);
+        String rawRefreshToken = refreshTokenService.createRefreshToken(user, metadata);
+
+        return new TokenResponse(
+                accessToken,
+                rawRefreshToken,
+                "Bearer",
+                jwtTokenProvider.getAccessTokenTtl().toSeconds(),
+                toUserView(user, null)
+        );
+    }
+
+    @Transactional
+    public TokenResponse loginWithGoogle(String idToken, ClientMetadata metadata) {
+        GoogleTokenPayload payload = googleTokenVerifierService.verify(idToken);
+        String email = payload.email();
+
+        Optional<User> existingUserOpt = userRepository.findByEmailIgnoreCase(email);
+
+        User user;
+        if (existingUserOpt.isPresent()) {
+            user = existingUserOpt.get();
+
+            if (user.getStatus() == AccountStatus.DEACTIVATED) {
+                saveFailedHistory(user.getId(), user.getUsername(), metadata, LoginStatus.FAILED_DEACTIVATED, "ACCOUNT_DEACTIVATED");
+                throw forbidden("Account is deactivated");
+            }
+
+            if (user.getStatus() == AccountStatus.REVOKED) {
+                saveFailedHistory(user.getId(), user.getUsername(), metadata, LoginStatus.FAILED_REVOKED, "ACCOUNT_REVOKED");
+                throw forbidden("Account is revoked");
+            }
+
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            if (isLocked(user, now)) {
+                saveFailedHistory(user.getId(), user.getUsername(), metadata, LoginStatus.FAILED_LOCKED, "ACCOUNT_LOCKED");
+                throw forbidden("Account is temporarily locked");
+            }
+
+            resetLockStateIfNeeded(user, now);
+        } else {
+            try {
+                ClaimRosterResponse claimResponse = userServiceClient.claimRoster(
+                        new ClaimRosterRequest(email, payload.sub())
+                );
+                user = userRepository.findById(claimResponse.userId())
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                "User claimed successfully but not found in database: " + claimResponse.userId()
+                        ));
+            } catch (RosterNotFoundException e) {
+                saveFailedHistory(null, email, metadata, LoginStatus.FAILED_CREDENTIALS, "ROSTER_NOT_FOUND");
+                throw e;
+            } catch (RosterDeactivatedException e) {
+                saveFailedHistory(null, email, metadata, LoginStatus.FAILED_DEACTIVATED, "ROSTER_DEACTIVATED");
+                throw e;
+            } catch (FeignException e) {
+                log.error("Failed to communicate with user-service for roster claim: {}", e.getMessage(), e);
+                saveFailedHistory(null, email, metadata, LoginStatus.FAILED_CREDENTIALS, "USER_SERVICE_UNAVAILABLE");
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "User service is unavailable, please try again later");
+            }
+        }
+
         saveSuccessHistory(user, metadata);
 
         String accessToken = jwtTokenProvider.createAccessToken(user);
