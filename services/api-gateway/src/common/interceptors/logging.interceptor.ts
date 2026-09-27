@@ -19,9 +19,7 @@ import { MetricsService } from '../../health/metrics/metrics.service';
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
-  constructor(
-    @Optional() private readonly metricsService?: MetricsService,
-  ) {}
+  constructor(@Optional() private readonly metricsService?: MetricsService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const ctx = context.switchToHttp();
@@ -85,10 +83,16 @@ export class LoggingInterceptor implements NestInterceptor {
           let actualStatus = response.statusCode || 500;
           if (error && typeof error === 'object') {
             const errWithStatus = error as unknown as Record<string, unknown>;
-            if (errWithStatus.status && typeof errWithStatus.status === 'number') {
+            if (
+              errWithStatus.status &&
+              typeof errWithStatus.status === 'number'
+            ) {
               actualStatus = errWithStatus.status as number;
             }
-            if (errWithStatus.statusCode && typeof errWithStatus.statusCode === 'number') {
+            if (
+              errWithStatus.statusCode &&
+              typeof errWithStatus.statusCode === 'number'
+            ) {
               actualStatus = errWithStatus.statusCode as number;
             }
           }

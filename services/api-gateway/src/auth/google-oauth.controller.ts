@@ -78,11 +78,14 @@ export class GoogleOAuthController {
   @Public()
   @Get('login')
   login(@Res() res: Response): void {
-    const clientId = this.configService.getOrThrow<string>('oauth.google.clientId');
-    const redirectUri = this.configService.getOrThrow<string>('oauth.google.redirectUri');
+    const clientId = this.configService.getOrThrow<string>(
+      'oauth.google.clientId',
+    );
+    const redirectUri = this.configService.getOrThrow<string>(
+      'oauth.google.redirectUri',
+    );
 
     const state = this.generateState();
-    const frontendLoginPage = this.configService.get<string>('frontend.loginUrl') || 'http://localhost:3000/auth/login';
 
     res.cookie('oauth_state', state, {
       httpOnly: true,
@@ -130,8 +133,11 @@ export class GoogleOAuthController {
       const tokenResponse = await this.exchangeCode(code);
       const idTokenPayload = await this.verifyIdToken(tokenResponse.id_token);
 
-      const authServiceUrl = this.configService.getOrThrow<string>('services.auth');
-      const internalServiceToken = this.configService.getOrThrow<string>('internal.serviceToken');
+      const authServiceUrl =
+        this.configService.getOrThrow<string>('services.auth');
+      const internalServiceToken = this.configService.getOrThrow<string>(
+        'internal.serviceToken',
+      );
 
       const upsertRequest: UpsertGoogleUserRequest = {
         googleId: idTokenPayload.sub,
@@ -167,7 +173,9 @@ export class GoogleOAuthController {
         { identityKind: 'demo' },
       );
 
-      const frontendLoginPage = this.configService.get<string>('frontend.loginUrl') || 'http://localhost:3000/auth/login';
+      const frontendLoginPage =
+        this.configService.get<string>('frontend.loginUrl') ||
+        'http://localhost:3000/auth/login';
       const redirectUrl = new URL(frontendLoginPage);
       redirectUrl.searchParams.set('token', poliwiseToken);
       redirectUrl.searchParams.set('status', userData.status);
@@ -180,7 +188,9 @@ export class GoogleOAuthController {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to process Google OAuth callback');
+      throw new InternalServerErrorException(
+        'Failed to process Google OAuth callback',
+      );
     }
   }
 
@@ -191,9 +201,12 @@ export class GoogleOAuthController {
     }
 
     try {
-      const response = await axios.get<{ keys: GoogleJwksKey[] }>(GOOGLE_JWKS_URL, {
-        timeout: 5000,
-      });
+      const response = await axios.get<{ keys: GoogleJwksKey[] }>(
+        GOOGLE_JWKS_URL,
+        {
+          timeout: 5000,
+        },
+      );
 
       this._jwksCache.clear();
       for (const key of response.data.keys) {
@@ -214,7 +227,9 @@ export class GoogleOAuthController {
       throw new UnauthorizedException('Invalid ID token format');
     }
 
-    const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf-8'));
+    const header = JSON.parse(
+      Buffer.from(parts[0], 'base64url').toString('utf-8'),
+    );
     const kid = header.kid;
     const alg = header.alg;
 
@@ -240,9 +255,13 @@ export class GoogleOAuthController {
       throw new UnauthorizedException('Invalid ID token signature');
     }
 
-    const decodedPayload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+    const decodedPayload = JSON.parse(
+      Buffer.from(parts[1], 'base64url').toString('utf-8'),
+    );
 
-    const clientId = this.configService.getOrThrow<string>('oauth.google.clientId');
+    const clientId = this.configService.getOrThrow<string>(
+      'oauth.google.clientId',
+    );
     if (decodedPayload.aud !== clientId) {
       throw new UnauthorizedException('Invalid ID token audience');
     }
@@ -300,9 +319,15 @@ export class GoogleOAuthController {
   }
 
   private async exchangeCode(code: string): Promise<GoogleTokenResponse> {
-    const clientId = this.configService.getOrThrow<string>('oauth.google.clientId');
-    const clientSecret = this.configService.getOrThrow<string>('oauth.google.clientSecret');
-    const redirectUri = this.configService.getOrThrow<string>('oauth.google.redirectUri');
+    const clientId = this.configService.getOrThrow<string>(
+      'oauth.google.clientId',
+    );
+    const clientSecret = this.configService.getOrThrow<string>(
+      'oauth.google.clientSecret',
+    );
+    const redirectUri = this.configService.getOrThrow<string>(
+      'oauth.google.redirectUri',
+    );
 
     try {
       const response = await axios.post<GoogleTokenResponse>(
@@ -325,7 +350,9 @@ export class GoogleOAuthController {
       return response.data;
     } catch (error) {
       this.logger.error(`Failed to exchange code for tokens: ${error}`);
-      throw new InternalServerErrorException('Failed to exchange authorization code');
+      throw new InternalServerErrorException(
+        'Failed to exchange authorization code',
+      );
     }
   }
 

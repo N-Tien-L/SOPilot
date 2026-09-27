@@ -1,4 +1,10 @@
-import { Controller, Get, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ServicesIndicator } from './indicators/services.indicator';
 import { MetricsService, DailyErrorCount } from './metrics/metrics.service';
 import { ApiResponse } from '../common/dto';
@@ -61,17 +67,35 @@ export class HealthController {
   @Get('api-metrics')
   async getApiMetrics(
     @Query('days', new DefaultValuePipe(7), ParseIntPipe) days: number,
-  ): Promise<ApiResponse<{
-    timestamp: string;
-    overall: { totalRequests: number; totalErrors: number; successRate: number };
-    endpoints: Array<{
-      path: string; total: number; success: number; failure: number;
-      avgResponseTime: number;
-      recentErrors: Array<{ timestamp: string; method: string; statusCode: number; path: string }>;
-    }>;
-    dailyErrors: DailyErrorCount[];
-    services: Array<{ service: string; status: string; responseTime?: number }>;
-  }>> {
+  ): Promise<
+    ApiResponse<{
+      timestamp: string;
+      overall: {
+        totalRequests: number;
+        totalErrors: number;
+        successRate: number;
+      };
+      endpoints: Array<{
+        path: string;
+        total: number;
+        success: number;
+        failure: number;
+        avgResponseTime: number;
+        recentErrors: Array<{
+          timestamp: string;
+          method: string;
+          statusCode: number;
+          path: string;
+        }>;
+      }>;
+      dailyErrors: DailyErrorCount[];
+      services: Array<{
+        service: string;
+        status: string;
+        responseTime?: number;
+      }>;
+    }>
+  > {
     const metrics = this.metricsService.getMetrics(days);
     const services = await this.servicesIndicator.checkAllServices();
 

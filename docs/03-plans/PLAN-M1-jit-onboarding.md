@@ -8,7 +8,7 @@ milestone: "Milestone 1: JIT Onboarding v1.0"
 prd_reference: "docs/01-requirements/PRD-M1-jit-onboarding.md"
 tech_reference: "docs/02-architecture/designs/TECH-M1-jit-onboarding.md"
 total_tickets: 6
-completed_tickets: 3
+completed_tickets: 4
 ---
 
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
@@ -53,7 +53,7 @@ flowchart TD
 ### Phase 3: Gateway & Giao diện Frontend (Client Integration)
 | Ticket ID | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
-| [`M1-04`](tickets/M1-04-api-gateway-routing.md) | Cấu hình API Gateway Routing & Proxy Guards | `gateway` | S | `M1-02`, `M1-03` | todo |
+| [`M1-04`](tickets/M1-04-api-gateway-routing.md) | Cấu hình API Gateway Routing & Proxy Guards | `gateway` | S | `M1-02`, `M1-03` | done |
 | [`M1-05`](tickets/M1-05-frontend-web-roster-and-google-login.md) | Màn hình Đăng nhập Google & Quản lý Danh bạ Admin | `web` | L | `M1-04` | todo |
 
 ### Phase 4: Kiểm thử Tích hợp & Nghiệm thu (Testing & Sign-off)

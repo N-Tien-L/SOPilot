@@ -27,10 +27,7 @@ export class JwtAuthService {
       this.configService.get<string>('jwt.issuer') || 'poliwise-auth';
   }
 
-  sign(
-    payload: Partial<IJwtPayload>,
-    options?: SignOptions,
-  ): string {
+  sign(payload: Partial<IJwtPayload>, options?: SignOptions): string {
     const defaultExpiresIn = '8h';
     const signOptions: jwt.SignOptions = {
       expiresIn: (options?.expiresIn || defaultExpiresIn) as any,
