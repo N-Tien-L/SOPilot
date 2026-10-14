@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String EXCHANGE_NAME = "poliwise.events";
+    public static final String EXCHANGE_NAME = "sopilot.events";
     public static final String USER_EXCHANGE_NAME = "poliwise.user.exchange";
     public static final String AUTH_EXCHANGE_NAME = "poliwise.auth.exchange";
     public static final String QUEUE_UNANSWERED = "poliwise.feedback.unanswered";

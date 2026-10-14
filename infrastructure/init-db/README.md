@@ -11,6 +11,8 @@ The **SOPilot** platform uses a single PostgreSQL 16 database with the `pgvector
 
 ## 🏗️ Architecture & Migration Mechanism
 
+Checkpoint 2026-10-15: `011_document_bucket_default.sql` changes the default bucket for future `knowledge.documents` rows to `sopilot-documents`. Existing document references and objects are preserved. Apply this additive script explicitly to an existing database after checking its identity; a container restart does not rerun init scripts. Compose database/user renaming does not migrate populated volumes. This checkpoint did not execute a database migration or reset.
+
 Database schemas are managed via **Numbered Additive SQL Scripts** mounted to the PostgreSQL Docker entrypoint (`/docker-entrypoint-initdb.d/`).
 
 When the database container starts with a fresh volume, PostgreSQL executes all `.sql` scripts in alphabetical order:

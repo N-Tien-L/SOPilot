@@ -33,9 +33,17 @@ if (-not $DiffContent) {
     $DiffContent = git diff HEAD -- ':!scripts/*' ':!docs/*' ':!*.md'
 }
 
-$DebugPattern = "(console\.log|System\.out\.println|print\()"
+$AddedLines = $DiffContent | Where-Object { $_ -match '^\+(?!\+)' }
+$DebugPattern = "(console\.log|System\.out\.println|\bprint\()"
 $SecretPattern = "(?i)(password|api_key|secret|token)\s*=\s*['`"][^'`"]+['`"]"
-$TodoLines = $DiffContent | Where-Object { 
+$HasDebug = [bool]($AddedLines | Where-Object { $_ -match $DebugPattern })
+$HasSecrets = [bool]($AddedLines | Where-Object { $_ -match $SecretPattern })
+$EnvFiles = $ChangedFiles | Where-Object { ($_ -match '(^|/)\.env($|\.)') -and ($_ -notmatch '\.env\.example$') }
+if ($EnvFiles) {
+    Write-Host "Environment files must not be committed: $($EnvFiles -join ', ')" -ForegroundColor Red
+    $FailedChecks++
+}
+$TodoLines = $AddedLines | Where-Object {
     ($_ -match "(?i)\b(TODO|FIXME)\b") -and ($_ -notmatch "[A-Z0-9]+-\d+")
 }
 $HasInvalidTodo = [bool]$TodoLines
@@ -73,7 +81,7 @@ if ($AffectedServices.Count -eq 0) {
 } else {
     foreach ($Service in $AffectedServices) {
         Write-Host "-> Testing $Service..."
-        
+
         # Call run-tests.ps1 for the service
         $ScriptPath = Join-Path $PSScriptRoot "run-tests.ps1"
         if (-not (Test-Path $ScriptPath)) {

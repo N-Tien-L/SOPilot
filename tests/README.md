@@ -1,5 +1,7 @@
 # SOPilot Platform Test Suite
 
+Checkpoint 2026-10-15: frontend has no `test` script yet; build/typecheck/lint are separate checks. Ingestion currently keeps mixed mock-based tests in `tests/ingestion_tests`, so use `-Scope ingestion-service -Type all`; there are no separate unit/integration folders. Java `all` runs Maven verify; a separate integration profile is not configured. Missing suites must be reported as unavailable, never as PASS. See [handoff](../docs/04-reports/HANDOFF-implementation-2026-10-15.md).
+
 This directory contains **platform-wide, cross-service, and end-to-end (E2E) automated tests**, along with shared test fixtures and performance test configurations.
 
 ---
@@ -54,6 +56,12 @@ tests/
 Run the unified pre-commit validation script from the project root:
 ```powershell
 ./scripts/pre-commit-check.ps1
+```
+
+### Platform Smoke Check
+Check health and connectivity of all active services and infrastructure:
+```powershell
+./tests/smoke/smoke-check.ps1
 ```
 
 ### Running Individual Service Tests

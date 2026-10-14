@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String KNOWLEDGE_EXCHANGE = "poliwise.events";
+    public static final String KNOWLEDGE_EXCHANGE = "sopilot.events";
     public static final String DOCUMENT_ROUTING_KEY_UPLOADED = "document.uploaded";
     public static final String DOCUMENT_ROUTING_KEY_DELETED = "document.deleted";
     public static final String DOCUMENT_ROUTING_KEY_VERSION_CREATED = "document.version.created";

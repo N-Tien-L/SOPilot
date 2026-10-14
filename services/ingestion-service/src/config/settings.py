@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # RabbitMQ
     rabbitmq_url: str = Field(..., description="RabbitMQ connection URL")
-    rabbitmq_exchange: str = "poliwise.events"
+    rabbitmq_exchange: str = "sopilot.events"
 
     # MinIO
     minio_endpoint: str = "minio:9000"
