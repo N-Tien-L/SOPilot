@@ -32,7 +32,7 @@ export class AuthProxyController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   handleLogin(@Req() request: Request) {
-    this.logger.debug(`Login request body: ${JSON.stringify(request.body)}`);
+    this.logger.debug('Forwarding login request');
     const path = '/api/v1/auth/login';
     return this.proxyService.forward(ServiceName.AUTH, request, path);
   }
