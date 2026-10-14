@@ -27,7 +27,10 @@ import {
   Users,
   UserCog,
   TrendingUp,
+  Clipboard,
 } from 'lucide-react';
+import { Tabs } from '@/components/ui';
+import { RosterTab } from './components/RosterTab';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
 import { useLanguage } from '@/providers';
@@ -191,14 +194,14 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className="mx-auto min-h-[calc(100vh-64px)] max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className={styles.header}>
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className={styles.headerContent}>
           <h1>{t('admin.users.title')}</h1>
           <p>{t('admin.users.subtitle')}</p>
         </div>
-        <div className={styles.headerActions}>
+        <div className="flex flex-wrap items-center gap-3">
           <button
             className={styles.createBulkButton}
             onClick={() => { setActiveTab('bulk'); setShowBulkModal(true); }}
@@ -216,9 +219,18 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
+      <Tabs
+        variant="underline"
+        tabs={[
+          {
+            value: 'active',
+            label: 'Nhân viên hoạt động',
+            icon: <Users size={16} />,
+            content: (
+              <>
+                {/* Stats Cards */}
+                <div className={styles.statsGrid}>
+                  <div className={styles.statCard}>
           <div className={`${styles.statIcon} ${styles.primary}`}>
             <Users size={22} />
           </div>
@@ -492,8 +504,21 @@ export default function AdminUsersPage() {
             </div>
           </div>
         )}
+              </>
+            ),
+          },
+          {
+            value: 'roster',
+            label: 'Danh bạ chờ kích hoạt',
+            icon: <Clipboard size={16} />,
+            content: (
+              <RosterTab departments={departments} />
+            ),
+          },
+        ]}
+      />
 
-        {showDetailModal && selectedUser && (
+      {showDetailModal && selectedUser && (
           <UserDetailModal
             user={selectedUser}
             departments={departments}

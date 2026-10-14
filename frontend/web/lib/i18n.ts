@@ -623,6 +623,22 @@ export const vi = {
   'common.errorData': 'Đã xảy ra lỗi khi tải dữ liệu.',
   'common.noData': 'Không có dữ liệu',
   'common.required': 'Bắt buộc',
+
+  // Google Login & Roster
+  'login.google.button': 'Đăng nhập với Google',
+  'login.google.loading': 'Đang xác thực với Google...',
+  'login.accessDenied.title': 'Truy cập bị từ chối',
+  'login.accessDenied.message': 'Tài khoản của bạn chưa nằm trong danh bạ nhân sự của tổ chức. Vui lòng liên hệ HR.',
+  'login.accessDenied.tryAnother': 'Thử tài khoản khác',
+  'login.accessDenied.backToLogin': 'Quay lại đăng nhập',
+
+  'admin.roster.title': 'Danh bạ chờ kích hoạt',
+  'admin.roster.download': 'Tải file mẫu (.xlsx)',
+  'admin.roster.import': 'Nhập danh bạ Excel',
+  'admin.roster.search': 'Tìm theo mã NV, tên, email...',
+  'admin.roster.status.pending': 'Chờ kích hoạt',
+  'admin.roster.status.claimed': 'Đã đăng nhập',
+  'admin.roster.status.deactivated': 'Đã vô hiệu',
 } as const;
 
 // ============================================================
@@ -1227,6 +1243,22 @@ export const en: Record<keyof typeof vi, string> = {
   'common.errorData': 'An error occurred while loading data.',
   'common.noData': 'No data',
   'common.required': 'Required',
+
+  // Google Login & Roster
+  'login.google.button': 'Sign in with Google',
+  'login.google.loading': 'Authenticating with Google...',
+  'login.accessDenied.title': 'Access Denied',
+  'login.accessDenied.message': 'Your account is not found in the organization roster. Please contact HR.',
+  'login.accessDenied.tryAnother': 'Try another account',
+  'login.accessDenied.backToLogin': 'Back to login',
+
+  'admin.roster.title': 'Pending Roster',
+  'admin.roster.download': 'Download template (.xlsx)',
+  'admin.roster.import': 'Import Roster Excel',
+  'admin.roster.search': 'Search by code, name, email...',
+  'admin.roster.status.pending': 'Pending',
+  'admin.roster.status.claimed': 'Claimed',
+  'admin.roster.status.deactivated': 'Deactivated',
 } as const;
 
 // ============================================================
