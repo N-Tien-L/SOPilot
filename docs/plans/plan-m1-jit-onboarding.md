@@ -5,10 +5,14 @@ status: approved
 created: 2026-09-25
 milestone: "Milestone 1: JIT Onboarding v1.0"
 total_tickets: 6
-completed_tickets: 4
+completed_tickets: 2
+implemented_tickets: 4
+review_tickets: 2
 ---
 
 # TÀI LIỆU THIẾT KẾ KIẾN TRÚC & KẾ HOẠCH THỰC THI (TECHNICAL DESIGN DOCUMENT)
+> Checkpoint 2026-10-15: tài liệu này giữ thiết kế lịch sử. Nguồn tiến độ hiện hành là [PLAN-M1](../03-plans/PLAN-M1-jit-onboarding.md): 2 done, 2 review, M1-05 in-progress, M1-06 todo. Không dùng số ticket đã triển khai để suy ra mức nghiệm thu.
+
 
 **Dự án:** SOPilot – Autonomous SOP & Policy Copilot  
 **Mốc 1 (Milestone 1):** JIT (Just-In-Time) Onboarding & Quản lý Danh bạ Định danh Nhân sự (Pre-provisioned Employee Directory)  
