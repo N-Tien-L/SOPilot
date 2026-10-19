@@ -9,6 +9,7 @@ import com.poliwise.auth.enums.AccountStatus;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
 import io.jsonwebtoken.JwtException;
+import com.poliwise.auth.exception.RefreshTokenRejectedException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -61,7 +62,7 @@ public class RefreshTokenService {
         return rawToken;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RefreshTokenRejectedException.class)
     public RefreshTokenResult rotate(String rawRefreshToken, ClientMetadata metadata) {
         String hashed = hashRefreshToken(rawRefreshToken);
 
@@ -71,12 +72,12 @@ public class RefreshTokenService {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         if (isExpired(existing, now)) {
             refreshTokenRepository.revokeToken(existing.getId(), now, "EXPIRED", null);
-            throw new JwtException("Refresh token expired");
+            throw new RefreshTokenRejectedException("Refresh token expired");
         }
 
         if (Boolean.TRUE.equals(existing.getRevoked())) {
             refreshTokenRepository.revokeAllActiveTokensByUserId(existing.getUserId(), now, "REUSE_DETECTED");
-            throw new JwtException("Refresh token reuse detected — all sessions revoked");
+            throw new RefreshTokenRejectedException("Refresh token reuse detected — all sessions revoked");
         }
 
         User user = userRepository.findById(existing.getUserId())

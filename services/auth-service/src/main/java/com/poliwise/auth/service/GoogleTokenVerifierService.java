@@ -15,6 +15,7 @@ import com.poliwise.auth.dto.auth.GoogleTokenPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,12 +35,15 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class GoogleTokenVerifierService {
 
+    public static final String CANONICAL_ISSUER = "https://accounts.google.com";
+
     private static final Logger log = LoggerFactory.getLogger(GoogleTokenVerifierService.class);
     private static final Set<String> VALID_ISSUERS = Set.of("https://accounts.google.com", "accounts.google.com");
 
     private final String clientId;
     private final ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
+    @Autowired
     public GoogleTokenVerifierService(
             @Value("${auth.oauth.google.client-id}") String clientId,
             @Value("${auth.oauth.google.jwks-uri:https://www.googleapis.com/oauth2/v3/certs}") String jwksUri,
@@ -123,15 +127,23 @@ public class GoogleTokenVerifierService {
             }
 
             String sub = claims.getSubject();
+            if (sub == null || sub.isBlank() || sub.length() > 255) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Google token has no valid subject");
+            }
+            // Enrollment by email needs current email authority; a returning subject does not.
+            String hostedDomain = claims.getStringClaim("hd");
+            boolean emailAuthoritative = email.trim().toLowerCase(java.util.Locale.ROOT).endsWith("@gmail.com")
+                    || (hostedDomain != null && !hostedDomain.isBlank());
             String name = claims.getStringClaim("name");
             String picture = claims.getStringClaim("picture");
 
             return new GoogleTokenPayload(
-                    email.trim().toLowerCase(),
+                    email.trim().toLowerCase(java.util.Locale.ROOT),
                     sub,
                     name != null ? name.trim() : email.split("@")[0],
                     picture,
-                    true
+                    true,
+                    emailAuthoritative
             );
 
         } catch (ResponseStatusException rse) {

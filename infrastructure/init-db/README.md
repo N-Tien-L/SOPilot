@@ -11,6 +11,8 @@ The **SOPilot** platform uses a single PostgreSQL 16 database with the `pgvector
 
 ## 🏗️ Architecture & Migration Mechanism
 
+Google identity admission adds `012_google_identities.sql` (auth-service owner). Apply it before deploying the updated auth-service against an existing database; it creates an empty identity table with issuer/subject and user/issuer uniqueness and performs no email-based backfill. First successful approved Google login enrolls each identity. The isolated integration suite applies it only to its own fresh database.
+
 Checkpoint 2026-10-15: `011_document_bucket_default.sql` changes the default bucket for future `knowledge.documents` rows to `sopilot-documents`. Existing document references and objects are preserved. Apply this additive script explicitly to an existing database after checking its identity; a container restart does not rerun init scripts. Compose database/user renaming does not migrate populated volumes. This checkpoint did not execute a database migration or reset.
 
 Database schemas are managed via **Numbered Additive SQL Scripts** mounted to the PostgreSQL Docker entrypoint (`/docker-entrypoint-initdb.d/`).

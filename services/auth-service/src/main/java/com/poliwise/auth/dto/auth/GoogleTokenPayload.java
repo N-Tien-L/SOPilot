@@ -8,5 +8,6 @@ public record GoogleTokenPayload(
         String sub,
         String name,
         String picture,
-        boolean emailVerified
+        boolean emailVerified,
+        boolean emailAuthoritative
 ) {}

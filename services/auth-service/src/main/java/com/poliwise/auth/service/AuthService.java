@@ -15,10 +15,13 @@ import com.poliwise.auth.enums.LoginStatus;
 import com.poliwise.auth.enums.UserRole;
 import com.poliwise.auth.event.AuthEventPublisher;
 import com.poliwise.auth.dto.auth.GoogleTokenPayload;
-import com.poliwise.auth.dto.roster.ClaimRosterRequest;
 import com.poliwise.auth.dto.roster.ClaimRosterResponse;
+import com.poliwise.auth.dto.roster.AdmitGoogleLoginRequest;
+import com.poliwise.auth.entity.ExternalIdentity;
+import com.poliwise.auth.repository.ExternalIdentityRepository;
 import com.poliwise.auth.exception.RosterDeactivatedException;
 import com.poliwise.auth.exception.RosterNotFoundException;
+import com.poliwise.auth.exception.RefreshTokenRejectedException;
 import com.poliwise.auth.feign.FeedbackServiceClient;
 import com.poliwise.auth.feign.UserServiceClient;
 import com.poliwise.auth.repository.LoginHistoryRepository;
@@ -61,6 +64,7 @@ public class AuthService {
     private final FeedbackServiceClient feedbackServiceClient;
     private final GoogleTokenVerifierService googleTokenVerifierService;
     private final UserServiceClient userServiceClient;
+    private final ExternalIdentityRepository externalIdentityRepository;
 
     @Transactional
     public AuthUserView register(RegisterRequest request, UUID registeredBy) {
@@ -192,53 +196,58 @@ public class AuthService {
     public TokenResponse loginWithGoogle(String idToken, ClientMetadata metadata) {
         GoogleTokenPayload payload = googleTokenVerifierService.verify(idToken);
         String email = payload.email();
-
-        Optional<User> existingUserOpt = userRepository.findByEmailIgnoreCase(email);
-
-        User user;
-        if (existingUserOpt.isPresent()) {
-            user = existingUserOpt.get();
-
-            if (user.getStatus() == AccountStatus.DEACTIVATED) {
-                saveFailedHistory(user.getId(), user.getUsername(), metadata, LoginStatus.FAILED_DEACTIVATED, "ACCOUNT_DEACTIVATED");
-                throw forbidden("Account is deactivated");
+        String issuer = GoogleTokenVerifierService.CANONICAL_ISSUER;
+        Optional<ExternalIdentity> identity = externalIdentityRepository.findByIssuerAndSubject(issuer, payload.sub());
+        if (identity.isEmpty()) {
+            Optional<ExternalIdentity> byEmail = externalIdentityRepository.findByIssuerAndUserEmail(issuer, email);
+            if (byEmail.isPresent() && !payload.sub().equals(byEmail.get().getSubject())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Google account does not match the linked identity");
             }
+            // A parallel login can commit the same identity between these two reads.
+            identity = byEmail;
+        }
+        UUID linkedUserId = identity.map(ExternalIdentity::getUserId).orElse(null);
 
-            if (user.getStatus() == AccountStatus.REVOKED) {
-                saveFailedHistory(user.getId(), user.getUsername(), metadata, LoginStatus.FAILED_REVOKED, "ACCOUNT_REVOKED");
-                throw forbidden("Account is revoked");
-            }
-
-            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-            if (isLocked(user, now)) {
-                saveFailedHistory(user.getId(), user.getUsername(), metadata, LoginStatus.FAILED_LOCKED, "ACCOUNT_LOCKED");
-                throw forbidden("Account is temporarily locked");
-            }
-
-            resetLockStateIfNeeded(user, now);
-        } else {
-            try {
-                ClaimRosterResponse claimResponse = userServiceClient.claimRoster(
-                        new ClaimRosterRequest(email, payload.sub())
-                );
-                user = userRepository.findById(claimResponse.userId())
-                        .orElseThrow(() -> new ResponseStatusException(
-                                HttpStatus.INTERNAL_SERVER_ERROR,
-                                "User claimed successfully but not found in database: " + claimResponse.userId()
-                        ));
-            } catch (RosterNotFoundException e) {
-                saveFailedHistory(null, email, metadata, LoginStatus.FAILED_CREDENTIALS, "ROSTER_NOT_FOUND");
-                throw e;
-            } catch (RosterDeactivatedException e) {
-                saveFailedHistory(null, email, metadata, LoginStatus.FAILED_DEACTIVATED, "ROSTER_DEACTIVATED");
-                throw e;
-            } catch (FeignException e) {
-                log.error("Failed to communicate with user-service for roster claim: {}", e.getMessage(), e);
-                saveFailedHistory(null, email, metadata, LoginStatus.FAILED_CREDENTIALS, "USER_SERVICE_UNAVAILABLE");
-                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "User service is unavailable, please try again later");
-            }
+        if (identity.isEmpty() && !payload.emailAuthoritative()) {
+            throw forbidden("Automatic enrollment requires a Gmail or Google Workspace account; contact HR");
         }
 
+        ClaimRosterResponse admission;
+        try {
+            admission = userServiceClient.admitGoogleLogin(new AdmitGoogleLoginRequest(email, linkedUserId));
+        } catch (RosterNotFoundException e) {
+            saveFailedHistory(linkedUserId, email, metadata, LoginStatus.FAILED_CREDENTIALS, "ROSTER_NOT_FOUND");
+            throw e;
+        } catch (RosterDeactivatedException e) {
+            saveFailedHistory(linkedUserId, email, metadata, LoginStatus.FAILED_DEACTIVATED, "ROSTER_DEACTIVATED");
+            throw e;
+        } catch (FeignException e) {
+            if (e.status() == 409) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Roster/account data needs HR review");
+            }
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "User service is unavailable, please try again later");
+        }
+        if (linkedUserId != null && !linkedUserId.equals(admission.userId())) {
+            throw forbidden("Roster does not match the linked account");
+        }
+        User user = userRepository.findByIdForUpdate(admission.userId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Admitted user not found"));
+        if (user.getStatus() == AccountStatus.DEACTIVATED || user.getStatus() == AccountStatus.REVOKED) {
+            throw forbidden("Account is not active");
+        }
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        if (isLocked(user, now)) {
+            throw forbidden("Account is temporarily locked");
+        }
+
+        externalIdentityRepository.insertIfAbsent(UUID.randomUUID(), user.getId(), issuer, payload.sub(), email);
+        ExternalIdentity bound = externalIdentityRepository.findByIssuerAndSubject(issuer, payload.sub())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Account already has a different Google identity"));
+        if (!bound.getUserId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Google identity already belongs to another account");
+        }
+
+        resetLockStateIfNeeded(user, now);
         saveSuccessHistory(user, metadata);
 
         String accessToken = jwtTokenProvider.createAccessToken(user);
@@ -253,7 +262,7 @@ public class AuthService {
         );
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RefreshTokenRejectedException.class)
     public TokenResponse refresh(String rawRefreshToken, ClientMetadata metadata) {
         RefreshTokenService.RefreshTokenResult result = refreshTokenService.rotate(rawRefreshToken, metadata);
 

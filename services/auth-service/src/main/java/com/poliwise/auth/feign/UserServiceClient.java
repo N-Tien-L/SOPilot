@@ -2,6 +2,7 @@ package com.poliwise.auth.feign;
 
 import com.poliwise.auth.dto.roster.ClaimRosterRequest;
 import com.poliwise.auth.dto.roster.ClaimRosterResponse;
+import com.poliwise.auth.dto.roster.AdmitGoogleLoginRequest;
 import jakarta.validation.Valid;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
         configuration = UserServiceClientConfig.class
 )
 public interface UserServiceClient {
+
+    @PostMapping("/internal/v1/roster/google-admission")
+    ClaimRosterResponse admitGoogleLogin(@Valid @RequestBody AdmitGoogleLoginRequest request);
 
     @PostMapping("/internal/v1/roster/claim")
     ClaimRosterResponse claimRoster(@Valid @RequestBody ClaimRosterRequest request);

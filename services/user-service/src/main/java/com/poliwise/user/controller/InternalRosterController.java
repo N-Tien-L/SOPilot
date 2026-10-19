@@ -2,6 +2,7 @@ package com.poliwise.user.controller;
 
 import com.poliwise.user.dto.roster.ClaimRosterRequest;
 import com.poliwise.user.dto.roster.ClaimRosterResponse;
+import com.poliwise.user.dto.roster.AdmitGoogleLoginRequest;
 import com.poliwise.user.service.EmployeeRosterService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,11 @@ public class InternalRosterController {
 
     public InternalRosterController(EmployeeRosterService employeeRosterService) {
         this.employeeRosterService = employeeRosterService;
+    }
+
+    @PostMapping("/google-admission")
+    public ResponseEntity<ClaimRosterResponse> admitGoogleLogin(@Valid @RequestBody AdmitGoogleLoginRequest request) {
+        return ResponseEntity.ok(employeeRosterService.admitGoogleLogin(request));
     }
 
     /**

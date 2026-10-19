@@ -31,6 +31,45 @@ class GoogleTokenVerifierServiceTest {
 
     private GoogleTokenVerifierService verifierService;
 
+    @Test
+    void verify_ShouldRejectMissingSubject_BeforeEnrollment() throws Exception {
+        // Arrange
+        JWTClaimsSet claims = new JWTClaimsSet.Builder().issuer("https://accounts.google.com")
+                .audience(CLIENT_ID).expirationTime(new Date(System.currentTimeMillis() + 60_000))
+                .claim("email", "employee@gmail.com").claim("email_verified", true).build();
+        when(jwtProcessor.process(any(String.class), isNull())).thenReturn(claims);
+        // Act
+        var error = assertThrows(ResponseStatusException.class, () -> verifierService.verify("id-token"));
+        // Assert
+        assertEquals(HttpStatus.UNAUTHORIZED, error.getStatusCode());
+    }
+
+    @Test
+    void verify_ShouldMarkThirdPartyEmailAsNonAuthoritative() throws Exception {
+        // Arrange
+        JWTClaimsSet claims = new JWTClaimsSet.Builder().issuer("https://accounts.google.com")
+                .audience(CLIENT_ID).subject("google-user").expirationTime(new Date(System.currentTimeMillis() + 60_000))
+                .claim("email", "employee@third-party.com").claim("email_verified", true).build();
+        when(jwtProcessor.process(any(String.class), isNull())).thenReturn(claims);
+        // Act
+        var payload = verifierService.verify("id-token");
+        // Assert
+        assertFalse(payload.emailAuthoritative());
+    }
+
+    @Test
+    void verify_ShouldAcceptGmailWithoutHostedDomain() throws Exception {
+        // Arrange
+        JWTClaimsSet claims = new JWTClaimsSet.Builder().issuer("https://accounts.google.com")
+                .audience(CLIENT_ID).subject("google-user").expirationTime(new Date(System.currentTimeMillis() + 60_000))
+                .claim("email", "employee@gmail.com").claim("email_verified", true).build();
+        when(jwtProcessor.process(any(String.class), isNull())).thenReturn(claims);
+        // Act
+        var payload = verifierService.verify("id-token");
+        // Assert
+        assertEquals("google-user", payload.sub());
+    }
+
     @BeforeEach
     void setUp() {
         verifierService = new GoogleTokenVerifierService(CLIENT_ID, jwtProcessor);
@@ -44,6 +83,7 @@ class GoogleTokenVerifierServiceTest {
                 .audience(List.of(CLIENT_ID))
                 .expirationTime(new Date(System.currentTimeMillis() + 3600_000))
                 .claim("email_verified", true)
+                .claim("hd", "sopilot.com")
                 .claim("email", "EMPLOYEE@SOPILOT.COM")
                 .subject("google-sub-999")
                 .claim("name", "Nguyen Van A")
@@ -70,6 +110,7 @@ class GoogleTokenVerifierServiceTest {
                 .audience(List.of(CLIENT_ID))
                 .expirationTime(new Date(System.currentTimeMillis() + 3600_000))
                 .claim("email_verified", true)
+                .claim("hd", "sopilot.com")
                 .claim("email", "user@sopilot.com")
                 .subject("google-sub-123")
                 .build();
@@ -89,6 +130,7 @@ class GoogleTokenVerifierServiceTest {
                 .audience(List.of(CLIENT_ID))
                 .expirationTime(new Date(System.currentTimeMillis() + 3600_000))
                 .claim("email_verified", true)
+                .claim("hd", "sopilot.com")
                 .claim("email", "attacker@sopilot.com")
                 .build();
 
@@ -109,6 +151,7 @@ class GoogleTokenVerifierServiceTest {
                 .audience(List.of("different-google-client-id"))
                 .expirationTime(new Date(System.currentTimeMillis() + 3600_000))
                 .claim("email_verified", true)
+                .claim("hd", "sopilot.com")
                 .claim("email", "user@sopilot.com")
                 .build();
 
@@ -129,6 +172,7 @@ class GoogleTokenVerifierServiceTest {
                 .audience(List.of(CLIENT_ID))
                 .expirationTime(new Date(System.currentTimeMillis() - 10_000)) // 10 seconds ago
                 .claim("email_verified", true)
+                .claim("hd", "sopilot.com")
                 .claim("email", "user@sopilot.com")
                 .build();
 

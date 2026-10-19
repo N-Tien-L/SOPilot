@@ -3,6 +3,7 @@ package com.poliwise.user.service;
 import com.poliwise.user.dto.event.UserAssignedToDepartmentEvent;
 import com.poliwise.user.dto.event.UserRegisteredEvent;
 import com.poliwise.user.dto.roster.ClaimRosterRequest;
+import com.poliwise.user.dto.roster.AdmitGoogleLoginRequest;
 import com.poliwise.user.dto.roster.ClaimRosterResponse;
 import com.poliwise.user.dto.roster.RosterResponse;
 import com.poliwise.user.entity.EmployeeRoster;
@@ -29,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.Locale;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +43,32 @@ public class EmployeeRosterService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserEventPublisher userEventPublisher;
+
+    /** Every Google login checks admission. A bound identity follows its claimed user, not email. */
+    @Transactional
+    public ClaimRosterResponse admitGoogleLogin(AdmitGoogleLoginRequest request) {
+        EmployeeRoster roster = (request.userId() == null
+                ? employeeRosterRepository.findByEmailIgnoreCaseForUpdate(request.email().trim().toLowerCase(Locale.ROOT))
+                : employeeRosterRepository.findByClaimedUserIdForUpdate(request.userId()))
+                .orElseThrow(() -> new RosterNotFoundException(
+                        "Tài khoản chưa nằm trong danh bạ nhân sự của tổ chức. Vui lòng liên hệ HR."));
+        if (roster.getStatus() == RosterStatus.DEACTIVATED) {
+            throw new RosterDeactivatedException("Định danh nhân sự đã bị vô hiệu hóa. Vui lòng liên hệ HR.");
+        }
+        if (roster.isClaimed() && roster.getStatus() == RosterStatus.CLAIMED && roster.getClaimedUser() != null) {
+            User user = roster.getClaimedUser();
+            if (request.userId() != null && !request.userId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Roster identity does not match user");
+            }
+            UserProfile profile = userProfileRepository.findByUser_Id(user.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Claimed roster has no user profile"));
+            return toClaimResponse(user, profile, roster);
+        }
+        if (request.userId() != null || roster.isClaimed() || roster.getStatus() != RosterStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Roster claim state is inconsistent");
+        }
+        return claimRoster(new ClaimRosterRequest(request.email(), null));
+    }
 
     /**
      * Tra cứu danh bạ nhân sự nạp trước với phân trang và bộ lọc linh hoạt.
@@ -98,7 +128,7 @@ public class EmployeeRosterService {
      */
     @Transactional
     public ClaimRosterResponse claimRoster(ClaimRosterRequest request) {
-        String normalizedEmail = request.email().trim().toLowerCase();
+        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
         log.info("Processing JIT Claim request for email: {}", normalizedEmail);
 
         // 1. Khóa bản ghi danh bạ để chống race condition khi click đúp hoặc spam đăng nhập
@@ -139,6 +169,17 @@ public class EmployeeRosterService {
 
             return userRepository.save(newUser);
         });
+
+        if (user.getStatus() != AccountStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
+        }
+        // Enrolling an existing account must not silently change its privileges or department.
+        if (user.getRole() != roster.getRole()
+                || !java.util.Objects.equals(user.getDepartment() == null ? null : user.getDepartment().getId(),
+                        roster.getDepartment() == null ? null : roster.getDepartment().getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Existing account role/department differs from roster; contact HR");
+        }
 
         // 4. Khởi tạo hồ sơ UserProfile nếu chưa tồn tại
         UserProfile profile = userProfileRepository.findByUser_Id(user.getId()).orElseGet(() -> {
@@ -183,6 +224,10 @@ public class EmployeeRosterService {
 
         log.info("Successfully completed JIT Claim for email={}, assigned userId={}", normalizedEmail, user.getId());
 
+        return toClaimResponse(user, profile, roster);
+    }
+
+    private ClaimRosterResponse toClaimResponse(User user, UserProfile profile, EmployeeRoster roster) {
         return new ClaimRosterResponse(
                 user.getId(),
                 user.getUsername(),

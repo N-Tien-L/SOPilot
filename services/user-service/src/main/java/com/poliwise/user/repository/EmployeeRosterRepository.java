@@ -36,6 +36,10 @@ public interface EmployeeRosterRepository extends JpaRepository<EmployeeRoster, 
     @Query("SELECT r FROM EmployeeRoster r WHERE LOWER(r.email) = LOWER(:email) AND r.deletedAt IS NULL")
     Optional<EmployeeRoster> findByEmailIgnoreCaseForUpdate(@Param("email") String email);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM EmployeeRoster r WHERE r.claimedUser.id = :userId AND r.deletedAt IS NULL")
+    Optional<EmployeeRoster> findByClaimedUserIdForUpdate(@Param("userId") UUID userId);
+
     @Query("SELECT LOWER(r.email) FROM EmployeeRoster r WHERE LOWER(r.email) IN :emails AND r.deletedAt IS NULL")
     List<String> findExistingEmailsIn(@Param("emails") Collection<String> emails);
 

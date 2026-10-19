@@ -83,6 +83,7 @@ class EmployeeRosterServiceTest {
         sampleRoster.setPhone("0901234567");
         sampleRoster.setStatus(RosterStatus.PENDING);
         sampleRoster.setClaimed(false);
+        sampleRoster.setRole(UserRole.USER);
     }
 
     @Test
@@ -102,6 +103,7 @@ class EmployeeRosterServiceTest {
         mockUser.setUsername(sampleRoster.getEmail());
         mockUser.setRole(UserRole.USER);
         mockUser.setStatus(AccountStatus.ACTIVE);
+        mockUser.setDepartment(department);
 
         when(userRepository.save(any(User.class))).thenReturn(mockUser);
         when(userProfileRepository.save(any(UserProfile.class))).thenReturn(new UserProfile());
