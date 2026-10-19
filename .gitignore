@@ -55,7 +55,6 @@ environment_setup/
 .cursor/
 .roo/
 .claude/
-.agent/
 .agents/
 scratch/
 .agentrules/
@@ -102,6 +101,7 @@ test-*.bat
 test-*.js
 test-*.ts
 test-*.md
+!.agent/skills/**/test-*.md
 !codebase-map.json
 
 # Database backups (local only)
@@ -110,3 +110,5 @@ poliwise-database-backup.sql
 infrastructure/init-db/010_seed_data.sql
 infrastructure/seed/seed_data.sql
 .agentrules
+
+temp/

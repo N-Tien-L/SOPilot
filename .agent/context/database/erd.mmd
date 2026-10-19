@@ -1,0 +1,193 @@
+graph TD
+%% ===== STYLE =====
+classDef entity fill:#fff,stroke:#333,stroke-width:2px;
+classDef relationship fill:#fff,stroke:#333,stroke-width:2px;
+
+%% ================= CORE =================
+Users[core.users]:::entity
+Departments[core.departments]:::entity
+Profiles[core.user_profiles]:::entity
+Tokens[core.refresh_tokens]:::entity
+Login[core.login_history]:::entity
+Blacklist[core.access_token_blacklist]:::entity
+
+Users -- N --- R1{thuộc}:::relationship
+R1 -- 1 --- Departments
+
+Users -- 1 --- R2{có}:::relationship
+R2 -- 1 --- Profiles
+
+Users -- 1 --- R3{sở hữu}:::relationship
+R3 -- N --- Tokens
+
+Users -- 1 --- R4{login}:::relationship
+R4 -- N --- Login
+
+Users -- 1 --- R5{blacklist}:::relationship
+R5 -- N --- Blacklist
+
+
+%% ================= METADATA =================
+Categories[metadata.categories]:::entity
+Tags[metadata.tags]:::entity
+DocMeta[metadata.document_metadata]:::entity
+DocTags[metadata.document_tags]:::entity
+AccessRules[metadata.document_access_rules]:::entity
+
+DocMeta -- N --- R10{thuộc}:::relationship
+R10 -- 1 --- Categories
+
+DocMeta -- 1 --- R11{gắn}:::relationship
+R11 -- N --- DocTags
+
+DocTags -- N --- R12{tag}:::relationship
+R12 -- 1 --- Tags
+
+DocMeta -- 1 --- R13{phân quyền}:::relationship
+R13 -- N --- AccessRules
+
+
+%% ================= KNOWLEDGE =================
+Documents[knowledge.documents]:::entity
+Versions[knowledge.document_versions]:::entity
+Chunks[knowledge.chunks]:::entity
+Jobs[knowledge.processing_jobs]:::entity
+Cache[knowledge.embedding_cache]:::entity
+
+Documents -- 1 --- R20{version}:::relationship
+R20 -- N --- Versions
+
+Documents -- 1 --- R21{chứa}:::relationship
+R21 -- N --- Chunks
+
+Versions -- 1 --- R22{sinh}:::relationship
+R22 -- N --- Chunks
+
+Chunks -- 1 --- R23{cha}:::relationship
+R23 -- N --- Chunks
+
+Documents -- 1 --- R24{xử lý}:::relationship
+R24 -- N --- Jobs
+
+Chunks -.-> R25{tra cứu cache}:::relationship
+R25 -.-> Cache
+
+
+%% ================= CROSS (IMPORTANT) =================
+Documents -- 1 --- R30{metadata}:::relationship
+R30 -- 1 --- DocMeta
+
+DocMeta -- N --- R31{thuộc phòng ban}:::relationship
+R31 -- 1 --- Departments
+
+DocMeta -- N --- R32{tạo bởi}:::relationship
+R32 -- 1 --- Users
+
+Chunks -- N --- R33{flattened ACL}:::relationship
+R33 -- 1 --- Departments
+
+Documents -- N --- R34{tải lên bởi}:::relationship
+R34 -- 1 --- Users
+
+AccessRules -- N --- R35{phân cho phòng ban}:::relationship
+R35 -- 1 --- Departments
+
+AccessRules -- N --- R36{phân cho người dùng}:::relationship
+R36 -- 1 --- Users
+
+
+%% ================= CONVERSATION =================
+Convs[conversation.conversations]:::entity
+Msgs[conversation.messages]:::entity
+Unanswered[conversation.unanswered_questions]:::entity
+
+Users -- 1 --- R40{chat}:::relationship
+R40 -- N --- Convs
+
+Convs -- 1 --- R41{chứa}:::relationship
+R41 -- N --- Msgs
+
+Msgs -- 1 --- R42{chưa trả lời}:::relationship
+R42 -- 0..1 --- Unanswered
+
+Unanswered -- N --- R43{thuộc phòng ban}:::relationship
+R43 -- 1 --- Departments
+
+
+%% ================= ANALYTICS =================
+Feedbacks[analytics.feedbacks]:::entity
+Usage[analytics.usage_stats]:::entity
+Audit[analytics.audit_logs]:::entity
+Daily[analytics.daily_aggregates]:::entity
+Hourly[analytics.hourly_aggregates]:::entity
+DeptStats[analytics.department_daily_stats]:::entity
+Popular[analytics.popular_questions]:::entity
+DocPop[analytics.document_popularity]:::entity
+Reports[analytics.report_exports]:::entity
+
+Users -- 1 --- R50{feedback}:::relationship
+R50 -- N --- Feedbacks
+
+Msgs -- 1 --- R51{được đánh giá}:::relationship
+R51 -- N --- Feedbacks
+
+Convs -- 1 --- R52{thuộc}:::relationship
+R52 -- N --- Feedbacks
+
+Users -- 1 --- R53{sử dụng}:::relationship
+R53 -- N --- Usage
+
+Users -- 1 --- R54{audit}:::relationship
+R54 -- N --- Audit
+
+Departments -- 1 --- R55{thống kê}:::relationship
+R55 -- N --- DeptStats
+
+Documents -- 1 --- R56{phổ biến}:::relationship
+R56 -- N --- DocPop
+
+Users -- 1 --- R57{export}:::relationship
+R57 -- N --- Reports
+
+Feedbacks -- N --- R58{theo phòng ban}:::relationship
+R58 -- 1 --- Departments
+
+Usage -- N --- R59{theo phòng ban}:::relationship
+R59 -- 1 --- Departments
+
+Reports -- N --- R60{lọc theo phòng ban}:::relationship
+R60 -- 1 --- Departments
+
+Popular -- N --- R61{phát hiện phòng ban}:::relationship
+R61 -- 1 --- Departments
+
+
+%% ================= MAINTENANCE (CRON JOBS) =================
+subgraph Maintenance [" Hệ thống Tự động (Cron Jobs) "]
+    Cron[Cron Job Service]:::relationship
+
+    Cron -- Quản lý --- T1[Dọn dẹp Token hết hạn]
+    Cron -- Quản lý --- T2[Xóa User soft-delete quá hạn]
+    Cron -- Quản lý --- T3[Tổng hợp Daily Aggregates]
+    Cron -- Quản lý --- T4[Tổng hợp Hourly Aggregates]
+    Cron -- Quản lý --- T5[Thống kê Department Stats]
+    Cron -- Quản lý --- T6[Phân tích Popular Questions]
+    Cron -- Quản lý --- T7[Tính Document Popularity]
+    Cron -- Quản lý --- T8[Xử lý Processing Jobs lỗi]
+end
+
+
+subgraph Optimization [" Tối ưu hóa Tìm kiếm & Hiệu năng (Indexes) "]
+    HNSW[HNSW Vector Index]:::relationship
+    FTS[GIN Full-Text Search]:::relationship
+    ACL[GIN ACL Filtering]:::relationship
+    Partial[Partial/Composite Indexes]:::relationship
+
+    HNSW -- Tối ưu --- I1[knowledge.chunks - Vector Search]
+    FTS -- Tối ưu --- I1
+    ACL -- Tối ưu --- I1
+    Partial -- Tối ưu --- I2[metadata.document_metadata]
+    Partial -- Tối ưu --- I3[analytics.audit_logs]
+    Partial -- Tối ưu --- I1
+end
+
