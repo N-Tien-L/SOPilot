@@ -1,10 +1,9 @@
 ---
-doc_id: PRD-M1-JIT-ONBOARDING
+id: PRD-M1-JIT-ONBOARDING
 title: "JIT Onboarding & Quản lý Danh bạ Định danh Nhân sự"
-type: requirement
-status: approved
+status: superseded
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-10-20
 author: "Principal Software Architect & Tech Lead"
 milestone: "Milestone 1: JIT Onboarding v1.0"
 priority: P0
@@ -12,7 +11,7 @@ priority: P0
 
 # YÊU CẦU NGHIỆP VỤ & ĐẶC TẢ TÍNH NĂNG (PRD)
 
-> **Mã tài liệu:** `PRD-M1-JIT-ONBOARDING` | **Milestone:** Milestone 1: JIT Onboarding v1.0 | **Trạng thái:** Approved
+> **Mã tài liệu:** `PRD-M1-JIT-ONBOARDING` | **Milestone:** Milestone 1: JIT Onboarding v1.0 | **Trạng thái:** Superseded bởi PRD-V2-SOPILOT-MVP (2026-10-20)
 
 ---
 

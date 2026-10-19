@@ -1,8 +1,7 @@
 ---
-doc_id: PRD-XXX
+id: PRD-XXX
 title: "[Tên tính năng / Nghiệp vụ]"
-type: requirement
-status: draft # draft | in-review | approved | deprecated
+status: draft # draft | approved | superseded
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 author: "[Tên tác giả / Agent Role]"

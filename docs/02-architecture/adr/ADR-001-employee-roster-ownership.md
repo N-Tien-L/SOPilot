@@ -1,15 +1,19 @@
 ---
-adr_id: ADR-001
+id: ADR-001
 title: "Quyền sở hữu bảng core.employee_roster thuộc user-service"
-status: accepted
-date: 2026-09-25
+status: superseded
+created: 2026-09-25
+updated: 2026-10-20
+refs: [docs/01-requirements/PRD-M1-jit-onboarding.md]
 deciders: ["Principal Architect", "Tech Lead"]
-consulted_docs: ["docs/01-requirements/PRD-M1-jit-onboarding.md"]
+superseded_by: "ADR-005"
 ---
 
 # ADR-001: Quyền sở hữu bảng core.employee_roster thuộc user-service
 
-> **Trạng thái:** Accepted | **Ngày quyết định:** 2026-09-25 | **Người quyết định:** Principal Architect, Tech Lead
+> Cập nhật 2026-10-15: ADR-003-google-identity-and-roster-admission.md thay thế giả định bên dưới rằng chỉ kiểm tra roster một lần. Quyền sở hữu vẫn thuộc user-service; mọi Google login nay đều kiểm tra admission.
+
+> **Trạng thái:** Superseded bởi ADR-005 (2026-10-20), trước đó Accepted | **Ngày quyết định:** 2026-09-25 | **Người quyết định:** Principal Architect, Tech Lead
 
 ---
 

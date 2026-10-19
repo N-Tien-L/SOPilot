@@ -1,11 +1,13 @@
 ---
-ticket_id: NEXT-04
+id: NEXT-04
 title: "Chốt contract và cơ chế delivery audit JIT"
 type: docs
+status: todo
+created: 2026-10-15
+updated: 2026-10-15
 scope: user
 priority: P1
 size: M
-status: todo
 parent_plan: PLAN-NEXT
 depends_on: []
 ---

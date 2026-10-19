@@ -1,11 +1,13 @@
 ---
-ticket_id: M1-01
+id: M1-01
 title: "Database Schema Migration cho Employee Roster"
 type: feat
+status: done
+created: 2026-09-25
+updated: 2026-09-25
 scope: infra
 priority: P0
 size: S
-status: done
 parent_plan: PLAN-M1-JIT-ONBOARDING
 depends_on: []
 blocks: [M1-02]

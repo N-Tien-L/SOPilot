@@ -1,12 +1,13 @@
 ---
-report_id: AUDIT-XXX
+id: AUDIT-XXX
 title: "[Báo cáo kiểm định chất lượng / Test & Architecture Audit]"
-type: quality-audit # test-audit | security-audit | performance-audit | post-mortem
-status: completed
-date: YYYY-MM-DD
+type: quality-audit # quality-audit | test-audit | security-audit | performance-audit | post-mortem | handoff
+status: draft # draft | final
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
 author: "[QA Lead / Code Reviewer / Agent]"
 milestone: "[Milestone X]"
-target_scope: ["all" | "auth-service" | "user-service" | "web" | ...]
+scope: [all] # all | auth-service | user-service | web | ...
 verdict: PASSED # PASSED | FAILED | PASSED_WITH_WARNINGS
 ---
 

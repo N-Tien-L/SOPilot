@@ -1,11 +1,13 @@
 ---
-ticket_id: M1-03
+id: M1-03
 title: "Auth-Service: Google Token Verification & JIT Integration"
 type: feat
+status: review
+created: 2026-09-27
+updated: 2026-09-27
 scope: auth
 priority: P0
 size: M
-status: review
 parent_plan: PLAN-M1-JIT-ONBOARDING
 depends_on: [M1-02]
 blocks: [M1-04]

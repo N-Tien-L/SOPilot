@@ -1,50 +1,101 @@
 # SOPilot Documentation Hub (`docs/`)
 
-Điểm bắt đầu hiện tại: [Bàn giao implement 2026-10-15](04-reports/HANDOFF-implementation-2026-10-15.md), [backlog tiếp theo](03-plans/PLAN-NEXT-implementation-readiness.md), [audit 2026-10-14](04-reports/AUDIT-project-progress-2026-10-14.md). `docs/03-plans` là nguồn tiến độ hiện hành; các ticket trong `docs/plans/tickets` được giữ đồng bộ để tương thích. Plan cũ giữ nguyên thiết kế lịch sử.
+**Kế hoạch V2 (`approved` 2026-10-20):** [PLAN-V2](03-plans/PLAN-V2-sopilot-mvp.md), 26 ticket `V2-01` đến `V2-26` (ingestion SOP: `V2-19` đến `V2-22`, xem [AUDIT-ingestion-sop-data](04-reports/AUDIT-ingestion-sop-data-2026-10-19.md); nhân sự, phòng ban, metadata: `V2-23` đến `V2-26`).
 
-Chào mừng đến với trung tâm tài liệu thiết kế, phân tích và thực thi của **SOPilot**. Thư mục này được tổ chức theo quy chuẩn kép (**Human-Readable & Agent-Optimized**): đảm bảo con người dễ theo dõi tiến độ và AI Coding Agent có thể đọc/viết có cấu trúc, không gây ảo giác ngữ cảnh.
+**V2 (owner duyệt 2026-10-20, `approved`):** [PRD-V2](01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004 kiến trúc hai service](02-architecture/adr/ADR-004-two-service-architecture.md), [ADR-005 workspace và Google JIT](02-architecture/adr/ADR-005-workspace-tenancy-and-google-jit.md), [ADR-006 provider miễn phí, eval local và deploy](02-architecture/adr/ADR-006-free-tier-providers-and-environments.md), [phân tích nền 2026-10-17](04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md). [ADR-007 phòng ban, hồ sơ thành viên và quyền tài liệu](02-architecture/adr/ADR-007-departments-member-profiles-document-access.md). Bộ này thay thế PRD-M1, ADR-001, ADR-002, ADR-003 (đã `superseded`); backlog NEXT/M1 đóng ở `V2-04`.
+
+Cập nhật auth 2026-10-15: [Google identity/admission và kiểm thử](04-reports/AUDIT-google-admission-2026-10-15.md), [policy ADR-003](02-architecture/adr/ADR-003-google-identity-and-roster-admission.md). Bản này bổ sung checkpoint bên dưới, không thay kết luận audit toàn dự án thành release-ready.
+
+Điểm bắt đầu hiện tại: [Bàn giao implement 2026-10-15](04-reports/HANDOFF-implementation-2026-10-15.md), [backlog tiếp theo](03-plans/PLAN-NEXT-implementation-readiness.md), [audit 2026-10-14](04-reports/AUDIT-project-progress-2026-10-14.md).
+
+> **`docs/plans/` đã ngừng sử dụng.** Thư mục này là bản sao cũ của `docs/03-plans/`, không còn được đồng bộ và sẽ bị xóa sau khi NEXT-02 được commit. Chỉ đọc và sửa `docs/03-plans/`.
+
+Thư mục này là nguồn sự thật duy nhất cho đặc tả sản phẩm (PRD, ADR, TECH), kế hoạch (PLAN, ticket) và báo cáo nghiệm thu (AUDIT, HANDOFF). Ngữ cảnh kỹ thuật dài hạn của từng service (contract, schema, event, RBAC) nằm ở [`.agent/context/`](../.agent/context/README.md); quy tắc làm việc cho agent nằm ở [`AGENTS.md`](../AGENTS.md).
 
 ---
 
-## 🧭 Cấu trúc phân nhóm tài liệu
+## 🧭 Cấu trúc thư mục
 
 ```text
 docs/
-├── 01-requirements/       # [Yêu cầu nghiệp vụ] PRD, User Stories, Feature Specifications
-│   ├── templates/         # Template mẫu cho PRD (prd-template.md)
-│   └── PRD-*.md           # Hồ sơ đặc tả yêu cầu từng tính năng / mốc
-│
-├── 02-architecture/       # [Kiến trúc & Kỹ thuật] Technical Design Documents (TDD) & ADRs
-│   ├── adr/               # Architecture Decision Records (Quyết định thiết kế dài hạn)
-│   │   ├── templates/     # adr-template.md
-│   │   └── ADR-*.md
-│   ├── designs/           # Technical Design Documents (Thiết kế chi tiết DDL, API, Sequence)
-│   │   ├── templates/     # tech-design-template.md
-│   │   └── TECH-*.md
-│   └── diagrams/          # Sơ đồ Mermaid, ERD, System Flows
-│
-├── 03-plans/              # [Kế hoạch thực thi] Execution Plans & Task Tickets
-│   ├── templates/         # plan-template.md & ticket-template.md
-│   ├── PLAN-*.md          # Kế hoạch tổng thể mốc, Critical Path, DAG phụ thuộc
-│   └── tickets/           # Tickets thực thi độc lập (M1-01, M1-02,...)
-│
-└── 04-reports/            # [Kiểm định & Báo cáo] Test Audits, Code Quality, Post-mortem
-    ├── templates/         # audit-report-template.md
-    └── AUDIT-*.md         # Báo cáo nghiệm thu và phân tích chất lượng từng milestone
+├── 01-requirements/       # PRD: vấn đề, phạm vi, user story, acceptance criteria
+│   ├── templates/prd-template.md
+│   └── PRD-*.md
+├── 02-architecture/
+│   ├── adr/               # Quyết định kiến trúc dài hạn (ADR-*.md, templates/adr-template.md)
+│   └── designs/           # Thiết kế kỹ thuật: DDL, API, sequence (TECH-*.md, templates/tech-design-template.md)
+├── 03-plans/              # Kế hoạch thực thi: nguồn tiến độ hiện hành
+│   ├── templates/         # plan-template.md, ticket-template.md
+│   ├── PLAN-*.md          # Kế hoạch mốc, DAG phụ thuộc, bảng trạng thái ticket
+│   └── tickets/           # Ticket thực thi (M1-01, NEXT-02, ...)
+├── 04-reports/            # Báo cáo nghiệm thu, audit, bàn giao (templates/audit-report-template.md)
+└── plans/                 # ĐÃ NGỪNG DÙNG, chờ xóa (xem ghi chú ở trên)
 ```
+
+Sơ đồ (ERD, luồng hệ thống) hiện nằm trong `.agent/context/database/erd.mmd` và `.agent/context/architecture/`. Chưa có thư mục `02-architecture/diagrams/`.
 
 ---
 
-## 🤖 Bản đồ Kỹ năng Agent tương ứng (Agent Skills Mapping)
+## 🔁 Quy trình spec-driven
 
-Mỗi nhóm tài liệu được hỗ trợ bởi một Kỹ năng chuyên biệt trong `.agent/skills/`:
+```mermaid
+flowchart LR
+    PRD["PRD (01)"] --> ADR["ADR (02)"]
+    PRD --> TECH["TECH (02)"]
+    ADR --> TECH
+    TECH --> PLAN["PLAN (03)"]
+    PLAN --> T["Tickets (03)"]
+    T --> CODE["Code + .agent/context"]
+    CODE --> AUDIT["AUDIT (04)"]
+```
 
-| Tác vụ / Nhóm tài liệu | Kỹ năng Agent (`.agent/skills/`) | Lệnh / Output |
+1. **PRD** chốt vấn đề, phạm vi và acceptance criteria. Chưa có PRD `approved` thì không lập PLAN.
+2. **ADR** ghi quyết định khó đảo ngược. **TECH** đặc tả DDL, API, event, sequence và tham chiếu PRD/ADR qua `refs`.
+3. **PLAN** phân rã TECH thành ticket, có DAG phụ thuộc và bảng trạng thái. `depends_on` trong ticket và DAG trong PLAN phải khớp nhau.
+4. **Ticket** được triển khai theo thứ tự service → gateway → frontend → kiểm thử → cập nhật tài liệu. Khi đổi endpoint, schema, event hoặc RBAC thì cập nhật file tương ứng trong `.agent/context/` trong cùng thay đổi.
+5. **AUDIT** ghi bằng chứng nghiệm thu (lệnh đã chạy, kết quả, phần chưa xác minh). Ticket chỉ chuyển `done` khi có bằng chứng.
+
+Khi tài liệu và code mâu thuẫn, code là sự thật. Hãy sửa tài liệu hoặc mở ticket sửa code, không âm thầm "chỉnh" cho khớp.
+
+---
+
+## 📋 Quy ước frontmatter
+
+Mọi file spec (trừ template và README) bắt đầu bằng YAML frontmatter.
+
+**Trường chung (bắt buộc):** `id`, `title`, `status`, `created`, `updated` (định dạng `YYYY-MM-DD`).
+**Trường chung (tùy chọn):** `refs` (danh sách đường dẫn tính từ gốc repo tới tài liệu thượng nguồn), `author`.
+
+| Loại | Tiền tố `id` | `status` hợp lệ | Trường riêng |
+|---|---|---|---|
+| PRD | `PRD-` | `draft` \| `approved` \| `superseded` | `milestone`, `priority` |
+| ADR | `ADR-` | `draft` \| `approved` \| `superseded` | `deciders`, `amends`, `supersedes`, `superseded_by` |
+| TECH | `TECH-` | `draft` \| `approved` \| `superseded` | `affected_services`, `affected_schemas` |
+| PLAN | `PLAN-` | `draft` \| `approved` \| `superseded` | `milestone`, `total_tickets`, `completed_tickets`, `implemented_tickets`, `review_tickets` |
+| Ticket | `<mốc>-NN` (vd. `M1-01`, `NEXT-02`) | `todo` \| `in-progress` \| `review` \| `done` | `type` (loại commit), `scope`, `priority`, `size`, `parent_plan`, `depends_on`, `blocks`, `branch`, `assignee` |
+| Report | `AUDIT-`, `HANDOFF-` | `draft` \| `final` | `type` (loại báo cáo), `scope`, `verdict`, `milestone` |
+
+**Ý nghĩa trạng thái ticket:**
+- `in-progress`: đang triển khai.
+- `review`: code đã commit, chờ review hoặc chưa có đủ bằng chứng nghiệm thu.
+- `done`: **đã nghiệm thu**, tức acceptance criteria có bằng chứng (test, lệnh, SQL/event) và đã được review. Không bắt buộc đã merge vào `develop`. Build xanh hoặc số commit không đủ để chuyển `done`.
+
+**Bộ đếm trong PLAN:** `completed_tickets` = số ticket `done`; `review_tickets` = số ticket `review`; `implemented_tickets` = `done` + `review`. Bộ đếm phải khớp bảng trạng thái trong thân PLAN và frontmatter của từng ticket.
+
+ADR dùng `amends` khi chỉ điều chỉnh một phần ADR cũ (ADR cũ vẫn `approved`), và `supersedes` khi thay thế hoàn toàn (ADR cũ chuyển `superseded`).
+
+---
+
+## 🤖 Kỹ năng agent tương ứng
+
+Mỗi nhóm tài liệu có một skill trong `.agent/skills/`. Danh sách đầy đủ skill nằm trong [`AGENTS.md`](../AGENTS.md).
+
+| Tác vụ / Nhóm tài liệu | Skill | Output |
 |---|---|---|
-| **Phân tích yêu cầu / PRD** | [`analyze-requirements`](file:///.agent/skills/analyze-requirements) | Sinh `docs/01-requirements/PRD-*.md` |
-| **Thiết kế kỹ thuật / ADR** | [`design-architecture`](file:///.agent/skills/design-architecture) | Sinh `docs/02-architecture/designs/TECH-*.md` & `ADR-*.md` |
-| **Lập kế hoạch & Phân rã Ticket** | [`plan-and-decompose`](file:///.agent/skills/plan-and-decompose) | Sinh `docs/03-plans/PLAN-*.md` & `tickets/*.md` |
-| **Triển khai Code theo Ticket** | [`execute-ticket`](file:///.agent/skills/execute-ticket) | Code feature theo từng ticket |
-| **Viết Test (Unit / Integration / E2E)**| [`write-test`](file:///.agent/skills/write-test) | Sinh test cases chuẩn AAA trên Java/Python/NestJS/Next.js |
-| **Chạy & Kiểm thử Tự động** | [`run-test`](file:///.agent/skills/run-test) | Thực thi tests qua `./scripts/run-tests.ps1` & pre-commit check |
-| **Phân tích Chất lượng & Audit** | [`analyze-quality`](file:///.agent/skills/analyze-quality) | Phân tích coverage, triage lỗi, sinh `docs/04-reports/AUDIT-*.md` |
+| Phân tích yêu cầu / PRD | [`analyze-requirements`](../.agent/skills/analyze-requirements/SKILL.md) | `docs/01-requirements/PRD-*.md` |
+| Thiết kế kỹ thuật / ADR | [`design-architecture`](../.agent/skills/design-architecture/SKILL.md) | `docs/02-architecture/designs/TECH-*.md`, `adr/ADR-*.md` |
+| Lập kế hoạch & phân rã ticket | [`plan-and-decompose`](../.agent/skills/plan-and-decompose/SKILL.md) | `docs/03-plans/PLAN-*.md`, `tickets/*.md` |
+| Triển khai code theo ticket | [`execute-ticket`](../.agent/skills/execute-ticket/SKILL.md) | Code + cập nhật `.agent/context/` |
+| Viết test | [`write-test`](../.agent/skills/write-test/SKILL.md) | Test chuẩn AAA cho Java/Python/NestJS |
+| Chạy test & kiểm tra | [`run-test`](../.agent/skills/run-test/SKILL.md) | `./scripts/run-tests.ps1`, `./scripts/pre-commit-check.ps1` |
+| Phân tích chất lượng & audit | [`analyze-quality`](../.agent/skills/analyze-quality/SKILL.md) | `docs/04-reports/AUDIT-*.md` |

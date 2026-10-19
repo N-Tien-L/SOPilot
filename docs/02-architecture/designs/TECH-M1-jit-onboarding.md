@@ -1,28 +1,18 @@
 ---
-doc_id: TECH-M1-JIT-ONBOARDING
+id: TECH-M1-JIT-ONBOARDING
 title: "Thiết kế kỹ thuật JIT Onboarding & Pre-provisioned Directory"
-type: technical-design
 status: approved
 created: 2026-09-25
 updated: 2026-09-25
+refs: [docs/01-requirements/PRD-M1-jit-onboarding.md, docs/02-architecture/adr/ADR-001-employee-roster-ownership.md, docs/02-architecture/adr/ADR-002-google-jit-auth-boundary.md]
 author: "Principal Software Architect & Tech Lead"
-prd_reference: "docs/01-requirements/PRD-M1-jit-onboarding.md"
-related_adrs:
-  - "docs/02-architecture/adr/ADR-001-employee-roster-ownership.md"
-  - "docs/02-architecture/adr/ADR-002-google-jit-auth-boundary.md"
-affected_services:
-  - "user-service"
-  - "auth-service"
-  - "api-gateway"
-  - "feedback-service"
-  - "frontend/web"
-affected_schemas:
-  - "core"
+affected_services: [user-service, auth-service, api-gateway, feedback-service, frontend/web]
+affected_schemas: [core]
 ---
 
 # THIẾT KẾ KỸ THUẬT (TECHNICAL DESIGN DOCUMENT)
 
-> **Mã tài liệu:** `TECH-M1-JIT-ONBOARDING` | **Tham chiếu:** [PRD](docs/01-requirements/PRD-M1-jit-onboarding.md) | **Trạng thái:** Approved
+> **Mã tài liệu:** `TECH-M1-JIT-ONBOARDING` | **Tham chiếu:** [PRD](../../01-requirements/PRD-M1-jit-onboarding.md) | **Trạng thái:** Approved
 
 ---
 

@@ -1,11 +1,13 @@
 ---
-ticket_id: M1-06
+id: M1-06
 title: "Kiểm thử Tích hợp E2E & Xác thực Audit Trail"
 type: test
+status: todo
+created: 2026-10-15
+updated: 2026-10-15
 scope: tests
 priority: P1
 size: M
-status: todo
 parent_plan: PLAN-M1-JIT-ONBOARDING
 depends_on: [M1-01, M1-02, M1-03, M1-04, M1-05]
 blocks: []

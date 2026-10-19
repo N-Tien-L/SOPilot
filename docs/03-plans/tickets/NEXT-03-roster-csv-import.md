@@ -1,11 +1,13 @@
 ---
-ticket_id: NEXT-03
+id: NEXT-03
 title: "Hoàn thiện import CSV theo PRD-M1"
 type: fix
+status: todo
+created: 2026-10-15
+updated: 2026-10-15
 scope: user
 priority: P1
 size: M
-status: todo
 parent_plan: PLAN-NEXT
 depends_on: []
 ---

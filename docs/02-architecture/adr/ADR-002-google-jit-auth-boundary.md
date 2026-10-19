@@ -1,15 +1,17 @@
 ---
-adr_id: ADR-002
+id: ADR-002
 title: "auth-service trực tiếp xác thực Google ID Token; Gateway làm Reverse Proxy"
-status: accepted
-date: 2026-09-25
+status: superseded
+created: 2026-09-25
+updated: 2026-10-20
+refs: [docs/01-requirements/PRD-M1-jit-onboarding.md]
 deciders: ["Principal Architect", "Tech Lead"]
-consulted_docs: ["docs/01-requirements/PRD-M1-jit-onboarding.md"]
+superseded_by: "ADR-004"
 ---
 
 # ADR-002: auth-service trực tiếp xác thực Google ID Token; Gateway làm Reverse Proxy
 
-> **Trạng thái:** Accepted | **Ngày quyết định:** 2026-09-25 | **Người quyết định:** Principal Architect, Tech Lead
+> **Trạng thái:** Superseded bởi ADR-004 (2026-10-20), trước đó Accepted | **Ngày quyết định:** 2026-09-25 | **Người quyết định:** Principal Architect, Tech Lead
 
 ---
 

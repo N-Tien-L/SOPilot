@@ -13,6 +13,8 @@ depends_on: []
 # NEXT-01: Chốt phạm vi sản phẩm và chính sách tài khoản kế thừa
 
 ## Context
+Ph?n policy Google admission ?? ???c ch?t ri?ng t?i ADR-003-google-identity-and-roster-admission.md ng?y 2026-10-15. Ticket n?y c?n ma tr?n s?n ph?m v? quy?t ??nh ph?m vi c?c lu?ng password/legacy, n?n v?n todo.
+
 Audit 2026-10-14: F02, F05. Không đổi các quyết định sản phẩm chưa được chốt. Nguồn hiện hành là bản trong docs/03-plans; bản docs/plans được sync.
 
 ## Acceptance Criteria

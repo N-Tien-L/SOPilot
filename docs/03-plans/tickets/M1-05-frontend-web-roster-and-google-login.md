@@ -1,11 +1,13 @@
 ---
-ticket_id: M1-05
+id: M1-05
 title: "Frontend Web: Giao diện Quản lý Roster & Google 1-Click Login"
 type: feat
+status: in-progress
+created: 2026-10-15
+updated: 2026-10-15
 scope: web
 priority: P1
 size: L
-status: in-progress
 parent_plan: PLAN-M1-JIT-ONBOARDING
 depends_on: [M1-04]
 blocks: [M1-06]

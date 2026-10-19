@@ -1,11 +1,13 @@
 ---
-ticket_id: M1-04
+id: M1-04
 title: "API Gateway: Định tuyến Roster & Google Auth Endpoints"
 type: feat
+status: review
+created: 2026-09-27
+updated: 2026-09-27
 scope: gateway
 priority: P1
 size: S
-status: review
 parent_plan: PLAN-M1-JIT-ONBOARDING
 depends_on: [M1-02, M1-03]
 blocks: [M1-05]

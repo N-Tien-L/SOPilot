@@ -1,11 +1,13 @@
 ---
-ticket_id: NEXT-05
+id: NEXT-05
 title: "Thiết kế model identity và kế hoạch cache/vector migration"
 type: docs
+status: todo
+created: 2026-10-15
+updated: 2026-10-15
 scope: ingestion
 priority: P1
 size: M
-status: todo
 parent_plan: PLAN-NEXT
 depends_on: []
 ---

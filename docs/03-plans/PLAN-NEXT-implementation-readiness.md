@@ -1,10 +1,13 @@
 ---
-plan_id: PLAN-NEXT
+id: PLAN-NEXT
+title: "Backlog tiếp tục implementation"
 status: draft
 created: 2026-10-15
 updated: 2026-10-15
 total_tickets: 6
 completed_tickets: 0
+implemented_tickets: 1
+review_tickets: 1
 ---
 
 # Backlog tiếp tục implementation

@@ -1,11 +1,13 @@
 ---
-ticket_id: NEXT-06
+id: NEXT-06
 title: "Khôi phục baseline test/lint và đưa gates vào CI"
 type: chore
+status: todo
+created: 2026-10-15
+updated: 2026-10-15
 scope: platform
 priority: P1
 size: L
-status: todo
 parent_plan: PLAN-NEXT
 depends_on: []
 ---

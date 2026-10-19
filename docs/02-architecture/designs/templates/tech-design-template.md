@@ -1,13 +1,11 @@
 ---
-doc_id: TECH-XXX
+id: TECH-XXX
 title: "[Thiết kế kỹ thuật tính năng]"
-type: technical-design
-status: approved # draft | in-review | approved | superseded
+status: draft # draft | approved | superseded
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+refs: [docs/01-requirements/PRD-XXX.md, docs/02-architecture/adr/ADR-XXX.md]
 author: "[Principal Architect / Agent]"
-prd_reference: "docs/01-requirements/PRD-XXX.md"
-related_adrs: ["docs/02-architecture/adr/ADR-XXX.md"]
 affected_services: ["auth-service", "user-service", "api-gateway"]
 affected_schemas: ["core"]
 ---

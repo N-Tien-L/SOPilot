@@ -1,12 +1,11 @@
 ---
-plan_id: PLAN-M1-JIT-ONBOARDING
+id: PLAN-M1-JIT-ONBOARDING
 title: "Mốc 1: Kế hoạch triển khai JIT Onboarding & Pre-provisioned Directory"
 status: approved
 created: 2026-09-25
-updated: 2026-10-15
+updated: 2026-10-16
+refs: [docs/01-requirements/PRD-M1-jit-onboarding.md, docs/02-architecture/designs/TECH-M1-jit-onboarding.md]
 milestone: "Milestone 1: JIT Onboarding v1.0"
-prd_reference: "docs/01-requirements/PRD-M1-jit-onboarding.md"
-tech_reference: "docs/02-architecture/designs/TECH-M1-jit-onboarding.md"
 total_tickets: 6
 completed_tickets: 2
 implemented_tickets: 4
@@ -16,8 +15,8 @@ review_tickets: 2
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
 
 > **Mã kế hoạch:** `PLAN-M1-JIT-ONBOARDING` | **Milestone:** Milestone 1: JIT Onboarding v1.0 | **Trạng thái:** Approved  
-> **Tham chiếu nghiệp vụ:** [PRD-M1](docs/01-requirements/PRD-M1-jit-onboarding.md)  
-> **Tham chiếu kỹ thuật:** [TECH-M1](docs/02-architecture/designs/TECH-M1-jit-onboarding.md) | [ADR-001](docs/02-architecture/adr/ADR-001-employee-roster-ownership.md) | [ADR-002](docs/02-architecture/adr/ADR-002-google-jit-auth-boundary.md)
+> **Tham chiếu nghiệp vụ:** [PRD-M1](../01-requirements/PRD-M1-jit-onboarding.md)  
+> **Tham chiếu kỹ thuật:** [TECH-M1](../02-architecture/designs/TECH-M1-jit-onboarding.md) | [ADR-001](../02-architecture/adr/ADR-001-employee-roster-ownership.md) | [ADR-002](../02-architecture/adr/ADR-002-google-jit-auth-boundary.md)
 
 ---
 
@@ -31,7 +30,7 @@ Hiện thực hóa cơ chế Google 1-Click JIT Sign-in và quản lý danh bạ
 ```mermaid
 flowchart TD
     M1_01["M1-01: Database Schema Migration (infra)"] --> M1_02["M1-02: Roster Management API (user-service)"]
-    M1_01 --> M1_03["M1-03: Google JWKS & JIT Claim (auth-service)"]
+    M1_02 --> M1_03["M1-03: Google JWKS & JIT Claim (auth-service)"]
     M1_02 & M1_03 --> M1_04["M1-04: API Gateway Routing & Guards (api-gateway)"]
     M1_04 --> M1_05["M1-05: Web UI & Google Sign-In (frontend)"]
     M1_05 --> M1_06["M1-06: E2E Verification & Audit Log (platform)"]
@@ -50,7 +49,7 @@ flowchart TD
 | Ticket ID | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
 | [`M1-02`](tickets/M1-02-user-service-roster-management.md) | Quản lý Danh bạ Nhân sự & Internal Claim API | `user` | M | `M1-01` | done |
-| [`M1-03`](tickets/M1-03-auth-service-google-jit-integration.md) | Xác thực Google Token & Cấp phát JWT Session | `auth` | M | `M1-01` | review |
+| [`M1-03`](tickets/M1-03-auth-service-google-jit-integration.md) | Xác thực Google Token & Cấp phát JWT Session | `auth` | M | `M1-02` | review |
 
 ### Phase 3: Gateway & Giao diện Frontend (Client Integration)
 | Ticket ID | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
@@ -70,4 +69,4 @@ Checkpoint 2026-10-15: 2 ticket done, 2 review, 1 in-progress, 1 todo. `implemen
 
 - [ ] 6/6 tickets đạt trạng thái `done`.
 - [ ] Chạy `./scripts/pre-commit-check.ps1` đạt PASS 100%.
-- [ ] Xuất báo cáo nghiệm thu [docs/04-reports/AUDIT-M1-jit-onboarding.md](docs/04-reports/AUDIT-M1-jit-onboarding.md).
+- [ ] Xuất báo cáo nghiệm thu `docs/04-reports/AUDIT-M1-jit-onboarding.md` (chưa tạo; lập khi M1-06 xong).

@@ -1,12 +1,13 @@
 ---
-report_id: AUDIT-PROJECT-2026-10-14
+id: AUDIT-PROJECT-2026-10-14
 title: "Audit hiện trạng và tiến độ chuyển đổi Poliwise → SOPilot"
 type: quality-audit
-status: completed
-date: 2026-10-14
+status: final
+created: 2026-10-14
+updated: 2026-10-14
 author: Codex
 milestone: "Toàn dự án; trọng tâm M1 JIT Onboarding"
-target_scope: [all]
+scope: [all]
 verdict: FAILED
 ---
 

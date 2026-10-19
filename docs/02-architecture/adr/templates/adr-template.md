@@ -1,11 +1,13 @@
 ---
-adr_id: ADR-XXX
+id: ADR-XXX
 title: "[Tên quyết định kiến trúc]"
-status: accepted # proposed | accepted | rejected | deprecated | superseded
-date: YYYY-MM-DD
+status: draft # draft | approved | superseded
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+refs: [docs/01-requirements/PRD-XXX.md]
 deciders: ["Principal Architect", "Tech Lead"]
-consulted_docs: ["docs/01-requirements/PRD-XXX.md"]
-supersedes: "" # ADR-YYY nếu có
+amends: [] # ADR bị điều chỉnh một phần, vẫn giữ approved
+supersedes: [] # ADR bị thay thế hoàn toàn (ADR đó chuyển superseded)
 superseded_by: "" # ADR-ZZZ nếu có
 ---
 

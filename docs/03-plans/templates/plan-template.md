@@ -1,20 +1,21 @@
 ---
-plan_id: PLAN-XXX
+id: PLAN-XXX
 title: "[Tên kế hoạch triển khai Milestone / Feature]"
-status: approved # draft | approved | in-progress | completed
+status: draft # draft | approved | superseded
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+refs: [docs/01-requirements/PRD-XXX.md, docs/02-architecture/designs/TECH-XXX.md]
 milestone: "[Milestone X]"
-prd_reference: "docs/01-requirements/PRD-XXX.md"
-tech_reference: "docs/02-architecture/designs/TECH-XXX.md"
 total_tickets: 0
-completed_tickets: 0
+completed_tickets: 0 # số ticket done (đã nghiệm thu)
+implemented_tickets: 0 # done + review
+review_tickets: 0
 ---
 
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
 
 > **Mã kế hoạch:** `PLAN-XXX` | **Milestone:** `[Milestone X]` | **Trạng thái:** `[status]`
-> **Tài liệu tham chiếu:** [PRD](docs/01-requirements/PRD-XXX.md) | [Technical Design](docs/02-architecture/designs/TECH-XXX.md)
+> **Tài liệu tham chiếu:** [PRD](../01-requirements/PRD-XXX.md) | [Technical Design](../02-architecture/designs/TECH-XXX.md)
 
 ---
 

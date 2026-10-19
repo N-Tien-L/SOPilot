@@ -1,11 +1,13 @@
 ---
-ticket_id: M1-02
+id: M1-02
 title: "User-Service: Roster Management & Internal Claim Engine"
 type: feat
+status: done
+created: 2026-09-25
+updated: 2026-09-25
 scope: user
 priority: P0
 size: L
-status: done
 parent_plan: PLAN-M1-JIT-ONBOARDING
 depends_on: [M1-01]
 blocks: [M1-03, M1-04]
