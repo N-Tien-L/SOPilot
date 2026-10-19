@@ -1,0 +1,13 @@
+# RQ1 (retriever), RQ2 (rerank), RQ3 (refusal sweep in report). Needs: uv sync --extra local
+# Pin `revision` to the HF commit hash you actually ran (see run.json) before reporting numbers.
+chunking: {size: 800, overlap: 100}
+configs:
+  - {name: dense,           retriever: dense,  k: 5, embedder: &e {provider: sentence-transformers, model: BAAI/bge-m3}}
+  - {name: bm25,            retriever: bm25,   k: 5, embedder: *e}
+  - {name: hybrid,          retriever: hybrid, k: 5, embedder: *e, weights: [1.0, 1.0]}
+  - {name: hybrid-legacy-w, retriever: hybrid, k: 5, embedder: *e, weights: [0.7, 0.3]}
+  - name: hybrid-rerank
+    retriever: hybrid
+    k: 5
+    embedder: *e
+    rerank: {model: BAAI/bge-reranker-v2-m3}
