@@ -5,6 +5,8 @@
 
 This file is the single entry point for agents (Claude Code reads it via `CLAUDE.md`; `GEMINI.md` points here).
 
+> **V2 transition (temporary, remove in `V2-17`):** V2 is being written as two new services, `services/core-api` (Spring Boot) and `services/ai-service` (FastAPI), with their own `docker-compose.v2.yml` and Flyway migrations in `infrastructure/db/migrations/` ([ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md) §4.4–4.5). The eight services, gateway, `docker-compose.yml` and `infrastructure/init-db/` described below are **frozen V1**: read and port from them, do not extend them. `frontend/web` is changed in place by `V2-15`. Run one stack at a time. For V2 work, the V2 tickets and `TECH-V2-*` designs win over the topology and `.agent/context/` below until `V2-17` rewrites them.
+
 ---
 
 ## 🧭 System Topology & Architecture

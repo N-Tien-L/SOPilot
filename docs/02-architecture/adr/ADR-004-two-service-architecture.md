@@ -3,7 +3,7 @@ id: ADR-004
 title: "V2: hai backend service (core-api Spring Boot + ai-service FastAPI), bỏ gateway, RabbitMQ và Redis"
 status: approved
 created: 2026-10-16
-updated: 2026-10-20
+updated: 2026-10-21
 refs: [docs/01-requirements/PRD-V2-sopilot-mvp.md]
 deciders: ["Owner"]
 amends: []
@@ -84,6 +84,8 @@ Mỗi service chỉ ghi schema của mình. ai-service không đọc `core`; m�
 ### 4.5 Chuyển đổi trong repo
 - Viết service mới ở `services/core-api` và `services/ai-service`, song song với service cũ. Mã cũ chỉ để tham khảo/port, không sửa tiếp.
 - Port có chọn lọc: xác minh Google token và binding `(issuer, sub)` (ADR-003), xoay vòng refresh token, trích xuất/chunk/embedding, SQL truy xuất hybrid, các component chat ở frontend.
+- Mỗi phần port phải có test riêng trong service mới, chạy được mà không cần service cũ (port cả test cũ nếu có, rồi sửa theo hợp đồng V2). Ghi nguồn port (file cũ) trong ticket để V2-17 biết phần nào đã thay thế xong.
+- Trong giai đoạn chuyển, hai stack tách hẳn: compose V2 có project name, container và volume riêng, port host không trùng; mỗi lúc chỉ bật một stack (V2-08). Bản V1 chạy được cuối cùng được đánh tag `v1-final` trước khi frontend chuyển sang V2 (V2-15).
 - Khi V2 đạt parity với PRD-V2, gỡ các service cũ trong một commit riêng (lịch sử git giữ lại), rồi cập nhật `AGENTS.md`, script và `.agent/context/`.
 
 ## 5. Tác động & hệ quả
