@@ -15,8 +15,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 26
 completed_tickets: 1
-implemented_tickets: 3
-review_tickets: 2
+implemented_tickets: 4
+review_tickets: 3
 ---
 
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
@@ -56,7 +56,7 @@ review_tickets: 2
 
 ```mermaid
 flowchart TD
-    V01["V2-01 Duyệt PRD/ADR"] --> V03["V2-03 TECH-V2"]
+    V01["V2-01 Duyệt PRD/ADR"] --> V03["V2-03 TECH-V2 (review)"]
     V01 --> V04["V2-04 Đóng backlog M1/NEXT"]
     V01 --> V08["V2-08 Flyway + compose"]
     V05["V2-05 Eval harness (review)"] --> V07["V2-07 Chạy RQ1-RQ3, RQ5"]
@@ -98,7 +98,7 @@ flowchart TD
 |---|---|---|:---:|---|:---:|
 | `V2-01` | Duyệt PRD-V2/ADR-004/005/006/007, chốt câu hỏi mở | docs | S | None | done |
 | `V2-02` | Xác nhận model LLM còn sống bằng key thật | ai-qa | S | None | review |
-| `V2-03` | Viết TECH-V2-core-api và TECH-V2-ai-service | docs | L | `V2-01` | todo |
+| `V2-03` | Viết TECH-V2-core-api và TECH-V2-ai-service | docs | L | `V2-01` | review |
 | `V2-04` | Đóng backlog M1/NEXT, dọn `docs/plans/` | docs | S | `V2-01` | todo |
 
 ### Phase 1: Nghiên cứu (chạy sớm, độc lập với viết lại)
