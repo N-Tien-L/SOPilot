@@ -4,7 +4,7 @@
 > *Transform complex internal policies into verified, instant answers with department-level RBAC & semantic search.*
 
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?logo=next.js)](https://nextjs.org/)
-[![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot%203.2-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot%203.4-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![FastAPI](https://img.shields.io/badge/AI%20Engine-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![NestJS](https://img.shields.io/badge/Gateway-NestJS-E0234E?logo=nestjs)](https://nestjs.com/)
 [![PostgreSQL](https://img.shields.io/badge/Vector%20DB-pgvector-4169E1?logo=postgresql)](https://github.com/pgvector/pgvector)
@@ -26,7 +26,7 @@ SOPilot is designed as an **Event-Driven Microservices Architecture** optimized 
 
 ```mermaid
 flowchart TD
-    Client["Next.js 16 Web Client (Desktop / Mobile)"] -->|HTTP / SSE / REST| Gateway["API Gateway (NestJS :3000)"]
+    Client["Next.js 16 Web Client (Desktop / Mobile)"] -->|HTTP / SSE / REST| Gateway["API Gateway (NestJS :3001)"]
 
     subgraph Core Services
         Gateway -->|Reverse Proxy / JWT Auth| AuthSvc["Auth Service (Spring Boot :8081)"]
@@ -102,9 +102,8 @@ docker compose up -d --build
 ### 4. Access Application
 - **Web Portal:** [http://localhost:3000](http://localhost:3000)
 - **API Gateway:** [http://localhost:3001](http://localhost:3001)
-- **Default Admin Account:** `admin` / `Admin@123456`
-- **MinIO Storage Console:** [http://localhost:9001](http://localhost:9001)
-- **RabbitMQ Management:** [http://localhost:15672](http://localhost:15672)
+- **Admin Account:** no default credentials. Set `ADMIN_BOOTSTRAP_ENABLED=true` and `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env` for the first start.
+- **MinIO Console / RabbitMQ Management:** not published to the host by `docker-compose.yml`; only ports 3000 and 3001 are. Add a local port mapping if you need them.
 
 ---
 
@@ -114,7 +113,7 @@ docker compose up -d --build
 | :--- | :--- |
 | **Frontend** | Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS, Lucide |
 | **API Gateway** | NestJS 11, RxJS, Opossum Circuit Breaker, Winston Logger |
-| **Microservices** | Spring Boot 3.2 (Java 17), Spring Data JPA, Spring Security, Feign Client |
+| **Microservices** | Spring Boot 3.4 (auth-service 3.3) (Java 17), Spring Data JPA, Spring Security, Feign Client |
 | **AI / NLP Engine** | FastAPI, Python 3.12, LangChain, Tiktoken, Groq SDK |
 | **Database & Vector** | PostgreSQL 16, `pgvector` (1024-dim cosine distance), HNSW indexing |
 | **Embeddings** | Jina AI Embeddings v3 (Cloud API) |

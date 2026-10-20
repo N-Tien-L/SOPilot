@@ -46,6 +46,9 @@ public class User {
     @Column(nullable = false, length = 255)
     private String email;
 
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(columnDefinition = "core.user_role", nullable = false)
     private UserRole role;
@@ -102,6 +105,7 @@ public class User {
         if (updatedAt == null) updatedAt = now;
         if (status == null) status = AccountStatus.ACTIVE;
         if (strikeCount == null) strikeCount = 0;
+        if (passwordHash == null) passwordHash = "GOOGLE_OAUTH_JIT_UNUSABLE_PASSWORD";
     }
 
     @PreUpdate

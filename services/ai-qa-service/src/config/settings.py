@@ -16,13 +16,13 @@ class Settings(BaseSettings):
     log_level: str = "info"
     internal_api_key: str = Field(..., description="Internal API Key for service-to-service authentication")
     jwt_secret: str = Field(..., min_length=32, description="Shared access-token signing secret")
-    jwt_issuer: str = "poliwise-auth-service"
+    jwt_issuer: str = "sopilot-auth-service"
 
-    database_url: str = "postgresql+asyncpg://poliwise:poliwise_secure_password@postgres:5432/poliwise"
+    database_url: str = Field(..., description="PostgreSQL connection URL with asyncpg")
     database_schema: str = "conversation"
 
-    rabbitmq_url: str = "amqp://poliwise:poliwise_secure_password@rabbitmq:5672"
-    rabbitmq_exchange: str = "poliwise.events"
+    rabbitmq_url: str = Field(..., description="RabbitMQ connection URL")
+    rabbitmq_exchange: str = "sopilot.events"
     redis_url: str = "redis://localhost:6379/0"
 
     embedding_url: str = "https://api.jina.ai"

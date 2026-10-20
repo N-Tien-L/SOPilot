@@ -4,7 +4,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtAuthService } from './services/jwt-auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { GoogleOAuthController } from './google-oauth.controller';
 
 @Global()
 @Module({
@@ -21,7 +20,9 @@ import { GoogleOAuthController } from './google-oauth.controller';
       }),
     }),
   ],
-  controllers: [GoogleOAuthController],
+  // Google sign-in is verified and issued exclusively by auth-service (ADR-002).
+  // The legacy code-exchange controller must not offer a second token-issuance path.
+  controllers: [],
   providers: [JwtAuthService, JwtStrategy],
   exports: [JwtAuthService, JwtModule, PassportModule],
 })

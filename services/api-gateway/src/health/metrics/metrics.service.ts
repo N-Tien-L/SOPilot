@@ -35,7 +35,10 @@ export class MetricsService implements OnModuleInit {
   private cleanupHandle: ReturnType<typeof setInterval>;
 
   onModuleInit() {
-    this.cleanupHandle = setInterval(() => this.cleanupOldData(), 60 * 60 * 1000);
+    this.cleanupHandle = setInterval(
+      () => this.cleanupOldData(),
+      60 * 60 * 1000,
+    );
     this.logger.log('MetricsService initialized');
   }
 
@@ -86,7 +89,9 @@ export class MetricsService implements OnModuleInit {
     }
 
     const totalTime = metrics.avgResponseTime * (metrics.total - 1);
-    metrics.avgResponseTime = Math.round((totalTime + duration) / metrics.total);
+    metrics.avgResponseTime = Math.round(
+      (totalTime + duration) / metrics.total,
+    );
   }
 
   private normalizePath(path: string): string {
@@ -95,7 +100,10 @@ export class MetricsService implements OnModuleInit {
       normalized = '/api/v1' + normalized;
     }
     return normalized
-      .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:id')
+      .replace(
+        /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+        '/:id',
+      )
       .replace(/\/\d+/g, '/:id');
   }
 

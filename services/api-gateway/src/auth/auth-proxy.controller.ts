@@ -2,23 +2,17 @@ import {
   Controller,
   Post,
   Get,
-  Put,
   Delete,
-  Patch,
   Req,
   HttpCode,
   HttpStatus,
   Logger,
   UseGuards,
-  Param,
-  Body,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ProxyService, ServiceName } from '../proxy/proxy.service';
 import { Public } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
-import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '../common/interfaces/jwt-payload.interface';
 
 @Controller('api/v1/auth')
 export class AuthProxyController {
@@ -27,10 +21,18 @@ export class AuthProxyController {
   constructor(private readonly proxyService: ProxyService) {}
 
   @Public()
+  @Post('google/verify')
+  @HttpCode(HttpStatus.OK)
+  handleGoogleVerify(@Req() request: Request) {
+    const path = '/api/v1/auth/google/verify';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   handleLogin(@Req() request: Request) {
-    this.logger.debug(`Login request body: ${JSON.stringify(request.body)}`);
+    this.logger.debug('Forwarding login request');
     const path = '/api/v1/auth/login';
     return this.proxyService.forward(ServiceName.AUTH, request, path);
   }

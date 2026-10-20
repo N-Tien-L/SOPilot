@@ -106,7 +106,10 @@ describe('JwtAuthService', () => {
       const options: SignOptions = { expiresIn: '1h' };
       const token = service.sign(payload, options);
 
-      const decoded = jwt.decode(token) as jwt.JwtPayload & { exp: number; iat: number };
+      const decoded = jwt.decode(token) as jwt.JwtPayload & {
+        exp: number;
+        iat: number;
+      };
       const now = Math.floor(Date.now() / 1000);
       const expectedExpiry = now + 3600;
 
@@ -327,7 +330,9 @@ describe('JwtAuthService', () => {
 
   describe('extractTokenFromHeader', () => {
     it('should extract token from valid Bearer header', () => {
-      const token = service.extractTokenFromHeader('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
+      const token = service.extractTokenFromHeader(
+        'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+      );
       expect(token).toBe('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
     });
 

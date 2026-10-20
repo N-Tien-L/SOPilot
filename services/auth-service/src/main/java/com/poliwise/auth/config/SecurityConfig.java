@@ -51,6 +51,7 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/api/v1/auth/send-otp"),
                 new AntPathRequestMatcher("/api/v1/auth/verify-otp"),
                 new AntPathRequestMatcher("/api/v1/auth/reset-password"),
+                new AntPathRequestMatcher("/api/v1/auth/google/verify"),
                 new AntPathRequestMatcher("/actuator/**"),
                 new AntPathRequestMatcher("/**", "OPTIONS")
         ));

@@ -43,6 +43,10 @@ import type {
   CreateDepartmentRequest,
   UpdateDepartmentRequest,
   AssignUserDepartmentRequest,
+  // Roster types
+  RosterItem,
+  RosterImportResponse,
+  RosterSearchParams,
 } from "@/types";
 import type { DocumentVersion } from "@/types/document";
 import type { AccessRule, CreateAccessRuleRequest } from "@/types/document";
@@ -540,7 +544,14 @@ class ApiClient {
             return Promise.reject(error);
           }
         }
-        try { await this.showToast(this.getErrorMessage(error as AxiosError)); } catch { /* toast not mounted */ }
+
+        const requestUrl = error.config?.url || '';
+        const isGoogleVerify = requestUrl.includes('/auth/google/verify');
+
+        if (!(error.response?.status === 403 && isGoogleVerify)) {
+          try { await this.showToast(this.getErrorMessage(error as AxiosError)); } catch { /* toast not mounted */ }
+        }
+
         return Promise.reject(error);
       },
     );
@@ -550,6 +561,11 @@ class ApiClient {
   // Auth
   // ==========================================================================
   auth = {
+    googleVerify: async (idToken: string): Promise<LoginResponse> => {
+      const res = await this.client.post<unknown>("/api/v1/auth/google/verify", { idToken });
+      return coerceLoginResponse(res.data);
+    },
+
     login: async (data: LoginRequest): Promise<LoginResponse> => {
       const res = await this.client.post<unknown>("/api/v1/auth/login", data);
       return coerceLoginResponse(res.data);
@@ -1101,6 +1117,59 @@ class ApiClient {
         data: coerced.data,
         pagination: coerced.pagination,
       };
+    },
+  };
+
+  // ==========================================================================
+  // Roster
+  // ==========================================================================
+  roster = {
+    list: async (
+      params?: RosterSearchParams
+    ): Promise<{
+      data: RosterItem[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }> => {
+      const res = await this.client.get('/api/v1/users/roster', {
+        params: {
+          keyword: params?.keyword,
+          departmentId: params?.departmentId,
+          status: params?.status,
+          isClaimed: params?.isClaimed,
+          page: params?.page ? params.page - 1 : 0,
+          size: params?.limit ?? 20,
+          sort: 'createdAt,desc',
+        },
+      });
+      return coercePaginated<RosterItem>(res.data, 'content');
+    },
+
+    downloadTemplate: async (): Promise<Blob> => {
+      const res = await this.client.get('/api/v1/users/roster/template', {
+        responseType: 'blob',
+      });
+      return res.data;
+    },
+
+    import: async (file: File, onProgress?: (pct: number) => void): Promise<RosterImportResponse> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await this.client.post<ApiResponse<RosterImportResponse> | RosterImportResponse>(
+        '/api/v1/users/roster/import',
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (e) => {
+            if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+          },
+        },
+      );
+      const data = res.data;
+      return (data as ApiResponse<RosterImportResponse>).data ?? (data as RosterImportResponse);
+    },
+
+    deactivate: async (id: string): Promise<void> => {
+      await this.client.delete(`/api/v1/users/roster/${id}`);
     },
   };
 

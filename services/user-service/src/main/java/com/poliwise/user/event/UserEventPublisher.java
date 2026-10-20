@@ -25,6 +25,16 @@ public class UserEventPublisher {
         this.rabbitTemplate = rabbitTemplate;
     }
 
+    public void publishUserRegistered(com.poliwise.user.dto.event.UserRegisteredEvent event) {
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.USER_EXCHANGE,
+                RabbitMQConfig.USER_ROUTING_KEY_REGISTERED,
+                event
+        );
+        log.info("Published UserRegisteredEvent: userId={}, username={}, email={}",
+                event.userId(), event.username(), event.email());
+    }
+
     public void publishStatusChanged(UserStatusChangedEvent event) {
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.USER_EXCHANGE,

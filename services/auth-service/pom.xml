@@ -113,6 +113,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Nimbus JOSE+JWT for Google JWKS and ID Token verification -->
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<version>9.37.3</version>
+		</dependency>
+
 		<!-- Lombok for reducing boilerplate code -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

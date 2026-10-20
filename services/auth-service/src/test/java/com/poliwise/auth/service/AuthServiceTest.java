@@ -5,6 +5,11 @@ import com.poliwise.auth.dto.auth.ClientMetadata;
 import com.poliwise.auth.dto.auth.LoginRequest;
 import com.poliwise.auth.dto.auth.RegisterRequest;
 import com.poliwise.auth.dto.auth.TokenResponse;
+import com.poliwise.auth.dto.auth.GoogleTokenPayload;
+import com.poliwise.auth.dto.roster.ClaimRosterRequest;
+import com.poliwise.auth.dto.roster.ClaimRosterResponse;
+import com.poliwise.auth.exception.RosterDeactivatedException;
+import com.poliwise.auth.exception.RosterNotFoundException;
 import com.poliwise.auth.dto.event.UserRegisteredEvent;
 import com.poliwise.auth.entity.LoginHistory;
 import com.poliwise.auth.entity.RefreshToken;
@@ -16,6 +21,7 @@ import com.poliwise.auth.event.AuthEventPublisher;
 import com.poliwise.auth.repository.LoginHistoryRepository;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
+import com.poliwise.auth.repository.ExternalIdentityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,6 +34,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.poliwise.auth.feign.FeedbackServiceClient;
+import com.poliwise.auth.feign.UserServiceClient;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -63,6 +71,15 @@ class AuthServiceTest {
     @Mock
     private FeedbackServiceClient feedbackServiceClient;
 
+    @Mock
+    private GoogleTokenVerifierService googleTokenVerifierService;
+
+    @Mock
+    private UserServiceClient userServiceClient;
+
+    @Mock
+    private ExternalIdentityRepository externalIdentityRepository;
+
     private PasswordEncoder passwordEncoder;
     private AuthService authService;
     private ClientMetadata testMetadata;
@@ -78,7 +95,10 @@ class AuthServiceTest {
                 jwtTokenProvider,
                 refreshTokenService,
                 authEventPublisher,
-                feedbackServiceClient
+                feedbackServiceClient,
+                googleTokenVerifierService,
+                userServiceClient,
+                externalIdentityRepository
         );
         testMetadata = new ClientMetadata("127.0.0.1", "Mozilla/5.0", "Desktop");
     }

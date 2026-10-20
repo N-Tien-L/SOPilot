@@ -1,79 +1,76 @@
-# Database Setup (Mode A)
+# SOPilot Database Setup & Schema Management (`infrastructure/init-db/`)
 
-This project uses one PostgreSQL database (`poliwise`) with 5 schemas:
-- `core`
-- `metadata`
-- `knowledge`
-- `conversation`
-- `analytics`
+The **SOPilot** platform uses a single PostgreSQL 16 database with the `pgvector` extension (`sopilot`), strictly partitioned into 5 domain schemas:
+- `core`: Users, user profiles, authentication, departments, and pre-provisioned employee roster.
+- `metadata`: Categories, tags, and document metadata/visibility rules.
+- `knowledge`: Documents, text chunks, vector embeddings (pgvector), and processing jobs.
+- `conversation`: Q&A chat sessions, messages, and retrieval traces.
+- `analytics`: Feedback, audit logs, and unanswered question tracking.
 
-Flyway is now the only schema authority. The database is migrated by the
-`flyway` container in `docker-compose.yml` from:
-- `infrastructure/flyway/sql/V1__baseline.sql`
-- `infrastructure/flyway/sql/V2__onlyoffice_locks.sql`
+---
 
-RLS script is intentionally excluded from default bootstrap because it is Supabase-specific.
-Cross-schema views in `docs/supbase_sql/consolidate_cros.sql` are also excluded from default bootstrap to avoid blocking Hibernate auto-migration in `user-service`.
+## 🏗️ Architecture & Migration Mechanism
 
-## 1. Start Infrastructure
+Google identity admission adds `012_google_identities.sql` (auth-service owner). Apply it before deploying the updated auth-service against an existing database; it creates an empty identity table with issuer/subject and user/issuer uniqueness and performs no email-based backfill. First successful approved Google login enrolls each identity. The isolated integration suite applies it only to its own fresh database.
 
-```powershell
-docker compose up -d postgres rabbitmq minio
-```
+Checkpoint 2026-10-15: `011_document_bucket_default.sql` changes the default bucket for future `knowledge.documents` rows to `sopilot-documents`. Existing document references and objects are preserved. Apply this additive script explicitly to an existing database after checking its identity; a container restart does not rerun init scripts. Compose database/user renaming does not migrate populated volumes. This checkpoint did not execute a database migration or reset.
 
-## 2. Verify Database Initialization
+Database schemas are managed via **Numbered Additive SQL Scripts** mounted to the PostgreSQL Docker entrypoint (`/docker-entrypoint-initdb.d/`).
 
-```powershell
-docker compose logs postgres --tail 200
-docker compose exec -T postgres psql -U poliwise -d poliwise -c "\dn"
-```
+When the database container starts with a fresh volume, PostgreSQL executes all `.sql` scripts in alphabetical order:
+1. `000_bootstrap.sql`: Creates the 5 schemas and enables extensions (`uuid-ossp`, `pgcrypto`, `vector`, `pg_trgm`).
+2. `001_core.sql`: Core identity, credentials, roles, departments, user profiles.
+3. `002_metadata.sql`: Categories, tags, document metadata.
+4. `003_knowledge.sql`: Documents, chunks, vector embeddings.
+5. `004_conversation.sql`: Conversations, chat messages.
+6. `005_analytics.sql` & `005_conversation_flags.sql`: Feedbacks, flags, unanswered questions.
+7. `006_functions_triggers.sql`: Shared triggers for automatic `updated_at` management.
+8. `007_seed_data.sql`: Seed data for system administrator and default departments.
+9. `008_ai_indexes.sql`: HNSW / IVFFLAT indexes for fast similarity search.
+10. `009_document_locks.sql`: Collaborative document lock management.
+11. `010_employee_roster.sql`: Pre-provisioned employee whitelist for Google 1-Click JIT onboarding.
 
-Expected schemas: `analytics`, `conversation`, `core`, `knowledge`, `metadata`, `public`.
+> **Note on Microservice Hibernate Validation:**
+> Spring Boot services (`auth-service`, `user-service`, `knowledge-service`, `metadata-service`, `feedback-service`) run with `spring.jpa.hibernate.ddl-auto: validate`. The database schema is the single source of truth; applications validate that entities match the schema without modifying tables.
 
-## 3. Verify Core Tables Quickly
+---
 
-```powershell
-docker compose exec -T postgres psql -U poliwise -d poliwise -c "SELECT COUNT(*) FROM core.users;"
-docker compose exec -T postgres psql -U poliwise -d poliwise -c "SELECT COUNT(*) FROM metadata.categories;"
-docker compose exec -T postgres psql -U poliwise -d poliwise -c "SELECT COUNT(*) FROM knowledge.documents;"
-docker compose exec -T postgres psql -U poliwise -d poliwise -c "SELECT COUNT(*) FROM conversation.conversations;"
-docker compose exec -T postgres psql -U poliwise -d poliwise -c "SELECT COUNT(*) FROM analytics.feedbacks;"
-```
+## 🚀 Quick Start & Bootstrap
 
-## 4. Start Application Services
+### 1. Start Infrastructure
 
 ```powershell
-docker compose up -d auth-service user-service knowledge-service metadata-service feedback-service api-gateway frontend
+docker compose up -d postgres rabbitmq minio redis
 ```
 
-## 5. Full Bring-up
+### 2. Verify Database Schemas
 
 ```powershell
-docker compose up -d
+docker compose exec -T postgres psql -U sopilot -d sopilot -c "\dn"
 ```
 
-## 6. Re-run Initialization from Scratch
+Expected output: `analytics`, `conversation`, `core`, `knowledge`, `metadata`, `public`.
 
-Flyway baselines an existing non-empty schema at version 1 and then applies
-later migrations.
+### 3. Verify Tables & Seed Data
 
 ```powershell
-docker compose down
-docker volume rm poliwise_postgres_data
-docker compose up -d postgres
+docker compose exec -T postgres psql -U sopilot -d sopilot -c "SELECT COUNT(*) AS users FROM core.users;"
+docker compose exec -T postgres psql -U sopilot -d sopilot -c "SELECT COUNT(*) AS categories FROM metadata.categories;"
+docker compose exec -T postgres psql -U sopilot -d sopilot -c "SELECT COUNT(*) AS roster FROM core.employee_roster;"
 ```
 
-## 7. Flyway Reset
+---
 
-To re-run from scratch, remove the database volume and bring the stack back up:
+## 🔄 Reset & Re-Bootstrap
+
+To cleanly reset the local PostgreSQL volume and re-run all initialization scripts from scratch, use the repository script:
 
 ```powershell
-docker compose down -v
-docker compose up -d postgres flyway
+./infrastructure/init-db/reset-and-bootstrap.ps1
 ```
 
-## 8. Optional AI/Vector Enhancements
+Or run with `-Force` to skip confirmation:
 
-`infrastructure/init-db/init-enhancements.sql` is still optional and should be
-applied only after validating table names and pgvector availability in your
-PostgreSQL image.
+```powershell
+./infrastructure/init-db/reset-and-bootstrap.ps1 -Force
+```

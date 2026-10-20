@@ -1,0 +1,9 @@
+{"id": "q1", "question": "Khi có cháy thì phải gọi số nội bộ nào?", "answerable": true, "expected": [{"doc": "an-toan-lao-dong.md"}], "reference_answer": "Gọi số nội bộ 115.", "lang": "vi", "cross_lingual": false}
+{"id": "q2", "question": "Báo cáo tai nạn lao động phải gửi trong bao lâu?", "answerable": true, "expected": [{"doc": "an-toan-lao-dong.md"}], "reference_answer": "Trong vòng 24 giờ cho trưởng bộ phận.", "lang": "vi", "cross_lingual": false}
+{"id": "q3", "question": "Nhân viên chính thức có bao nhiêu ngày phép năm?", "answerable": true, "expected": [{"doc": "nghi-phep.md"}], "reference_answer": "12 ngày có lương.", "lang": "vi", "cross_lingual": false}
+{"id": "q4", "question": "Phải nộp đơn xin nghỉ phép trước bao nhiêu ngày?", "answerable": true, "expected": [{"doc": "nghi-phep.md"}], "reference_answer": "Ít nhất 3 ngày làm việc.", "lang": "vi", "cross_lingual": false}
+{"id": "q5", "question": "Không đội mũ bảo hộ thì bị xử lý thế nào?", "answerable": true, "expected": [{"doc": "an-toan-lao-dong.md"}], "reference_answer": "Nhắc nhở lần đầu, lập biên bản từ lần hai.", "lang": "vi", "cross_lingual": false}
+{"id": "q6", "question": "Mức lương thưởng Tết năm nay là bao nhiêu?", "answerable": false, "expected": [], "reference_answer": "", "lang": "vi", "cross_lingual": false}
+{"id": "q7", "question": "Quy định về làm việc từ xa ra sao?", "answerable": false, "expected": [], "reference_answer": "", "lang": "vi", "cross_lingual": false}
+{"id": "q8", "question": "How many days of paid annual leave do full-time employees get?", "lang": "en", "cross_lingual": false, "answerable": true, "expected": [{"doc": "leave-policy-en.md"}], "reference_answer": "15 days."}
+{"id": "q9", "question": "Số ngày phép năm của nhân viên toàn thời gian theo chính sách tiếng Anh là bao nhiêu?", "lang": "vi", "cross_lingual": true, "answerable": true, "expected": [{"doc": "leave-policy-en.md"}], "reference_answer": "15 ngày."}

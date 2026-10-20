@@ -15,9 +15,11 @@ public class RabbitMQConfig {
     public static final String USER_STATUS_CHANGED_QUEUE = "poliwise.user.status.changed";
     public static final String USER_REVOKED_QUEUE = "poliwise.user.revoked";
     public static final String USER_PROFILE_UPDATED_QUEUE = "poliwise.user.profile.updated";
+    public static final String USER_REGISTERED_QUEUE = "poliwise.user.registered";
     public static final String USER_ROUTING_KEY_STATUS = "user.status.changed";
     public static final String USER_ROUTING_KEY_REVOKED = "user.revoked";
     public static final String USER_ROUTING_KEY_PROFILE = "user.profile.updated";
+    public static final String USER_ROUTING_KEY_REGISTERED = "user.registered";
 
     // Department events
     public static final String DEPARTMENT_CREATED_QUEUE = "poliwise.department.created";

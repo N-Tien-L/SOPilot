@@ -34,7 +34,7 @@ FROM (
         ('Chính sách hỗ trợ đi lại cho nhân viên remote như thế nào?', 'HO_TRO', 'PENDING', 'LOW', 0.14)
 ) AS q(question, category, status, priority, similarity)
 CROSS JOIN (
-    SELECT id FROM poliwise_auth.users WHERE username = 'admin' LIMIT 1
+    SELECT id FROM core.users WHERE username = 'admin' LIMIT 1
 ) u(user_id)
 ON CONFLICT DO NOTHING;
 

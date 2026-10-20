@@ -1,4 +1,4 @@
-name: Poliwise CI
+name: SOPilot CI
 
 on:
   push:

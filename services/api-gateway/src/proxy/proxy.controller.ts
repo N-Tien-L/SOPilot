@@ -92,6 +92,83 @@ export class ProxyController {
     );
   }
 
+  // ===== Employee Roster Management Endpoints =====
+
+  /** GET /users/roster/template — download Excel template for roster import (ADMIN, MANAGER) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/roster/template')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  handleRosterTemplateDownload(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+      false,
+      true, // isBinary = true for Excel file download
+    );
+  }
+
+  /** POST /users/roster/import — import employee roster from Excel (ADMIN only) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('users/roster/import')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  handleRosterImport(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** GET /users/roster — list & search employee roster (ADMIN only) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/roster')
+  @Roles(UserRole.ADMIN)
+  handleRosterList(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** GET /users/roster/:id — get single roster record by ID (ADMIN only) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/roster/:id')
+  @Roles(UserRole.ADMIN)
+  handleRosterGetById(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** PUT /users/roster/:id — update roster record by ID (ADMIN only) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Put('users/roster/:id')
+  @Roles(UserRole.ADMIN)
+  handleRosterUpdate(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** DELETE /users/roster/:id — deactivate roster record by ID (ADMIN only) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Delete('users/roster/:id')
+  @Roles(UserRole.ADMIN)
+  handleRosterDelete(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
   // ===== User Management Endpoints =====
 
   /** GET /users — list/search users → user-service (returns department info) */
@@ -239,7 +316,7 @@ export class ProxyController {
   }
 
   // ===== Document Management Endpoints =====
-  
+
   /** List documents with pagination, search, and filters */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('documents')
@@ -277,7 +354,6 @@ export class ProxyController {
       downstreamDocumentsPath(request),
     );
   }
-
 
   /** Serve document file for OnlyOffice Document Server.
    *  OnlyOffice DS downloads the file via this URL. No user auth is required — the request
@@ -351,7 +427,10 @@ export class ProxyController {
     return this.proxyService.forward(
       ServiceName.METADATA,
       request,
-      '/api/v1/categories/active/children' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+      '/api/v1/categories/active/children' +
+        (request.url.includes('?')
+          ? request.url.substring(request.url.indexOf('?'))
+          : ''),
     );
   }
 
@@ -414,7 +493,10 @@ export class ProxyController {
     return this.proxyService.forward(
       ServiceName.METADATA,
       request,
-      '/api/v1/tags/search' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+      '/api/v1/tags/search' +
+        (request.url.includes('?')
+          ? request.url.substring(request.url.indexOf('?'))
+          : ''),
     );
   }
 
@@ -478,7 +560,8 @@ export class ProxyController {
     let downstream: string;
 
     if (path.startsWith('/api/v1/metadata/categories')) {
-      const relative = path.replace(/^\/api\/v1\/metadata\/categories/, '') || '/';
+      const relative =
+        path.replace(/^\/api\/v1\/metadata\/categories/, '') || '/';
       downstream = `/api/v1/categories${relative === '/' ? '' : relative}`;
     } else if (path.startsWith('/api/v1/metadata/tags')) {
       const relative = path.replace(/^\/api\/v1\/metadata\/tags/, '') || '/';
@@ -488,11 +571,7 @@ export class ProxyController {
       downstream = `/api/v1/metadata${relative === '/' ? '' : relative}`;
     }
 
-    return this.proxyService.forward(
-      ServiceName.METADATA,
-      request,
-      downstream,
-    );
+    return this.proxyService.forward(ServiceName.METADATA, request, downstream);
   }
 
   // ===== Access Rules Endpoints =====
@@ -503,7 +582,10 @@ export class ProxyController {
     return this.proxyService.forward(
       ServiceName.METADATA,
       request,
-      '/api/v1/access-rules' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+      '/api/v1/access-rules' +
+        (request.url.includes('?')
+          ? request.url.substring(request.url.indexOf('?'))
+          : ''),
     );
   }
 
@@ -511,11 +593,16 @@ export class ProxyController {
   @All('access-rules/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleAccessRules(@Req() request: Request) {
-    const relative = request.path.replace(/^\/api\/v1\/access-rules/, '') || '/';
+    const relative =
+      request.path.replace(/^\/api\/v1\/access-rules/, '') || '/';
     return this.proxyService.forward(
       ServiceName.METADATA,
       request,
-      '/api/v1/access-rules' + (relative === '/' ? '' : relative) + (request.url.includes('?') && !request.url.includes(relative) ? request.url.substring(request.url.indexOf('?')) : ''),
+      '/api/v1/access-rules' +
+        (relative === '/' ? '' : relative) +
+        (request.url.includes('?') && !request.url.includes(relative)
+          ? request.url.substring(request.url.indexOf('?'))
+          : ''),
     );
   }
 
@@ -552,7 +639,10 @@ export class ProxyController {
     return this.proxyService.forward(
       ServiceName.FEEDBACK,
       request,
-      '/api/v1/reports' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+      '/api/v1/reports' +
+        (request.url.includes('?')
+          ? request.url.substring(request.url.indexOf('?'))
+          : ''),
     );
   }
 
@@ -588,7 +678,10 @@ export class ProxyController {
     return this.proxyService.forward(
       ServiceName.FEEDBACK,
       request,
-      '/api/v1/dashboard/unanswered' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+      '/api/v1/dashboard/unanswered' +
+        (request.url.includes('?')
+          ? request.url.substring(request.url.indexOf('?'))
+          : ''),
     );
   }
 
@@ -621,24 +714,26 @@ export class ProxyController {
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleAIStream(@Req() request: Request, @Res() response: Response) {
     const path = '/chat/stream';
-    this.proxyService.forward(ServiceName.AI_QA, request, path, true).subscribe({
-      next: (proxied: any) => {
-        if (proxied && proxied._proxied) {
-          response.status(proxied.statusCode ?? 200);
-          for (const [key, value] of Object.entries(proxied.headers || {})) {
-            response.setHeader(key, value as string);
+    this.proxyService
+      .forward(ServiceName.AI_QA, request, path, true)
+      .subscribe({
+        next: (proxied: any) => {
+          if (proxied && proxied._proxied) {
+            response.status(proxied.statusCode ?? 200);
+            for (const [key, value] of Object.entries(proxied.headers || {})) {
+              response.setHeader(key, value as string);
+            }
+            if (proxied.data && typeof proxied.data.pipe === 'function') {
+              proxied.data.pipe(response);
+            } else {
+              response.end(proxied.data);
+            }
           }
-          if (proxied.data && typeof proxied.data.pipe === 'function') {
-            proxied.data.pipe(response);
-          } else {
-            response.end(proxied.data);
-          }
-        }
-      },
-      error: (err) => {
-        response.status(500).json({ success: false, error: err.message });
-      }
-    });
+        },
+        error: (err) => {
+          response.status(500).json({ success: false, error: err.message });
+        },
+      });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -647,7 +742,12 @@ export class ProxyController {
   handleAI(@Req() request: Request) {
     const path = request.url.replace('/api/v1/ai', '');
     const isStream = path.includes('/stream');
-    return this.proxyService.forward(ServiceName.AI_QA, request, path, isStream);
+    return this.proxyService.forward(
+      ServiceName.AI_QA,
+      request,
+      path,
+      isStream,
+    );
   }
 
   // Ingestion endpoints — route to ingestion-service

@@ -49,12 +49,13 @@ export class RateLimitInterceptor implements NestInterceptor {
   private async initRedis(): Promise<void> {
     try {
       const url =
-        this.configService.get<string>('redis.url') ||
-        'redis://localhost:6379';
+        this.configService.get<string>('redis.url') || 'redis://localhost:6379';
       this.redisClient = createClient({ url });
 
       this.redisClient.on('error', (err: Error) => {
-        this.logger.warn(`Redis connection error, falling back to in-memory rate limiting: ${err.message}`);
+        this.logger.warn(
+          `Redis connection error, falling back to in-memory rate limiting: ${err.message}`,
+        );
         this.useRedis = false;
       });
 
@@ -82,9 +83,12 @@ export class RateLimitInterceptor implements NestInterceptor {
     }
   }
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<unknown>> {
     const request = context.switchToHttp().getRequest<Request>();
-    
+
     // Skip rate limiting for health checks
     if (request.url === '/health' || request.url === '/api/v1/health') {
       return next.handle();
@@ -108,10 +112,9 @@ export class RateLimitInterceptor implements NestInterceptor {
     limit: number,
     now: number,
     response: Response,
-    next: CallHandler
+    next: CallHandler,
   ): Promise<Observable<unknown>> {
     const redisKey = `rate_limit:${key}`;
-    const resetTime = now + this.ttl;
 
     try {
       const result = (await this.redisClient!.eval(
@@ -161,7 +164,7 @@ export class RateLimitInterceptor implements NestInterceptor {
     limit: number,
     now: number,
     response: Response,
-    next: CallHandler
+    next: CallHandler,
   ): Observable<unknown> {
     const record = this.fallbackStore.get(key);
 
@@ -211,9 +214,11 @@ export class RateLimitInterceptor implements NestInterceptor {
     }
     const forwardedFor = request.headers['x-forwarded-for'];
     const realIp = request.headers['x-real-ip'];
-    const ip = forwardedFor 
-      ? (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(',')[0]) 
-      : (realIp || request.ip || request.socket.remoteAddress || 'unknown');
+    const ip = forwardedFor
+      ? Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : forwardedFor.split(',')[0]
+      : realIp || request.ip || request.socket.remoteAddress || 'unknown';
     return `ip:${ip}`;
   }
 

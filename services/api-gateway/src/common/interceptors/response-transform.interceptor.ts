@@ -40,14 +40,16 @@ export class ResponseTransformInterceptor implements NestInterceptor {
 
   private handleProxiedResponse(response: Response, data: unknown): void {
     if (response.headersSent) return;
-    this.logger.debug(`[handleProxiedResponse] isProxied=${this.isProxiedResponse(data)}`);
+    this.logger.debug(
+      `[handleProxiedResponse] isProxied=${this.isProxiedResponse(data)}`,
+    );
     if (!this.isProxiedResponse(data)) return;
 
     const proxied = data as ProxiedResponse;
     const isStream = this.isStreamResponse(proxied.data);
     this.logger.debug(
       `[handleProxiedResponse] isStream=${isStream} | type=${typeof proxied.data} ` +
-      `| proto=${Object.prototype.toString.call(proxied.data)} | hasPipe=${!!(proxied.data as any)?.pipe}`
+        `| proto=${Object.prototype.toString.call(proxied.data)} | hasPipe=${!!(proxied.data as any)?.pipe}`,
     );
     if (isStream) {
       const status = proxied.statusCode ?? 200;
@@ -78,7 +80,10 @@ export class ResponseTransformInterceptor implements NestInterceptor {
   ): unknown {
     if (this.isProxiedResponse(data)) {
       const proxied = data as ProxiedResponse;
-      if (this.isBinaryResponse(proxied.data) || this.isStreamResponse(proxied.data)) {
+      if (
+        this.isBinaryResponse(proxied.data) ||
+        this.isStreamResponse(proxied.data)
+      ) {
         return undefined;
       }
       if (proxied.statusCode !== undefined) {
@@ -122,7 +127,8 @@ export class ResponseTransformInterceptor implements NestInterceptor {
     if (data === null || data === undefined) return false;
     const proto = Object.prototype.toString.call(data);
     // Node.js streams often have this proto or similar
-    if (proto === '[object ReadableStream]' || proto === '[object Readable]') return true;
+    if (proto === '[object ReadableStream]' || proto === '[object Readable]')
+      return true;
     // Check if it's a pipeable stream
     return typeof (data as any).pipe === 'function';
   }
@@ -154,7 +160,8 @@ export class ResponseTransformInterceptor implements NestInterceptor {
   private getBinarySize(data: unknown): number {
     if (Buffer.isBuffer(data)) return data.length;
     const proto = Object.prototype.toString.call(data);
-    if (proto === '[object ArrayBuffer]') return (data as ArrayBuffer).byteLength;
+    if (proto === '[object ArrayBuffer]')
+      return (data as ArrayBuffer).byteLength;
     if (proto === '[object Uint8Array]') return (data as Uint8Array).length;
     return 0;
   }
