@@ -17,8 +17,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 27
 completed_tickets: 2
-implemented_tickets: 5
-review_tickets: 3
+implemented_tickets: 6
+review_tickets: 4
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket. *Sửa 2026-10-21: TXT cũng bị bỏ, phạm vi còn PDF có lớp chữ và MD.*
@@ -127,7 +127,7 @@ flowchart TD
 ### Phase 2: Nền tảng và ai-service
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
-| `V2-08` | Khung Flyway + compose (Postgres/pgvector, MinIO ghim bản) | infra | M | `V2-01` | todo |
+| `V2-08` | Khung Flyway + compose (Postgres/pgvector, MinIO ghim bản) | infra | M | `V2-01` | review |
 | `V2-09` | ai-service: worker ingest, embedding, hybrid retrieval, RLS, 4 loại điểm, provider interface | ai-qa | L | `V2-03`, `V2-06`, `V2-08`, `V2-20`, `V2-21`, `V2-22` | todo |
 | `V2-10` | ai-service: pipeline 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09` | todo |
 | `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | todo |
