@@ -7,12 +7,15 @@ scope: ingestion
 verdict: conditional-recommendation
 author: "Owner"
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/03-plans/tickets/V2-09-ai-service-ingest-retrieval.md
   - docs/04-reports/HANDOFF-research-02-dataset-and-labeling.md
 ---
+
+> **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket.
+
 
 # Phân tích pipeline nạp SOP
 

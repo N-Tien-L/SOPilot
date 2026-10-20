@@ -14,7 +14,7 @@ author: SOPilot Team
 ## Core Instructions
 
 1. **Read & Parse Ticket**
-   - Read the ticket file at `docs/03-plans/tickets/<ticket-id>-*.md` (`docs/plans/` is deprecated).
+   - Read the ticket file at `docs/03-plans/tickets/<ticket-id>-*.md`.
    - Parse the YAML frontmatter to identify `id`, `type`, `scope`, `status`, and `depends_on`.
    - Load the acceptance criteria and implementation guide.
 

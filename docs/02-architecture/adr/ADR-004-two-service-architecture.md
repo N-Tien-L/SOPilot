@@ -53,8 +53,10 @@ superseded_by: ""
 | Thành phần | Công nghệ | Trách nhiệm | Schema sở hữu |
 |---|---|---|---|
 | `frontend/web` | Next.js | Giao diện | — |
-| `services/core-api` | Spring Boot 3.x | Google login, user, workspace, membership, lời mời, tài liệu (metadata + file), phản hồi, khoảng trống tri thức, audit, hạn mức | `core` |
-| `services/ai-service` | FastAPI | Worker ingest, truy xuất hybrid, sinh câu trả lời SSE, hội thoại, eval harness | `rag` |
+| `services/core-api` | Spring Boot 3.x | Google login, user, workspace, membership, lời mời, tài liệu (metadata + file), audit, hạn mức tài liệu | `core` |
+| `services/ai-service` | FastAPI | Worker ingest, truy xuất hybrid, sinh câu trả lời SSE, hội thoại, phản hồi, khoảng trống tri thức, hạn mức câu hỏi, eval harness | `rag` |
+
+> **Sửa 2026-10-20 (owner, TECH-V2 Q1):** phản hồi và khoảng trống tri thức (FR-16, FR-17) chuyển từ core-api sang ai-service, vì câu hỏi, câu trả lời, trích dẫn và cờ từ chối đều nằm trong `rag`; để ở core-api thì phải sao chép nội dung câu hỏi qua outbox. Hạn mức (FR-09) đang tạm tắt.
 | PostgreSQL 16 + pgvector | — | Lưu trữ | `core`, `rag` |
 | Object storage S3-compatible | MinIO ghim phiên bản (local), R2/B2 (deploy) | File gốc | bucket duy nhất, cấu hình qua env |
 

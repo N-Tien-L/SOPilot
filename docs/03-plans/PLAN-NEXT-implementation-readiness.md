@@ -1,14 +1,16 @@
 ---
 id: PLAN-NEXT
 title: "Backlog tiếp tục implementation"
-status: draft
+status: superseded
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-20
 total_tickets: 6
 completed_tickets: 0
 implemented_tickets: 1
 review_tickets: 1
 ---
+
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](PLAN-V2-sopilot-mvp.md). NEXT-01, 03, 04, 05, 06 `superseded` (ghi chú ánh xạ trong từng ticket); NEXT-02 giữ `review` làm lịch sử, port sang V2-11.
 
 # Backlog tiếp tục implementation
 

@@ -4,13 +4,15 @@ title: "Áp dụng chính sách roster cho đăng nhập Google của tài kho�
 type: fix
 status: review
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-20
 scope: auth
 priority: P1
 size: M
 parent_plan: PLAN-NEXT
 depends_on: []
 ---
+
+> **Ghi chú 2026-10-20 (V2-04):** giữ nguyên trạng thái để lưu lịch sử; không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang [V2-11](V2-11-core-api-identity-workspace.md). Binding `(issuer, sub)` và xác minh Google ID token được giữ (ADR-004 §4.5); kiểm tra roster bị bỏ (ADR-005).
 
 # NEXT-02: Áp dụng chính sách roster cho đăng nhập Google của tài khoản cũ
 

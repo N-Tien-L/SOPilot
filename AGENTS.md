@@ -57,7 +57,7 @@ Detailed ownership: [.agent/context/service-boundaries/responsibilities.md](.age
 Specs live in `docs/` (written in Vietnamese); long-lived technical context lives in `.agent/context/`. The frontmatter schema, status vocabulary and the meaning of `done` are defined once in [docs/README.md](docs/README.md); follow it, do not redefine it.
 
 1. **Spec chain**: PRD (`docs/01-requirements`) → ADR / TECH (`docs/02-architecture`) → PLAN + tickets (`docs/03-plans`) → code → AUDIT (`docs/04-reports`). Do not start a PLAN without an approved PRD.
-2. **Progress source**: `docs/03-plans/` is the only progress source. `docs/plans/` is deprecated and must not be edited.
+2. **Progress source**: `docs/03-plans/` is the only progress source (the old `docs/plans/` copy was removed in V2-04).
 3. **Implementing a ticket** (skill `execute-ticket`), in this order:
    1. Service: entities, repositories, services, versioned REST controllers; additive migration in `infrastructure/init-db/` if the schema changes; RabbitMQ events if other services must react.
    2. Gateway: proxy routes and RBAC guards in `services/api-gateway`.

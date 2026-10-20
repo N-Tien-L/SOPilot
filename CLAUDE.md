@@ -7,7 +7,7 @@ Working guide for Claude Code in the SOPilot repository. The shared agent handbo
 ## Where guidance lives
 
 - Mandatory rules: [AGENTS.md](AGENTS.md), [.agent/rules/general.md](.agent/rules/general.md), [.agent/rules/safety-guardrails.md](.agent/rules/safety-guardrails.md), and for any `frontend/web` work [.agent/rules/frontend.md](.agent/rules/frontend.md).
-- Specs, plans, ticket status, frontmatter and status conventions: [docs/README.md](docs/README.md). `docs/03-plans/` is the progress source; `docs/plans/` is deprecated.
+- Specs, plans, ticket status, frontmatter and status conventions: [docs/README.md](docs/README.md). `docs/03-plans/` is the progress source.
 - Context index: [.agent/context/README.md](.agent/context/README.md) has a task -> file lookup table. Read the relevant context **before** changing:
   - REST endpoints or gateway routing -> `service-boundaries/responsibilities.md`, `service-boundaries/api-contracts.md`
   - RabbitMQ events -> `service-boundaries/events.md`

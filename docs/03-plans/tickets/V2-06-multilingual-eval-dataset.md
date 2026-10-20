@@ -4,13 +4,13 @@ title: "Corpus và bộ câu hỏi đa ngôn ngữ (VI, EN) có người duyệt
 type: docs
 status: todo
 created: 2026-10-17
-updated: 2026-10-17
+updated: 2026-10-21
 scope: tests
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: []
-blocks: [V2-07]
+blocks: [V2-07, V2-09]
 branch: "docs/tests-eval-dataset"
 assignee: owner
 ---

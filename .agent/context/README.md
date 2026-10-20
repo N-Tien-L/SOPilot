@@ -1,5 +1,7 @@
 # System Context & Architecture Knowledge Base
 
+> **V2 input scope (owner approved 2026-10-20, narrowed 2026-10-21):** PDF with a text layer and Markdown only; TXT was dropped on 2026-10-21 and DOCX is deferred until after the MVP. The V2 upload contract rejects `.txt`/DOCX with `415`, creates no job and points the user to `.md` or a PDF with a text layer; no server-side conversion and no OCR. One PDF library (chosen in V2-20, ADR-008) feeds a shared structured representation; ai-service renders one canonical Markdown after cleaning, and every chunk/citation offset refers to it. The read-only "Nội dung hệ thống nhận diện" view (PRD-V2 FR-31) opens only when a version is `READY`. Document quota defaults to 50 documents / 200 MB per workspace. Rationale: [AUDIT-markdown-normalization](../../docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md). See [PRD-V2 FR-06](../../docs/01-requirements/PRD-V2-sopilot-mvp.md) and [TECH-V2 core-api](../../docs/02-architecture/designs/TECH-V2-core-api.md). This is the V2 target contract, not a change to the legacy ingestion runtime described below.
+
 This directory houses the comprehensive architectural, domain, schema, and interface contracts for the Poliwise platform. All AI agents must reference these documents as the primary source of truth.
 
 ---

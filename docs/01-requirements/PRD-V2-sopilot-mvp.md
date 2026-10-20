@@ -3,11 +3,12 @@ id: PRD-V2-SOPILOT-MVP
 title: "SOPilot V2 MVP: workspace hỏi đáp tài liệu có trích dẫn, đa tổ chức"
 status: approved
 created: 2026-10-16
-updated: 2026-10-20
+updated: 2026-10-21
 author: "Owner"
 milestone: "V2: SOPilot MVP"
 priority: P0
 refs:
+  - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/04-reports/AUDIT-project-progress-2026-10-14.md
   - docs/04-reports/AUDIT-google-admission-2026-10-15.md
   - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
@@ -60,7 +61,7 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 3. **UC-03: Tự gia nhập theo domain (P1)**
    - **Actor:** Owner dùng tài khoản Google Workspace (claim `hd = acme.com`). **Luồng chính:** owner bật "cho phép mọi người @acme.com gia nhập" → nhân viên đăng nhập Google có `hd = acme.com` thấy workspace và gia nhập với role `MEMBER`.
 4. **UC-04: Tải tài liệu và hỏi đáp**
-   - **Actor:** Owner/Admin tải lên; Member hỏi. **Luồng chính:** tải PDF → trạng thái `PROCESSING` → `READY` → member hỏi → câu trả lời stream kèm trích dẫn `[1]`, `[2]` → bấm trích dẫn mở tài liệu đúng trang, tô sáng đoạn nguồn.
+   - **Actor:** Owner/Admin tải lên; Member hỏi. **Luồng chính:** tải PDF → trạng thái "Đang xử lý" (`UPLOADED`/`PROCESSING`) → `READY` → (tùy chọn) mở "Nội dung hệ thống nhận diện" để đối chiếu với PDF gốc (FR-31) → member hỏi → câu trả lời stream kèm trích dẫn `[1]`, `[2]` → bấm trích dẫn mở tài liệu đúng trang, tô sáng đoạn nguồn.
 5. **UC-05: Câu hỏi không có trong tài liệu**
    - **Luồng chính:** điểm truy xuất dưới ngưỡng → hệ thống trả lời "không tìm thấy trong tài liệu của workspace" thay vì suy đoán → câu hỏi vào danh sách "chưa trả lời được" cho Admin.
 6. **UC-06: Chạy đánh giá**
@@ -75,6 +76,10 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
    - **Actor:** Member. **Luồng chính:** hỏi câu có đáp án nằm trong tài liệu chỉ dành cho phòng ban khác → hệ thống trả lời không tìm thấy bằng chứng, không tiết lộ tên hay nội dung tài liệu đó. Khi thuộc đúng phòng ban → trả lời kèm trích dẫn.
 11. **UC-11: Thu hồi quyền**
    - **Actor:** Owner/Admin. **Luồng chính:** tạm khóa thành viên hoặc chuyển phòng ban → bị chặn chậm nhất khi access token hết hạn (≤ 15 phút). Thu hẹp phạm vi tài liệu → bị chặn ngay khi ai-service nhận cập nhật (gọi đồng bộ, outbox thử lại). Lịch sử hội thoại ẩn đoạn trích và câu trả lời dựa trên tài liệu không còn quyền.
+12. **UC-12: Nạp kho ban đầu và kiểm tra kết quả trích xuất**
+   - **Actor:** Owner/Admin. **Tiền điều kiện:** đã chọn các file là bản được phép dùng (không có workflow duyệt trong SOPilot).
+   - **Luồng chính:** chọn tối đa 10 file PDF/MD mỗi lượt → mỗi file hiện "Đang tải lên" rồi "Đang xử lý" → người dùng có thể đóng hộp thoại và làm việc khác → danh sách tài liệu báo từng file `READY` hoặc lỗi kèm lý do → với file `READY`, người quản lý tùy chọn mở "Nội dung hệ thống nhận diện" (FR-31) → lượt kế tiếp.
+   - **Ngoại lệ:** file trùng, scan, sai định dạng, vượt hạn mức chỉ làm hỏng chính file đó; file lỗi được thử lại hoặc thay file mà không nạp lại file đã thành công. Phát hiện nội dung nhận diện sai → thay file hoặc xóa; không sửa Markdown trong hệ thống.
 
 ---
 
@@ -92,10 +97,22 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 - [ ] **FR-24 (P1): Import thành viên từ CSV.** Tạo hàng loạt lời mời kèm hồ sơ; báo lỗi theo dòng.
 
 ### Tài liệu
-- [ ] **FR-06: Tải tài liệu.** PDF, DOCX, MD, TXT; tối đa 20 MB/file. Chặn trùng theo SHA-256 trong cùng workspace. Chỉ `OWNER`/`ADMIN` tải lên và xóa; mọi member xem và tải xuống.
-- [ ] **FR-07: Vòng đời tài liệu.** `UPLOADED → PROCESSING → READY | FAILED`. Thử lại khi `FAILED`. Tải bản mới thay thế bản cũ (chunk cũ bị xóa sau khi bản mới `READY`). Xóa tài liệu xóa file và toàn bộ chunk.
-- [ ] **FR-08: Ingestion.** Trích xuất văn bản giữ số trang và tiêu đề mục, chia chunk, tạo embedding, lưu kèm `workspace_id`, `document_id`, `page`, vị trí ký tự. Có hàng đợi bền (không mất job khi service khởi động lại). Bổ sung theo [AUDIT-ingestion-sop-data](../04-reports/AUDIT-ingestion-sop-data-2026-10-19.md):
-  - Một bộ trích xuất duy nhất, xuất văn bản có cấu trúc (heading, danh sách có số thứ tự tự động của Word, bảng nằm đúng vị trí).
+- [ ] **FR-06: Tải tài liệu.** Chỉ PDF có lớp chữ và Markdown (`.md`, UTF-8); tối đa 20 MB/file. Chặn trùng theo SHA-256 trong cùng workspace. Chỉ `OWNER`/`ADMIN` tải lên và xóa; mọi member xem và tải xuống file gốc. Owner chốt 2026-10-20: hoãn DOCX sau MVP V2; upload DOCX bị từ chối bằng `415`, không tạo job, hướng dẫn xuất sang PDF có lớp chữ. Owner chốt 2026-10-21: bỏ TXT khỏi MVP; `.txt` bị từ chối bằng `415`, hướng dẫn đổi sang `.md`. Không tự chuyển đổi định dạng trên server, không OCR. Người quản lý chịu trách nhiệm chỉ đưa vào nội dung đã được phép sử dụng; không có workflow phê duyệt hay ngày hiệu lực hẹn trước trong MVP.
+- [ ] **FR-07: Vòng đời tài liệu.** `UPLOADED → PROCESSING → READY | FAILED`; giao diện gọi chung `UPLOADED`/`PROCESSING` là "Đang xử lý". `READY` nghĩa là xử lý kỹ thuật thành công và hỏi đáp được, không có nghĩa nội dung đã được người dùng kiểm tra. Thử lại phiên bản `FAILED` chạy lại xử lý của đúng file đó. Tải bản thay thế do người quản lý chọn tài liệu đích; hệ thống không suy đoán quan hệ phiên bản theo tên hay ngữ nghĩa. File thay thế khác bytes được xử lý lại toàn file (không phân loại minor/major, không xử lý tăng dần theo đoạn, không dedup ngữ nghĩa); chunk cũ bị xóa sau khi bản mới `READY`; bản mới lỗi thì bản cũ vẫn phục vụ. Quy tắc trùng khi thay bản (owner chốt 2026-10-20 và 2026-10-21):
+  - cùng SHA-256 với phiên bản hiện hành `READY` → no-op, báo "Nội dung file không thay đổi", không tạo phiên bản hay job;
+  - cùng SHA-256 với phiên bản hiện hành của tài liệu khác trong workspace → báo trùng như khi tạo tài liệu mới;
+  - tài liệu đang có phiên bản "Đang xử lý": gửi lại đúng file đó trả về phiên bản đang xử lý (không tạo job mới); file khác bytes bị từ chối cho tới khi phiên bản đang xử lý kết thúc.
+  
+  Sửa tiêu đề, mô tả, category, tags không tạo job ingestion; đổi phạm vi hiển thị đi theo cơ chế đồng bộ quyền của FR-25/FR-26. Xóa tài liệu xóa file và toàn bộ chunk.
+- [ ] **FR-30: Chọn nhiều file.** Giao diện cho chọn tối đa 10 file mỗi lượt (giới hạn sản phẩm khởi đầu, không phải mức đã đo), gửi bằng các yêu cầu upload từng file; không có bảng/job batch hay transaction toàn đợt. Mỗi file có trạng thái và lý do lỗi riêng; file lỗi, trùng hay vượt hạn mức không hủy file khác. File lỗi được thử lại hoặc thay file riêng, không nạp lại file đã thành công. Người dùng không phải ở lại màn upload sau khi file đã tải lên xong. Import ZIP/thư mục, đồng bộ wiki/Git/Drive/SharePoint và dashboard migration ngoài phạm vi (§5).
+- [ ] **FR-08: Ingestion.** Trích xuất có cấu trúc giữ số trang và tiêu đề mục, chia chunk, tạo embedding, lưu kèm `workspace_id`, `document_id`, `page`, vị trí ký tự. Có hàng đợi bền (không mất job khi service khởi động lại); job và outbox idempotent, gửi lại cùng thao tác không nhân đôi job. Chuẩn hóa nội dung (owner chốt 2026-10-21, [AUDIT-markdown-normalization](../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):
+  - PDF được chuyển trực tiếp từ cấu trúc do **một** thư viện chuyển đổi trả về sang biểu diễn chung (heading, đoạn, danh sách, bảng, số trang); không trích plain text rồi dựng lại Markdown; không chuỗi fallback nhiều công cụ. Markdown đầu vào đi qua parser rồi vào cùng biểu diễn.
+  - Từ biểu diễn đã làm sạch, hệ thống render **một bản Markdown chuẩn** dùng chung cho chunk, index, trích dẫn, gợi ý metadata và màn xem FR-31. Offset ký tự của trích dẫn tính trên bản Markdown chuẩn này (sau làm sạch). Lưu cả cấu trúc lẫn Markdown để dùng lại, không parse lại file chỉ để gợi ý metadata.
+  - Không dùng LLM viết lại nội dung. Không cam kết cùng nội dung ở định dạng khác nhau cho ra Markdown giống hệt.
+  - Cache embedding theo model + revision + SHA-256 của đúng đầu vào embedding; không cam kết tỉ lệ cache hit; không dùng hash của Markdown để tự bỏ qua phiên bản.
+  
+  Bổ sung theo [AUDIT-ingestion-sop-data](../04-reports/AUDIT-ingestion-sop-data-2026-10-19.md):
+  - Một bộ trích xuất duy nhất, xuất văn bản có cấu trúc (heading, danh sách giữ số thứ tự hiện trong nguồn, bảng nằm đúng vị trí).
   - Tách phần khung khỏi nội dung được index: header/footer lặp mỗi trang, quốc hiệu/tiêu ngữ, chữ ký, nơi nhận, bảng phê duyệt, bảng theo dõi sửa đổi.
   - Trích metadata từ nội dung khi có: mã số, lần ban hành, ngày hiệu lực.
   - Nhận diện cấu trúc theo loại tài liệu (quy trình ISO, Chương/Điều/Khoản, Markdown, văn xuôi không chuẩn); bảng quy trình (Trách nhiệm/Bước/Mô tả/Biểu mẫu) được giữ theo từng bước.
@@ -105,14 +122,18 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 - [ ] **FR-26: Metadata tài liệu.** Metadata hệ thống (tên file, loại, kích thước, SHA-256, số trang, trạng thái, phiên bản, người/ngày tải lên, ngôn ngữ phát hiện, nguồn gốc embedding, mã số/lần ban hành/ngày hiệu lực trích từ nội dung) chỉ hệ thống ghi. Metadata do Owner/Admin sửa: tiêu đề, mô tả ngắn, một category, nhiều tags, ngôn ngữ, phạm vi hiển thị. Sửa tiêu đề, mô tả, category, tags chỉ cập nhật thuộc tính. Sửa phạm vi hiển thị chỉ cập nhật bản sao quyền ở ai-service, không embed lại. Sửa ngôn ngữ chỉ làm lại chỉ mục BM25 nếu BM25 cấu hình theo ngôn ngữ. Không có custom field động.
 - [ ] **FR-27: Category và tags phẳng.** Category thuộc workspace, không cây; mỗi tài liệu tối đa một category. Category dùng để phân loại và lọc, không phải cơ chế cấp quyền. Tags thuộc workspace, tạo khi gắn.
 - [ ] **FR-28: Gợi ý metadata chạy nền.** Không chặn upload và không chặn `READY`. Dùng lại văn bản đã trích xuất, không tải hay parse lại file. Luật trước (tiêu đề từ heading đầu hoặc tên file, ngôn ngữ, mã số/lần ban hành/ngày hiệu lực); sau đó một lần gọi LLM có structured output cho mô tả, category (chọn trong danh sách hiện có, hoặc để trống kèm đề xuất tên mới), tags (ưu tiên tags đã có). Đầu vào giới hạn ở tiêu đề, dàn ý heading và đoạn đại diện. Có timeout, tối đa một lần thử lại; lỗi thì chỉ dùng kết quả luật. Cache theo `(workspace_id, sha256 nội dung, phiên bản prompt/model, danh sách category)`. Gợi ý không ghi đè trường người dùng đã sửa và không bao giờ đổi phạm vi hiển thị.
-- [ ] **FR-09: Hạn mức.** Mặc định mỗi workspace tối đa 50 tài liệu và 200 MB; mỗi user tối đa 20 câu hỏi/ngày; toàn hệ thống có trần câu hỏi/ngày đặt dưới RPD của provider sinh câu trả lời (mặc định 400 với Gemini 3.1 Flash Lite 500 RPD). Cấu hình được qua biến môi trường. Có bộ giới hạn tốc độ theo provider (RPM/TPM) và tự chuyển sang model dự phòng khi gặp 429.
+- [ ] **FR-09: Hạn mức.** Cấu hình được qua biến môi trường, `0` = không giới hạn.
+  - **Tài liệu và dung lượng mỗi workspace: mặc định 50 tài liệu và 200 MB** (owner chốt 2026-10-21, thay quyết định tắt mặc định ngày 2026-10-20). Kiểm tra ở backend trong cùng transaction tạo tài liệu, đúng cả khi nhiều upload đồng thời; một lượt chọn nhiều file có thể thành công một phần khi chạm hạn mức. Thay phiên bản không tăng số tài liệu. Nâng hạn mức không đồng nghĩa hệ thống đáp ứng được kho hàng nghìn tài liệu (chưa đo).
+  - **Câu hỏi: mặc định tắt** (owner chốt 2026-10-20, ưu tiên nghiên cứu). Khi bật lại, giá trị tham khảo là 20 câu/user/ngày, 400 câu/ngày toàn hệ thống.
+  - Giới hạn kỹ thuật luôn bật: 20 MB/file (FR-06), bộ giới hạn tốc độ theo provider (RPM/TPM) và tự chuyển sang model dự phòng khi gặp 429.
+- [ ] **FR-31: Nội dung hệ thống nhận diện.** Màn chỉ đọc, mở được khi phiên bản hiện hành `READY` (không mở trong lúc đang xử lý). Hiển thị bản Markdown chuẩn sau chuyển đổi và làm sạch, đúng nội dung được chunk/index (FR-08). Với PDF: đặt cạnh file gốc trong trình xem tài liệu hiện có, có mốc trang để nhảy tới trang tương ứng; không cần đồng bộ cuộn hay tô sáng hai chiều. Liệt kê (thu gọn) các khối khung đã loại khỏi chỉ mục. Chỉ hiển thị cảnh báo chất lượng khi bộ xử lý có tín hiệu cụ thể (ví dụ trang không có chữ, ký tự không đọc được, không nhận ra tiêu đề); không có điểm tin cậy. Kiểm tra là tùy chọn, không chặn pipeline, không có trạng thái "đã kiểm tra", không có editor. Áp dụng quyền đọc FR-25 và đúng phiên bản: khi bản thay thế đang xử lý hoặc lỗi, màn xem hiện bản đang dùng kèm nhãn số phiên bản, không bao giờ hiện nội dung bản cũ dưới trạng thái bản mới. Phát hiện sai thì dùng thay file hoặc xóa. Màn xem không thay thế đo chất lượng trích xuất trên corpus (V2-19).
 
 ### Hỏi đáp
 - [ ] **FR-10: Hybrid RAG.** Dense (pgvector) + BM25, gộp bằng RRF, rerank là tùy chọn bật/tắt bằng cấu hình (mặc định tắt khi deploy miễn phí, ADR-006). **Mọi truy vấn bắt buộc lọc theo `workspace_id`** của token.
 - [ ] **FR-11: Sinh câu trả lời có trích dẫn.** Stream qua SSE. Trả lời theo ngôn ngữ câu hỏi (đa ngôn ngữ; ngôn ngữ được kiểm chứng là VI và EN, ngôn ngữ khác là best-effort và không cam kết chất lượng). Mỗi khẳng định gắn `[n]`; mỗi `[n]` ánh xạ tới `document_id`, `page`, đoạn trích. Trích dẫn không ánh xạ được thì bị loại khỏi câu trả lời.
 - [ ] **FR-12: Từ chối có căn cứ.** Khi bằng chứng dưới ngưỡng cấu hình, trả lời "không tìm thấy" kèm gợi ý tài liệu gần nhất (nếu có), và ghi câu hỏi vào danh sách chưa trả lời được.
-- [ ] **FR-13: Guard nhiều lớp, không dùng classifier.** Phòng thủ chính là kiến trúc: quyền đọc lọc trong SQL trước khi vào LLM (FR-19, FR-25), system prompt không chứa bí mật, trích dẫn không ánh xạ được bị loại (FR-11), thiếu bằng chứng thì từ chối (FR-12). Guard thêm bốn lớp, không lớp nào gọi thêm LLM: (1) đầu vào: chuẩn hóa (NFC, bỏ dấu, leetspeak), giới hạn độ dài, luật VI/EN hai mức: mức chặn (đòi lộ system prompt/quy tắc ẩn, ghi đè chỉ dẫn nhắm vào chỉ dẫn/prompt, giả mạo vai trò hệ thống) trả câu từ chối cố định; mức gắn cờ (đóng vai, bỏ qua...) vẫn trả lời và chỉ ghi log; chào hỏi/cảm ơn/hỏi về bot trả lời bằng mẫu; (2) ghép prompt: chunk bọc trong thẻ dữ liệu có escape, câu hỏi ở message riêng; (3) đầu ra: canary token trong system prompt, câu trả lời chứa canary hoặc đoạn dài của system prompt bị thay bằng từ chối; (4) log cờ guard cho Admin. Nội dung độc hại dựa vào bộ lọc an toàn của provider. Không có node LLM phân loại ý định hay trả lời kiến thức chung. Llama Prompt Guard 2 86M bị loại sau bài test V2-02 (2026-10-20).
-- [ ] **FR-14: Trình xem trích dẫn.** Bấm `[n]` mở tài liệu ở đúng trang (PDF) hoặc đúng đoạn (văn bản), tô sáng đoạn nguồn.
+- [ ] **FR-13: Guard nhiều lớp, không dùng LLM classifier.** Phòng thủ chính là kiến trúc: quyền đọc lọc trong SQL trước khi vào LLM (FR-19, FR-25), system prompt không chứa bí mật, trích dẫn không ánh xạ được bị loại (FR-11), thiếu bằng chứng thì từ chối (FR-12). Guard thêm bốn lớp, không lớp nào gọi thêm LLM: (1) đầu vào: chuẩn hóa (NFC, bỏ dấu, leetspeak), giới hạn độ dài, luật VI/EN hai mức: mức chặn (đòi lộ system prompt/quy tắc ẩn, ghi đè chỉ dẫn nhắm vào chỉ dẫn/prompt, giả mạo vai trò hệ thống) trả câu từ chối cố định; mức gắn cờ (đóng vai, bỏ qua...) vẫn trả lời và chỉ ghi log; chào hỏi/cảm ơn/hỏi về bot và câu chỉ có lời lẽ thô tục trả lời bằng mẫu, nhận diện bằng luật rồi bằng semantic router so embedding câu hỏi với câu mẫu (không gọi LLM; owner chốt 2026-10-20, V2-27); (2) ghép prompt: chunk bọc trong thẻ dữ liệu có escape, câu hỏi ở message riêng; (3) đầu ra: canary token trong system prompt, câu trả lời chứa canary hoặc đoạn dài của system prompt bị thay bằng từ chối; (4) log cờ guard cho Admin. Nội dung độc hại dựa vào bộ lọc an toàn của provider. Không có node LLM phân loại ý định hay trả lời kiến thức chung. Llama Prompt Guard 2 86M bị loại sau bài test V2-02 (2026-10-20).
+- [ ] **FR-14: Trình xem trích dẫn.** Bấm `[n]` mở tài liệu ở đúng trang (PDF) hoặc đúng đoạn (Markdown), tô sáng đoạn nguồn trên bản Markdown chuẩn (FR-08). Dùng chung thành phần hiển thị với FR-31.
 - [ ] **FR-15: Hội thoại.** Danh sách theo workspace, tiêu đề tự sinh, đổi tên, xóa. Chỉ người tạo xem được hội thoại của mình.
 
 ### Phản hồi và chất lượng
@@ -130,7 +151,8 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 - **Cách ly tenant (bắt buộc):** mọi bảng dữ liệu nghiệp vụ có `workspace_id`; mọi truy vấn lọc theo nó ở tầng ứng dụng, cộng thêm Postgres Row-Level Security làm lớp phòng thủ thứ hai (ADR-005). FR-19 phải đạt **0 rò rỉ**.
 - **Bảo mật:** access token ngắn hạn (≤ 15 phút), refresh token xoay vòng và phát hiện tái sử dụng. Mất membership có hiệu lực chậm nhất khi access token hết hạn. Không log token/secret. Không trả chi tiết lỗi nội bộ ra client.
 - **Hiệu năng (trên hạ tầng miễn phí):** token đầu tiên P95 < 3 s khi service đang chạy; ingest PDF 20 trang < 60 s. Gợi ý metadata không nằm trên đường tới `READY`. Đo riêng: thời gian phản hồi upload, upload → `READY`, `READY` → có gợi ý, độ trễ LLM p50/p95, tỉ lệ fallback, tỉ lệ chấp nhận gợi ý theo trường. Chưa đặt mục tiêu tốc độ gợi ý trước khi có baseline. Chấp nhận cold start của gói miễn phí và ghi rõ trong báo cáo.
-- **Chi phí:** mục tiêu 0 USD/tháng. Hạn mức FR-09 bảo vệ quota của nhà cung cấp LLM/embedding.
+- **Chi phí:** mục tiêu 0 USD/tháng. Quota nhà cung cấp LLM được bảo vệ bằng bộ giới hạn tốc độ theo provider và model dự phòng; hạn mức câu hỏi FR-09 tạm tắt trong giai đoạn nghiên cứu, hạn mức tài liệu mặc định 50 tài liệu/200 MB mỗi workspace.
+- **Chất lượng trích xuất:** đo trên corpus V2-19 theo họ tài liệu (heading, bảng, khung lọt, nội dung bị xóa nhầm); ngưỡng chỉ chốt sau baseline. Không yêu cầu trích xuất chính xác tuyệt đối; màn xem FR-31 giúp phát hiện lỗi trên từng file, không phải bằng chứng chất lượng.
 - **Chất lượng RAG (mục tiêu ban đầu, chốt lại sau khi đo baseline):** recall@5 ≥ 0.80; độ chính xác trích dẫn ≥ 0.85; tỉ lệ từ chối đúng trên câu không trả lời được ≥ 0.80.
 - **Kiểm thử & CI:** unit + integration chạy trên GitHub Actions (miễn phí); FR-19 chạy trong CI.
 - **Khả năng tái lập:** một lệnh `docker compose up` dựng toàn bộ hệ thống cục bộ; eval chạy lại cho cùng kết quả truy xuất với cùng dữ liệu và cấu hình.
@@ -143,7 +165,7 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 |---|---|---|
 | Danh tính | Google login, JIT user, workspace, membership kèm hồ sơ thành viên, lời mời mang hồ sơ, tạm khóa, domain join (P1), import CSV (P1), dev login cho test | Đăng ký/mật khẩu, OTP, quên/đổi mật khẩu, roster HR tạo trước khi đăng nhập, quản lý phiên, lịch sử đăng nhập, HRM (chấm công, lương, nghỉ phép), xóa tài khoản toàn cục |
 | Tổ chức | Workspace + 3 role, phòng ban phẳng (mỗi thành viên tối đa một phòng ban) | Cây phòng ban, nhiều phòng ban mỗi người, quyền quản lý tài liệu cho trưởng phòng ban (P1) |
-| Tài liệu | Upload, thay thế bản mới, xóa, xem, tải xuống, phạm vi hiển thị theo phòng ban, category và tags phẳng, metadata tối thiểu, gợi ý metadata chạy nền | OnlyOffice, khóa sửa, xung đột version, force-push, so sánh version, so sánh chính sách, OCR ảnh và PDF scan, import hàng loạt, danh mục dạng cây, custom field, ACL theo từng người |
+| Tài liệu | PDF có lớp chữ, MD; chọn ≤ 10 file mỗi lượt với kết quả từng file (FR-30); upload, thay thế bản mới, xóa, xem, tải xuống file gốc, màn xem "Nội dung hệ thống nhận diện" (FR-31), phạm vi hiển thị theo phòng ban, category và tags phẳng, metadata tối thiểu, gợi ý metadata chạy nền | TXT (bỏ 2026-10-21), DOCX (hoãn sau MVP), tự chuyển đổi định dạng, OCR ảnh và PDF scan, LLM viết lại nội dung, editor Markdown, workflow duyệt/trạng thái "đã kiểm tra", hẹn ngày hiệu lực, OnlyOffice, khóa sửa, xung đột version, force-push, so sánh/phục hồi version, so sánh chính sách, xử lý tăng dần theo đoạn, dedup ngữ nghĩa, tự nhận quan hệ version, batch/transaction toàn đợt, import ZIP/thư mục, connector đồng bộ wiki/Git/Drive/SharePoint, dashboard migration, danh mục dạng cây, custom field, ACL theo từng người |
 | Hỏi đáp | Hybrid RAG, rerank, SSE, trích dẫn, từ chối, guardrail một bước, hội thoại | Intent classification nhiều tầng, chọn model LLM từ UI |
 | Phân tích | Phản hồi, danh sách khoảng trống tri thức, audit tối thiểu, eval harness | Dashboard analytics, xu hướng, export, báo cáo, thống kê user/tài liệu |
 | Hạ tầng | 2 backend service + Postgres/pgvector + object storage S3 | API Gateway riêng, RabbitMQ, Redis, circuit breaker, rate limit theo role |
@@ -161,14 +183,14 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 - **RQ4 (phụ):** Lọc tenant (ứng dụng + RLS) ảnh hưởng thế nào đến độ trễ truy xuất?
 - **RQ5 (đề xuất):** Model embedding mã nguồn mở nào (bge-m3, Qwen3-Embedding-0.6B, multilingual-e5-large-instruct) truy xuất tốt nhất trên corpus đa ngôn ngữ của dự án, xét cả chi phí chạy trên CPU?
 
-**Giới hạn tuyên bố (owner chốt 2026-10-19):** corpus RQ1–RQ5 (V2-06) là tài liệu tiếng Anh dạng Markdown, câu hỏi VI và EN. Kết quả không chứng minh chất lượng trên tài liệu tiếng Việt hoặc DOCX/PDF. Chất lượng trích xuất DOCX/PDF tiếng Việt được đo riêng bằng corpus trích xuất của V2-19, không gộp vào RQ1–RQ5.
+**Giới hạn tuyên bố (owner chốt 2026-10-19):** corpus RQ1–RQ5 (V2-06) là tài liệu tiếng Anh dạng Markdown, câu hỏi VI và EN. Kết quả không chứng minh chất lượng trên tài liệu tiếng Việt hoặc DOCX/PDF. Chất lượng trích xuất PDF có lớp chữ tiếng Việt được đo riêng bằng corpus trích xuất của V2-19, không gộp vào RQ1–RQ5.
 
 Môi trường và thiết kế thí nghiệm: ADR-006 §4.2 (chạy trên máy local, không phụ thuộc quota).
 
 ---
 
 ## 7. Acceptance Criteria tổng quan (DoD)
-- [ ] UC-01 đến UC-11 chạy được trên giao diện và API khi dựng bằng `docker compose up` trên máy local (deploy công khai ngoài phạm vi, xem §8).
+- [ ] UC-01 đến UC-12 chạy được trên giao diện và API khi dựng bằng `docker compose up` trên máy local (deploy công khai ngoài phạm vi, xem §8).
 - [ ] FR-19 và FR-29 đạt 0 rò rỉ và chạy trong CI.
 - [ ] Báo cáo eval (FR-18) trả lời RQ1–RQ3 với số liệu, lưu trong `docs/04-reports/`.
 - [ ] Không phát sinh chi phí ngoài các API miễn phí; mọi chi phí phát sinh được ghi rõ.
@@ -186,3 +208,17 @@ Môi trường và thiết kế thí nghiệm: ADR-006 §4.2 (chạy trên máy 
 7. **Phòng ban mỗi thành viên:** tối đa một phòng ban; tài liệu có thể giới hạn cho nhiều phòng ban. Nhiều phòng ban mỗi người để P1 nếu có nhu cầu thực tế.
 8. **Lịch sử hội thoại khi mất quyền:** ẩn câu trả lời và đoạn trích có trích dẫn tới tài liệu người đó không còn quyền đọc; giữ câu hỏi và ghi chú lý do ẩn.
 9. **Trưởng phòng ban quản lý tài liệu của phòng ban:** P1. Trong V2 chỉ OWNER/ADMIN tải lên, sửa, xóa và đổi phạm vi tài liệu.
+
+**Bổ sung owner chốt 2026-10-20 (V2-03):**
+
+10. **Ưu tiên nghiên cứu khoa học:** tạm tắt các ràng buộc thương mại; hạn mức FR-09 mặc định tắt (không giới hạn), cơ chế cấu hình vẫn giữ để bật lại sau. Câu hỏi 20 hay 50 câu/ngày (TECH-V2-core-api Q2) không còn phải chốt. *Sửa 2026-10-21 (mục 14): hạn mức tài liệu/dung lượng mặc định bật lại 50/200 MB; hạn mức câu hỏi vẫn tắt.*
+11. **Phản hồi và khoảng trống tri thức (FR-16, FR-17)** đặt ở ai-service (schema `rag`), sửa ADR-004 §4.1.
+12. **Phạm vi ingestion:** duyệt [PRD-V2-ingestion-mvp-scope](PRD-V2-ingestion-mvp-scope.md); đưa vào PRD này FR-30 (chọn nhiều file) và no-op khi bản thay thế trùng SHA-256 (FR-07). Ngày 2026-10-21 toàn bộ nội dung còn lại của tài liệu đó được hợp nhất vào FR-06..FR-09, FR-30 và tài liệu đó chuyển `superseded`; PRD này là nguồn yêu cầu duy nhất.
+13. **Đăng nhập:** ai có tài khoản Google cũng đăng nhập được và có workspace cá nhân (UC-01), không cần lời mời.
+
+**Bổ sung owner chốt 2026-10-21 (chuẩn hóa Markdown và màn xem trích xuất, [AUDIT-markdown-normalization](../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):**
+
+14. **Định dạng và hạn mức:** MVP chỉ nhận PDF có lớp chữ và Markdown; bỏ TXT, tiếp tục hoãn DOCX và OCR (FR-06). Hạn mức tài liệu mặc định 50 tài liệu/200 MB mỗi workspace, kiểm tra ở backend kể cả upload đồng thời (FR-09).
+15. **Pipeline nội dung:** một thư viện chuyển PDF sang biểu diễn có cấu trúc, Markdown cũng qua parser vào cùng biểu diễn, render một bản Markdown chuẩn sau làm sạch làm nguồn chung (FR-08). Thư viện chọn trong V2-20 theo tiêu chí và timebox ở báo cáo trên (ứng viên Docling và PyMuPDF; chưa thử trên corpus).
+16. **Màn xem "Nội dung hệ thống nhận diện" (FR-31) chỉ mở khi `READY`:** mở sớm sau convert/clean cần thêm đường đọc phiên bản chưa kích hoạt, dọn dữ liệu khi lỗi và một trạng thái UI, trong khi khoảng chờ embed còn lại nhỏ. Có thể xét lại sau khi đo `t_ready`.
+17. **Thay bản và dedup:** quy tắc ở FR-07; tài liệu đang có phiên bản xử lý không nhận file thay khác bytes.

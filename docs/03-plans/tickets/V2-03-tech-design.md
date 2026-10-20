@@ -2,7 +2,7 @@
 id: V2-03
 title: "Viết TECH-V2-core-api và TECH-V2-ai-service"
 type: docs
-status: review
+status: done
 created: 2026-10-17
 updated: 2026-10-20
 scope: docs
@@ -28,9 +28,9 @@ assignee: pair
 - [x] Chính sách RLS: `SET LOCAL app.workspace_id` mỗi transaction, role DB không phải owner bảng.
 - [x] Rerank chạy trước ngưỡng; mỗi chế độ có ngưỡng riêng cấu hình được.
 - [x] Không port nguyên `EMBEDDING_MODEL_NAME = "BGE_M3"` hay cắt 512 token bằng `tiktoken`.
-- [x] Frontmatter đúng `docs/README.md`, trạng thái `draft` chờ owner duyệt.
+- [x] Frontmatter đúng `docs/README.md`; owner duyệt, cả hai TECH chuyển `approved` (2026-10-20).
 
-> Bản nháp 2026-10-20: [TECH-V2-core-api](../../02-architecture/designs/TECH-V2-core-api.md), [TECH-V2-ai-service](../../02-architecture/designs/TECH-V2-ai-service.md), cả hai `draft`. Chưa `done` cho tới khi owner duyệt và chốt các câu hỏi mở (§11 mỗi tài liệu), đặc biệt Q1 (phản hồi/khoảng trống tri thức đặt ở service nào, có thể phải sửa ADR-004 §4.1 và V2-13) và Q2 (hạn mức 20 hay 50 câu/ngày, lệch giữa PRD FR-09 và V2-12).
+> **Nghiệm thu 2026-10-20:** owner duyệt [TECH-V2-core-api](../../02-architecture/designs/TECH-V2-core-api.md) và [TECH-V2-ai-service](../../02-architecture/designs/TECH-V2-ai-service.md), chốt §11 theo đề xuất. Q1: phản hồi/khoảng trống tri thức ở ai-service (đã sửa ADR-004 §4.1, V2-13). Q2: thay bằng quyết định ưu tiên nghiên cứu, hạn mức thương mại mặc định tắt (PRD-V2 FR-09, §8.10). Cùng lúc duyệt PRD-V2-ingestion-mvp-scope và đồng bộ FR-07/FR-30 vào PRD-V2, V2-12, V2-15.
 
 ## 3. Hướng dẫn
 - **File:** `docs/02-architecture/designs/TECH-V2-core-api.md`, `TECH-V2-ai-service.md` (CREATE), theo `templates/tech-design-template.md`.

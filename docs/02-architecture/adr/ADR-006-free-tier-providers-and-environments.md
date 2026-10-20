@@ -139,7 +139,7 @@ Hạn mức bản miễn phí do owner chụp ngày 2026-10-19 (chi tiết ở A
 | Giám khảo faithfulness | Groq `openai/gpt-oss-120b` | Giảm kích thước tập con | Khác họ với model sinh; 200K TPD nên chia lượt chấm qua nhiều ngày |
 | Embedding, rerank | Local (`bge-m3`, `bge-reranker-v2-m3`) | — | Không phụ thuộc quota |
 
-Không dùng: Gemini Flash/Flash Lite đời 2.5–3.6 (20 RPD), Gemini Pro (0 ở bản miễn phí), Groq `gpt-oss-safeguard-20b` (3 RPM). Không có node LLM phân loại ý định: chào hỏi được trả lời bằng luật, câu dưới ngưỡng bằng chứng bị từ chối mà không gọi LLM sinh (PRD FR-12, FR-13). Dữ liệu gửi qua bản miễn phí của Gemini có thể được dùng để cải thiện sản phẩm; README phải cảnh báo không đưa tài liệu nội bộ thật khi dùng gói này.
+Không dùng: Gemini Flash/Flash Lite đời 2.5–3.6 (20 RPD), Gemini Pro (0 ở bản miễn phí), Groq `gpt-oss-safeguard-20b` (3 RPM). Không có node LLM phân loại ý định: chào hỏi được trả lời bằng luật và semantic router dùng embedding câu hỏi, không gọi LLM (owner chốt 2026-10-20, V2-27; phương án LLM classifier cho vùng xám bị loại), câu dưới ngưỡng bằng chứng bị từ chối mà không gọi LLM sinh (PRD FR-12, FR-13). Dữ liệu gửi qua bản miễn phí của Gemini có thể được dùng để cải thiện sản phẩm; README phải cảnh báo không đưa tài liệu nội bộ thật khi dùng gói này.
 
 **Các ràng buộc thiết kế mà B1 đặt ra:**
 1. **Mỗi câu hỏi chỉ gọi LLM 2 lần:**

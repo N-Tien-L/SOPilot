@@ -1,10 +1,11 @@
 ---
 id: TECH-V2-AI-SERVICE
 title: "Thiết kế kỹ thuật ai-service (V2): ingest có cấu trúc, truy xuất hybrid có lọc quyền, hỏi đáp có trích dẫn"
-status: draft
+status: approved
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 refs:
+  - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md
   - docs/02-architecture/adr/ADR-005-workspace-tenancy-and-google-jit.md
@@ -20,9 +21,13 @@ affected_schemas: [rag]
 
 # THIẾT KẾ KỸ THUẬT: ai-service (V2)
 
-> **Mã tài liệu:** `TECH-V2-AI-SERVICE` | **Tham chiếu PRD:** `PRD-V2-SOPILOT-MVP` | **Trạng thái:** `draft`, chờ owner duyệt (V2-03)
+> **Mã tài liệu:** `TECH-V2-AI-SERVICE` | **Tham chiếu PRD:** `PRD-V2-SOPILOT-MVP` | **Trạng thái:** `approved` (owner duyệt 2026-10-20, V2-03; câu hỏi mở chốt ở §11)
 >
 > Contract với core-api (endpoint `/internal/**`, payload, idempotency, thứ tự) định nghĩa ở [TECH-V2-core-api](TECH-V2-core-api.md) §8. Tài liệu này chỉ mô tả phía ai-service xử lý chúng.
+>
+> **Sửa 2026-10-21 (owner, [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):** bỏ TXT; định nghĩa Markdown chuẩn và offset (§5.2); cảnh báo trích xuất (§5.3a); thử lại đưa job `FAILED` về hàng đợi (§3.2, §8); màn xem "Nội dung hệ thống nhận diện" FR-31 chỉ khi `READY` (§7.3); tiêu chí chọn thư viện PDF (§11 Q7, Q8).
+>
+> **Sửa 2026-10-21 (rà soát trước implement):** `V2-20` dựng khung service và `docproc` nhận tokenizer qua protocol riêng (§1.1); `DocElement` có `page_end` và offset từng hàng bảng (§5.2); phân loại lỗi tự thử lại / dừng ngay và cột `run_after` (§3.2, §5.1); eval và service dùng chung bộ chunk, số liệu RQ chính thức của `V2-07` chạy bằng `docproc` (§6.5).
 
 ---
 
@@ -30,7 +35,7 @@ affected_schemas: [rag]
 
 - ai-service là service FastAPI, Python ≥ 3.11, viết mới ở `services/ai-service`. Thay `ai-qa-service` và `ingestion-service` (gỡ ở V2-17). Mã cũ chỉ để tham khảo.
 - ai-service là chủ duy nhất của schema `rag`, không đọc schema `core` (ADR-004 §4.3). Mọi thông tin về tài liệu và quyền đi qua job và `rag.document_access`.
-- Mỗi câu hỏi gọi LLM sinh **tối đa một lần**; viết lại câu hỏi (chỉ khi có lịch sử) là lần gọi thứ hai và duy nhất còn lại. Guard và định tuyến chạy bằng luật (PRD FR-13, ADR-006 §4.4).
+- Mỗi câu hỏi gọi LLM sinh **tối đa một lần**; viết lại câu hỏi (chỉ khi có lịch sử) là lần gọi thứ hai và duy nhất còn lại. Guard chạy bằng luật; định tuyến bằng luật rồi semantic router dựa trên embedding, không gọi LLM (PRD FR-13, ADR-006 §4.4).
 - Mọi model đi qua interface provider và khai báo trong **một** file `config/models.yaml`; không gán cứng model ID trong code (ADR-006 §4.1).
 
 ### Truy vết tới yêu cầu và phát hiện cũ
@@ -40,11 +45,12 @@ affected_schemas: [rag]
 | FR-08, AUDIT-ingestion §5 mục 2–9 | §5 |
 | FR-10, R1–R5 | §6 |
 | FR-11, FR-12, FR-13, FR-14 | §7.1–§7.3 |
-| FR-09 (hạn mức câu hỏi, giới hạn provider) | §7.4 |
+| FR-09 (hạn mức câu hỏi mặc định tắt, giới hạn provider) | §7.4 |
 | FR-15, UC-11 (ẩn lịch sử khi mất quyền) | §7.5 |
-| FR-16, FR-17 (nếu owner chốt Q1 của TECH-V2-core-api) | §7.6 |
+| FR-16, FR-17 (owner chốt Q1 2026-10-20) | §7.6 |
 | FR-25, ADR-007 §4.5 | §3.2, §6.1 |
 | FR-28 | §5.7 |
+| FR-31 (màn xem nội dung nhận diện), FR-14 | §5.2, §5.3a, §7.3 |
 | FR-18 (đồng bộ với `eval/`) | §6.5 |
 | FR-19, FR-29 | §9 |
 | §4.2 AUDIT-v2: `EMBEDDING_MODEL_NAME = "BGE_M3"`, cắt 512 token bằng `tiktoken` | §4.2, §5.5 |
@@ -67,6 +73,7 @@ API và worker là hai tiến trình dùng chung image và cấu hình. Tách ti
 
 ```
 services/ai-service/
+├── pyproject.toml      # uv; extra `pdf` cho thư viện ADR-008, extra `local` cho sentence-transformers
 ├── config/models.yaml
 ├── src/sopilot_ai/
 │   ├── api/            # routers công khai /ai/v1 và nội bộ /internal, SSE
@@ -74,8 +81,10 @@ services/ai-service/
 │   ├── db/             # engine, session có set_config tenant, repositories
 │   ├── docproc/        # PACKAGE THUẦN, không phụ thuộc DB/web (V2-20, V2-21, V2-22)
 │   │   ├── model.py    #   DocElement, StructuredDocument
-│   │   ├── extract/    #   docx.py, pdf.py, markdown.py, text.py (V2-20)
-│   │   ├── clean/      #   boilerplate.py, metadata.py (V2-21)
+│   │   ├── tokens.py   #   Tokenizer protocol + HFTokenizer (AutoTokenizer theo model/revision) (V2-22)
+│   │   ├── extract/    #   pdf.py (adapter của thư viện ADR-008), markdown.py (V2-20)
+│   │   ├── normalize.py#   NFC, khoảng trắng; render.py: Markdown chuẩn + offset + mốc trang (V2-20)
+│   │   ├── clean/      #   boilerplate.py, metadata.py, warnings.py (V2-21)
 │   │   └── chunk/      #   family.py, procedure_table.py, chunker.py (V2-22)
 │   ├── providers/      # embedding.py, rerank.py, llm.py, registry.py (đọc models.yaml)
 │   ├── retrieval/      # access_filter.py, dense.py, lexical.py, fusion.py, gate.py
@@ -90,6 +99,10 @@ services/ai-service/
 ```
 
 `docproc` là package Python thuần: nhận bytes và loại file, trả cấu trúc dữ liệu. `eval/` và test chất lượng trích xuất (V2-19) import trực tiếp package này, nên số đo trên corpus là số đo của đúng code chạy trong service.
+
+**Thứ tự dựng khung.** `V2-20` là ticket đầu tiên viết code vào `services/ai-service`, nên nó tạo `pyproject.toml`, layout `src/sopilot_ai/`, `tests/unit` và scope build/test cho service mới trong `scripts/` (`validate-build.ps1 -Scope ai`, `run-tests.ps1 -Scope ai-service`). `V2-20` chỉ cần `docproc`; các package khác để trống. `V2-09` thêm `api/`, `db/`, `providers/`, `retrieval/`, `ingest/`, `worker.py` và các migration `rag`.
+
+**Tokenizer không đi qua provider.** Chunker (`V2-22`) nhận một `Tokenizer` (protocol trong `docproc/tokens.py`: `count(text) -> int`) được truyền vào, không gọi `EmbeddingProvider`. `HFTokenizer` nạp `transformers.AutoTokenizer` theo `model` và `revision` của embedding đang hoạt động trong `models.yaml`, không cần nạp model embedding. `EmbeddingProvider.tokenizer()` của `V2-09` trả đúng đối tượng này. Nhờ vậy `V2-22` không phụ thuộc `V2-09`, và `eval/` đếm token bằng cùng tokenizer.
 
 ---
 
@@ -107,16 +120,16 @@ sequenceDiagram
     participant S3 as Object storage
 
     C->>A: POST /internal/ingestions (Idempotency-Key)
-    A->>DB: BEGIN; set_config(app.workspace_id); UPSERT document_access (nếu accessRevision mới hơn); INSERT ingestion_jobs ON CONFLICT (version_id) DO NOTHING; COMMIT
+    A->>DB: BEGIN; set_config(app.workspace_id); UPSERT document_access (nếu accessRevision mới hơn); INSERT ingestion_jobs ON CONFLICT (version_id) đưa job FAILED về QUEUED chỉ khi attempt mới hơn (§8); COMMIT
     A-->>C: 202
     A->>W: NOTIFY rag_jobs (đánh thức; worker cũng quét mỗi 5 s)
     W->>DB: rag.claim_ingestion_job() (SECURITY DEFINER, FOR UPDATE SKIP LOCKED, lease 10 phút)
     W->>DB: outbox VERSION_STATUS(PROCESSING)
     W->>S3: GET objectKey
-    W->>W: docproc.extract → clean → chunk (tokenizer của model embedding)
+    W->>W: docproc.extract → normalize → clean → render Markdown chuẩn + cảnh báo → chunk (tokenizer của model embedding)
     W->>W: embed (cache theo model, revision, sha256)
     W->>DB: BEGIN; INSERT chunks, chunk_terms, extracted_documents (version mới); UPDATE document_access.active_version_id; DELETE chunks của version cũ; job DONE; outbox VERSION_STATUS(READY); COMMIT
-    W->>C: (outbox) PATCH /internal/documents/{id}/versions/{verId}/status
+    W->>C: (outbox) PATCH /internal/documents/{id}/versions/{verId}/status (READY + mã cảnh báo)
     W->>DB: INSERT suggestion_jobs (nếu suggest.enabled)
 ```
 
@@ -132,7 +145,7 @@ sequenceDiagram
 
     B->>A: POST /ai/v1/conversations/{id}/messages (Bearer, Accept: text/event-stream)
     A->>A: Xác minh JWT (JWKS core-api): sub, wid, wrole, wdept
-    A->>DB: Kiểm tra hạn mức user/ngày và trần hệ thống (FR-09)
+    A->>DB: Kiểm tra hạn mức user/ngày và trần hệ thống nếu bật (FR-09, mặc định tắt)
     A->>A: Guard đầu vào (luật VI/EN): CHẶN → SSE refusal, kết thúc
     A->>A: Router luật: chào hỏi/cảm ơn/hỏi về bot → SSE câu mẫu, kết thúc
     opt Có lịch sử hội thoại
@@ -189,10 +202,12 @@ CREATE TABLE rag.ingestion_jobs (
     workspace_id  uuid NOT NULL,
     document_id   uuid NOT NULL,
     version_id    uuid NOT NULL UNIQUE,     -- idempotent theo phiên bản
+    request_attempt int NOT NULL DEFAULT 0, -- `attempt` của core-api; lần thử lại có attempt lớn hơn đưa job FAILED về QUEUED (§8)
     payload       jsonb NOT NULL,           -- nguyên payload POST /internal/ingestions
     status        text NOT NULL DEFAULT 'QUEUED' CHECK (status IN ('QUEUED','RUNNING','DONE','FAILED','CANCELLED')),
     attempts      int NOT NULL DEFAULT 0,
     lease_until   timestamptz,              -- worker chết giữa chừng: job tự trả lại sau khi hết lease
+    run_after     timestamptz NOT NULL DEFAULT now(), -- backoff khi tự thử lại lỗi tạm thời (§5.1)
     failure_code  text,
     stage_timings jsonb,                    -- {download_ms, extract_ms, clean_ms, chunk_ms, embed_ms, write_ms}
     created_at    timestamptz NOT NULL DEFAULT now(),
@@ -205,7 +220,10 @@ CREATE TABLE rag.extracted_documents (
     version_id     uuid PRIMARY KEY,
     document_id    uuid NOT NULL,
     structure      jsonb NOT NULL,          -- StructuredDocument đã làm sạch (§5.2), cho trình xem và gợi ý metadata
-    markdown       text NOT NULL,           -- bản Markdown, offset ký tự của chunk tham chiếu vào đây
+    markdown       text NOT NULL,           -- Markdown CHUẨN sau làm sạch (§5.2); offset của phần tử và chunk tham chiếu vào đây
+    page_index     jsonb,                   -- PDF: [{page, charStart, charEnd}] trên markdown; MD: NULL
+    warnings       jsonb NOT NULL DEFAULT '[]', -- [{code, pages?, count?}] (§5.3a)
+    normalizer_version text NOT NULL,       -- phiên bản quy tắc chuẩn hóa + renderer; đổi thì phải ingest lại để offset còn đúng
     page_count     int,
     language       text,
     doc_family     text NOT NULL CHECK (doc_family IN ('ISO_PROCEDURE','LEGAL_ARTICLES','MARKDOWN','PROSE')),
@@ -216,7 +234,7 @@ CREATE TABLE rag.extracted_documents (
 );
 ```
 
-`rag.claim_ingestion_job()` là hàm `SECURITY DEFINER` (owner `sopilot_migrator`, `GRANT EXECUTE` cho `sopilot_ai_app`) trả một job `QUEUED` hoặc `RUNNING` hết lease, đặt `RUNNING`, `lease_until = now() + 10 phút`, `attempts + 1`. Worker cần hàm này vì phải thấy job của mọi workspace; sau khi nhận job, worker đặt `app.workspace_id` theo job và mọi truy vấn tiếp theo chịu RLS bình thường. Khi khởi động, worker quét job còn tồn trước khi chờ `NOTIFY` (FR-08, ADR-006 B1 ràng buộc 3). Quá `SOPILOT_INGEST_MAX_ATTEMPTS=3` → `FAILED` với `failure_code = RETRY_EXHAUSTED`.
+`rag.claim_ingestion_job()` là hàm `SECURITY DEFINER` (owner `sopilot_migrator`, `GRANT EXECUTE` cho `sopilot_ai_app`) trả một job `QUEUED` có `run_after <= now()` hoặc `RUNNING` hết lease, đặt `RUNNING`, `lease_until = now() + 10 phút`, `attempts + 1`. Worker cần hàm này vì phải thấy job của mọi workspace; sau khi nhận job, worker đặt `app.workspace_id` theo job và mọi truy vấn tiếp theo chịu RLS bình thường. Khi khởi động, worker quét job còn tồn trước khi chờ `NOTIFY` (FR-08, ADR-006 B1 ràng buộc 3). Chỉ lỗi tạm thời được tự thử lại (§5.1); quá `SOPILOT_INGEST_MAX_ATTEMPTS=3` → `FAILED` giữ mã lỗi của lần cuối. `RETRY_EXHAUSTED` chỉ dùng khi job hết lần thử mà không có mã lỗi nào được ghi (worker chết liên tục, lease hết hạn).
 
 ### 3.3 Chunk và chỉ mục
 
@@ -514,44 +532,69 @@ class LLMProvider(Protocol):
 | Bước | Module | Đầu ra | Lỗi → `failure_code` |
 |---|---|---|---|
 | 1. Tải file | `ingest` | bytes | `OBJECT_NOT_FOUND` |
-| 2. Trích xuất | `docproc.extract` | `StructuredDocument` | `UNSUPPORTED_TYPE`, `NO_TEXT_LAYER`, `ENCRYPTED_PDF`, `CORRUPT_FILE` |
-| 3. Tách khung, trích metadata | `docproc.clean` | `StructuredDocument` đã làm sạch + `boilerplate` + `extracted_meta` | — |
+| 2. Trích xuất | `docproc.extract` (PDF: thư viện ADR-008, OCR tắt; MD: parser CommonMark/GFM) | `StructuredDocument` | `UNSUPPORTED_TYPE`, `NO_TEXT_LAYER`, `ENCRYPTED_PDF`, `CORRUPT_FILE`, `INVALID_ENCODING` (MD không phải UTF-8) |
+| 2a. Chuẩn hóa | `docproc.normalize` | `StructuredDocument` (NFC, khoảng trắng, giữ số thứ tự nguồn) | — |
+| 3. Tách khung, trích metadata, cảnh báo | `docproc.clean` | `StructuredDocument` đã làm sạch + `boilerplate` + `extracted_meta` + `warnings` | — |
+| 3a. Render Markdown chuẩn | `docproc.render` | `markdown`, offset của từng phần tử, `page_index` | — |
 | 4. Nhận diện họ tài liệu | `docproc.chunk.family` | `ISO_PROCEDURE` \| `LEGAL_ARTICLES` \| `MARKDOWN` \| `PROSE` | — |
 | 5. Chunk | `docproc.chunk` | `list[Chunk]` | `EMPTY_CONTENT` khi 0 chunk (sửa lỗi cũ: rỗng vẫn `READY`) |
 | 6. Phát hiện ngôn ngữ | `ingest` | `vi` / `en` / khác | — |
 | 7. Embed | `providers.embedding` + cache | vector 1024 chiều | `EMBEDDING_ERROR` (có thử lại) |
 | 8. Ghi và kích hoạt | `ingest` | transaction §5.6 | — |
 
-`failure_message` gửi về core-api là câu cố định theo `failure_code` (VI/EN), không bao giờ là message của exception.
+`failure_message` gửi về core-api là câu cố định theo `failure_code` (VI/EN), không bao giờ là message của exception. Lỗi không rõ nguyên nhân trong bước 2–5 ghi `EXTRACTION_ERROR`.
+
+**Lỗi nào được tự thử lại.** Worker chỉ tự thử lại lỗi tạm thời; lỗi do nội dung file là tất định nên dừng ngay ở lần đầu, giữ đúng mã để giao diện gợi ý "Thay file" (TECH-V2-core-api §5.5).
+
+| Loại | Mã | Hành vi của worker |
+|---|---|---|
+| Tạm thời | `OBJECT_NOT_FOUND`, `EMBEDDING_ERROR`, lỗi kết nối DB/storage, worker chết (lease hết hạn) | Job về `QUEUED`, `run_after = now() + 30 s × 2^(attempts − 1)`, **không** gửi callback `FAILED`; phiên bản vẫn `PROCESSING` ở core-api. Hết `SOPILOT_INGEST_MAX_ATTEMPTS` → `FAILED` với mã của lần cuối |
+| Tất định | `UNSUPPORTED_TYPE`, `NO_TEXT_LAYER`, `ENCRYPTED_PDF`, `CORRUPT_FILE`, `INVALID_ENCODING`, `EMPTY_CONTENT`, `EXTRACTION_ERROR` | `FAILED` ngay, gửi callback một lần. Người dùng vẫn bấm thử lại được (`attempt + 1`, §8) |
+
+Thử lại chạy lại toàn bộ các bước cho đúng phiên bản đó; không lưu kết quả trung gian giữa các lần thử (trích xuất là tất định, chi phí nhỏ so với embed, và embed đã có cache §5.5).
 
 ### 5.2 Cấu trúc tài liệu trung gian (đầu ra V2-20)
 
 ```python
 class DocElement(BaseModel):
-    kind: Literal["heading", "paragraph", "list_item", "table", "page_break"]
-    text: str                       # đã chuẩn hóa NFC; với list_item gồm cả số thứ tự tự động của Word ("5.1", "a)")
+    kind: Literal["heading", "paragraph", "list_item", "table", "page_break", "code"]
+    text: str                       # đã chuẩn hóa NFC; với list_item giữ số thứ tự hiện trong nguồn ("5.1", "a)")
     level: int | None = None        # heading 1..6; list nesting
     number: str | None = None       # số thứ tự đã render, nếu có
     rows: list[list[str]] | None = None   # table: hàng đầu là tiêu đề cột nếu nhận ra; ô gộp không lặp
-    page: int | None = None         # PDF: số trang thật; DOCX: None (không có trang ổn định)
-    char_start: int                 # offset trong markdown xuất ra
-    char_end: int
-    style: str | None = None        # style Word gốc, dùng cho heuristic và gỡ lỗi
+    page: int | None = None         # PDF: trang bắt đầu (số trang thật, từ 1); MD: None
+    page_end: int | None = None     # PDF: trang kết thúc, = page nếu không kéo qua trang (bảng nhiều trang); MD: None
+    row_pages: list[int] | None = None    # table PDF: trang của từng hàng trong rows, cùng độ dài rows
+    char_start: int | None = None   # offset trên Markdown chuẩn, do render đặt; None với phần tử role ≠ content
+    char_end: int | None = None
+    row_spans: list[tuple[int, int]] | None = None  # table: [char_start, char_end) của từng hàng trong Markdown chuẩn, do render đặt
     role: Literal["content", "header", "footer", "boilerplate"] = "content"
 
 class StructuredDocument(BaseModel):
-    file_type: Literal["PDF", "DOCX", "MD", "TXT"]
+    file_type: Literal["PDF", "MD"]
     elements: list[DocElement]      # theo thứ tự đọc; bảng nằm đúng vị trí trong thân
     page_count: int | None
     frontmatter: dict | None        # MD
-    def to_markdown(self) -> str: ...
+
+def render(doc: StructuredDocument) -> RenderedDocument: ...   # docproc.render: markdown, offset từng phần tử, page_index
 ```
 
-Quy tắc theo định dạng (V2-20, chọn thư viện ở ADR-008 sau khi đo trên corpus V2-19):
-- **DOCX:** đọc thân theo thứ tự body (đoạn và bảng xen kẽ), render số thứ tự tự động từ `numbering.xml`, heading theo style, header/footer của section gắn `role = header/footer`. Ô gộp xuất một lần. Không có trang nên trích dẫn DOCX trỏ tới đoạn (`char_start`), không tới trang (FR-14 cho phép).
-- **PDF có lớp chữ:** giữ số trang; thứ tự đọc đúng với trang nhiều cột; bảng giữ hàng/cột. Trang có ít chữ **không** được OCR. Toàn tài liệu gần như không có chữ (tỷ lệ trang có chữ < 10% hoặc tổng < 200 ký tự) → `NO_TEXT_LAYER`.
-- **MD:** heading `#`, bỏ frontmatter khỏi nội dung và lưu vào `frontmatter`; xóa shortcode Hugo `{{< ... >}}` (corpus GitLab của V2-06).
-- **TXT:** UTF-8, đoạn tách theo dòng trống; nhận heading bằng mẫu đánh số ở bước 4.
+**Markdown chuẩn (owner chốt 2026-10-21).** `extracted_documents.markdown` là chuỗi do `docproc.render` sinh từ các phần tử `role = content` **sau** chuẩn hóa và làm sạch. Đây là bản duy nhất dùng cho chunk, `index_text`, trích dẫn, gợi ý metadata, trình xem trích dẫn (FR-14) và màn xem FR-31. Quy tắc:
+- Renderer là code của SOPilot, tất định, có `normalizer_version`. Chuỗi Markdown do thư viện PDF tự xuất (nếu có) **không** được dùng làm nguồn offset. Thư viện chỉ cung cấp cây phần tử qua adapter `extract/pdf.py`; đây là nơi duy nhất phụ thuộc thư viện.
+- Render: heading → `#` theo level; đoạn → một khối, các dòng bị ngắt cứng trong PDF được nối bằng khoảng trắng; list item giữ số thứ tự nguồn (`5.1`, `a)`); bảng → bảng GFM, xuống dòng trong ô thay bằng khoảng trắng, ô gộp ghi một lần ở ô đầu, các ô còn lại để trống, ký tự `|` trong ô được escape; khối cách nhau đúng một dòng trống.
+- Offset `[char_start, char_end)` tính theo **Unicode code point** (chỉ số chuỗi Python) trên `markdown`. Bất biến kiểm thử: với mọi phần tử nội dung, `markdown[char_start:char_end]` bằng đúng đoạn render của phần tử đó. API công khai trả thêm offset UTF-16 (`charStart16`, `charEnd16`) để trình duyệt cắt chuỗi đúng khi có ký tự ngoài BMP.
+- Bảng: `row_spans[i]` là đoạn của hàng `rows[i]` trong bảng GFM (từ `|` đầu tới `|` cuối, không gồm xuống dòng); dòng phân cách `|---|` không thuộc hàng nào. Bất biến: `row_spans` tăng dần, nằm trong `[char_start, char_end)` của bảng. Đây là offset mà chunk `PROCEDURE_STEP` và chunk bảng cắt theo hàng dùng (§5.4).
+- Bảng kéo qua nhiều trang là **một** phần tử (adapter nối các phần bảng liên tiếp có cùng tiêu đề cột), `page` là trang đầu, `page_end` là trang cuối, `row_pages` cho trang của từng hàng. Phần tử khác có `page_end = page`.
+- `page_index` (PDF): danh sách `{page, charStart, charEnd}` liên tiếp, không chồng nhau, theo trang của phần tử; bảng nhiều trang được chia tại ranh giới hàng theo `row_pages`; trang không có phần tử nội dung không xuất hiện. Màn xem dùng nó để chèn mốc "Trang N".
+- Markdown đầu vào được parse rồi render lại, nên Markdown chuẩn có thể khác định dạng gốc (ví dụ `*` thành `-`, heading Setext thành `#`). File gốc vẫn tải xuống được. Không cam kết cùng nội dung ở PDF và MD cho ra Markdown giống hệt.
+- Không gọi LLM ở bất kỳ bước nào của trích xuất, chuẩn hóa hay render.
+- Tọa độ (bbox) không thuộc contract MVP: không lưu cột, không có tiêu chí nghiệm thu, không có UI dùng tới. Trình xem chỉ nhảy trang PDF.
+- Đổi `normalizer_version` làm offset cũ mất hiệu lực: phải ingest lại các phiên bản đang hoạt động (lệnh quản trị, không tự động trong MVP).
+
+Quy tắc theo định dạng (V2-20, chọn thư viện ở ADR-008 theo tiêu chí §11 Q8):
+- **Chỉ PDF và MD.** DOCX hoãn sau MVP (owner chốt 2026-10-20), TXT bỏ khỏi MVP (owner chốt 2026-10-21): core-api từ chối bằng `415`, không tạo job. Worker vẫn kiểm tra allowlist PDF/MD trước khi parse (`UNSUPPORTED_TYPE`).
+- **PDF có lớp chữ:** dùng cấu trúc của **một** thư viện (heading/đoạn/list/bảng/thứ tự đọc/số trang) đưa thẳng vào `DocElement`; không trích plain text rồi dựng lại cấu trúc, không fallback sang thư viện thứ hai. OCR **tắt** trong cấu hình thư viện và có test chứng minh trang ảnh cho 0 ký tự. Giữ số trang; thứ tự đọc đúng với trang nhiều cột; bảng giữ hàng/cột. Toàn tài liệu gần như không có chữ (tỷ lệ trang có chữ < 10% hoặc tổng < 200 ký tự) → `NO_TEXT_LAYER`; một phần trang không có chữ → vẫn xử lý, cảnh báo `PAGES_WITHOUT_TEXT` (§5.3a).
+- **MD:** parser CommonMark + GFM (bảng, list) thuần Python, HTML nhúng giữ dạng văn bản; bỏ frontmatter khỏi nội dung và lưu vào `frontmatter`; xóa shortcode Hugo `{{< ... >}}` (corpus GitLab của V2-06). File không phải UTF-8 hợp lệ → `INVALID_ENCODING` (core-api đã chặn trước, đây là lớp thứ hai).
 
 ### 5.3 Tách khung và metadata (V2-21)
 
@@ -559,10 +602,25 @@ Quy tắc theo định dạng (V2-20, chọn thư viện ở ADR-008 sau khi đo
 - Khối khung VI/EN nhận diện bằng luật: quốc hiệu/tiêu ngữ, số/ký hiệu, nơi nhận, khối chữ ký, bảng Soạn thảo/Soát xét/Phê duyệt (Prepared/Reviewed/Approved), bảng theo dõi sửa đổi (Revision history). Đánh `role = boilerplate`, lưu vào `extracted_documents.boilerplate`.
 - Metadata trích từ khung trước khi bỏ: `docCode` (mã số/mã hiệu), `revisionLabel` (lần ban hành), `effectiveDate`, `approvedBy`. Gửi về core-api trong callback `READY`.
 - Không xóa nội dung thật: V2-21 báo cáo tỷ lệ khung lọt vào nội dung và tỷ lệ nội dung bị xóa nhầm trên corpus V2-19.
+- Khối khung đã loại được lưu trong `boilerplate` dạng `[{kind, page, text}]` để màn xem FR-31 liệt kê; không vào `markdown`, chunk hay index.
+
+### 5.3a Cảnh báo trích xuất (FR-31)
+
+Chỉ sinh khi có tín hiệu cụ thể; không có điểm tin cậy. Lưu ở `extracted_documents.warnings`, gửi mã về core-api trong callback `READY` (`warningCodes`).
+
+| Mã | Điều kiện | Dữ liệu kèm |
+|---|---|---|
+| `PAGES_WITHOUT_TEXT` | PDF có lớp chữ nhưng có trang < `SOPILOT_PAGE_MIN_CHARS` (mặc định 20) ký tự | `pages` |
+| `UNMAPPED_GLYPHS` | Văn bản sau trích xuất có `U+FFFD`, chuỗi `(cid:n)` hoặc ký tự Private Use | `pages`, `count` |
+| `NO_HEADINGS_DETECTED` | Tài liệu nhiều hơn một trang (PDF) hoặc dài hơn `chunking.max_tokens` (MD) mà không có phần tử `heading` | — |
+| `BOILERPLATE_REMOVED` | Có khối bị đánh `header`/`footer`/`boilerplate` (thông tin) | `count` |
+| `CONVERTER_WARNING` | Thư viện ADR-008 trả cảnh báo có cấu trúc cho trang/phần tử (chỉ khi thư viện có API này) | `pages`, `kind` |
+
+Cảnh báo không làm `FAILED` và không chặn `READY`.
 
 ### 5.4 Họ tài liệu và chunk (V2-22)
 
-Nhận diện heading theo thứ tự ưu tiên: heading thật (style Word, `#`) → mẫu đánh số (`1.`, `5.1`, `I.`, `Điều n`, `Chương n`, `Article n`) đứng đầu dòng ngắn → heuristic (dòng in hoa, chữ đậm). Câu kết thúc bằng dấu chấm và dài hơn 120 ký tự không bao giờ là heading (chặn lỗi "căn cứ ⏎ Điều 5 Luật Doanh nghiệp.").
+Nhận diện heading theo thứ tự ưu tiên: heading Markdown (`#`) → mẫu đánh số (`1.`, `5.1`, `I.`, `Điều n`, `Chương n`, `Article n`) đứng đầu dòng ngắn → heuristic (dòng in hoa, chữ đậm). Câu kết thúc bằng dấu chấm và dài hơn 120 ký tự không bao giờ là heading (chặn lỗi "căn cứ ⏎ Điều 5 Luật Doanh nghiệp.").
 
 | Họ | Nhận diện | Đơn vị chunk |
 |---|---|---|
@@ -572,22 +630,22 @@ Nhận diện heading theo thứ tự ưu tiên: heading thật (style Word, `#`
 | `PROSE` | Không thuộc các họ trên | Đoạn văn; gộp đoạn tới `target_tokens`, cắt theo câu, không cắt cứng giữa câu |
 
 Quy tắc chung:
-- Đếm token bằng tokenizer của model embedding đang hoạt động (`EmbeddingProvider.tokenizer()`), **không** dùng `tiktoken` (AUDIT-v2 §4.2). Chunk ≤ `max_tokens` tính cả tiền tố đường dẫn tiêu đề.
+- Đếm token bằng tokenizer của model embedding đang hoạt động, truyền vào chunker dưới dạng `docproc.tokens.Tokenizer` (§1.1), **không** dùng `tiktoken` (AUDIT-v2 §4.2). Chunk ≤ `max_tokens` tính cả tiền tố đường dẫn tiêu đề.
 - Section < `min_tokens` gộp với anh em kế tiếp cùng cha; section > `max_tokens` cắt theo đoạn rồi theo câu. Cắt trên ranh giới ký tự Unicode, không trên byte.
 - `index_text` = `"{title} › {section_path joined by ' › '}\n{content}"`. Tiền tố có trong cả vector lẫn chỉ mục lexical (V2-22).
 - Bảng thường (không phải bảng quy trình) dài hơn `max_tokens` cắt theo hàng, lặp lại hàng tiêu đề cột ở mỗi phần.
-- Chunk mang `page_start/page_end` (PDF) và `char_start/char_end` trong `markdown` (mọi định dạng) để trình xem tô sáng (FR-14).
+- Chunk mang `page_start/page_end` (PDF) và `char_start/char_end` trên Markdown chuẩn (mọi định dạng) để trình xem tô sáng (FR-14). Chunk thường là chuỗi con của `markdown`; chunk `PROCEDURE_STEP` có `content` dạng `Bước: … | Trách nhiệm: …` nên không phải chuỗi con, offset của nó là `row_spans[i]` của hàng nguồn và `page_start = page_end = row_pages[i]`. Chunk bảng cắt theo hàng lấy offset từ `row_spans` của hàng đầu tới hàng cuối trong phần đó, trang từ `row_pages`.
 
 ### 5.5 Embedding và cache
 
-- Embed theo lô 16, trên threadpool. Trước khi embed, tra `rag.embedding_cache` theo `(model, revision, sha256(index_text))`; chỉ embed phần thiếu rồi ghi lại cache.
+- Embed theo lô 16, trên threadpool. Trước khi embed, tra `rag.embedding_cache` theo `(model, revision, sha256(index_text))`, tức hash của đúng chuỗi được embed; chỉ embed phần thiếu rồi ghi lại cache. Không cam kết tỉ lệ cache hit. Không dùng hash của `markdown` để bỏ qua cả phiên bản: quyết định bỏ qua chỉ dựa trên SHA-256 của file ở core-api (FR-07).
 - Ghi `embedding_provider/model/dim/revision` đúng giá trị của provider đang hoạt động; không có hằng số như `EMBEDDING_MODEL_NAME = "BGE_M3"` cũ.
 - `revision` rỗng ở profile `eval` là lỗi khởi động; ở profile `local` cho phép nhưng log cảnh báo và ghi `revision = "unpinned"`.
 
 ### 5.6 Kích hoạt phiên bản (thay bản mới, FR-07)
 
 Một transaction, sau khi đã có đủ vector:
-1. `INSERT` chunks, chunk_terms, extracted_documents của phiên bản mới.
+1. `INSERT` chunks, chunk_terms, extracted_documents của phiên bản mới (`extracted_documents` chỉ được ghi ở đây, nên màn xem FR-31 không bao giờ thấy phiên bản chưa kích hoạt).
 2. `UPDATE rag.document_access SET active_version_id = :new WHERE document_id = :doc AND deleted_at IS NULL`. Không có dòng (tài liệu đã bị xóa giữa chừng) → rollback, job `CANCELLED`.
 3. `DELETE FROM rag.chunks WHERE document_id = :doc AND version_id <> :new` (chunk_terms xóa theo cascade).
 4. Job `DONE`; outbox `VERSION_STATUS(READY)`.
@@ -597,7 +655,7 @@ Trong lúc bản mới xử lý, truy xuất vẫn dùng bản cũ vì lọc `ve
 ### 5.7 Gợi ý metadata chạy nền (FR-28, V2-25)
 
 - Sau bước 8, nếu `suggest.enabled`, tạo `suggestion_jobs`. Worker xử lý job gợi ý **sau** job ingest, nên gợi ý không nằm trên đường tới `READY`.
-- Đầu vào chỉ từ `extracted_documents`: tiêu đề (heading đầu hoặc tên file), dàn ý heading, tối đa 3 đoạn đại diện, trần `SOPILOT_SUGGEST_MAX_INPUT_TOKENS=1500`. Không tải hay parse lại file.
+- Đầu vào chỉ từ `extracted_documents` (cấu trúc và Markdown chuẩn đã làm sạch): tiêu đề (heading đầu hoặc tên file), dàn ý heading, tối đa 3 đoạn đại diện, trần `SOPILOT_SUGGEST_MAX_INPUT_TOKENS=1500`. Không tải hay parse lại file.
 - Luật trước: tiêu đề, ngôn ngữ, `docCode`/`revisionLabel`/`effectiveDate` từ §5.3.
 - Một lần gọi `small_task` với structured output `{description, category_id | null, proposed_category_name | null, tags[]}`; `category_id` phải thuộc danh sách category trong payload, sai thì bỏ. Timeout `SOPILOT_SUGGEST_TIMEOUT=20s`, thử lại tối đa 1 lần; lỗi → chỉ gửi kết quả luật với `method = RULES_FALLBACK`.
 - Cache theo khóa §3.5; không dùng chung giữa workspace.
@@ -698,6 +756,8 @@ Lý do chọn BM25 tự viết thay cho `ts_rank` hay extension: (1) điểm kh�
 ### 6.5 Đồng bộ với harness eval
 
 - `eval/` import `sopilot_ai.docproc` (chunk), `sopilot_ai.retrieval.lexical` (tokenizer, BM25) và `sopilot_ai.retrieval.fusion` (RRF, cổng) thay cho bản sao hiện có. Harness vẫn chạy in-memory, không cần DB hay stack.
+- **Cùng bộ chunk.** Bộ chunk hiện tại của harness (`eval/sopilot_eval/corpus.py`, cửa sổ 800/100 ký tự) chỉ dùng cho smoke và lần chạy thăm dò. Số liệu RQ1–RQ3 và RQ5 chính thức (`V2-07`) và việc hiệu chỉnh ngưỡng `retrieval.thresholds` chạy với `chunking: docproc` (384/512 token, tokenizer của model đang đo), vì phân bố điểm và thứ hạng phụ thuộc kích thước chunk. RQ5 so model khác nhau thì đếm token bằng tokenizer của từng model nhưng giữ cùng `target/max`.
+- `sopilot_ai.retrieval.lexical` và `fusion` thuộc `V2-09`; trước khi có, `V2-07` dùng tokenizer BM25 và RRF của harness, vốn là bản gốc mà service phải khớp (§6.3).
 - Kiểm tra V2-09: cùng corpus V2-06, cùng cấu hình → top-10 của service (qua DB, một workspace, OWNER) và của harness trùng ≥ 95% theo Jaccard trung bình; khác biệt chỉ do HNSW xấp xỉ.
 
 ---
@@ -706,12 +766,12 @@ Lý do chọn BM25 tự viết thay cho `ts_rank` hay extension: (1) điểm kh�
 
 ### 7.1 Các bước
 
-1. **Hạn mức** (§7.4). Hết → SSE `error {code: QUOTA_EXCEEDED}`; không gọi gì thêm.
+1. **Hạn mức** (§7.4), bỏ qua khi tắt (mặc định). Hết → SSE `error {code: QUOTA_EXCEEDED}`; không gọi gì thêm.
 2. **Guard đầu vào** (lớp 1 FR-13): chuẩn hóa (NFC, bỏ dấu, leetspeak `0→o, 1→i, 3→e, 4→a, 5→s, 7→t`), giới hạn `SOPILOT_MAX_QUESTION_CHARS=1000`. Luật VI/EN hai mức, viết trong `qa/guard_rules.yaml` (không trong code):
    - **Chặn:** đòi lộ system prompt/quy tắc ẩn/khóa API; ghi đè chỉ dẫn nhắm vào chỉ dẫn/prompt; giả mạo vai trò hệ thống (`system:`, `[INST]`, `<|im_start|>`). Trả câu từ chối cố định, `outcome = REFUSED_GUARD`, ghi `guard_events(INPUT_BLOCK)`.
    - **Gắn cờ:** đóng vai, "bỏ qua bước", nhắc workspace khác. Vẫn trả lời, ghi `guard_events(INPUT_FLAG)`.
    - Luật khởi đầu port từ `eval/provider_check/check_providers.py::RULE_PATTERNS`, sau đó điều chỉnh bằng **bộ câu kiểm tra riêng** của V2-10 (không trùng bộ dùng để viết luật).
-3. **Router luật:** chào hỏi/cảm ơn/hỏi về bot (VI/EN) → câu mẫu, `outcome = TEMPLATE`, không gọi LLM, không tính hạn mức.
+3. **Router luật:** chào hỏi/cảm ơn/hỏi về bot (VI/EN) → câu mẫu, `outcome = TEMPLATE`, không gọi LLM, không tính hạn mức. Câu luật chưa quyết đi qua **semantic router** (owner chốt 2026-10-20, chi tiết và ngưỡng ở `V2-27`): so embedding câu hỏi gốc với câu mẫu trong `qa/router_exemplars.yaml`, rẽ sang câu mẫu chỉ khi vượt ngưỡng của intent và `margin` so với câu SOP mẫu gần nhất; không gọi LLM, bật/tắt bằng `SOPILOT_SEMANTIC_ROUTER_ENABLED`. Chưa có lịch sử thì vector này được dùng lại cho dense retrieval.
 4. **Viết lại câu hỏi** chỉ khi hội thoại có ≥ 1 lượt trước: gửi tối đa 3 lượt gần nhất (chỉ câu hỏi và câu trả lời đã làm sạch, không gửi chunk) cho `llm.rewrite`, nhận câu hỏi độc lập. Lỗi → dùng câu hỏi gốc.
 5. **Truy xuất** (§6). Dưới ngưỡng → bước 8.
 6. **Ghép prompt** (lớp 2): system prompt cố định theo `prompt_version`, chứa canary token ngẫu nhiên sinh mỗi request và quy tắc: chỉ dùng dữ liệu trong thẻ, trả lời theo ngôn ngữ câu hỏi, mỗi khẳng định gắn `[n]`, thiếu thông tin thì nói không tìm thấy. Mỗi chunk bọc trong `<source n="1" title="…" page="3">…</source>`, escape `<`, `>`, `&` trong nội dung. Câu hỏi nằm ở message `user` riêng, không ghép vào system.
@@ -732,20 +792,35 @@ Ngôn ngữ câu hỏi phát hiện bằng luật nhẹ (tỷ lệ ký tự có 
 | `replace` | `{text, reason: "GUARD"}` | Phát hiện canary/echo giữa chừng |
 | `refusal` | `{text, reason: "NO_EVIDENCE" \| "GUARD", nearestDocuments: [{documentId, title}]}` | Từ chối, thay cho `delta` |
 | `citations` | `[{n, documentId, versionId, title, page, charStart, charEnd, snippet}]` | Sau khi sinh xong |
-| `done` | `{finalText, outcome, usage: {questionsLeftToday}}` | Cuối cùng; frontend thay văn bản đã stream bằng `finalText` (đã xóa `[n]` không hợp lệ) |
+| `done` | `{finalText, outcome, usage: {questionsLeftToday}}` (`null` khi hạn mức tắt) | Cuối cùng; frontend thay văn bản đã stream bằng `finalText` (đã xóa `[n]` không hợp lệ) |
 | `error` | `{code, message}` | `QUOTA_EXCEEDED`, `LLM_UNAVAILABLE`, `INTERNAL_ERROR` |
 
 Header `Cache-Control: no-cache`, `X-Accel-Buffering: no`. Ping comment `: ping` mỗi 15 s để proxy không cắt kết nối.
 
-### 7.3 Trình xem trích dẫn (FR-14)
+### 7.3 Trình xem trích dẫn (FR-14) và "Nội dung hệ thống nhận diện" (FR-31)
 
-`GET /ai/v1/documents/{documentId}/versions/{versionId}/content` trả `{markdown, pages: [{page, charStart, charEnd}]}` từ `extracted_documents`, chỉ khi tài liệu qua bộ lọc §6.1 và `versionId` là phiên bản đang hoạt động; ngược lại `404`. PDF gốc được frontend mở bằng URL ký sẵn của core-api (`/api/v1/documents/{id}/download-url`) và nhảy tới `page`; DOCX/MD/TXT hiển thị `markdown` và tô sáng `[charStart, charEnd)`.
+`GET /ai/v1/documents/{documentId}/versions/{versionId}/content` trả từ `extracted_documents`, chỉ khi tài liệu qua bộ lọc §6.1 và `versionId` là phiên bản đang hoạt động (`active_version_id`); ngược lại `404` (không phân biệt "không tồn tại", "ngoài quyền" và "chưa READY"):
+
+```json
+{ "documentId": "…", "versionId": "…", "fileType": "PDF", "normalizerVersion": "1",
+  "markdown": "# Quy trình mua hàng\n\n…",
+  "pages": [ {"page": 1, "charStart": 0, "charEnd": 812, "charStart16": 0, "charEnd16": 812} ],
+  "warnings": [ {"code": "PAGES_WITHOUT_TEXT", "pages": [3, 7]} ],
+  "removedBlocks": [ {"kind": "footer", "page": 1, "text": "QT-MH-01 | Lần ban hành 03 | Trang 1/7"} ] }
+```
+
+- Màn xem FR-31 và trình xem trích dẫn dùng chung response này. PDF gốc được frontend mở bằng URL ký sẵn của core-api (`/api/v1/documents/{id}/download-url`) và nhảy tới `page`; MD hiển thị `markdown` và tô sáng `[charStart16, charEnd16)`.
+- Chỉ có endpoint cho phiên bản đang hoạt động; không có đường đọc phiên bản đang xử lý hay `FAILED` (owner chốt 2026-10-21: màn xem chỉ mở khi `READY`). Frontend lấy `currentVersion` và `latestVersion` từ core-api để gắn nhãn phiên bản.
+- `removedBlocks` giới hạn 200 mục; `markdown` trả nguyên văn, frontend render không thực thi HTML.
 
 ### 7.4 Hạn mức và giới hạn provider (FR-09)
 
-- **Theo user:** `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY=20` (PRD FR-09; ticket V2-12 ghi 50, xem câu hỏi mở Q2 của TECH-V2-core-api). Tăng `usage_counters` trong transaction đầu request, **trước** khi gọi LLM; câu `TEMPLATE` và `REFUSED_GUARD` không tính.
-- **Toàn hệ thống:** `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY=400` qua `rag.system_usage`.
-- **Theo provider:** token bucket trong bộ nhớ cho RPM và TPM của từng `(provider, model)` lấy từ `models.yaml` (một tiến trình API nên không cần Redis). Ước lượng token prompt trước khi gọi; hết bucket → coi như `429` và chuyển model kế tiếp trong `chain`. Hết cả chuỗi → `error LLM_UNAVAILABLE`, hoàn lại lượt hạn mức của user.
+Hạn mức thương mại tạm tắt (owner chốt 2026-10-20, PRD-V2 §8.10): hai biến dưới đây mặc định `0` = không giới hạn, không đọc/ghi `usage_counters` và `system_usage`. Bảng vẫn có trong migration để bật lại không cần đổi schema.
+
+- **Theo user:** `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY` (tham khảo `20` theo PRD FR-09 khi bật). Tăng `usage_counters` trong transaction đầu request, **trước** khi gọi LLM; câu `TEMPLATE` và `REFUSED_GUARD` không tính.
+- **Toàn hệ thống:** `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY` (tham khảo `400` khi bật) qua `rag.system_usage`.
+- Bộ giới hạn theo provider bên dưới **luôn bật** vì là giới hạn kỹ thuật của free tier, không phải hạn mức thương mại.
+- **Theo provider:** token bucket trong bộ nhớ cho RPM và TPM của từng `(provider, model)` lấy từ `models.yaml` (một tiến trình API nên không cần Redis). Ước lượng token prompt trước khi gọi; hết bucket → coi như `429` và chuyển model kế tiếp trong `chain`. Hết cả chuỗi → `error LLM_UNAVAILABLE`, hoàn lại lượt hạn mức của user nếu hạn mức đang bật.
 
 ### 7.5 Hội thoại (FR-15) và lịch sử khi mất quyền
 
@@ -759,9 +834,9 @@ Header `Cache-Control: no-cache`, `X-Accel-Buffering: no`. Ping comment `: ping`
 
 Mọi truy vấn có `workspace_id = :wid AND user_id = :sub` (ngoài RLS). Khi đọc lại hội thoại, mỗi câu trả lời có trích dẫn được kiểm `document_id` với bộ lọc §6.1 hiện tại: nếu **bất kỳ** trích dẫn nào trỏ tới tài liệu không còn đọc được (đổi phạm vi, đổi phòng ban, bị xóa), toàn bộ câu trả lời và đoạn trích của nó bị thay bằng `{hidden: true, reason: "ACCESS_REVOKED" | "DOCUMENT_DELETED"}`; câu hỏi vẫn hiện (PRD §8.8). Viết lại câu hỏi (§7.1 bước 4) chỉ dùng các lượt chưa bị ẩn.
 
-### 7.6 Phản hồi và khoảng trống tri thức (đề xuất, chờ Q1)
+### 7.6 Phản hồi và khoảng trống tri thức (FR-16, FR-17)
 
-Nếu owner chọn đặt FR-16/FR-17 ở ai-service (đề xuất ở TECH-V2-core-api §11 Q1):
+Owner chốt 2026-10-20 (TECH-V2-core-api §11 Q1, ADR-004 §4.1): FR-16/FR-17 nằm ở ai-service.
 
 ```sql
 CREATE TABLE rag.message_feedback (
@@ -793,7 +868,7 @@ CREATE TABLE rag.knowledge_gap_status (
 
 Định nghĩa contract ở TECH-V2-core-api §8. Phía ai-service:
 - Mọi endpoint `/internal/**` kiểm `Idempotency-Key`: đã có trong `processed_requests` → trả lại response thành công, không làm lại. Ghi khóa trong cùng transaction với thay đổi.
-- `POST /internal/ingestions`: `UPSERT rag.document_access` chỉ khi `accessRevision` lớn hơn bản đang có (hoặc chưa có); `INSERT ingestion_jobs ON CONFLICT (version_id) DO NOTHING`; `NOTIFY rag_jobs`.
+- `POST /internal/ingestions`: `UPSERT rag.document_access` chỉ khi `accessRevision` lớn hơn bản đang có (hoặc chưa có); `INSERT ingestion_jobs ... ON CONFLICT (version_id) DO UPDATE SET status = 'QUEUED', attempts = 0, failure_code = NULL, request_attempt = EXCLUDED.request_attempt, lease_until = NULL WHERE ingestion_jobs.status = 'FAILED' AND EXCLUDED.request_attempt > ingestion_jobs.request_attempt`; `NOTIFY rag_jobs`. Nghĩa là: gửi lại cùng yêu cầu (cùng `attempt`) không tạo job mới; thử lại của người dùng (`attempt` tăng, TECH-V2-core-api §5.5) đưa job `FAILED` về hàng đợi; job đang chạy hoặc `DONE` không bị đụng. (Sửa 2026-10-21: bản trước dùng `DO NOTHING` nên thử lại sẽ không bao giờ chạy.)
 - `PUT /internal/document-access/{documentId}`: cập nhật nếu `accessRevision` mới hơn; trả `{applied}`. Không động tới chunk (FR-26: đổi phạm vi không embed lại).
 - `DELETE /internal/documents/{documentId}`: đặt `document_access.deleted_at` (truy xuất bỏ tài liệu ngay), hủy job đang chờ, xóa chunk, `extracted_documents`, `suggestion_jobs`, rồi xóa dòng `document_access`. `message_citations` giữ lại để lịch sử hiện lý do `DOCUMENT_DELETED`.
 - Gửi về core-api: outbox `rag.outbox_events`, dispatcher giống core-api (đẩy ngay sau commit + quét mỗi 5 s, backoff, `DEAD` sau 20 lần, `4xx` không thử lại).
@@ -804,10 +879,12 @@ CREATE TABLE rag.knowledge_gap_status (
 
 | Lớp | Nội dung | Công cụ |
 |---|---|---|
-| Unit `docproc` | Fixture DOCX có numbering tự động, bảng giữa thân, ô gộp; PDF hai cột, header/footer lặp; SOP ISO có bảng quy trình; văn bản Điều/Khoản có câu dẫn chiếu "Điều 5" giữa câu; kiểm `section_path` là tổ tiên; không cắt giữa ký tự; chunk ≤ `max_tokens` theo tokenizer của model | pytest |
+| Unit `docproc` | Fixture PDF hai cột, bảng giữa thân, ô gộp, header/footer lặp; MD (frontmatter, GFM table, HTML nhúng, shortcode); từ chối DOCX/TXT; SOP ISO có bảng quy trình; văn bản Điều/Khoản có câu dẫn chiếu "Điều 5" giữa câu; kiểm `section_path` là tổ tiên; không cắt giữa ký tự; chunk ≤ `max_tokens` theo tokenizer của model | pytest |
+| Markdown chuẩn và offset | Bất biến `markdown[char_start:char_end]` = đoạn render của phần tử, cho mọi phần tử của mọi fixture và mọi file corpus V2-19; offset chunk nằm trong `markdown`; `row_spans` tăng dần, nằm trong bảng, `markdown[row_spans[i]]` chứa đúng các ô của `rows[i]`; bảng nhiều trang có `page_end > page`; `page_index` liên tiếp, không chồng, trang trong `1..page_count`; offset UTF-16 đúng với chuỗi có ký tự ngoài BMP; render hai lần cùng đầu vào cho cùng chuỗi; văn bản NFC; không phần tử khung nào xuất hiện trong `markdown` | pytest (property test trên fixture) |
+| Cảnh báo | Mỗi mã §5.3a có một fixture sinh ra nó và một fixture sạch không sinh ra nó; OCR tắt: trang chỉ có ảnh cho 0 ký tự | pytest |
 | Chất lượng trích xuất | Chỉ số trên corpus V2-19 (heading recall, khung lọt, nội dung bị xóa nhầm) | Script trong `eval/`, không chạy trong CI |
 | Unit truy xuất | BM25 SQL và BM25 harness cho cùng điểm (sai số 1e-4) trên corpus nhỏ; RRF; cổng ngưỡng từng chế độ; trích dẫn `[n]` không hợp lệ bị loại; canary bị phát hiện kể cả khi bị cắt qua hai delta | pytest |
-| Integration | Testcontainers Postgres + pgvector với role `sopilot_ai_app` thật: RLS, job lease hết hạn được nhận lại, thay bản mới không làm gián đoạn truy xuất, `accessRevision` cũ bị bỏ qua, idempotency | pytest + testcontainers |
+| Integration | Testcontainers Postgres + pgvector với role `sopilot_ai_app` thật: RLS, job lease hết hạn được nhận lại, lỗi tạm thời được tự thử lại sau `run_after` mà không gửi `FAILED`, lỗi tất định `FAILED` ngay ở lần đầu, thay bản mới không làm gián đoạn truy xuất, `accessRevision` cũ bị bỏ qua, idempotency; thử lại job `FAILED` với `attempt` mới chạy lại đúng một lần, gửi lại cùng `attempt` không tạo job; `/content` trả `404` cho phiên bản chưa kích hoạt, `FAILED` và ngoài quyền, trả phiên bản cũ trong lúc bản mới xử lý | pytest + testcontainers |
 | FR-19 (phần ai-service) | Hai workspace, tài liệu chứa chuỗi bí mật riêng: hỏi đáp, hội thoại, trình xem nội dung, retrieval_results không bao giờ chứa chuỗi của workspace kia; connection tái dùng không mang `app.workspace_id` cũ | CI |
 | FR-29 (phần ai-service) | Cùng workspace: tài liệu `DEPARTMENTS` có chuỗi bí mật không xuất hiện trong dense, BM25, rerank, prompt gửi LLM (provider giả ghi lại prompt), trích dẫn, lịch sử, "tài liệu gần nhất"; các ca đổi phòng ban (token mới), thu hẹp phạm vi, xóa tài liệu | CI, LLM giả |
 | Guard | Bộ câu kiểm tra riêng V2-10: chặn nhầm ≤ 2%, 0 lần lộ canary | CI |
@@ -827,22 +904,28 @@ CREATE TABLE rag.knowledge_gap_status (
 | `SOPILOT_MODELS_CONFIG` | `config/models.yaml` | |
 | `EMBEDDING_REVISION`, `RERANK_REVISION`, `RERANK_ENABLED` | —, —, `false` | |
 | `GEMINI_GENERATE_MODEL` | `gemini-3.1-flash-lite-preview` | Đổi sang GA khi hết 503 |
-| `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY`, `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY` | `20`, `400` | FR-09 |
+| `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY`, `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY` | `0`, `0` | FR-09, `0` = tắt (giai đoạn nghiên cứu) |
 | `SOPILOT_INGEST_MAX_ATTEMPTS`, `SOPILOT_SUGGEST_TIMEOUT`, `SOPILOT_SUGGEST_MAX_INPUT_TOKENS` | `3`, `20s`, `1500` | |
+| `SOPILOT_PAGE_MIN_CHARS` | `20` | Ngưỡng cảnh báo `PAGES_WITHOUT_TEXT` (§5.3a); giá trị khởi đầu, chưa hiệu chỉnh |
+| `SOPILOT_PDF_ARTIFACTS_PATH` | `/models/pdf` (volume) | Model của thư viện PDF (nếu có) tải trước, không tải lúc xử lý |
 | `HF_HOME` | `/models` (volume) | Model tải một lần, không tải lại mỗi lần khởi động |
 
 ---
 
-## 11. Câu hỏi mở cần owner chốt
+## 11. Câu hỏi mở (owner chốt 2026-10-20)
 
-| # | Câu hỏi | Đề xuất |
+Owner duyệt toàn bộ theo đề xuất bên dưới.
+
+| # | Câu hỏi | Quyết định |
 |---|---|---|
-| Q1 | Phản hồi và khoảng trống tri thức ở service nào? | Xem TECH-V2-core-api §11 Q1; đề xuất ai-service (§7.6). |
+| Q1 | Phản hồi và khoảng trống tri thức ở service nào? | ai-service (§7.6); xem TECH-V2-core-api §11 Q1. |
 | Q2 | BM25 tự viết trong SQL hay dùng extension? | Tự viết (§6.3) để khớp harness và không cần image Postgres riêng. |
 | Q3 | Rerank: chỉ local, hay thêm provider API miễn phí (ví dụ Pinecone bge-reranker-v2-m3) cho máy yếu? | Local cho eval (ADR-006); interface đã cho phép thêm provider, chỉ làm khi đo thấy rerank local quá chậm cho demo. |
 | Q4 | Kích thước chunk mặc định | `target 384 / max 512` token theo tokenizer bge-m3; V2-07 có thể đổi sau khi đo, cấu hình harness và service phải giống nhau. |
 | Q5 | Worker cùng container với API hay container riêng? | Cùng image, hai tiến trình (hai service trong compose dùng chung image) để embed không chặn API và giới hạn RAM riêng được. |
 | Q6 | Ngưỡng từ chối mặc định trước khi có V2-07 | Giữ chỗ (§4.2); không công bố chỉ số từ chối nào trước khi hiệu chỉnh trên tập dev. |
+| Q7 | Màn xem FR-31 mở ngay sau convert/clean hay chỉ khi `READY`? (owner chốt 2026-10-21) | Chỉ khi `READY`. Mở sớm cần ghi `extracted_documents` trước embed, một đường đọc phiên bản chưa kích hoạt (phải test FR-19/FR-29), dọn dữ liệu khi lỗi và một trạng thái UI; ước lượng thêm 1–2 ngày trong khi khoảng chờ embed còn lại nhỏ. Xét lại khi số đo `t_ready` cho thấy cần. |
+| Q8 | Thư viện PDF nào? (tiêu chí owner chốt 2026-10-21, chọn trong V2-20, ghi ADR-008) | Ứng viên Docling (MIT) và PyMuPDF 2.x (AGPL-3.0 hoặc thương mại); chưa thử trên corpus. Ràng buộc cứng: offline trên CPU, OCR tắt được, số trang cho từng phần tử, tiếng Việt NFC, giấy phép (AGPL cần owner xác nhận). So sánh: heading/bảng theo họ tài liệu V2-19, thời gian và RAM đỉnh mỗi trang trên máy owner, công bảo trì. Timebox 2 ngày; chỉ một thư viện trong runtime. Chi tiết: [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md) §6. |
 
 ---
 
@@ -850,6 +933,7 @@ CREATE TABLE rag.knowledge_gap_status (
 
 - `EMBEDDING_MODEL_NAME = "BGE_M3"` gán cứng, cắt 512 token bằng `tiktoken`, `cl100k_base` cho tiếng Việt (AUDIT-v2 §4.2, AUDIT-ingestion §2.4).
 - Ba bộ trích xuất song song, OCR tesseract đồng bộ, dedup ngữ nghĩa theo 3 cửa sổ (AUDIT-ingestion §2.1, §2.5).
+- Trích xuất TXT, `preview_extractor.py` parse lại file để gợi ý metadata, render Markdown có `rehype-raw` ở frontend.
 - Intent classification nhiều tầng, lọc độc hại bằng LLM, Llama Prompt Guard 2 (FR-13, V2-02).
 - Sao chép `allowed_roles/allowed_departments/allowed_users` vào từng chunk; `department_id` ghép bằng f-string (A2, A3, ADR-007).
 - Ngưỡng 0.15 trên thang điểm trộn; ghi đè `similarity_score` bằng điểm rerank (R2, R4).

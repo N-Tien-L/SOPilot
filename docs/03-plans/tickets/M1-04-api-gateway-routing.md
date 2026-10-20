@@ -4,7 +4,7 @@ title: "API Gateway: Định tuyến Roster & Google Auth Endpoints"
 type: feat
 status: review
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-10-20
 scope: gateway
 priority: P1
 size: S
@@ -14,6 +14,8 @@ blocks: [M1-05]
 branch: "feat/gateway-roster-routes"
 assignee: pair
 ---
+
+> **Ghi chú 2026-10-20 (V2-04):** giữ nguyên trạng thái để lưu lịch sử; không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang V2-11 (core-api) và V2-15 (frontend). Gateway bị bỏ trong V2 (ADR-004): route được thay bằng Next.js rewrites.
 
 ## Context
 API Gateway (NestJS) là điểm tiếp nhận duy nhất từ Client. Cần mở các tuyến đường công khai cho Google Auth Verify và các tuyến đường bảo vệ (Admin only) cho Roster Management, hỗ trợ multipart file streaming upload tới `user-service`.

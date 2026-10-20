@@ -4,7 +4,7 @@ title: "Dữ liệu demo và docker compose chạy bằng một lệnh"
 type: feat
 status: todo
 created: 2026-10-17
-updated: 2026-10-19
+updated: 2026-10-21
 scope: platform
 priority: P0
 size: M
@@ -21,7 +21,7 @@ assignee: pair
 FR-21 và NFR tái lập: `docker compose up` dựng hệ thống cục bộ; bàn giao nghiên cứu chạy được trên máy người chấm.
 
 ## 2. Tiêu chí Hoàn thành
-- [ ] Script tạo workspace mẫu với bộ SOP công khai (dùng corpus V2-06), idempotent; có ít nhất hai phòng ban, thành viên mẫu và một tài liệu giới hạn phòng ban để demo UC-10.
+- [ ] Script tạo workspace mẫu với bộ SOP công khai (dùng corpus V2-06), idempotent; số tài liệu và dung lượng nằm trong hạn mức mặc định 50 tài liệu/200 MB (PRD-V2 FR-09, owner chốt 2026-10-21), hoặc README ghi rõ biến hạn mức cần đặt; có ít nhất hai phòng ban, thành viên mẫu và một tài liệu giới hạn phòng ban để demo UC-10.
 - [ ] Một lệnh dựng: Postgres, object storage, Flyway, core-api, ai-service, frontend (và embedding local nếu bật).
 - [ ] README ở gốc: yêu cầu máy (RAM/CPU), các bước, cấu hình `.env` từ `.env.example`, cách bật dev login không cần Google, cách chạy eval.
 - [ ] Hướng dẫn dùng LLM: API (Gemini/Groq) hoặc local, và hành vi khi thiếu key (báo lỗi rõ ràng, không treo).

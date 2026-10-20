@@ -2,15 +2,17 @@
 id: NEXT-04
 title: "Chốt contract và cơ chế delivery audit JIT"
 type: docs
-status: todo
+status: superseded
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-20
 scope: user
 priority: P1
 size: M
 parent_plan: PLAN-NEXT
 depends_on: []
 ---
+
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../PLAN-V2-sopilot-mvp.md); không làm tiếp. Audit log tối thiểu là FR-20, thiết kế ở TECH-V2-core-api §3.6, triển khai ở V2-12.
 
 # NEXT-04: Chốt contract và cơ chế delivery audit JIT
 

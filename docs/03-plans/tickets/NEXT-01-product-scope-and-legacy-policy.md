@@ -2,15 +2,17 @@
 id: NEXT-01
 title: "Chốt phạm vi sản phẩm và chính sách tài khoản kế thừa"
 type: docs
-status: todo
+status: superseded
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-20
 scope: docs
 priority: P1
 size: M
 parent_plan: PLAN-NEXT
 depends_on: []
 ---
+
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../PLAN-V2-sopilot-mvp.md); không làm tiếp. Phạm vi sản phẩm và chính sách tài khoản đã chốt ở PRD-V2 và ADR-005 (bỏ mật khẩu/OTP, đăng nhập Google JIT, workspace).
 
 # NEXT-01: Chốt phạm vi sản phẩm và chính sách tài khoản kế thừa
 

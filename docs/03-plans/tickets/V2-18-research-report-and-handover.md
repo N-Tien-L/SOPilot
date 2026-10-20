@@ -26,7 +26,7 @@ assignee: owner
 - [ ] Hướng dẫn tái lập từng bảng số liệu bằng đúng lệnh, ghi commit và hash cấu hình.
 - [ ] Danh sách hạn chế và hướng phát triển (rerank, deploy B1/B3, group, ...).
 - [ ] Gói bàn giao: mã nguồn, README, dataset hoặc script tải, kết quả, báo cáo trong `docs/04-reports/`; không chứa secret hay `.env`.
-- [ ] PLAN-V2: 26/26 ticket `done`, bộ đếm khớp.
+- [ ] PLAN-V2: 27/27 ticket `done`, bộ đếm khớp.
 
 ## 3. Hướng dẫn
 - **File:** `docs/04-reports/AUDIT-v2-final-<ngày>.md`, `docs/04-reports/RESEARCH-REPORT-v2.md` (CREATE). Tác giả ghi "Owner".

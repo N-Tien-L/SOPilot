@@ -2,15 +2,17 @@
 id: NEXT-06
 title: "Khôi phục baseline test/lint và đưa gates vào CI"
 type: chore
-status: todo
+status: superseded
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-20
 scope: platform
 priority: P1
 size: L
 parent_plan: PLAN-NEXT
 depends_on: []
 ---
+
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../PLAN-V2-sopilot-mvp.md); không làm tiếp. Baseline test và CI cho kiến trúc mới thuộc V2-08 (scope script mới), V2-14 và V2-26 (FR-19, FR-29 trong CI).
 
 # NEXT-06: Khôi phục baseline test/lint và đưa gates vào CI
 
