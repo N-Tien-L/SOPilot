@@ -88,17 +88,17 @@ Hướng xử lý: ADR-005 (workspace là tenant, lọc ở ứng dụng + RLS, 
 | `local/qwen3-8b` (mặc định) | `qwen3-8b` tự host | ✅ Chạy được nhưng cần GPU hoặc nhiều RAM | Chỉ dùng khi chạy eval local |
 | Embedding (cả hai service, compose) | `jina-embeddings-v3` | Vẫn chạy, nhưng free tier là quota cấp một lần và chỉ dùng phi thương mại | `bge-m3` (ADR-006) |
 
-Trang danh sách model của Groq vẫn liệt kê `llama-3.1-8b-instant` và `llama-3.3-70b-versatile`. Trang deprecation thì ghi đã tắt cho gói free/developer, chỉ khách enterprise còn dùng được. **Chưa gọi thử bằng key thật.** Kiểm tra bằng cách gọi `GET https://api.groq.com/openai/v1/models` với key của owner.
+Trang danh sách model của Groq vẫn liệt kê `llama-3.1-8b-instant` và `llama-3.3-70b-versatile`. Trang deprecation thì ghi đã tắt cho gói free/developer, chỉ khách enterprise còn dùng được. Đã gọi bằng key thật ngày 2026-10-20 (V2-02, `eval/provider_check/check_providers.py`): Groq `/models` HTTP 200 (11 model), Gemini `/models` HTTP 200 (63 model). Script chỉ đối chiếu các model V2 sẽ dùng (bảng hạn mức bên dưới); chưa xác nhận trực tiếp trạng thái của các model Llama/Qwen cũ ở bảng trên, nên cột "Trạng thái" vẫn dựa trên trang deprecation.
 
 #### Hạn mức bản miễn phí (owner chụp ngày 2026-10-19)
 
 | Provider | Model | RPM | RPD | TPM | TPD | Đã gọi thử (V2-02) |
 |---|---|---:|---:|---:|---:|---|
-| Gemini | Gemini 3.1 Flash Lite | 15 | 500 | 250K | — | 2026-10-20: `gemini-3.1-flash-lite` và `-preview` có trong `/models`, gọi thử trả HTTP 503 (quá tải); cần thử lại |
+| Gemini | Gemini 3.1 Flash Lite | 15 | 500 | 250K | — | 2026-10-20 (lần 1): cả hai ID trả HTTP 503 (quá tải). 2026-10-20 (lần 2, 10:19): `gemini-3.1-flash-lite-preview` HTTP 200 (7,4 s); `gemini-3.1-flash-lite` vẫn HTTP 503. ID model phải cấu hình được, mặc định dùng `-preview` |
 | Gemini | Gemini 2.5 Flash / 3 Flash / 3.6 Flash | 5 | 20 | 250K | — | |
 | Gemini | Gemini 2.5 Flash Lite | 10 | 20 | 250K | — | |
 | Gemini | Gemini 2 Flash, 2 Flash Lite, 2.5 Pro, 3.1 Pro | 0 | 0 | 0 | — | Không dùng được ở bản miễn phí |
-| Groq | `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b` | 30 | 1K | 8K | 200K | 2026-10-20: `gpt-oss-120b` HTTP 200 (492 ms), `gpt-oss-20b` HTTP 200 (569 ms) |
+| Groq | `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b` | 30 | 1K | 8K | 200K | 2026-10-20: `gpt-oss-120b` HTTP 200 (492 ms; lần 2: 663 ms), `gpt-oss-20b` HTTP 200 (569 ms; lần 2: 461 ms) |
 | Groq | `meta-llama/llama-prompt-guard-2-86m`, `-22m` | 30 | 14.4K | 15K | 500K | 2026-10-20: 86m HTTP 200, đầu ra là xác suất dạng text, p50 316 ms; không đạt bài test (bên dưới) |
 | Groq | `openai/gpt-oss-safeguard-20b` | 3 | 1K | 2K | 200K | |
 
@@ -186,7 +186,7 @@ Luồng hiện tại: embed câu hỏi → vector search (top 50) + BM25 (top 50
 ## 8. Việc tiếp theo
 - [ ] Owner duyệt PRD-V2, ADR-004, ADR-005, ADR-006.
 - [ ] Viết TECH-V2-core-api và TECH-V2-ai-service (đưa các phát hiện R1–R5 và §4.2 vào thiết kế).
-- [ ] Gọi thử Groq `/models` bằng key thật để xác nhận mục 4.1.
+- [x] Gọi thử Groq `/models` bằng key thật để xác nhận mục 4.1 (2026-10-20, V2-02).
 - [ ] Lập PLAN-V2 và ticket.
 
 ## 9. Nguồn tham khảo (đọc ngày 2026-10-16 → 2026-10-17)

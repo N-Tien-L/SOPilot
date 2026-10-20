@@ -15,8 +15,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 26
 completed_tickets: 1
-implemented_tickets: 2
-review_tickets: 1
+implemented_tickets: 3
+review_tickets: 2
 ---
 
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
@@ -72,7 +72,7 @@ flowchart TD
     V03 --> V11["V2-11 core-api: login + workspace"]
     V08 --> V11
     V09 --> V10["V2-10 ai-service: pipeline hỏi đáp"]
-    V02["V2-02 Xác nhận provider"] --> V10
+    V02["V2-02 Xác nhận provider (review)"] --> V10
     V11 --> V12["V2-12 core-api: tài liệu + outbox"]
     V11 --> V23["V2-23 Hồ sơ thành viên + phòng ban"]
     V12 & V23 --> V24["V2-24 Metadata + phạm vi hiển thị"]
@@ -97,7 +97,7 @@ flowchart TD
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
 | `V2-01` | Duyệt PRD-V2/ADR-004/005/006/007, chốt câu hỏi mở | docs | S | None | done |
-| `V2-02` | Xác nhận model LLM còn sống bằng key thật | ai-qa | S | None | todo |
+| `V2-02` | Xác nhận model LLM còn sống bằng key thật | ai-qa | S | None | review |
 | `V2-03` | Viết TECH-V2-core-api và TECH-V2-ai-service | docs | L | `V2-01` | todo |
 | `V2-04` | Đóng backlog M1/NEXT, dọn `docs/plans/` | docs | S | `V2-01` | todo |
 
