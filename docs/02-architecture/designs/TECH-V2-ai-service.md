@@ -28,6 +28,8 @@ affected_schemas: [rag]
 > **Sửa 2026-10-21 (owner, [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):** bỏ TXT; định nghĩa Markdown chuẩn và offset (§5.2); cảnh báo trích xuất (§5.3a); thử lại đưa job `FAILED` về hàng đợi (§3.2, §8); màn xem "Nội dung hệ thống nhận diện" FR-31 chỉ khi `READY` (§7.3); tiêu chí chọn thư viện PDF (§11 Q7, Q8).
 >
 > **Sửa 2026-10-21 (rà soát trước implement):** `V2-20` dựng khung service và `docproc` nhận tokenizer qua protocol riêng (§1.1); `DocElement` có `page_end` và offset từng hàng bảng (§5.2); phân loại lỗi tự thử lại / dừng ngay và cột `run_after` (§3.2, §5.1); eval và service dùng chung bộ chunk, số liệu RQ chính thức của `V2-07` chạy bằng `docproc` (§6.5).
+>
+> **Sửa 2026-10-21 (owner, rà soát kiến trúc RAG theo bài toán SOP):** (A) `index_text` có thêm mã tài liệu `docCode` (§5.4); (B) tách đơn vị tìm kiếm khỏi đơn vị đưa cho LLM đọc: sau cổng ngưỡng, mở rộng mỗi chunk trúng thành nhóm cùng mục và gộp các chunk liền nhau (§6.4a), lưu `messages.context_sources` (§3.4); (C) hệ số BM25 khi câu hỏi khác ngôn ngữ chunk, cột `chunks.lang`, mặc định `1.0` (không đổi) cho tới khi `V2-07` đo RQ1b (§6.4). Không thêm lần gọi LLM nào. Các thiết kế GraphRAG, RAPTOR, iterative/agentic, HyDE/multi-query và contextual retrieval bằng LLM không đưa vào V2 (§12a).
 
 ---
 
@@ -54,6 +56,7 @@ affected_schemas: [rag]
 | FR-18 (đồng bộ với `eval/`) | §6.5 |
 | FR-19, FR-29 | §9 |
 | §4.2 AUDIT-v2: `EMBEDDING_MODEL_NAME = "BGE_M3"`, cắt 512 token bằng `tiktoken` | §4.2, §5.5 |
+| Rà soát kiến trúc RAG theo bài toán SOP (owner chốt 2026-10-21): mã tài liệu trong chỉ mục, ghép context theo mục, hệ số BM25 cross-lingual | §5.4, §6.4, §6.4a, §12a |
 
 ---
 
@@ -87,7 +90,7 @@ services/ai-service/
 │   │   ├── clean/      #   boilerplate.py, metadata.py, warnings.py (V2-21)
 │   │   └── chunk/      #   family.py, procedure_table.py, chunker.py (V2-22)
 │   ├── providers/      # embedding.py, rerank.py, llm.py, registry.py (đọc models.yaml)
-│   ├── retrieval/      # access_filter.py, dense.py, lexical.py, fusion.py, gate.py
+│   ├── retrieval/      # access_filter.py, dense.py, lexical.py, fusion.py, gate.py, context.py (§6.4a)
 │   ├── qa/             # guard.py, router.py, prompt.py, citations.py, pipeline.py
 │   ├── conversations/
 │   ├── quota/          # bộ đếm câu hỏi, giới hạn RPM/TPM theo provider
@@ -152,10 +155,11 @@ sequenceDiagram
         A->>L: Viết lại câu hỏi thành câu độc lập (LLM call 1)
     end
     A->>DB: Dense + lexical, lọc workspace + quyền TRƯỚC LIMIT (§6.1)
-    A->>A: RRF → rerank (nếu bật) → cổng ngưỡng theo chế độ
+    A->>A: RRF (hệ số BM25 theo ngôn ngữ) → rerank (nếu bật) → cổng ngưỡng theo chế độ
     alt Dưới ngưỡng
         A-->>B: SSE refusal + tài liệu gần nhất (nếu có), ghi câu hỏi chưa trả lời được
     else Đủ bằng chứng
+        A->>DB: Ghép context: lấy chunk cùng mục của các chunk trúng, lọc quyền (§6.4a)
         A->>L: Sinh câu trả lời, stream (LLM call cuối)
         A-->>B: SSE delta (giữ lại đuôi để kiểm canary)
         A->>A: Kiểm canary, ánh xạ [n], loại trích dẫn không ánh xạ được
@@ -252,7 +256,8 @@ CREATE TABLE rag.chunks (
     char_start         int  NOT NULL,                 -- offset trong extracted_documents.markdown
     char_end           int  NOT NULL,
     content            text NOT NULL,                 -- đoạn hiển thị cho người dùng và gửi LLM
-    index_text         text NOT NULL,                 -- "Tên tài liệu › mục › bước\n" + content: được embed và index lexical
+    index_text         text NOT NULL,                 -- "Tên tài liệu [mã] › mục › bước\n" + content: được embed và index lexical (§5.4)
+    lang               text,                          -- ngôn ngữ của phiên bản (bước 6 §5.1), dùng cho hệ số BM25 §6.4; NULL = không rõ
     token_count        int  NOT NULL,                 -- đếm bằng tokenizer của embedding_model
     content_sha256     bytea NOT NULL,                -- sha256(index_text), khóa cache embedding
     embedding          vector(1024) NOT NULL,
@@ -324,7 +329,8 @@ CREATE TABLE rag.messages (
     prompt_version  text,
     tokens_in       int,
     tokens_out      int,
-    latency_ms      jsonb,                              -- {retrieve, rerank, first_token, total}
+    latency_ms      jsonb,                              -- {retrieve, rerank, context, first_token, total}
+    context_sources jsonb,                              -- [{n, documentId, versionId, hitChunkIds, chunkIds, tokens}] sau ghép context §6.4a; NULL nếu không gọi LLM sinh
     created_at      timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_messages_conv ON rag.messages(conversation_id, created_at);
@@ -485,9 +491,14 @@ providers:
 retrieval:
   candidate_pool: 50      # mỗi nhánh dense / lexical
   rerank_pool: 25
-  context_k: 5
+  context_k: 5            # số chunk trúng đưa vào ghép context (§6.4a)
   rrf_k: 60
   rrf_weights: [1.0, 1.0]
+  cross_lingual_bm25_factor: 1.0   # nhân vào trọng số BM25 khi ngôn ngữ câu hỏi ≠ chunks.lang (§6.4); 1.0 = tắt, đổi sau RQ1b (V2-07)
+  context:                # ghép context small-to-big (§6.4a)
+    expand: true          # false = chỉ đưa chunk trúng, như cách cũ (ablation V2-10)
+    section_max_tokens: 1200   # nhóm cùng mục nhỏ hơn mức này thì đưa nguyên nhóm
+    max_tokens: 3000      # trần tổng context, đếm bằng token_count của chunk
   thresholds:             # cổng từ chối; hiệu chỉnh trên tập dev của V2-06 (RQ3)
     dense: 0.45
     bm25: null            # BM25 không có thang chung giữa các câu hỏi; chế độ bm25 không tự từ chối
@@ -538,7 +549,7 @@ class LLMProvider(Protocol):
 | 3a. Render Markdown chuẩn | `docproc.render` | `markdown`, offset của từng phần tử, `page_index` | — |
 | 4. Nhận diện họ tài liệu | `docproc.chunk.family` | `ISO_PROCEDURE` \| `LEGAL_ARTICLES` \| `MARKDOWN` \| `PROSE` | — |
 | 5. Chunk | `docproc.chunk` | `list[Chunk]` | `EMPTY_CONTENT` khi 0 chunk (sửa lỗi cũ: rỗng vẫn `READY`) |
-| 6. Phát hiện ngôn ngữ | `ingest` | `vi` / `en` / khác | — |
+| 6. Phát hiện ngôn ngữ | `ingest` | `vi` / `en` / khác, ghi vào `extracted_documents.language` và `chunks.lang` | — |
 | 7. Embed | `providers.embedding` + cache | vector 1024 chiều | `EMBEDDING_ERROR` (có thử lại) |
 | 8. Ghi và kích hoạt | `ingest` | transaction §5.6 | — |
 
@@ -632,7 +643,7 @@ Nhận diện heading theo thứ tự ưu tiên: heading Markdown (`#`) → mẫ
 Quy tắc chung:
 - Đếm token bằng tokenizer của model embedding đang hoạt động, truyền vào chunker dưới dạng `docproc.tokens.Tokenizer` (§1.1), **không** dùng `tiktoken` (AUDIT-v2 §4.2). Chunk ≤ `max_tokens` tính cả tiền tố đường dẫn tiêu đề.
 - Section < `min_tokens` gộp với anh em kế tiếp cùng cha; section > `max_tokens` cắt theo đoạn rồi theo câu. Cắt trên ranh giới ký tự Unicode, không trên byte.
-- `index_text` = `"{title} › {section_path joined by ' › '}\n{content}"`. Tiền tố có trong cả vector lẫn chỉ mục lexical (V2-22).
+- `index_text` = `"{title} [{docCode}] › {section_path joined by ' › '}\n{content}"`; phần ` [{docCode}]` chỉ có khi V2-21 trích được mã (`extracted_meta.docCode`), ngược lại tiền tố giữ dạng `"{title} › …"`. Tiền tố có trong cả vector lẫn chỉ mục lexical (V2-22). Lý do có mã (owner chốt 2026-10-21): mã nằm trong header/footer nên bị tách khỏi nội dung ở §5.3; thiếu nó, câu hỏi kiểu "QT-MH-01 bước 2 ai duyệt?" không khớp lexical, và hai tài liệu trùng tên khác mã không phân biệt được. Chỉ đưa `docCode`, **không** đưa `revisionLabel` hay `effectiveDate`: hai trường này đổi ở mỗi lần ban hành nên sẽ đổi `content_sha256` của mọi chunk và làm mất cache embedding (§5.5), trong khi người dùng hiếm khi hỏi theo lần ban hành. Chunker nhận `title` và `doc_code` làm tham số, không tự đọc metadata.
 - Bảng thường (không phải bảng quy trình) dài hơn `max_tokens` cắt theo hàng, lặp lại hàng tiêu đề cột ở mỗi phần.
 - Chunk mang `page_start/page_end` (PDF) và `char_start/char_end` trên Markdown chuẩn (mọi định dạng) để trình xem tô sáng (FR-14). Chunk thường là chuỗi con của `markdown`; chunk `PROCEDURE_STEP` có `content` dạng `Bước: … | Trách nhiệm: …` nên không phải chuỗi con, offset của nó là `row_spans[i]` của hàng nguồn và `page_start = page_end = row_pages[i]`. Chunk bảng cắt theo hàng lấy offset từ `row_spans` của hàng đầu tới hàng cuối trong phần đó, trang từ `row_pages`.
 
@@ -740,6 +751,7 @@ Lý do chọn BM25 tự viết thay cho `ts_rank` hay extension: (1) điểm kh�
 ### 6.4 Gộp, rerank và cổng ngưỡng
 
 1. **RRF** trên hai danh sách đã lọc: `fusion(c) = Σ wᵢ / (rrf_k + rankᵢ(c))`, `rrf_k = 60`, trọng số `[1.0, 1.0]` (cấu hình được; trọng số cũ 0.7/0.3 là một cấu hình trong RQ1, không phải mặc định).
+   - **Hệ số BM25 theo ngôn ngữ (owner chốt 2026-10-21).** Với chunk có `lang` khác ngôn ngữ câu hỏi (§7.1), trọng số nhánh BM25 của chunk đó nhân thêm `cross_lingual_bm25_factor`. Lý do: khi hỏi tiếng Việt trên tài liệu tiếng Anh, BM25 chỉ khớp vài từ rời (tên công cụ, "laptop") nên danh sách của nó gần như ngẫu nhiên, nhưng RRF vẫn cộng điểm theo thứ hạng và có thể đẩy chunk sai lên trên chunk đúng của nhánh dense. `lang` của chunk hoặc câu hỏi là `NULL`/ngoài `vi`, `en` → hệ số `1.0`. Mặc định `1.0` (không đổi hành vi); chỉ đổi khi `V2-07` (RQ1b) cho thấy hybrid thua dense ở nhóm cross-lingual, và giá trị chọn trên tập dev. Không dịch câu hỏi bằng LLM.
 2. Lấy `rerank_pool = 25` ứng viên đầu theo `fusion_score`.
 3. **Rerank (nếu bật)** chạy trên 25 ứng viên đó **trước** cổng ngưỡng (sửa R3), xếp lại theo `rerank_score`.
 4. **Cổng ngưỡng** so điểm của ứng viên đầu với ngưỡng của chế độ đang chạy (`retrieval.thresholds`, sửa R2/R4):
@@ -751,11 +763,32 @@ Lý do chọn BM25 tự viết thay cho `ts_rank` hay extension: (1) điểm kh�
 | `hybrid` | `dense_score` của ứng viên đầu theo `fusion_score` | RRF là điểm theo thứ hạng, không hiệu chỉnh được; giống harness |
 | `hybrid_rerank` | `rerank_score` (sigmoid) của ứng viên đầu | Cross-encoder có thang chung |
 
-5. Đủ ngưỡng → đưa `context_k = 5` chunk đầu vào prompt. Ghi cả 25 ứng viên kèm bốn điểm vào `rag.retrieval_results` (`in_context` đánh dấu 5 chunk được dùng). Điểm trả cho frontend là `rank` và (tùy chọn hiển thị) điểm của cổng, không phải một `similarity_score` đổi thang theo cấu hình (R5).
+5. Đủ ngưỡng → `context_k = 5` chunk đầu là **chunk trúng**, đưa vào bước ghép context (§6.4a). Ghi cả 25 ứng viên kèm bốn điểm vào `rag.retrieval_results` (`in_context` đánh dấu 5 chunk trúng). Điểm trả cho frontend là `rank` và (tùy chọn hiển thị) điểm của cổng, không phải một `similarity_score` đổi thang theo cấu hình (R5).
+
+### 6.4a Ghép context: tìm bằng chunk nhỏ, đọc bằng nhóm cùng mục (owner chốt 2026-10-21)
+
+**Vấn đề.** Chunk là đơn vị tốt để *tìm* (một hàng bảng quy trình, một Khoản), nhưng quá hẹp để *đọc*. Ví dụ mục "5.1 Lập đề nghị mua hàng" mở đầu bằng "Áp dụng cho đơn dưới 50 triệu; từ 50 triệu theo mục 5.3", sau đó là bảng bước. Câu hỏi "Đơn 80 triệu trưởng phòng duyệt trong bao lâu?" trúng đúng chunk `PROCEDURE_STEP` bước 2 ("Duyệt trong 2 ngày làm việc"), nhưng nếu chỉ đưa chunk đó, LLM không thấy điều kiện áp dụng và trả lời sai. Điều kiện, ngoại lệ và phạm vi của SOP thường nằm ở đầu mục chứ không lặp lại ở từng bước.
+
+**Cách làm.** Không đổi chunk, chỉ số hay cổng ngưỡng. Sau §6.4 bước 5, module `retrieval/context.py` (hàm thuần, `eval/` import được) dựng danh sách source:
+
+1. **Nhóm cùng mục** của một chunk trúng = các chunk cùng `version_id` và cùng `section_path`, theo `ordinal`. Lấy bằng một truy vấn cho mọi chunk trúng, `JOIN` bộ lọc quyền §6.1 như mọi truy vấn khác (fail closed, dù chunk cùng phiên bản với chunk đã được phép).
+2. **Mở rộng:**
+   - Tổng `token_count` của nhóm ≤ `context.section_max_tokens` → lấy nguyên nhóm (một Điều có nhiều Khoản, một mục ngắn có bảng ít bước).
+   - Lớn hơn → lấy chunk trúng và chunk liền trước, liền sau trong nhóm; nếu chunk trúng là `PROCEDURE_STEP` hoặc `TABLE`, lấy thêm chunk `SECTION`/`PROSE` đầu tiên của nhóm (đoạn dẫn của mục) nếu có.
+3. **Gộp:** các cửa sổ của cùng phiên bản chồng nhau hoặc liền `ordinal` gộp thành **một** source; thứ hạng của source là thứ hạng tốt nhất của chunk trúng trong nó.
+4. **Trần token:** thêm source theo thứ hạng tới `context.max_tokens`. Source tiếp theo không vừa thì thu về chỉ các chunk trúng của nó; vẫn không vừa thì dừng. Source của chunk trúng hạng 1 luôn được đưa vào (chunk ≤ `max_tokens` của chunking nên luôn vừa).
+5. **Render:** nội dung source = `content` các chunk theo `ordinal`, cách nhau một dòng trống, mở đầu bằng dòng `section_path`; `page` của source = `page_start` nhỏ nhất. Chunk `PROCEDURE_STEP` đã ở dạng `Bước: … | Trách nhiệm: …` nên không cần lặp hàng tiêu đề cột.
+6. `context.expand = false` → mỗi chunk trúng là một source, không gộp (hành vi trước sửa đổi, dùng cho ablation).
+
+**Trích dẫn.** `[n]` trỏ tới source n. `message_citations` của `[n]` lưu `chunk_id` của chunk trúng hạng cao nhất trong source, `char_start`/`char_end` là khoảng phủ các chunk trúng của source (các chunk này liền nhau sau bước 3), `snippet` là `content` của chúng. Trình xem tô sáng phần trúng, không tô cả mục. `messages.context_sources` ghi đủ `hitChunkIds` và `chunkIds` của từng source để đo faithfulness và gỡ lỗi.
+
+**Không làm.** Không gọi LLM để tóm tắt hay chọn đoạn; không mở rộng sang mục khác hay tài liệu khác (tham chiếu chéo "theo mục 5.3" chỉ được trả lời nếu mục 5.3 tự trúng); không đổi điểm hay thứ hạng sau cổng ngưỡng.
+
+**Chi phí.** Một truy vấn theo `(document_id, version_id)` dùng `ix_chunks_doc`; không thêm lần gọi model. Prompt dài hơn một chút (trần 3.000 token, so với tối đa khoảng 2.560 khi chỉ đưa 5 chunk 512 token, và thường chỉ vài trăm token khi chunk trúng là hàng bảng), nằm trong TPM của chuỗi `generate` (§4.2).
 
 ### 6.5 Đồng bộ với harness eval
 
-- `eval/` import `sopilot_ai.docproc` (chunk), `sopilot_ai.retrieval.lexical` (tokenizer, BM25) và `sopilot_ai.retrieval.fusion` (RRF, cổng) thay cho bản sao hiện có. Harness vẫn chạy in-memory, không cần DB hay stack.
+- `eval/` import `sopilot_ai.docproc` (chunk), `sopilot_ai.retrieval.lexical` (tokenizer, BM25), `sopilot_ai.retrieval.fusion` (RRF, cổng, hệ số BM25 theo ngôn ngữ) và `sopilot_ai.retrieval.context` (ghép context §6.4a, từ `V2-10`) thay cho bản sao hiện có. Harness vẫn chạy in-memory, không cần DB hay stack.
 - **Cùng bộ chunk.** Bộ chunk hiện tại của harness (`eval/sopilot_eval/corpus.py`, cửa sổ 800/100 ký tự) chỉ dùng cho smoke và lần chạy thăm dò. Số liệu RQ1–RQ3 và RQ5 chính thức (`V2-07`) và việc hiệu chỉnh ngưỡng `retrieval.thresholds` chạy với `chunking: docproc` (384/512 token, tokenizer của model đang đo), vì phân bố điểm và thứ hạng phụ thuộc kích thước chunk. RQ5 so model khác nhau thì đếm token bằng tokenizer của từng model nhưng giữ cùng `target/max`.
 - `sopilot_ai.retrieval.lexical` và `fusion` thuộc `V2-09`; trước khi có, `V2-07` dùng tokenizer BM25 và RRF của harness, vốn là bản gốc mà service phải khớp (§6.3).
 - Kiểm tra V2-09: cùng corpus V2-06, cùng cấu hình → top-10 của service (qua DB, một workspace, OWNER) và của harness trùng ≥ 95% theo Jaccard trung bình; khác biệt chỉ do HNSW xấp xỉ.
@@ -773,11 +806,11 @@ Lý do chọn BM25 tự viết thay cho `ts_rank` hay extension: (1) điểm kh�
    - Luật khởi đầu port từ `eval/provider_check/check_providers.py::RULE_PATTERNS`, sau đó điều chỉnh bằng **bộ câu kiểm tra riêng** của V2-10 (không trùng bộ dùng để viết luật).
 3. **Router luật:** chào hỏi/cảm ơn/hỏi về bot (VI/EN) → câu mẫu, `outcome = TEMPLATE`, không gọi LLM, không tính hạn mức. Câu luật chưa quyết đi qua **semantic router** (owner chốt 2026-10-20, chi tiết và ngưỡng ở `V2-27`): so embedding câu hỏi gốc với câu mẫu trong `qa/router_exemplars.yaml`, rẽ sang câu mẫu chỉ khi vượt ngưỡng của intent và `margin` so với câu SOP mẫu gần nhất; không gọi LLM, bật/tắt bằng `SOPILOT_SEMANTIC_ROUTER_ENABLED`. Chưa có lịch sử thì vector này được dùng lại cho dense retrieval.
 4. **Viết lại câu hỏi** chỉ khi hội thoại có ≥ 1 lượt trước: gửi tối đa 3 lượt gần nhất (chỉ câu hỏi và câu trả lời đã làm sạch, không gửi chunk) cho `llm.rewrite`, nhận câu hỏi độc lập. Lỗi → dùng câu hỏi gốc.
-5. **Truy xuất** (§6). Dưới ngưỡng → bước 8.
-6. **Ghép prompt** (lớp 2): system prompt cố định theo `prompt_version`, chứa canary token ngẫu nhiên sinh mỗi request và quy tắc: chỉ dùng dữ liệu trong thẻ, trả lời theo ngôn ngữ câu hỏi, mỗi khẳng định gắn `[n]`, thiếu thông tin thì nói không tìm thấy. Mỗi chunk bọc trong `<source n="1" title="…" page="3">…</source>`, escape `<`, `>`, `&` trong nội dung. Câu hỏi nằm ở message `user` riêng, không ghép vào system.
+5. **Truy xuất** (§6). Dưới ngưỡng → bước 8. Đủ ngưỡng → ghép context (§6.4a).
+6. **Ghép prompt** (lớp 2): system prompt cố định theo `prompt_version`, chứa canary token ngẫu nhiên sinh mỗi request và quy tắc: chỉ dùng dữ liệu trong thẻ, trả lời theo ngôn ngữ câu hỏi, mỗi khẳng định gắn `[n]`, thiếu thông tin thì nói không tìm thấy, giữ điều kiện áp dụng và ngoại lệ có trong source. Mỗi source của §6.4a bọc trong `<source n="1" title="…" page="3">…</source>`, escape `<`, `>`, `&` trong nội dung. Câu hỏi nằm ở message `user` riêng, không ghép vào system.
 7. **Sinh và stream** (lớp 3): SSE `delta` phát văn bản nhưng **giữ lại** `len(canary) + 32` ký tự cuối chưa phát. Mỗi delta mới, kiểm tra buffer có chứa canary hoặc đoạn ≥ 40 ký tự liên tiếp của system prompt không. Có → dừng stream, phát `replace` với câu từ chối cố định, `outcome = REFUSED_GUARD`, `guard_events(OUTPUT_CANARY | OUTPUT_PROMPT_ECHO)`.
 8. **Từ chối thiếu bằng chứng** (FR-12): câu trả lời cố định theo ngôn ngữ câu hỏi + tối đa 3 "tài liệu gần nhất" (tiêu đề của tài liệu chứa ứng viên đầu, đã qua bộ lọc quyền nên không lộ tài liệu ngoài quyền), `outcome = REFUSED_NO_EVIDENCE`. Không gọi LLM sinh.
-9. **Hậu xử lý trích dẫn** (FR-11): tìm `[n]` trong văn bản cuối; `n` không ứng với source nào trong prompt → xóa khỏi văn bản. Mỗi `n` hợp lệ lưu `message_citations` với đoạn trích chính là `content` của chunk.
+9. **Hậu xử lý trích dẫn** (FR-11): tìm `[n]` trong văn bản cuối; `n` không ứng với source nào trong prompt → xóa khỏi văn bản. Mỗi `n` hợp lệ lưu `message_citations` theo quy tắc trích dẫn của §6.4a (đoạn trích là `content` của các chunk trúng trong source).
 
 Ngôn ngữ câu hỏi phát hiện bằng luật nhẹ (tỷ lệ ký tự có dấu tiếng Việt) và có thể ghi đè bằng `lang` trong request.
 
@@ -883,10 +916,10 @@ CREATE TABLE rag.knowledge_gap_status (
 | Markdown chuẩn và offset | Bất biến `markdown[char_start:char_end]` = đoạn render của phần tử, cho mọi phần tử của mọi fixture và mọi file corpus V2-19; offset chunk nằm trong `markdown`; `row_spans` tăng dần, nằm trong bảng, `markdown[row_spans[i]]` chứa đúng các ô của `rows[i]`; bảng nhiều trang có `page_end > page`; `page_index` liên tiếp, không chồng, trang trong `1..page_count`; offset UTF-16 đúng với chuỗi có ký tự ngoài BMP; render hai lần cùng đầu vào cho cùng chuỗi; văn bản NFC; không phần tử khung nào xuất hiện trong `markdown` | pytest (property test trên fixture) |
 | Cảnh báo | Mỗi mã §5.3a có một fixture sinh ra nó và một fixture sạch không sinh ra nó; OCR tắt: trang chỉ có ảnh cho 0 ký tự | pytest |
 | Chất lượng trích xuất | Chỉ số trên corpus V2-19 (heading recall, khung lọt, nội dung bị xóa nhầm) | Script trong `eval/`, không chạy trong CI |
-| Unit truy xuất | BM25 SQL và BM25 harness cho cùng điểm (sai số 1e-4) trên corpus nhỏ; RRF; cổng ngưỡng từng chế độ; trích dẫn `[n]` không hợp lệ bị loại; canary bị phát hiện kể cả khi bị cắt qua hai delta | pytest |
+| Unit truy xuất | BM25 SQL và BM25 harness cho cùng điểm (sai số 1e-4) trên corpus nhỏ; RRF; hệ số BM25 theo ngôn ngữ (`1.0` cho kết quả như RRF thường, `lang` NULL không bị giảm); cổng ngưỡng từng chế độ; ghép context §6.4a (nhóm nhỏ lấy nguyên, nhóm lớn lấy ±1 kèm đoạn dẫn cho `PROCEDURE_STEP`, gộp cửa sổ liền nhau, trần token, source hạng 1 luôn có, `expand = false` giữ hành vi cũ, khoảng trích dẫn chỉ phủ chunk trúng); trích dẫn `[n]` không hợp lệ bị loại; canary bị phát hiện kể cả khi bị cắt qua hai delta | pytest |
 | Integration | Testcontainers Postgres + pgvector với role `sopilot_ai_app` thật: RLS, job lease hết hạn được nhận lại, lỗi tạm thời được tự thử lại sau `run_after` mà không gửi `FAILED`, lỗi tất định `FAILED` ngay ở lần đầu, thay bản mới không làm gián đoạn truy xuất, `accessRevision` cũ bị bỏ qua, idempotency; thử lại job `FAILED` với `attempt` mới chạy lại đúng một lần, gửi lại cùng `attempt` không tạo job; `/content` trả `404` cho phiên bản chưa kích hoạt, `FAILED` và ngoài quyền, trả phiên bản cũ trong lúc bản mới xử lý | pytest + testcontainers |
 | FR-19 (phần ai-service) | Hai workspace, tài liệu chứa chuỗi bí mật riêng: hỏi đáp, hội thoại, trình xem nội dung, retrieval_results không bao giờ chứa chuỗi của workspace kia; connection tái dùng không mang `app.workspace_id` cũ | CI |
-| FR-29 (phần ai-service) | Cùng workspace: tài liệu `DEPARTMENTS` có chuỗi bí mật không xuất hiện trong dense, BM25, rerank, prompt gửi LLM (provider giả ghi lại prompt), trích dẫn, lịch sử, "tài liệu gần nhất"; các ca đổi phòng ban (token mới), thu hẹp phạm vi, xóa tài liệu | CI, LLM giả |
+| FR-29 (phần ai-service) | Cùng workspace: tài liệu `DEPARTMENTS` có chuỗi bí mật không xuất hiện trong dense, BM25, rerank, chunk mở rộng của ghép context, prompt gửi LLM (provider giả ghi lại prompt), trích dẫn, lịch sử, "tài liệu gần nhất"; các ca đổi phòng ban (token mới), thu hẹp phạm vi, xóa tài liệu | CI, LLM giả |
 | Guard | Bộ câu kiểm tra riêng V2-10: chặn nhầm ≤ 2%, 0 lần lộ canary | CI |
 | Contract | Cùng JSON Schema `services/contracts/` với core-api | CI |
 
@@ -937,3 +970,17 @@ Owner duyệt toàn bộ theo đề xuất bên dưới.
 - Intent classification nhiều tầng, lọc độc hại bằng LLM, Llama Prompt Guard 2 (FR-13, V2-02).
 - Sao chép `allowed_roles/allowed_departments/allowed_users` vào từng chunk; `department_id` ghép bằng f-string (A2, A3, ADR-007).
 - Ngưỡng 0.15 trên thang điểm trộn; ghi đè `similarity_score` bằng điểm rerank (R2, R4).
+
+## 12a. Thiết kế RAG đã xét và không đưa vào V2 (owner chốt 2026-10-21)
+
+Đặc điểm bài toán: mỗi workspace ≤ 50 tài liệu SOP/quy chế có cấu trúc; câu hỏi chủ yếu tra cứu bước, vai trò, thời hạn, điều kiện và ngoại lệ trong một tài liệu; VI/EN và cross-lingual; trích dẫn tới trang/đoạn; CPU, LLM miễn phí, tối đa một lần gọi sinh và một lần viết lại. V2 đã có dạng nhẹ của hai ý tưởng: cổng ngưỡng rồi từ chối là nhánh "không đủ bằng chứng" của Corrective RAG (fallback là từ chối kèm tài liệu gần nhất, không web search); router luật/semantic bỏ truy xuất cho chào hỏi là Adaptive RAG rút gọn (câu hỏi nghiệp vụ luôn truy xuất).
+
+| Thiết kế | Lý do không đưa vào V2 | Xét lại khi |
+|---|---|---|
+| GraphRAG, LightRAG, HippoRAG | Kho nhỏ, câu hỏi tra cứu cục bộ, không cần tổng hợp toàn kho; dựng graph tốn LLM và dễ sai thực thể | Đo thấy nhiều câu cần nối tham chiếu chéo giữa SOP ("theo QT-05", "biểu mẫu BM-01"); khi đó thử liên kết theo luật trước |
+| RAPTOR, cây tóm tắt | Cây heading của tài liệu đã có sẵn và được dùng ở §6.4a; tóm tắt bằng LLM có thể sai lệch | Có câu hỏi tổng quan trên tài liệu dài mà §6.4a không phủ |
+| Iterative, multi-hop, agentic RAG, Self-RAG | Phá ràng buộc một lần gọi sinh và quota miễn phí, khó tái lập; Self-RAG cần model huấn luyện riêng | — |
+| HyDE, multi-query, dịch câu hỏi bằng LLM | Thêm lần gọi LLM; `bge-m3` đa ngôn ngữ đã xử lý cross-lingual ở nhánh dense; nhánh BM25 xử lý bằng hệ số §6.4 | RQ1b cho thấy dense cũng yếu ở cross-lingual |
+| Contextual retrieval bằng LLM | Tiền tố `title [docCode] › section_path` (§5.4) là bản tất định của cùng ý tưởng | Sau `V2-07`, theo PLAN-V2 |
+| Long-context theo tài liệu | Cần giữ ánh xạ trích dẫn tới đoạn; chưa có số đo | Sau ablation §6.4a, thử cho tài liệu ngắn khi chunk trúng tập trung vào một tài liệu |
+| Multimodal/visual RAG, SQL RAG | Ngoài phạm vi: không OCR, không dữ liệu bảng sống. Rủi ro đã biết: phần "Nội dung" SOP ISO dạng lưu đồ vẽ bằng shape có thể trích sai thứ tự đọc; `V2-19` nên có file lưu đồ để đo | Sau MVP |

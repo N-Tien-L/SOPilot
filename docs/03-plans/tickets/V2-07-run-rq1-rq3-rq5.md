@@ -28,6 +28,7 @@ Sửa 2026-10-21 (rà soát trước implement, TECH-V2-ai-service §6.5): số 
 - [ ] Cấu hình RQ chính thức dùng `chunking: docproc` (target 384 / max 512 token, tokenizer của model đang đo, giống `config/models.yaml` của ai-service); báo cáo ghi phiên bản `docproc` và `normalizer_version`. Kết quả chạy bằng bộ chunk cũ chỉ được ghi là thăm dò.
 - [ ] Đo thử (smoke) thời gian và RAM của `bge-m3` và `bge-reranker-v2-m3` trên máy owner với ~50 chunk; quyết định cấu hình nào vào ma trận dựa trên số đo.
 - [ ] RQ1/RQ1b: dense, bm25, hybrid (cả hai bộ trọng số 1/1 và 0.7/0.3) với `bge-m3` ghim revision, trên tập test, **báo cáo tách theo `lang` và theo cross-lingual**.
+- [ ] Sửa 2026-10-21 (TECH-V2-ai-service §6.4): nếu hybrid thua dense ở nhóm cross-lingual, chạy thêm hybrid với `cross_lingual_bm25_factor` ∈ {0.3, 0} (harness cài hệ số này trong RRF của mình cho tới khi `V2-09` có `retrieval.fusion`); chọn giá trị trên tập dev, báo cáo trên tập test, ghi vào `retrieval.cross_lingual_bm25_factor`. Nếu không thua, giữ `1.0` và ghi lý do.
 - [ ] RQ2: rerank bật/tắt, k ∈ {5, 10}, kèm độ trễ; nếu quá chậm trên CPU thì chạy trên tập con cố định và nêu rõ.
 - [ ] RQ3: đường cân bằng false refusal / false answer; ngưỡng chọn trên tập dev rồi đo trên tập test. Ngưỡng chọn được ghi vào `retrieval.thresholds` của ai-service theo từng chế độ (TECH-V2-ai-service §6.4).
 - [ ] RQ5: chỉ so các model chạy nổi trên máy (ứng viên: `bge-m3`, `Qwen3-Embedding-0.6B`, `multilingual-e5-large-instruct`; e5 giới hạn 512 token). Ghi thời gian embed corpus của từng model.

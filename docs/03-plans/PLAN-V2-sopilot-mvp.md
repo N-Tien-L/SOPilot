@@ -31,6 +31,8 @@ review_tickets: 4
 
 > **Rà soát trước implement 2026-10-21:** `V2-07` phụ thuộc thêm `V2-22` (số liệu RQ chính thức chạy bằng bộ chunk `docproc`, smoke/thăm dò vẫn chạy trước được); `V2-09` phụ thuộc thêm `V2-06` (so khớp harness). `V2-20` dựng khung `services/ai-service` và scope build/test; `V2-08` tạo ba role DB; tokenizer, offset hàng bảng, phân loại lỗi thử lại ghi ở TECH-V2-ai-service §1.1, §5.1, §5.2, §6.5. Không thêm ticket, không đổi trạng thái hay bộ đếm.
 
+> **Owner chốt 2026-10-21 (rà soát kiến trúc RAG theo bài toán SOP):** giữ hybrid + RRF + rerank tùy chọn + cổng ngưỡng, thêm ba thay đổi không gọi LLM (TECH-V2-ai-service §5.4, §6.4, §6.4a, §12a): (A) mã tài liệu `docCode` trong `index_text` (`V2-22`, worker truyền ở `V2-09`); (B) ghép context small-to-big theo nhóm cùng mục sau cổng ngưỡng, kèm ablation bật/tắt (`V2-10`); (C) hệ số BM25 khi câu hỏi khác ngôn ngữ chunk, mặc định `1.0`, chỉ đổi theo RQ1b (`V2-07`, cài ở `V2-09`). GraphRAG, RAPTOR, iterative/agentic, HyDE/multi-query không đưa vào V2. Không thêm ticket, không đổi phụ thuộc, trạng thái hay bộ đếm.
+
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
 
 > **Mã kế hoạch:** `PLAN-V2-SOPILOT-MVP` | **Trạng thái:** `approved` (owner duyệt 2026-10-20)
