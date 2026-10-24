@@ -1,6 +1,25 @@
-﻿# Source: .agent/context/database_schema.md
+# Source: .agent/context/database_schema.md
 
-# SYSTEM INSTRUCTION: Database Schema & Architecture
+# V2 bootstrap (review 2026-10-24)
+
+V2 migrations live in `infrastructure/db/migrations/core/` and `rag/`; the V1
+context below remains frozen. `sopilot_migrator` owns both schemas. App roles own
+no tables, are `NOBYPASSRLS`, and have DML only in their own schema.
+
+V002 in each chain revokes the creator's global default function EXECUTE from
+PUBLIC and revokes PUBLIC EXECUTE on existing `current_workspace`,
+`current_app_user`, `touch_updated_at` helpers. Explicit app-role grants remain.
+Schema-local REVOKE alone cannot remove PostgreSQL's global PUBLIC default.
+The two chains take transaction advisory lock `24082026` before changing shared
+defaults; new helpers require explicit EXECUTE grants. V001 checksums are unchanged.
+
+Verification uses `eval/sopilot_eval/infra_check.py` on a disposable tmpfs project;
+no migration was applied to the owner's persistent DB. See `infrastructure/db/README.md`
+and `docs/04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md`.
+
+---
+
+# SYSTEM INSTRUCTION: Legacy V1 Database Schema & Architecture
 
 <purpose>
 Provide system context on the PostgreSQL database architecture, schema boundaries, and strict data fetching rules for the Poliwise project.

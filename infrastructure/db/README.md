@@ -45,13 +45,32 @@ Rules:
 - Additive changes only. No `DROP SCHEMA`, `TRUNCATE` or `DROP DATABASE`.
 - New tables are covered automatically by the default privileges from `V001` (DML for the service's app role). Tables with `workspace_id` must `ENABLE` and `FORCE ROW LEVEL SECURITY` with a policy on `<schema>.current_workspace()`.
 - Functions are not executable by `PUBLIC`; grant `EXECUTE` explicitly. `SECURITY DEFINER` helpers must `SET search_path = <schema>, pg_temp`.
+  Both `V002__explicit_function_grants.sql` migrations repair V001's schema-local
+  default revoke: the global PUBLIC EXECUTE default must be revoked globally for
+  `sopilot_migrator`. The chains serialize this shared change with a transaction
+  advisory lock. Existing explicit app-role grants remain.
 - Update `.agent/context/database/` when a migration adds or changes tables.
 
 `init/` scripts only run on an empty volume. Role or extension changes on an existing volume need an explicit, reviewed SQL run.
 
+V002 was exercised only on disposable verification databases on 2026-10-24;
+it has not been applied to the owner's persistent database. Existing V2 databases
+receive it by running the two Flyway services normally, without resetting volumes
+or editing already-applied V001 files.
+
 ## Object storage
 
 `../storage/minio-init.sh` creates the bucket `SOPILOT_S3_BUCKET` (default `sopilot-v2-documents`) with no anonymous access, a read/write user for core-api (`SOPILOT_S3_ACCESS_KEY`) and a read-only user for ai-service (`SOPILOT_S3_AI_ACCESS_KEY`). Both services read the same bucket name from env.
+
+Policy attachment errors fail initialization rather than reporting readiness.
+
+## Isolated verification (no .env)
+
+From `eval/`: `./.venv/Scripts/python.exe -m sopilot_eval.infra_check`.
+Checks Flyway, role/schema isolation, RLS, explicit function grants and S3 privileges
+in a unique project using tmpfs and random credentials. No existing volume is
+mounted or deleted. Scope and limits are recorded in
+`docs/04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md`.
 
 ## Check
 

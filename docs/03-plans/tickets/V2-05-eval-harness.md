@@ -2,9 +2,9 @@
 id: V2-05
 title: "Eval harness truy xuất (FR-18)"
 type: feat
-status: review
+status: done
 created: 2026-10-17
-updated: 2026-10-20
+updated: 2026-10-25
 scope: tests
 priority: P0
 size: M
@@ -27,7 +27,7 @@ Harness độc lập trong `eval/`, chạy dense, BM25, hybrid (RRF) và rerank,
 - [x] 5 test pass (`uv run pytest` trong `eval/`).
 - [x] Chạy thật với `bge-m3` và `bge-reranker-v2-m3` trên máy owner, xác nhận cấu hình `rq1-rq3-bge-m3.yaml` chạy được (CPU). Bằng chứng ở §4.
 - [x] Ghim `revision` HF commit hash trong cấu hình: `BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181`, `BAAI/bge-reranker-v2-m3@953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e` (bản `main` trên HF ngày 2026-10-20); `run.json` ghi lại revision.
-- [ ] Review code bởi người khác trước khi `done`.
+- [x] Review kỹ thuật và owner nghiệm thu phạm vi công cụ ngày 2026-10-25; không tuyên bố đã có một peer reviewer độc lập.
 
 ## 3. Hướng dẫn
 Đã triển khai: `eval/sopilot_eval/{corpus,embedders,retrievers,metrics,run}.py`, `eval/configs/`, `eval/datasets/smoke/`, `eval/tests/test_eval.py`, `eval/README.md`.
@@ -50,3 +50,6 @@ uv run python -m sopilot_eval.run --dataset datasets/smoke --config configs/rq1-
 - Đo riêng tốc độ CPU (đoạn ~800 ký tự): embed `bge-m3` khoảng 0,41 s/chunk (64 chunk, batch 16; có cache nên chỉ tốn một lần); rerank 25 ứng viên mất khoảng 10,5–11 s/câu hỏi.
 - Hệ quả cho V2-07: 200 câu × rerank pool 25 ≈ 35–40 phút mỗi lần chạy cấu hình rerank, chấp nhận được cho eval. Với demo tương tác thì quá chậm: giữ `RERANK_ENABLED=false` mặc định hoặc giảm pool (TECH-V2-ai-service §11 Q3).
 - Còn lại: review code bởi người khác.
+
+### Nghiệm thu 2026-10-25
+Owner chốt phạm vi trong chat ("ok chốt"). Nghiệm thu công cụ benchmark truy xuất, không nghiệm thu kết quả RQ hoặc toàn bộ hệ thống. Review delta và 18 test trong phạm vi commit pass; RQ chính thức vẫn thuộc V2-06/V2-07/V2-22. Xem [biên bản nghiệm thu](../../04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md).
