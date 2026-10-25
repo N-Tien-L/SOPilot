@@ -12,7 +12,7 @@ if (-not $repoRoot -or -not (Test-Path $repoRoot)) {
 Set-Location $repoRoot
 
 $springBootScopes = @("auth", "user", "knowledge", "metadata", "feedback")
-$pythonScopes = @("ai-qa", "ingestion")
+$pythonScopes = @("ai-qa", "ingestion", "ai")
 
 if ($springBootScopes -contains $Scope) {
     Write-Host "Validating Spring Boot service: $Scope"

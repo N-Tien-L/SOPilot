@@ -112,3 +112,6 @@ infrastructure/seed/seed_data.sql
 .agentrules
 
 temp/
+# Python virtualenvs
+.venv/
+*.egg-info/

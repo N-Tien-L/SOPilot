@@ -1,0 +1,38 @@
+[project]
+name = "sopilot-ai-service"
+version = "0.1.0"
+description = "SOPilot V2 AI service: document processing, retrieval and question answering (ADR-004, TECH-V2-ai-service)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6",
+    "markdown-it-py>=3.0",
+]
+
+[project.optional-dependencies]
+# PDF adapter (ADR-008). Runtime depends on exactly one PDF library; OCR stays off.
+pdf = ["docling==2.142.1"]
+dev = ["pytest>=8", "ruff>=0.6", "hypothesis>=6.100", "reportlab>=4"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+markers = ["pdf: needs the optional Docling dependency and model artifacts"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = false  # run from source via pytest pythonpath; nothing to build
