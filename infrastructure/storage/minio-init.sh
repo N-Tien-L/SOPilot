@@ -24,7 +24,23 @@ mc admin policy create local sopilot-core-rw "$policy_dir/core-rw.json"
 mc admin policy create local sopilot-ai-ro "$policy_dir/ai-ro.json"
 mc admin user add local "$SOPILOT_S3_ACCESS_KEY" "$SOPILOT_S3_SECRET_KEY"
 mc admin user add local "$SOPILOT_S3_AI_ACCESS_KEY" "$SOPILOT_S3_AI_SECRET_KEY"
-mc admin policy attach local sopilot-core-rw --user "$SOPILOT_S3_ACCESS_KEY" || true
-mc admin policy attach local sopilot-ai-ro --user "$SOPILOT_S3_AI_ACCESS_KEY" || true
-rm -rf "$policy_dir"
+attach_policy() {
+  policy_name="$1"
+  user_name="$2"
+  if ! mc admin policy attach local "$policy_name" --user "$user_name" > "$policy_dir/attach.log" 2>&1; then
+    # mc returns nonzero for an already-attached policy. Accept only a verified
+    # exact existing grant, not arbitrary authentication/network/policy errors.
+    user_info=$(mc admin user info local "$user_name" --json)
+    # This pinned image has no grep/jq; mc emits one JSON object with policyName.
+    case "$user_info" in
+      *"\"policyName\":\"$policy_name\""*|*"\"policyName\": \"$policy_name\""*) ;;
+      *) echo "minio-init: policy attachment could not be verified" >&2; return 1 ;;
+    esac
+  fi
+}
+
+attach_policy sopilot-core-rw "$SOPILOT_S3_ACCESS_KEY"
+attach_policy sopilot-ai-ro "$SOPILOT_S3_AI_ACCESS_KEY"
+rm "$policy_dir/core-rw.json" "$policy_dir/ai-ro.json" "$policy_dir/attach.log"
+rmdir "$policy_dir"
 echo "minio-init: bucket $SOPILOT_S3_BUCKET ready"

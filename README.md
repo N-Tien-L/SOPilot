@@ -1,128 +1,85 @@
-# SOPilot 🧭
+# SOPilot
 
-> **Your Autonomous SOP & Enterprise Policy AI Copilot**  
-> *Transform complex internal policies into verified, instant answers with department-level RBAC & semantic search.*
+SOPilot answers questions about internal procedures and policies (SOPs). Employees ask in Vietnamese or English and are meant to get a cited answer drawn only from documents their role and department may read. Administrators upload and version documents and review questions the system could not answer.
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?logo=next.js)](https://nextjs.org/)
-[![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot%203.4-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
-[![FastAPI](https://img.shields.io/badge/AI%20Engine-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![NestJS](https://img.shields.io/badge/Gateway-NestJS-E0234E?logo=nestjs)](https://nestjs.com/)
-[![PostgreSQL](https://img.shields.io/badge/Vector%20DB-pgvector-4169E1?logo=postgresql)](https://github.com/pgvector/pgvector)
-[![Docker](https://img.shields.io/badge/Deployment-Docker%20Compose-2496ED?logo=docker)](https://www.docker.com/)
+It is a personal project, built to learn and demonstrate backend engineering: service boundaries, asynchronous ingestion, retrieval, and access control. A reviewer can use it to look at how those problems were handled and where they were not.
 
----
+**Start here:** [Engineering case study](docs/portfolio/engineering-case-study.md) · [Implementation evidence and status](docs/portfolio/implementation-evidence.md) · [Documentation hub](docs/README.md)
 
-## 📖 Overview
+## Current status
 
-**SOPilot** is a production-ready, cloud-native Enterprise Knowledge & Policy Assistant. It resolves the classic organization problem: *policies, guidelines, and SOPs buried inside 50-page PDFs across Google Drive, Notion, and email threads where nobody reads them and HR/Operations teams spend hours answering repetitive questions*.
+- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Done so far: specifications ([PRD](docs/01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md) and others, 33 tickets), a retrieval-evaluation harness, and local database/storage infrastructure. Not yet built: the two services and any end-to-end V2 flow. Ticket counts are not a completion measure.
+- **V1 (frozen):** eight services, from a course project built with a classmate. I audited it and found problems on its question-answering path (below); those findings drive V2.
+- **Source is private.** There is no public repository, live demo or screenshot set. Links resolve only with repository access.
+- No evidence of real users, deployment or measured performance exists.
 
-With **SOPilot**, employees ask in natural language (Vietnamese or English) and receive concise, evidence-backed answers in 1–2 seconds, complete with document citations, page references, and in-app previews—all protected by strict **Department-level Role-Based Access Control (RBAC)**.
+## My contribution
 
----
+I own V2 and am building it alone. In V1 I wrote the AI module (full RAG path), document ingestion and preprocessing, the database design, the unanswered-question feature and the related frontend. A classmate worked on the rest of V1. I use AI tools while building this project.
 
-## 🏗️ System Architecture
+## What V2 is meant to show
 
-SOPilot is designed as an **Event-Driven Microservices Architecture** optimized for high performance and low resource footprint:
+| Backend | Applied AI |
+|---|---|
+| Transactional outbox, honest consistency boundaries | Evaluation before implementation |
+| Tenant isolation with row-level security | Hybrid retrieval with BM25 matched to the harness |
+| Versioned migrations, ADRs with rejected options | Refusal-threshold calibration, Vietnamese and cross-lingual handling |
+
+These are design goals; [implementation evidence](docs/portfolio/implementation-evidence.md) shows what exists.
+
+## Current architecture (V1, frozen; V2 is in the case study)
 
 ```mermaid
-flowchart TD
-    Client["Next.js 16 Web Client (Desktop / Mobile)"] -->|HTTP / SSE / REST| Gateway["API Gateway (NestJS :3001)"]
-
-    subgraph Core Services
-        Gateway -->|Reverse Proxy / JWT Auth| AuthSvc["Auth Service (Spring Boot :8081)"]
-        Gateway -->|User Management| UserSvc["User Service (Spring Boot :8082)"]
-        Gateway -->|Documents & Storage| KnowSvc["Knowledge Service (Spring Boot :8083)"]
-        Gateway -->|Categories & Tags| MetaSvc["Metadata Service (Spring Boot :8084)"]
-        Gateway -->|Analytics & Audit| FeedSvc["Feedback Service (Spring Boot :8085)"]
-        Gateway -->|Streaming SSE / Chat| AISvc["AI Q&A Service (FastAPI :8086)"]
-    end
-
-    subgraph Ingestion Pipeline
-        KnowSvc -->|Document Upload Event| RabbitMQ[("RabbitMQ Message Broker :5672")]
-        RabbitMQ --> IngestSvc["Ingestion Service (FastAPI :8088)"]
-        IngestSvc -->|Cloud Embedding| JinaAPI["Jina AI Embeddings v3 (1024-dim)"]
-        IngestSvc -->|Store Chunks & Vectors| Postgres[("PostgreSQL 16 + pgvector :5432")]
-    end
-
-    subgraph AI RAG & Retrieval
-        AISvc -->|Hybrid Search: Vector + BM25 RRF| Postgres
-        AISvc -->|Query Embedding| JinaAPI
-        AISvc -->|Streaming Synthesis| Groq["Groq API (Llama 3.3 70B Versatile)"]
-        AISvc -->|Session & Cache| Redis[("Redis 7 :6379")]
-    end
-
-    subgraph Storage
-        KnowSvc --> MinIO[("MinIO S3 Object Storage :9000")]
-        IngestSvc --> MinIO
-    end
+flowchart LR
+    W["Next.js web app<br/>(not inspected)"] --> G["API gateway<br/>NestJS: JWT, role guards"]
+    G --> K["knowledge-service<br/>upload, versions"]
+    G --> A["ai-qa-service<br/>query pipeline"]
+    G --> O["auth, user, metadata,<br/>feedback services"]
+    K --> S[("MinIO")]
+    K -- "ingestion.requested" --> Q{{"RabbitMQ"}}
+    Q --> I["ingestion-service<br/>dedupe, chunk, embed"]
+    I --> S
+    I --> P[("PostgreSQL + pgvector")]
+    A --> P
+    A -.-> R["reranker<br/>coded, not wired"]
+    A -.-> B["build_sources<br/>import not resolved"]
 ```
 
----
+The edges show only the paths covered in the case study; the other services own their schemas but were not traced in detail. Redis is part of the stack and is not drawn.
 
-## ✨ Key Features
+## Engineering highlights
 
-- **⚡ Blazing Fast Streaming RAG:** Hybrid retrieval (Dense vector search via pgvector + Sparse BM25 via Reciprocal Rank Fusion) synthesized through Groq Llama 3.3 70B in under 2 seconds.
-- **🛡️ Multi-Tenant Departmental RBAC:** Documents are classified by department (Engineering, HR, Finance, Operations). Sales employees cannot retrieve sensitive Finance or Executive salary policies.
-- **📄 Native Document Preview:** Built-in PDF and DOCX reader (`mammoth`) with highlighted source citations—no heavy external document server required.
-- **🔄 Closed-Loop Feedback & Unanswered Queue:** Questions that the AI cannot answer are automatically dispatched to the `/admin/unanswered` dashboard for HR managers to review, resolve, and update policies.
-- **🌱 Low-Resource Profile:** Engineered to run on standard low-spec VPS (2GB–4GB RAM) using JVM Serial Garbage Collection (`-XX:+UseSerialGC`) and Cloud Embedding API (saving 12GB+ RAM).
+1. **Upload-to-index consistency.** Object storage, database, broker and index cannot share a transaction. The case study traces where V1 is atomic (the chunk swap in one database transaction) and where it is not (storage write before commit, swallowed publish failures): [section 1](docs/portfolio/engineering-case-study.md#1-upload-to-searchable-chunks-consistency-at-the-boundaries).
+2. **Permission-aware retrieval and honest naming.** Access rules are applied inside the retrieval SQL, before ranking. The "BM25" side is actually PostgreSQL `ts_rank`, and the reranker is not on the active path: [section 2](docs/portfolio/engineering-case-study.md#2-retrieval-and-permission-aware-access).
+3. **Evaluation scope.** A retrieval-only harness with real BM25, guard rails against silent fallbacks, and results explicitly limited to document/page proxies: [section 3](docs/portfolio/engineering-case-study.md#3-evaluation-what-the-metrics-measure).
 
----
+Each highlight pairs the V1 finding with the proposed V2 design. For the V2 consolidation and its reasons, see the case study's V2 section and [ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md). The V2 services are not implemented.
 
-## 🚀 Quick Start
+## Where to read next
 
-### Prerequisites
-- [Docker](https://docs.docker.com/get-docker/) & Docker Compose (v2.20+)
-- [Git](https://git-scm.com/)
+| Document | Purpose |
+|---|---|
+| [Engineering case study](docs/portfolio/engineering-case-study.md) | Decisions, trade-offs and failure modes |
+| [Implementation evidence](docs/portfolio/implementation-evidence.md) | Per-capability status, source paths, tests, evaluation scope |
+| [Documentation hub](docs/README.md) | PRDs, ADRs, technical designs, plans, audits (mostly Vietnamese) |
+| [AGENTS.md](AGENTS.md) | Repository layout, rules and commands |
+| [`eval/README.md`](eval/README.md) | Evaluation harness usage |
 
-### 1. Clone Repository
-```bash
-git clone https://github.com/<your-username>/sopilot.git
-cd sopilot
-```
+## Getting started
 
-### 2. Configure Environment
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-Ensure you provide your **Groq API Key** and **Jina AI Embedding Key** in `.env`:
-```env
-EMBEDDING_URL=https://api.jina.ai
-EMBEDDING_API_KEY=your_jina_api_key_here
-EMBEDDING_MODEL=jina-embeddings-v3
-GROQ_API_KEY=your_groq_api_key_here
-```
+Not verified: these commands were not run while writing this documentation.
 
-### 3. Launch Services
-```bash
-docker compose up -d --build
-```
+- **V1 stack:** copy `.env.example` to `.env`, fill in provider keys, then `docker compose up -d --build` from the repository root. The web app is on port 3000 and the gateway on 3001. The LLM and embedding providers need external API keys, and CLAUDE.md records that some configured LLM model IDs have been retired.
+- **V2 database and storage:** follow [infrastructure/db/README.md](infrastructure/db/README.md) (`docker-compose.v2.yml`; run one stack at a time).
+- **Evaluation harness:** `cd eval && uv sync --extra dev && uv run pytest -q`, per [eval/README.md](eval/README.md).
+- Build, lint and test commands per service are in [AGENTS.md](AGENTS.md).
 
-### 4. Access Application
-- **Web Portal:** [http://localhost:3000](http://localhost:3000)
-- **API Gateway:** [http://localhost:3001](http://localhost:3001)
-- **Admin Account:** no default credentials. Set `ADMIN_BOOTSTRAP_ENABLED=true` and `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env` for the first start.
-- **MinIO Console / RabbitMQ Management:** not published to the host by `docker-compose.yml`; only ports 3000 and 3001 are. Add a local port mapping if you need them.
+## Known limitations and next steps
 
----
+- V1 answer generation path: `pipeline_orchestrator.py` imports a `build_sources` function I could not find; the reranker is not connected; document/category filters appear unreachable from the chat request. Runtime behavior is unconfirmed.
+- Document access rules are copied onto chunks at ingestion; no update path was found when visibility changes.
+- Configuration drift (bucket names, exchange names, a retired-model list) is recorded in [CLAUDE.md](CLAUDE.md#known-doccode-drift-verify-before-relying-on-docs).
+- No official retrieval results exist; the evaluation datasets are drafts.
+- Next: first official retrieval results (BM25 vs dense vs hybrid on a reviewed dataset), then the two V2 services ([PLAN-V2](docs/03-plans/PLAN-V2-sopilot-mvp.md)).
 
-## 🛠️ Technology Stack
-
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend** | Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS, Lucide |
-| **API Gateway** | NestJS 11, RxJS, Opossum Circuit Breaker, Winston Logger |
-| **Microservices** | Spring Boot 3.4 (auth-service 3.3) (Java 17), Spring Data JPA, Spring Security, Feign Client |
-| **AI / NLP Engine** | FastAPI, Python 3.12, LangChain, Tiktoken, Groq SDK |
-| **Database & Vector** | PostgreSQL 16, `pgvector` (1024-dim cosine distance), HNSW indexing |
-| **Embeddings** | Jina AI Embeddings v3 (Cloud API) |
-| **LLM Provider** | Groq Llama 3.3 70B Versatile, Llama 3.1 8B Instant |
-| **Message Broker** | RabbitMQ 3.13 (Topic Exchange, Dead Letter Exchange) |
-| **Cache & Session** | Redis 7.2 Alpine |
-| **Object Storage** | MinIO (S3 Compatible) |
-
----
-
-## 📄 License
-This project is licensed under the MIT License.
+A license has not been chosen; the repository contains no `LICENSE` file.

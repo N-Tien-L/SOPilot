@@ -9,7 +9,9 @@ import argparse
 import json
 import platform
 import subprocess
+import sys
 import time
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -26,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def _git_commit() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
 
@@ -35,6 +37,7 @@ def _groups(q: dict) -> list[str]:
     g = [f"lang={q['lang']}"] if q.get("lang") else []
     if q.get("cross_lingual"):
         g.append("cross_lingual")
+    g.extend(f"query_type={kind}" for kind in q.get("query_types", []))
     return g
 
 
@@ -44,11 +47,20 @@ def _percentile(xs: list[float], p: float) -> float:
 
 def run(dataset: Path, config_path: Path, out_root: Path) -> Path:
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    names = [conf["name"] for conf in cfg["configs"]]
+    if not names or len(set(names)) != len(names):
+        raise ValueError("evaluation configuration names must be nonempty and unique")
+    if any("api_key" in conf["embedder"] for conf in cfg["configs"]):
+        raise ValueError("use api_key_env, never store credentials in run config")
     questions = [json.loads(l) for l in (dataset / "questions.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
     chunk_cfg = cfg.get("chunking", {})
+    if chunk_cfg.get("mode", "character") != "character":
+        raise ValueError("docproc chunking is not implemented yet (V2-22/V2-07); no silent fallback")
     chunks = load_chunks(dataset / "corpus", chunk_cfg.get("size", 800), chunk_cfg.get("overlap", 100))
+    if not chunks or not questions:
+        raise ValueError("evaluation requires a nonempty corpus and question set")
 
-    run_id = time.strftime("%Y%m%d-%H%M%S")
+    run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
     out = out_root / run_id
     out.mkdir(parents=True, exist_ok=True)
 
@@ -67,9 +79,12 @@ def run(dataset: Path, config_path: Path, out_root: Path) -> Path:
         reranker = None
         if conf.get("rerank"):
             rk = json.dumps(conf["rerank"], sort_keys=True)
-            rerankers.setdefault(rk, CrossEncoder(conf["rerank"]["model"], conf["rerank"].get("revision")))
+            if rk not in rerankers:
+                rerankers[rk] = CrossEncoder(conf["rerank"]["model"], conf["rerank"].get("revision"))
             reranker = rerankers[rk]
         k_prompt = conf.get("k", 5)
+        if not isinstance(k_prompt, int) or k_prompt <= 0:
+            raise ValueError("k must be a positive integer")
 
         agg: dict[str, list[float]] = {}
         groups: dict[str, dict[str, list[float]]] = {}
@@ -78,7 +93,7 @@ def run(dataset: Path, config_path: Path, out_root: Path) -> Path:
         unans_scores: list[float] = []
         for q in questions:
             t0 = time.perf_counter()
-            ranked = retrieve(index, q["question"], conf, reranker)
+            ranked = retrieve(index, q["question"], conf, reranker, pool=max(25, k_prompt))
             latencies.append((time.perf_counter() - t0) * 1000)
             top = ranked[0][1] if ranked else 0.0
             if q["answerable"]:
@@ -117,6 +132,8 @@ def run(dataset: Path, config_path: Path, out_root: Path) -> Path:
                 "dataset": str(dataset),
                 "n_chunks": len(chunks),
                 "n_questions": len(questions),
+                "metric_scope": "document_page_proxy",
+                "chunking_mode": "character_exploratory_only",
                 "config": cfg,
                 "python": platform.python_version(),
                 "machine": platform.platform(),
@@ -137,6 +154,7 @@ def render_report(run_id: str, dataset: Path, n_chunks: int, metrics: dict) -> s
         f"# Eval run {run_id}",
         "",
         f"Dataset: `{dataset}` ({n_chunks} chunks). Retrieval-only; no LLM.",
+        "Metrics are document/page proxies with character chunks; not span-gold research results (V2-07/V2-22).",
         "",
         "| config | " + " | ".join(cols) + " |",
         "|---|" + "---|" * len(cols),
@@ -163,7 +181,7 @@ def main() -> None:
     ap.add_argument("--config", type=Path, required=True)
     ap.add_argument("--out", type=Path, default=ROOT / "results")
     a = ap.parse_args()
-    print(run(a.dataset, a.config, a.out))
+    sys.stdout.write(str(run(a.dataset, a.config, a.out)) + "\n")
 
 
 if __name__ == "__main__":

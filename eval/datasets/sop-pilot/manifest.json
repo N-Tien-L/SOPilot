@@ -1,0 +1,79 @@
+{
+  "corpus_version": "sop-retrieval-pilot-2026-10-25-v1",
+  "normalization_version": "pilot-pypdf-flat-nfc-lf-v1+gitlab-sections-v1",
+  "pypdf_version": "6.21.0",
+  "purpose": "annotation-pilot-dev-only",
+  "frozen": false,
+  "production_docproc": false,
+  "documents": [
+    {
+      "doc_id": "nb-qt02",
+      "path": "corpus/nb-qt02.md",
+      "lang": "vi",
+      "sha256": "047590ae2f24b24293d3a04a7b4d369420999dfa877d33a95685b9c35ad1efab",
+      "source": "https://soxaydung.ninhbinh.gov.vn/uploads/images/2021/iso/qtcb/qt-02_quy_trinh_quan_ly_rui_ro_va_co_hoi.pdf",
+      "license": "needs-document-level-review",
+      "sha256_raw": "9b8c98d31238becbab150753f456ec66ca5cf8afbbd917d7da739a6cd19a9225",
+      "source_commit": null,
+      "redistribution": "not-authorized",
+      "selection": {
+        "doc_id": "nb-qt02",
+        "source_dataset": "extraction"
+      }
+    },
+    {
+      "doc_id": "nb-qt03",
+      "path": "corpus/nb-qt03.md",
+      "lang": "vi",
+      "sha256": "8df11388bb7fd09cedb8068da70073ce19b1164e3eb1d1d6ed9e12bfca4bfe2a",
+      "source": "https://soxaydung.ninhbinh.gov.vn/uploads/images/2021/iso/qtcb/qt-03__quy_trinh_danh_gia_noi_bo_he_thong_qlcl.pdf",
+      "license": "needs-document-level-review",
+      "sha256_raw": "8323152455d5265c65f4ed5b6f05588628201a1f7f46661276b858c1268c2082",
+      "source_commit": null,
+      "redistribution": "not-authorized",
+      "selection": {
+        "doc_id": "nb-qt03",
+        "source_dataset": "extraction"
+      }
+    },
+    {
+      "doc_id": "gitlab-buddies",
+      "path": "corpus/gitlab-buddies.md",
+      "lang": "en",
+      "sha256": "61c9a296571f8cc1724c94d5dfcad2c55c6f3916cf3755349bdb73be048d4c17",
+      "source": "https://gitlab.com/gitlab-com/content-sites/handbook/-/raw/4684d72f27f3401d3ae72a26d72ae46eaeaab929/content/handbook/people-group/general-onboarding/onboarding-buddies.md",
+      "license": "CC-BY-SA-4.0",
+      "sha256_raw": "436321d3da0cfe9b46644bce434e67faf3836eb1adcc48de8faaefd44a841adf",
+      "source_commit": "4684d72f27f3401d3ae72a26d72ae46eaeaab929",
+      "redistribution": "attribution-sharealike-text-only",
+      "selection": {
+        "doc_id": "gitlab-buddies",
+        "source_dataset": "gitlab",
+        "sections": [
+          "Buddy Responsibilities",
+          "Managers: Who should I pick as an Onboarding Buddy?"
+        ]
+      }
+    },
+    {
+      "doc_id": "gitlab-meetings",
+      "path": "corpus/gitlab-meetings.md",
+      "lang": "en",
+      "sha256": "b1dc020561c8a7681a44a4546af5a59fc9eb159cd5ce9444ec25a216c8fd6312",
+      "source": "https://gitlab.com/gitlab-com/content-sites/handbook/-/raw/4684d72f27f3401d3ae72a26d72ae46eaeaab929/content/handbook/company/culture/all-remote/meetings.md",
+      "license": "CC-BY-SA-4.0",
+      "sha256_raw": "06ed4f5d6a6b025ba86e37e0da33b524f2e9a2d9ead42bd5e73bd4441f775ac3",
+      "source_commit": "4684d72f27f3401d3ae72a26d72ae46eaeaab929",
+      "redistribution": "attribution-sharealike-text-only",
+      "selection": {
+        "doc_id": "gitlab-meetings",
+        "source_dataset": "gitlab",
+        "sections": [
+          "What to do before the meeting",
+          "What to do during the meeting",
+          "What to do after the meeting"
+        ]
+      }
+    }
+  ]
+}

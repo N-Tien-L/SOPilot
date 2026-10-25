@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import urllib.request
 from pathlib import Path
@@ -48,7 +49,7 @@ class SentenceTransformerEmbedder(Embedder):
         self.model.max_seq_length = min(self.model.max_seq_length or 512, 512)
         self.query_prefix = query_prefix
         self.batch_size = batch_size
-        self.name = f"st:{model}@{revision or 'unpinned'}"
+        self.name = f"st:{model}@{revision or 'unpinned'}:prefix={query_prefix}:max=512"
 
     def embed(self, texts, is_query=False):
         if is_query and self.query_prefix:
@@ -63,7 +64,7 @@ class OpenAICompatibleEmbedder(Embedder):
     def __init__(self, base_url: str, model: str, api_key: str | None = None, batch_size: int = 16):
         self.url = base_url.rstrip("/") + "/v1/embeddings"
         self.model, self.api_key, self.batch_size = model, api_key, batch_size
-        self.name = f"openai:{model}"
+        self.name = f"openai:{self.url}:{model}"
 
     def embed(self, texts, is_query=False):
         rows = []
@@ -90,6 +91,8 @@ class CachedEmbedder(Embedder):
         return self.dir / (hashlib.sha256(text.encode()).hexdigest() + ".npy")
 
     def embed(self, texts, is_query=False):
+        if not texts:
+            raise ValueError("cannot embed an empty corpus")
         if is_query:
             return self.inner.embed(texts, is_query=True)
         vecs: list[np.ndarray | None] = []
@@ -114,7 +117,13 @@ def build_embedder(cfg: dict, cache_dir: Path) -> Embedder:
     if kind == "sentence-transformers":
         inner = SentenceTransformerEmbedder(cfg["model"], cfg.get("revision"), cfg.get("query_prefix", ""))
     elif kind == "openai":
-        inner = OpenAICompatibleEmbedder(cfg["base_url"], cfg["model"], cfg.get("api_key"))
+        if "api_key" in cfg:
+            raise ValueError("use api_key_env, never put credentials in evaluation config")
+        env_name = cfg.get("api_key_env")
+        credential = os.environ.get(env_name) if env_name else None
+        if env_name and not credential:
+            raise ValueError("configured embedding credential environment variable is unset")
+        inner = OpenAICompatibleEmbedder(cfg["base_url"], cfg["model"], credential)
     else:
         raise ValueError(f"unknown embedder provider: {kind}")
     return CachedEmbedder(inner, cache_dir)

@@ -1,0 +1,31 @@
+{
+  "corpus_version": "sop-retrieval-pilot-2026-10-25-v1",
+  "pypdf_version": "6.21.0",
+  "documents": [
+    {
+      "doc_id": "nb-qt02",
+      "source_dataset": "extraction"
+    },
+    {
+      "doc_id": "nb-qt03",
+      "source_dataset": "extraction"
+    },
+    {
+      "doc_id": "gitlab-buddies",
+      "source_dataset": "gitlab",
+      "sections": [
+        "Buddy Responsibilities",
+        "Managers: Who should I pick as an Onboarding Buddy?"
+      ]
+    },
+    {
+      "doc_id": "gitlab-meetings",
+      "source_dataset": "gitlab",
+      "sections": [
+        "What to do before the meeting",
+        "What to do during the meeting",
+        "What to do after the meeting"
+      ]
+    }
+  ]
+}

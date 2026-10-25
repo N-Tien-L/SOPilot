@@ -1,0 +1,38 @@
+{
+  "corpus_version": "sop-retrieval-pilot-2026-10-25-v1",
+  "documents": [
+    {
+      "doc_id": "gitlab-buddies",
+      "path": "local/raw/gitlab-buddies.md",
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/raw/4684d72f27f3401d3ae72a26d72ae46eaeaab929/content/handbook/people-group/general-onboarding/onboarding-buddies.md",
+      "lang": "en",
+      "family": "employee_handbook",
+      "source_commit": "4684d72f27f3401d3ae72a26d72ae46eaeaab929",
+      "license": "CC-BY-SA-4.0",
+      "license_evidence": "https://handbook.gitlab.com/handbook/about/handbook-usage/#external-use-of-the-handbook",
+      "redistribution": "attribution-sharealike-text-only"
+    },
+    {
+      "doc_id": "gitlab-meetings",
+      "path": "local/raw/gitlab-meetings.md",
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/raw/4684d72f27f3401d3ae72a26d72ae46eaeaab929/content/handbook/company/culture/all-remote/meetings.md",
+      "lang": "en",
+      "family": "employee_handbook",
+      "source_commit": "4684d72f27f3401d3ae72a26d72ae46eaeaab929",
+      "license": "CC-BY-SA-4.0",
+      "license_evidence": "https://handbook.gitlab.com/handbook/about/handbook-usage/#external-use-of-the-handbook",
+      "redistribution": "attribution-sharealike-text-only"
+    },
+    {
+      "doc_id": "gitlab-license",
+      "path": "local/raw/gitlab-license.md",
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/raw/4684d72f27f3401d3ae72a26d72ae46eaeaab929/content/handbook/about/handbook-usage.md",
+      "lang": "en",
+      "family": "employee_handbook",
+      "source_commit": "4684d72f27f3401d3ae72a26d72ae46eaeaab929",
+      "license": "CC-BY-SA-4.0",
+      "license_evidence": "https://handbook.gitlab.com/handbook/about/handbook-usage/#external-use-of-the-handbook",
+      "redistribution": "attribution-sharealike-text-only"
+    }
+  ]
+}

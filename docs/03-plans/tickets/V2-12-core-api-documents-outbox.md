@@ -4,13 +4,13 @@ title: "core-api: tài liệu, upload, outbox, hạn mức tài liệu, thay b�
 type: feat
 status: todo
 created: 2026-10-17
-updated: 2026-10-21
+updated: 2026-10-24
 scope: knowledge
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-09, V2-11]
-blocks: [V2-13, V2-14, V2-15, V2-16, V2-24]
+blocks: [V2-13, V2-14, V2-16, V2-24, V2-31, V2-32]
 branch: "feat/knowledge-core-api-documents"
 assignee: pair
 ---

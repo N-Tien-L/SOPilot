@@ -29,6 +29,8 @@ def _pages(path: Path) -> list[str]:
 
 def split_text(text: str, size: int, overlap: int) -> list[str]:
     """Paragraph-aware window splitter."""
+    if size <= 0 or not 0 <= overlap < size:
+        raise ValueError("chunk size must be positive and 0 <= overlap < size")
     paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
     out: list[str] = []
     cur = ""
@@ -38,7 +40,7 @@ def split_text(text: str, size: int, overlap: int) -> list[str]:
             cur = cur[-overlap:] + "\n\n" + p if overlap else p
         else:
             cur = f"{cur}\n\n{p}" if cur else p
-        while len(cur) > size * 2:  # a single huge paragraph
+        while len(cur) > size:
             out.append(cur[:size])
             cur = cur[size - overlap :]
     if cur.strip():

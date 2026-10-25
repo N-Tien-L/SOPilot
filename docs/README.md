@@ -1,14 +1,18 @@
 # SOPilot Documentation Hub (`docs/`)
 
-**Kế hoạch V2 (`approved` 2026-10-20):** [PLAN-V2](03-plans/PLAN-V2-sopilot-mvp.md), 27 ticket `V2-01` đến `V2-27` (ingestion SOP: `V2-19` đến `V2-22`, xem [AUDIT-ingestion-sop-data](04-reports/AUDIT-ingestion-sop-data-2026-10-19.md); nhân sự, phòng ban, metadata: `V2-23` đến `V2-26`; semantic router và đo định tuyến: `V2-27`).
+**Kế hoạch V2 (`approved` 2026-10-20):** [PLAN-V2](03-plans/PLAN-V2-sopilot-mvp.md), 33 ticket `V2-01` đến `V2-33` (ingestion SOP: `V2-19` đến `V2-22`, xem [AUDIT-ingestion-sop-data](04-reports/AUDIT-ingestion-sop-data-2026-10-19.md); nhân sự, phòng ban, metadata: `V2-23` đến `V2-26`; semantic router và đo định tuyến: `V2-27`; bộ kiểm hệ thống SOP tiếng Việt: `V2-28`).
 
-**Cập nhật 2026-10-21 (chuẩn hóa Markdown và màn xem trích xuất):** [AUDIT-markdown-normalization-and-preview](04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md). MVP chỉ nhận PDF có lớp chữ và MD (bỏ TXT); một bản Markdown chuẩn sau làm sạch là nguồn chung cho chunk/index/trích dẫn; màn "Nội dung hệ thống nhận diện" (PRD-V2 FR-31) mở khi `READY`; hạn mức tài liệu mặc định 50 tài liệu/200 MB. [PRD-V2-ingestion-mvp-scope](01-requirements/PRD-V2-ingestion-mvp-scope.md) đã hợp nhất vào PRD-V2 và chuyển `superseded`. Thư viện PDF chưa chọn: spike trong `V2-20`, ghi ADR-008.
+**Chuẩn bị 2026-10-24:** tách hai ticket XL thành V2-11/V2-29/V2-30 và V2-15/V2-31/V2-32/V2-33, không thêm phạm vi. Công cụ dataset/extraction và bằng chứng review ở [AUDIT readiness](04-reports/AUDIT-v2-readiness-preparation-2026-10-24.md).
+
+**Cập nhật 2026-10-21 (audit đầu-cuối ai-service theo loại query):** owner chốt D1–D11 ([TECH-V2-ai-service](02-architecture/designs/TECH-V2-ai-service.md) §11a, [PLAN-V2](03-plans/PLAN-V2-sopilot-mvp.md)): cổng `hybrid` luôn có `dense_score`; `refusal_reason` tách "thiếu tài liệu" khỏi "ngoài phạm vi" và "đầu vào không hợp lệ"; ô gộp lặp xuống từng hàng quy trình; metadata `code/rev/effective` trong `<source>`; câu rỗng hoặc quá 1000 ký tự bị từ chối; che PII; router mở rộng chạy sau cổng ngưỡng; term bỏ dấu cho BM25. Sửa `V2-06`, `V2-07`, `V2-09`, `V2-10`, `V2-13`, `V2-15` đến `V2-16`, `V2-19` đến `V2-22`, `V2-27`; thêm `V2-28`.
+
+**Cập nhật 2026-10-21 (chuẩn hóa Markdown và màn xem trích xuất):** [AUDIT-markdown-normalization-and-preview](04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md). MVP chỉ nhận PDF có lớp chữ và MD (bỏ TXT); một bản Markdown chuẩn sau làm sạch là nguồn chung cho chunk/index/trích dẫn; màn "Nội dung hệ thống nhận diện" (PRD-V2 FR-31) mở khi `READY`; hạn mức tài liệu mặc định 50 tài liệu/200 MB. [PRD-V2-ingestion-mvp-scope](01-requirements/PRD-V2-ingestion-mvp-scope.md) đã hợp nhất vào PRD-V2 và chuyển `superseded`. Thư viện PDF: Docling ([ADR-008](02-architecture/adr/ADR-008-pdf-extraction-docling.md), owner chốt 2026-10-21, chưa có số đo); `V2-20` xác nhận theo ràng buộc cứng.
 
 **V2 (owner duyệt 2026-10-20, `approved`):** [PRD-V2](01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004 kiến trúc hai service](02-architecture/adr/ADR-004-two-service-architecture.md), [ADR-005 workspace và Google JIT](02-architecture/adr/ADR-005-workspace-tenancy-and-google-jit.md), [ADR-006 provider miễn phí, eval local và deploy](02-architecture/adr/ADR-006-free-tier-providers-and-environments.md), [phân tích nền 2026-10-17](04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md). [ADR-007 phòng ban, hồ sơ thành viên và quyền tài liệu](02-architecture/adr/ADR-007-departments-member-profiles-document-access.md). Bộ này thay thế PRD-M1, ADR-001, ADR-002, ADR-003 (đã `superseded`); backlog NEXT/M1 đóng ở `V2-04`.
 
 Cập nhật auth 2026-10-15: [Google identity/admission và kiểm thử](04-reports/AUDIT-google-admission-2026-10-15.md), [policy ADR-003](02-architecture/adr/ADR-003-google-identity-and-roster-admission.md). Bản này bổ sung checkpoint bên dưới, không thay kết luận audit toàn dự án thành release-ready.
 
-Điểm bắt đầu hiện tại: [Bàn giao implement 2026-10-15](04-reports/HANDOFF-implementation-2026-10-15.md), [backlog tiếp theo](03-plans/PLAN-NEXT-implementation-readiness.md), [audit 2026-10-14](04-reports/AUDIT-project-progress-2026-10-14.md).
+Điểm bắt đầu hiện tại: [PLAN-V2](03-plans/PLAN-V2-sopilot-mvp.md) và [AUDIT readiness](04-reports/AUDIT-v2-readiness-preparation-2026-10-24.md). [Bàn giao 2026-10-15](04-reports/HANDOFF-implementation-2026-10-15.md), PLAN-NEXT và audit V1 chỉ còn giá trị lịch sử.
 
 > **`docs/plans/` đã bị xóa** (2026-10-20, V2-04); bản sao cũ còn trong lịch sử git. Chỉ dùng `docs/03-plans/`. PLAN-M1 và PLAN-NEXT đã `superseded` bởi PLAN-V2.
 
@@ -31,7 +35,8 @@ docs/
 │   ├── PLAN-*.md          # Kế hoạch mốc, DAG phụ thuộc, bảng trạng thái ticket
 │   └── tickets/           # Ticket thực thi (M1-01, NEXT-02, ...)
 ├── 04-reports/            # Báo cáo nghiệm thu, audit, bàn giao (templates/audit-report-template.md)
-└── plans/                 # ĐÃ NGỪNG DÙNG, chờ xóa (xem ghi chú ở trên)
+├── portfolio/             # Tài liệu giới thiệu dự án bằng tiếng Anh (không phải spec, không có frontmatter): engineering-case-study.md, implementation-evidence.md; điểm vào là README gốc
+└── (docs/plans/ đã xóa ở V2-04; không tạo lại)
 ```
 
 Sơ đồ (ERD, luồng hệ thống) hiện nằm trong `.agent/context/database/erd.mmd` và `.agent/context/architecture/`. Chưa có thư mục `02-architecture/diagrams/`.

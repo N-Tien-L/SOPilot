@@ -219,6 +219,6 @@ Môi trường và thiết kế thí nghiệm: ADR-006 §4.2 (chạy trên máy 
 **Bổ sung owner chốt 2026-10-21 (chuẩn hóa Markdown và màn xem trích xuất, [AUDIT-markdown-normalization](../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):**
 
 14. **Định dạng và hạn mức:** MVP chỉ nhận PDF có lớp chữ và Markdown; bỏ TXT, tiếp tục hoãn DOCX và OCR (FR-06). Hạn mức tài liệu mặc định 50 tài liệu/200 MB mỗi workspace, kiểm tra ở backend kể cả upload đồng thời (FR-09).
-15. **Pipeline nội dung:** một thư viện chuyển PDF sang biểu diễn có cấu trúc, Markdown cũng qua parser vào cùng biểu diễn, render một bản Markdown chuẩn sau làm sạch làm nguồn chung (FR-08). Thư viện chọn trong V2-20 theo tiêu chí và timebox ở báo cáo trên (ứng viên Docling và PyMuPDF; chưa thử trên corpus).
+15. **Pipeline nội dung:** một thư viện chuyển PDF sang biểu diễn có cấu trúc, Markdown cũng qua parser vào cùng biểu diễn, render một bản Markdown chuẩn sau làm sạch làm nguồn chung (FR-08). Thư viện PDF là **Docling** (ADR-008, owner chốt 2026-10-21, chưa thử trên corpus); V2-20 xác nhận theo ràng buộc cứng ở báo cáo trên, không còn so sánh với PyMuPDF.
 16. **Màn xem "Nội dung hệ thống nhận diện" (FR-31) chỉ mở khi `READY`:** mở sớm sau convert/clean cần thêm đường đọc phiên bản chưa kích hoạt, dọn dữ liệu khi lỗi và một trạng thái UI, trong khi khoảng chờ embed còn lại nhỏ. Có thể xét lại sau khi đo `t_ready`.
 17. **Thay bản và dedup:** quy tắc ở FR-07; tài liệu đang có phiên bản xử lý không nhận file thay khác bytes.

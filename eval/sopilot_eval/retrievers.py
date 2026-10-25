@@ -5,6 +5,7 @@ import math
 import re
 import unicodedata
 from collections import Counter
+from itertools import pairwise
 
 import numpy as np
 
@@ -12,7 +13,7 @@ import numpy as np
 def tokenize(text: str) -> list[str]:
     """Vietnamese is syllable-delimited: lowercase unigrams + bigrams, diacritics preserved."""
     toks = re.findall(r"\w+", unicodedata.normalize("NFC", text.lower()))
-    return toks + [f"{a}_{b}" for a, b in zip(toks, toks[1:])]
+    return toks + [f"{a}_{b}" for a, b in pairwise(toks)]
 
 
 class BM25:
@@ -77,6 +78,10 @@ class CrossEncoder:
 def retrieve(index: Index, query: str, cfg: dict, reranker: CrossEncoder | None, pool: int = 25):
     """Return [(chunk_idx, gate_score)] best-first. gate_score is what a refusal threshold compares against."""
     mode = cfg["retriever"]
+    if mode not in {"dense", "bm25", "hybrid"} or pool <= 0:
+        raise ValueError("retriever must be dense, bm25 or hybrid, with a positive pool")
+    if cfg.get("rerank") and reranker is None:
+        raise ValueError("rerank configuration requires a loaded reranker")
     dense = index.dense(query) if mode in ("dense", "hybrid") else None
     sparse = index.sparse(query) if mode in ("bm25", "hybrid") else None
     if mode == "dense":

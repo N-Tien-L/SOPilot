@@ -4,13 +4,13 @@ title: "ai-service: gợi ý metadata chạy nền và đo độ trễ"
 type: feat
 status: todo
 created: 2026-10-19
-updated: 2026-10-21
+updated: 2026-10-24
 scope: ai-qa
 priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-09, V2-21, V2-24]
-blocks: [V2-15]
+blocks: [V2-33]
 branch: "feat/ai-qa-async-metadata-suggestion"
 assignee: pair
 ---

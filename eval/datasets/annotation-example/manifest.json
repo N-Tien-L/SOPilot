@@ -1,0 +1,15 @@
+{
+  "corpus_version": "synthetic-v1",
+  "normalization_version": "nfc-lf-v1",
+  "synthetic": true,
+  "documents": [
+    {
+      "doc_id": "leave",
+      "path": "corpus/leave.md",
+      "lang": "en",
+      "sha256": "2f30e8d20fef16f7a1cb986315227ed92d2a81fe2f44b9fd05239614c21fbec6",
+      "source": "SOPilot synthetic fixture, created 2026-10-24",
+      "license": "CC0-1.0"
+    }
+  ]
+}

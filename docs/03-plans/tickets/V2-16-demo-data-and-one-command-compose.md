@@ -26,6 +26,7 @@ FR-21 và NFR tái lập: `docker compose up` dựng hệ thống cục bộ; b�
 - [ ] README ở gốc: yêu cầu máy (RAM/CPU), các bước, cấu hình `.env` từ `.env.example`, cách bật dev login không cần Google, cách chạy eval.
 - [ ] Hướng dẫn dùng LLM: API (Gemini/Groq) hoặc local, và hành vi khi thiếu key (báo lỗi rõ ràng, không treo).
 - [ ] Thử trên môi trường sạch (máy hoặc clone mới); ghi thời gian từ clone đến hỏi đáp được.
+- [ ] Sửa 2026-10-21 (audit theo loại query, P1-7): đo TTFT đầu-cuối (P50/P95, mục tiêu PRD-V2 NFR: P95 < 3 s) trên stack local với khoảng 30 câu, **có và không có** bước viết lại câu hỏi (hội thoại mới và hội thoại có lịch sử); báo cáo ghi phần cứng, provider thật, số lần chạy và độ lệch. Chưa đạt thì ghi lại, không sửa mục tiêu trong ticket này.
 
 ## 3. Hướng dẫn
 - **File:** `docker-compose.v2.yml` (hoàn thiện từ V2-08), `scripts/seed-demo.ps1`, `README.md`.
