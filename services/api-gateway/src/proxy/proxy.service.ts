@@ -216,7 +216,6 @@ export class ProxyService {
       );
 
       // For binary streams/file downloads, pass data through without JSON wrapping.
-      // OnlyOffice DS expects raw binary content from the file endpoint.
       if (context.isBinary || isDownloadRequest) {
         return {
           _proxied: true,

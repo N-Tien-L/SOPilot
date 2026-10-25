@@ -176,30 +176,7 @@ DELETE /api/v1/documents/{id}
 # Duplicate Detection & Sync Confirm (v1.0+)
 GET    /api/v1/documents/check-duplicate?checksum={sha256}  # Pre-confirm duplicate check
 POST   /api/v1/documents/{id}/confirm                       # Sync confirm with ingestion polling
-
-# OnlyOffice Document Editing Integration
-POST   /api/v1/documents/{id}/lock           # Acquire edit lock
-DELETE /api/v1/documents/{id}/lock           # Release edit lock
-GET    /api/v1/documents/{id}/editor-config  # Get OnlyOffice editor config (JWT-signed)
-POST   /api/v1/documents/{id}/save-callback  # OnlyOffice save callback (JWT auth)
-GET    /api/v1/documents/{id}/conflict-status # Check conflict status
-GET    /api/v1/documents/{id}/versions/diff  # Get diff between versions
-POST   /api/v1/documents/{id}/resolve-conflict # Resolve version conflict
-POST   /api/v1/documents/{id}/force-push     # Force-push version (ADMIN)
-DELETE /api/v1/documents/{id}/versions/{n}   # Delete specific version (ADMIN)
-GET    /api/v1/documents/{id}/fetch-latest   # Get latest version metadata + presigned URL
-POST   /api/v1/documents/{id}/save-callback/autocomplete  # Autocomplete callback placeholder
 ```
-
-OnlyOffice audit actions logged to `knowledge.document_audit_logs`:
-- `ONLYOFFICE_LOCK_ACQUIRED` — user started editing (versionAtLock captured)
-- `ONLYOFFICE_LOCK_EXTENDED` — lock auto-renewed (e.g., periodic refresh)
-- `ONLYOFFICE_LOCK_EXPIRED` — expired lock auto-removed during acquire attempt
-- `ONLYOFFICE_LOCK_RELEASED` — user closed editor or released lock manually
-- `ONLYOFFICE_CONFLICT_DETECTED` — save callback found newer version on server
-- `ONLYOFFICE_SAVE_SUCCESS` — editor save completed without conflict
-- `ONLYOFFICE_CONFLICT_RESOLVED` — conflict resolved (strategy: merge/discard/force-push)
-- `ONLYOFFICE_VERSION_DELETED` — ADMIN deleted a historical version
 
 **metadata-service** (`:8084`):
 ```

@@ -144,7 +144,6 @@ The system uses a **junction table pattern** for multi-department document owner
 | Cancel upload | Uploader cancels STAGING documents before confirmation |
 | Document versioning | Every re-upload creates a new `document_versions` entry. Users view version history and compare any two versions |
 | Policy comparison | ADMIN/MANAGER selects two documents → extract plain text → compute line-level diff → return added/removed/modified sections |
-| OnlyOffice editing | ADMIN/MANAGER (with edit permission) acquires edit lock → opens OnlyOffice editor → callback saves → lock released. Conflict detected if another version was pushed while editing |
 | Staging cleanup | Scheduled job removes STAGING documents older than 10 minutes with no confirmation |
 | Download | Authenticated users download file via presigned MinIO URL |
 

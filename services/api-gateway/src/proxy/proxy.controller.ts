@@ -11,12 +11,11 @@ import {
   HttpCode,
   HttpStatus,
   All,
-  Head,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ProxyService, ServiceName } from './proxy.service';
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { Roles, Public } from '../common/decorators';
+import { Roles } from '../common/decorators';
 import { UserRole } from '../common/interfaces';
 
 /** Path + query: dùng request.path (không gồm ?) để ghép URL downstream đúng. */
@@ -352,34 +351,6 @@ export class ProxyController {
       ServiceName.KNOWLEDGE,
       request,
       downstreamDocumentsPath(request),
-    );
-  }
-
-  /** Serve document file for OnlyOffice Document Server.
-   *  OnlyOffice DS downloads the file via this URL. No user auth is required — the request
-   *  comes from the OnlyOffice DS container with a callback JWT token in the Authorization
-   *  header. The gateway forwards it directly to knowledge-service (which handles auth). */
-  @Public()
-  @Get('documents/:documentId/file')
-  handleDocumentFileDownload(@Req() request: Request) {
-    return this.proxyService.forward(
-      ServiceName.KNOWLEDGE,
-      request,
-      downstreamDocumentsPath(request),
-      false,
-      true,
-    );
-  }
-
-  @Public()
-  @Head('documents/:documentId/file')
-  handleDocumentFileHead(@Req() request: Request) {
-    return this.proxyService.forward(
-      ServiceName.KNOWLEDGE,
-      request,
-      downstreamDocumentsPath(request),
-      false,
-      true,
     );
   }
 

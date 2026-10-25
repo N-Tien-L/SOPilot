@@ -50,7 +50,6 @@ Consult this document before:
 | | pgvector | latest | Vector embeddings |
 | **Message Queue** | RabbitMQ | 3.13-management | Event bus |
 | **Infrastructure** | Docker Compose | v2 | Container orchestration |
-| **Document Editor** | OnlyOffice DS | 8.1.0 | Collaborative document editing |
 
 ## Component Diagram
 
@@ -232,7 +231,7 @@ These rules **MUST** be followed at all times:
 | `api-gateway` | 3000 | NestJS | JWT validation, RBAC, proxy, rate limiting, circuit breaking, tracing | — |
 | `auth-service` | 8081 | Spring Boot | Login, JWT lifecycle, refresh tokens, login history | `core` |
 | `user-service` | 8082 | Spring Boot | User profiles, departments, account status | `public` |
-| `knowledge-service` | 8083 | Spring Boot | Document storage, file management, processing job tracking, OnlyOffice editing | `knowledge` (reads only) |
+| `knowledge-service` | 8083 | Spring Boot | Document storage, file management, processing job tracking | `knowledge` (reads only) |
 | `metadata-service` | 8084 | Spring Boot | Document metadata, categories, tags, access rules | `metadata` |
 | `feedback-service` | 8085 | Spring Boot | Feedback, usage stats, analytics, audit logs | `analytics` |
 | `ai-qa-service` | 8086 | FastAPI | Query processing, retrieval orchestration, LLM generation, conversation management | `conversation`, `analytics` (reads `knowledge`, `metadata`) |

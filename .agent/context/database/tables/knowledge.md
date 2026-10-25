@@ -164,7 +164,7 @@ WHERE is_current = true;
 
 ## document_locks
 
-**Description**: Edit locks for OnlyOffice Document Server integration. One lock per document, records who is editing, which version was locked, and when the lock expires.
+**Description**: Legacy table from the removed OnlyOffice integration (created by `009_document_locks.sql`; no service code uses it, kept because init scripts are additive). One lock per document, records who is editing, which version was locked, and when the lock expires.
 
 **Primary Key**: `document_id` (UUID, FK to `knowledge.documents`)
 
@@ -190,8 +190,6 @@ CREATE INDEX idx_locks_expires ON knowledge.document_locks(expires_at);
 
 - **One lock per document**: `PRIMARY KEY (document_id)` enforces this.
 - **Auto-expiry**: Stale locks can be cleaned up with: `DELETE FROM knowledge.document_locks WHERE expires_at < NOW()`
-- **Conflict Detection**: When OnlyOffice saves, if `documents.current_version > document_locks.version_at_lock`, a conflict is detected (someone else uploaded a newer version).
-- **Lock Token**: OnlyOffice must pass the correct `lock_token` in the save callback to verify ownership.
 
 ---
 
