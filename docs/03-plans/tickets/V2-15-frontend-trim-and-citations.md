@@ -1,16 +1,16 @@
 ---
 id: V2-15
-title: "Frontend: thu gọn, chọn workspace, trình xem trích dẫn"
+title: "Frontend: khung V2, đăng nhập/workspace, chat và khoảng trống"
 type: feat
 status: todo
 created: 2026-10-17
-updated: 2026-10-21
+updated: 2026-10-24
 scope: web
 priority: P0
-size: XL
+size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-10, V2-11, V2-12, V2-23, V2-24, V2-25]
-blocks: [V2-17]
+depends_on: [V2-10, V2-11, V2-13, V2-29, V2-30]
+blocks: [V2-17, V2-31, V2-32, V2-33]
 branch: "feat/web-v2-workspace-citations"
 assignee: pair
 ---
@@ -18,26 +18,16 @@ assignee: pair
 # TICKET V2-15: Frontend V2
 
 ## 1. Bối cảnh & Mục tiêu
-Giữ các component chat; bỏ trang admin hệ thống, analytics, roster, phòng ban, OnlyOffice, so sánh version, UI chọn model. Điều phối theo skill `frontend-delivery` (CLAUDE.md toàn cục). Sửa 2026-10-21 theo [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md) §4: luồng nạp ≤ 10 file và màn "Nội dung hệ thống nhận diện" (PRD-V2 FR-30, FR-31, UC-12). Nếu ticket vượt khung XL khi bắt đầu, tách phần nạp tài liệu/màn xem thành ticket con và cập nhật PLAN.
+Giữ các component chat; bỏ trang admin hệ thống, analytics, roster, cây phòng ban V1, OnlyOffice, so sánh version, UI chọn model. Phòng ban phẳng V2 thuộc V2-33. Điều phối theo skill `frontend-delivery` (CLAUDE.md toàn cục). Sửa 2026-10-21 theo [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md) §4: luồng nạp ≤ 10 file và màn "Nội dung hệ thống nhận diện" (PRD-V2 FR-30, FR-31, UC-12). Đã tách XL ngày 2026-10-24: upload V2-31, viewer V2-32, quản trị V2-33; giữ nguyên toàn bộ tiêu chí, không thêm phạm vi.
 
 ## 2. Tiêu chí Hoàn thành
-- [ ] Chọn tối đa 10 file mỗi lượt (chọn file thứ 11 bị chặn kèm thông báo), gửi từng request upload, tối đa 3 đồng thời; mỗi file hiện trạng thái "Đang tải lên", "Đang xử lý", "Sẵn sàng" hoặc lỗi với lý do riêng (PRD-V2 FR-30). Upload xong chỉ hiện "Đang xử lý", không có liên kết nội dung cho tới `READY`.
-- [ ] Kết quả độc lập: một lượt 10 file có 2 file lỗi (ví dụ PDF scan và `.txt`) vẫn để 8 file đi tiếp; file lỗi có hành động riêng: "Thử lại" cho lỗi tạm thời, "Thay file"/"Xóa" cho lỗi nội dung (bảng mã TECH-V2-core-api §5.5), "Gửi lại" khi lỗi mạng; thử lại không gửi lại file đã thành công.
-- [ ] Hiển thị đúng thông điệp cho `409 DUPLICATE_DOCUMENT` (kèm liên kết tài liệu đã có), `409 DOCUMENT_UNCHANGED` ("Nội dung file không thay đổi"), `409 VERSION_IN_PROGRESS`, `409 QUOTA_EXCEEDED` (kèm hạn mức và số đã dùng), `413`, `415`.
-- [ ] Không bắt người dùng chờ: đóng hộp thoại được khi không còn file đang tải lên (cảnh báo rời trang chỉ trong lúc đang truyền bytes); danh sách tài liệu tự làm mới trạng thái khi còn tài liệu đang xử lý và dừng khi không còn.
-- [ ] Upload chỉ cho PDF có lớp chữ và MD; TXT bỏ khỏi MVP, DOCX hoãn (FR-06). Hiển thị lỗi `415` từ API với hướng dẫn (TXT → `.md`, DOCX → PDF có lớp chữ); không có luồng chuyển đổi trên server.
-- [ ] Màn "Nội dung hệ thống nhận diện" (FR-31): chỉ mở khi `currentVersion` tồn tại (`READY`); PDF hiện file gốc (URL ký sẵn) cạnh Markdown chuẩn, mốc "Trang N" bấm vào thì PDF nhảy trang; màn hẹp dùng hai tab; MD hiện Markdown chuẩn + nút tải gốc. Nhãn phiên bản: khi `latestVersion` khác `currentVersion`, hiện "Phiên bản N đang dùng để hỏi đáp; phiên bản N+1 đang xử lý / xử lý lỗi". Cảnh báo chỉ hiện khi API có `warnings`; khối khung đã loại liệt kê thu gọn. Câu cố định: `READY` là đã xử lý xong, không có nghĩa nội dung đã được kiểm tra. Không có editor hay nút "đã kiểm tra".
-- [ ] Render Markdown an toàn: không dùng `rehype-raw` (khác `DocumentViewerModal` cũ); fixture MD chứa `<script>`, `<img onerror>` và ảnh ngoài hiển thị dạng văn bản/liên kết, không chạy script, không tự tải ảnh ngoài.
-- [ ] Ngoài quyền đọc (FR-25) hoặc tài liệu chưa `READY`: màn xem không lộ nội dung (API `404`).
 - [ ] Đăng nhập Google; chọn/chuyển workspace; token giữ theo workspace (T8).
-- [ ] Trang: chat, tài liệu, thành viên + lời mời, khoảng trống tri thức, cài đặt workspace.
-- [ ] Thành viên: hồ sơ (họ tên, mã nhân viên, chức danh, phòng ban), tạm khóa/mở khóa; phòng ban và category phẳng: tạo, đổi tên, ngừng sử dụng, xóa khi hợp lệ. Ẩn phòng ban ở workspace một thành viên.
-- [ ] Tài liệu: sửa metadata, chọn phạm vi `WORKSPACE`/`DEPARTMENTS`, xem và chấp nhận/sửa gợi ý metadata; trạng thái gợi ý không chặn thao tác khác.
-- [ ] Trình xem trích dẫn: bấm `[n]` mở đúng trang PDF / đúng đoạn, tô sáng nguồn bằng offset UTF-16 trên Markdown chuẩn (FR-14); dùng chung thành phần hiển thị với màn FR-31.
+- [ ] Khung điều hướng: chat, tài liệu, thành viên + lời mời, khoảng trống tri thức, cài đặt workspace; màn chi tiết tài liệu/quản trị ở V2-31/V2-32/V2-33.
+- [ ] Sửa 2026-10-21 (owner chốt D10, TECH-V2-ai-service §7.5): trích dẫn có `isCurrentVersion = false` hiện đoạn trích đã lưu kèm nhãn "Phiên bản cũ" và **không** mở trình xem (`/content` chỉ phục vụ phiên bản hiện hành). Hiển thị `refusal` theo `reason`: `NO_EVIDENCE` kèm tài liệu gần nhất, `OUT_OF_SCOPE` và `INPUT_INVALID` không kèm; hiển thị `done.warnings` (`NUMBER_NOT_IN_SOURCES`) dạng nhắc "kiểm tra lại số liệu với nguồn".
 - [ ] Hiển thị từ chối "không tìm thấy" và trạng thái xử lý tài liệu.
 - [ ] Xóa enum model OpenAI không dùng và mọi gọi tới gateway cũ.
 - [ ] Sửa 61 lỗi lint hiện có hoặc loại bỏ cùng code bị cắt; `pnpm build` và `pnpm lint` xanh.
-- [ ] **Kiểm tra bằng trình duyệt thật** các UC-01, 02, 04, 05, 07 đến 12 (gồm nhảy trang PDF trên Chrome và Firefox, bố cục màn hẹp); báo rõ nếu chưa kiểm tra (build/lint không thay thế được).
+- [ ] **Kiểm tra bằng trình duyệt thật** các luồng đăng nhập/chọn workspace/chat/khoảng trống trong phạm vi ticket (bố cục màn hẹp); upload/viewer/quản trị nghiệm thu ở V2-31/V2-32/V2-33; báo rõ nếu chưa kiểm tra (build/lint không thay thế được).
 
 ## 3. Hướng dẫn
 - **File:** `frontend/web/` theo `.agent/rules/frontend.md`; API client `frontend/web/lib/api.ts`; types `frontend/web/types`.

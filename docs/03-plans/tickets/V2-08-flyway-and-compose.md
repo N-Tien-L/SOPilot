@@ -46,5 +46,8 @@ Chạy trên project tạm `sopilot-v2-verify` với file env sinh mật khẩu 
 
 Ghi chú: `.env.example` đã có sẵn nên khối biến V2 được thêm vào cuối file thay vì tạo file mới. Biến V2 có tiền tố `V2_`/`SOPILOT_S3_` để không đụng biến của stack cũ. Chưa chạy stack bằng `.env` thật của owner.
 
+### Review 2026-10-24
+Thêm `V002__explicit_function_grants.sql` cho cả hai schema để revoke EXECUTE mặc định toàn cục của migrator và sửa helper đã tạo; không sửa V001. MinIO policy attach lỗi phải làm init thất bại. Kiểm chứng tự động bằng `eval/sopilot_eval/infra_check.py` trên project riêng, mật khẩu ngẫu nhiên, tmpfs, không đọc `.env`: Flyway/RLS/schema/function grants/S3 pass. Không áp migration lên DB của owner; volume bền và `.env` thật vẫn chưa kiểm. Delta chưa commit/review, giữ `review`. Xem [AUDIT readiness](../../04-reports/AUDIT-v2-readiness-preparation-2026-10-24.md).
+
 ### Nghiệm thu 2026-10-25
 Owner chốt phạm vi trong chat ("ok chốt"). Nghiệm thu hạ tầng local: cấu hình volume/network V2 tách V1, port loopback; Flyway, RLS, S3 và init lặp lại kiểm trên project tmpfs. Không đọc `.env`, không mount/reset volume hiện có hoặc áp migration lên DB của owner. Xem [biên bản nghiệm thu](../../04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md).

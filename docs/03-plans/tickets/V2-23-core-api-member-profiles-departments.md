@@ -4,13 +4,13 @@ title: "core-api: hồ sơ thành viên, vòng đời tạm khóa và phòng ban
 type: feat
 status: todo
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-24
 scope: user
 priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-11]
-blocks: [V2-24, V2-15, V2-26]
+blocks: [V2-24, V2-26, V2-33]
 branch: "feat/user-core-api-members-departments"
 assignee: pair
 ---

@@ -4,13 +4,13 @@ title: "core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển 
 type: feat
 status: todo
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-24
 scope: knowledge
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-12, V2-23]
-blocks: [V2-15, V2-16, V2-25, V2-26]
+blocks: [V2-16, V2-25, V2-26, V2-33]
 branch: "feat/knowledge-core-api-metadata-visibility"
 assignee: pair
 ---

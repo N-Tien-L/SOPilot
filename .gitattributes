@@ -1,2 +1,6 @@
 # Shell scripts run inside Linux containers; CRLF breaks them.
 *.sh text eol=lf
+
+# Canonical dataset hashes and span offsets must survive Windows checkouts.
+/eval/datasets/**/corpus/*.md text eol=lf
+/datasets/extraction/**/corpus/*.md text eol=lf
