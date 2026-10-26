@@ -112,3 +112,6 @@ infrastructure/seed/seed_data.sql
 .agentrules
 
 temp/
+
+# Extraction pilot corpus: source PDFs and derived text, redistribution not confirmed
+datasets/
