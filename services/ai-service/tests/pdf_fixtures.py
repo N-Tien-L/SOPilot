@@ -144,3 +144,47 @@ def encrypted() -> bytes:
     c.showPage()
     c.save()
     return buf.getvalue()
+
+
+def figure_page() -> bytes:
+    """One A4 page: body text, a flowchart-like block (lines at known heights), a frame line in
+    the header zone and one in the footer zone. Page height 842 pt, origin bottom-left."""
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setFont("Helvetica", 11)
+    c.drawString(72, 700, "Body paragraph the converter already exports.")
+    c.drawString(80, 480, "Review the request")
+    c.drawString(80, 440, "Approve or reject")
+    c.drawString(80, 400, "Archive the record")
+    c.drawString(80, 360, "YES")
+    c.drawString(72, 810, "ACME PORT AUTHORITY")
+    c.drawString(72, 30, "Form QT-03 revision one")
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+def framed_procedure(pages: int = 4) -> bytes:
+    """Several pages, each with the same page header and a numbered footer (frame to remove)."""
+    h1, _, body = _styles(None)
+
+    def frame(canvas, doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 9)
+        canvas.drawString(72, 810, "ACME Corp - Procedure QT-MH-01 - Issue 2")
+        canvas.drawString(72, 30, f"Page {doc.page} of {pages}")
+        canvas.restoreState()
+
+    words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot"]
+    story = []
+    for n in range(1, pages + 1):
+        story.append(Paragraph(f"{n}. Section {words[n - 1]}", h1))
+        story.append(Paragraph(f"Body text of the {words[n - 1]} section describes the work "
+                               f"carried out by the team on page {n}.", body))
+        if n < pages:
+            story.append(PageBreak())
+    buf = io.BytesIO()
+    SimpleDocTemplate(buf, pagesize=A4).build(story, onFirstPage=frame, onLaterPages=frame)
+    return buf.getvalue()

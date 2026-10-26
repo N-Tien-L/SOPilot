@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "Kế hoạch triển khai SOPilot V2: eval-first, chạy local, bàn giao nghiên cứu"
 status: approved
 created: 2026-10-17
-updated: 2026-10-25
+updated: 2026-10-26
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md
@@ -17,8 +17,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 33
 completed_tickets: 5
-implemented_tickets: 7
-review_tickets: 2
+implemented_tickets: 9
+review_tickets: 4
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket. *Sửa 2026-10-21: TXT cũng bị bỏ, phạm vi còn PDF có lớp chữ và MD.*
@@ -216,8 +216,8 @@ flowchart TD
 |---|---|---|:---:|---|:---:|
 | `V2-19` | Corpus SOP thật (VI, EN; PDF/MD) và bộ đo chất lượng trích xuất | tests | M | None | in-progress |
 | `V2-20` | ai-service: Docling (ADR-008), biểu diễn có cấu trúc và Markdown chuẩn có offset (PDF/MD) | ai-qa | L | `V2-03`, `V2-19` | review |
-| `V2-21` | ai-service: tách phần khung, trích metadata SOP và cảnh báo trích xuất | ai-qa | M | `V2-20` | todo |
-| `V2-22` | ai-service: nhận diện loại tài liệu, bảng quy trình và chunk theo cấu trúc | ai-qa | L | `V2-20` | todo |
+| `V2-21` | ai-service: tách phần khung, trích metadata SOP và cảnh báo trích xuất | ai-qa | M | `V2-20` | review |
+| `V2-22` | ai-service: nhận diện loại tài liệu, bảng quy trình và chunk theo cấu trúc | ai-qa | L | `V2-20` | review |
 | `V2-28` | Bộ kiểm hệ thống SOP tiếng Việt (30–40 câu): ô gộp, ghép context, mã tài liệu, hiệu lực, không dấu | tests | M | `V2-10`, `V2-19`, `V2-21`, `V2-22` | todo |
 
 Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau khi có kết quả `V2-07`.

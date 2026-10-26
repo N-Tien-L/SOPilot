@@ -106,3 +106,27 @@ def test_corrupt_pdf_is_rejected(data):
     with pytest.raises(ExtractionError) as exc:
         extract(data, "broken.pdf")
     assert exc.value.code is FailureCode.CORRUPT_FILE
+
+
+def test_repeated_page_frame_is_cleaned_and_a_numbered_title_still_chunks_under_it():
+    from sopilot_ai.docproc import ChunkConfig, chunk_document, clean_document
+
+    class Words:
+        def count(self, text: str) -> int:
+            return len(text.split())
+
+    doc = extract(pdf_fixtures.framed_procedure(), "framed.pdf")
+    result = clean_document(doc)
+    rendered = render(result.document)
+    assert "ACME Corp" not in rendered.markdown and "Page 2 of 4" not in rendered.markdown
+    assert "Body text of the charlie section" in rendered.markdown
+    assert {b.kind for b in result.boilerplate} <= {"header", "footer", "boilerplate"}
+    assert "BOILERPLATE_REMOVED" in [w.code for w in result.warnings]
+    assert result.meta.doc_code == "QT-MH-01" and result.meta.revision_label == "2"
+    merged = chunk_document(rendered, Words(), title="Procedure", doc_code="QT-MH-01")
+    assert len(merged) == 1 and (merged[0].page_start, merged[0].page_end) == (1, 4)
+    chunks = chunk_document(rendered, Words(), title="Procedure", doc_code=result.meta.doc_code,
+                            config=ChunkConfig(min_tokens=1))
+    assert any(c.section_path == ["3. Section charlie"] and c.page_start == 3 for c in chunks)
+    for c in chunks:
+        assert rendered.markdown[c.char_start:c.char_end] == c.content
