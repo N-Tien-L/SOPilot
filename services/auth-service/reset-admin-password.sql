@@ -1,6 +1,8 @@
 -- ===========================================
 -- Reset Admin Password Script
 -- Run this if admin account exists but password is unknown
+-- LOCAL DEVELOPMENT ONLY: the default password below is for a local database.
+-- Never run this against a shared or production database without changing the password.
 -- ===========================================
 
 -- Default password: Admin@123456
