@@ -115,3 +115,6 @@ temp/
 # Python virtualenvs
 .venv/
 *.egg-info/
+
+# Extraction pilot corpus: source PDFs and derived text, redistribution not confirmed
+datasets/

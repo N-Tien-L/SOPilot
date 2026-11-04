@@ -10,7 +10,7 @@ It is a personal project, built to learn and demonstrate backend engineering: se
 
 - **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Done so far: specifications ([PRD](docs/01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md) and others, 33 tickets), a retrieval-evaluation harness, and local database/storage infrastructure. Not yet built: the two services and any end-to-end V2 flow. Ticket counts are not a completion measure.
 - **V1 (frozen):** eight services, from a course project built with a classmate. I audited it and found problems on its question-answering path (below); those findings drive V2.
-- **Source is private.** There is no public repository, live demo or screenshot set. Links resolve only with repository access.
+- **Source is public** at [N-Tien-L/SOPilot](https://github.com/N-Tien-L/SOPilot). There is no live demo or screenshot set.
 - No evidence of real users, deployment or measured performance exists.
 
 ## My contribution
@@ -78,8 +78,8 @@ Not verified: these commands were not run while writing this documentation.
 
 - V1 answer generation path: `pipeline_orchestrator.py` imports a `build_sources` function I could not find; the reranker is not connected; document/category filters appear unreachable from the chat request. Runtime behavior is unconfirmed.
 - Document access rules are copied onto chunks at ingestion; no update path was found when visibility changes.
-- Configuration drift (bucket names, exchange names, a retired-model list) is recorded in [CLAUDE.md](CLAUDE.md#known-doccode-drift-verify-before-relying-on-docs).
+- Configuration drift (bucket names, exchange names, a retired-model list) is recorded in [CLAUDE.md](CLAUDE.md#known-doccode-drift-verify-before-relying-on-docs). V1 is frozen, so these items are documented and not fixed.
 - No official retrieval results exist; the evaluation datasets are drafts.
 - Next: first official retrieval results (BM25 vs dense vs hybrid on a reviewed dataset), then the two V2 services ([PLAN-V2](docs/03-plans/PLAN-V2-sopilot-mvp.md)).
 
-A license has not been chosen; the repository contains no `LICENSE` file.
+Licensed under the [MIT License](LICENSE). Third-party material in the repository (GitLab Handbook excerpts under CC BY-SA 4.0) is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
