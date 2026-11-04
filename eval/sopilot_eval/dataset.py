@@ -8,6 +8,7 @@ import json
 import re
 import sys
 import unicodedata
+from datetime import UTC, datetime
 from pathlib import Path
 
 QUERY_TYPES = {
@@ -87,6 +88,71 @@ def project_expected(question: dict, spans: dict, documents: dict) -> list[dict]
         {"doc": doc, **({"pages": sorted(pages)} if pages else {})}
         for doc, pages in sorted(grouped.items())
     ]
+
+
+FREEZE_KEYS = (
+    "frozen_at",
+    "frozen_by",
+    "test_sha256",
+    "frozen_corpus_version",
+    "frozen_docproc_commit",
+)
+
+
+def fingerprint_test_split(questions: list[dict], spans: dict) -> str:
+    """Stable SHA-256 of the test split: question text, answer, evidence and the spans they cite.
+
+    Covers ``id``, ``question``, ``reference_answer`` and ``evidence_sets`` of every ``split=test``
+    question (sorted by id), plus ``span_id``, ``doc_id``, offsets, ``quote`` and ``quote_sha`` of
+    every span those questions cite. Review metadata and ``expected`` are excluded on purpose.
+    """
+    test = sorted((q for q in questions if q["split"] == "test"), key=lambda q: q["id"])
+    cited = sorted({sid for q in test for es in q["evidence_sets"] for sid in es})
+    payload = {
+        "questions": [
+            {k: q[k] for k in ("id", "question", "reference_answer", "evidence_sets")}
+            for q in test
+        ],
+        "spans": [
+            {
+                k: spans[sid][k]
+                for k in ("span_id", "doc_id", "start_char", "end_char", "quote", "quote_sha")
+            }
+            for sid in cited
+        ],
+    }
+    blob = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return sha256(blob)
+
+
+def check_frozen(
+    manifest: dict, questions: list[dict], spans: dict, reviews: list[dict]
+) -> None:
+    """Enforce a frozen test split. Unfreezing is a manual manifest edit, never automatic."""
+    if manifest.get("frozen") is not True:
+        return
+    require(manifest, *FREEZE_KEYS)
+    if manifest["frozen_corpus_version"] != manifest["corpus_version"]:
+        raise ValueError("frozen test split: corpus_version changed since freeze")
+    if manifest.get("docproc", {}).get("commit") != manifest["frozen_docproc_commit"]:
+        raise ValueError("frozen test split: canonical rebuilt from another docproc commit")
+    for q in questions:
+        if q["split"] != "test":
+            continue
+        if q["review_status"] not in {"reviewed", "adjudicated"}:
+            raise ValueError(f"frozen test split: question not reviewed: {q['id']}")
+        if not any(
+            r.get("question_id") == q["id"]
+            and r.get("decision") == q["review_status"]
+            and r.get("corpus_version") == manifest["corpus_version"]
+            for r in reviews
+        ):
+            raise ValueError(f"frozen test split: missing review record: {q['id']}")
+    actual = fingerprint_test_split(questions, spans)
+    if actual != manifest["test_sha256"]:
+        raise ValueError(
+            f"frozen test split changed: test_sha256 {actual} != {manifest['test_sha256']}"
+        )
 
 
 def validate_retrieval(root: Path, require_reviewed: bool = False) -> dict:
@@ -249,8 +315,11 @@ def validate_retrieval(root: Path, require_reviewed: bool = False) -> dict:
                 < min(left["end_char"], right["end_char"])
             ):
                 raise ValueError("overlapping evidence intervals cross dev/test")
+    check_frozen(manifest, questions, spans, reviews)
     return {
         "corpus_version": manifest["corpus_version"],
+        "frozen": manifest.get("frozen") is True,
+        **({"test_sha256": manifest["test_sha256"]} if manifest.get("frozen") is True else {}),
         "documents": len(documents),
         "spans": len(spans),
         "questions": len(questions),
@@ -261,13 +330,47 @@ def validate_retrieval(root: Path, require_reviewed: bool = False) -> dict:
     }
 
 
+def freeze(root: Path, frozen_by: str, frozen_at: str) -> dict:
+    """Freeze the test split once the reviewed gate is green. Refuses to re-freeze."""
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("frozen") is True:
+        raise ValueError("already frozen; unfreeze by hand first (see the dataset README)")
+    if manifest.get("docproc", {}).get("docproc_dirty") is not False:
+        raise ValueError("refusing to freeze a canonical built from uncommitted docproc")
+    validate_retrieval(root, require_reviewed=True)
+    spans = {s["span_id"]: s for s in read_jsonl(root / "evidence.jsonl")}
+    questions = read_jsonl(root / "questions.master.jsonl")
+    manifest.update(
+        {
+            "frozen": True,
+            "frozen_at": frozen_at,
+            "frozen_by": frozen_by,
+            "test_sha256": fingerprint_test_split(questions, spans),
+            "frozen_corpus_version": manifest["corpus_version"],
+            "frozen_docproc_commit": manifest["docproc"]["commit"],
+        }
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    return validate_retrieval(root, require_reviewed=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--require-reviewed", action="store_true")
+    parser.add_argument(
+        "--freeze", metavar="FROZEN_BY", help="freeze the test split (one-time, deliberate)"
+    )
     args = parser.parse_args()
     try:
-        result = validate_retrieval(args.dataset, args.require_reviewed)
+        if args.freeze:
+            stamp = datetime.now(UTC).isoformat(timespec="seconds")
+            result = freeze(args.dataset, args.freeze, stamp)
+        else:
+            result = validate_retrieval(args.dataset, args.require_reviewed)
     except (ValueError, KeyError, TypeError, OSError) as exc:
         parser.exit(1, f"dataset invalid: {exc}\n")
     sys.stdout.write(json.dumps(result, ensure_ascii=False, indent=2) + "\n")

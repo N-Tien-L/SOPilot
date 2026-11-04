@@ -4,7 +4,7 @@ title: "Corpus và bộ câu hỏi đa ngôn ngữ (VI, EN) có người duyệt
 type: docs
 status: done
 created: 2026-10-17
-updated: 2026-11-03
+updated: 2026-11-04
 scope: tests
 priority: P0
 size: L
@@ -66,3 +66,8 @@ Kết quả: 105 câu `reviewed` (dev 24, test 81; 15 câu âm có `unanswerable
 
 ### Owner đóng ticket 2026-11-03
 Owner chốt `done` dựa trên bằng chứng ở mục trước (gate `--require-reviewed` xanh, 58 unit test pass), chấp nhận duyệt bằng Opus thay vì tự đọc lại. Việc còn lại trước V2-07: freeze tập test (chưa làm) và rebase canonical khi docproc được commit.
+
+### Freeze 2026-11-04
+Theo chỉ đạo owner, Opus dựng lại canonical `sop-main` bằng docproc commit sạch `26d1ed1` (`docproc_dirty=false`) vào thư mục tạm, so từng span rồi mới áp. 17/23 tài liệu đổi chữ (docproc mới bỏ header lặp, khối "Nơi nhận"/quốc hiệu, trang chỉ có header; tb-qt01 có lại bảng phân công). Cả 218 span (144 span được dùng: 128 test, 16 dev) còn quote nguyên văn: 94 giữ offset, 124 dịch offset (3 quote lặp giữ đúng lần xuất hiện), **0 đổi/mất**, trang mọi span không đổi. Áp toàn bộ với `corpus_version=sop-main-2026-11-04-v2`; câu hỏi, đáp án, `evidence_sets`, `review_status` không đổi; `review.jsonl` chỉ đổi `corpus_version` và thêm `rebased_from`. Chi tiết: `eval/datasets/sop-main/rebase-report-2026-11-04.json` và mục "Freeze 2026-11-04" của [README](../../../eval/datasets/sop-main/README.md).
+
+Freeze: `manifest.json` `frozen=true`, `frozen_by="owner:tiên (Opus thực hiện theo chỉ đạo)"`, `frozen_docproc_commit=26d1ed1326cd37f8714b44e68929d784dc1659b9`, `test_sha256=f80c2e5d22a9d2f5454953135b61875630d55567ab9ec0f07e2feb8862102aaf` (81 câu test: id, câu hỏi, đáp án, evidence_sets cùng span và `quote_sha`). `sopilot_eval/dataset.py` thêm `fingerprint_test_split`, `check_frozen` (lỗi khi hash, `corpus_version` hoặc commit docproc khác, hay có câu test chưa duyệt) và `--freeze`; 10 unit test trong `eval/tests/test_dataset_freeze.py`. Bằng chứng: `python -m sopilot_eval.dataset --dataset datasets/sop-main --require-reviewed` xanh (`frozen: true`), `pytest` eval 80 pass. Unfreeze chỉ bằng sửa tay manifest có ghi lý do (README). Giới hạn: `eval/datasets/` không nằm trong git, owner cần backup riêng thư mục `sop-main`; `candidate_sections` của câu âm vẫn đếm trên bản cũ.
