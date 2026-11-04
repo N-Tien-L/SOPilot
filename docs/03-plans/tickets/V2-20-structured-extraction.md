@@ -2,9 +2,9 @@
 id: V2-20
 title: "ai-service: Docling (ADR-008), biểu diễn có cấu trúc và Markdown chuẩn có offset (PDF/MD)"
 type: feat
-status: review
+status: done
 created: 2026-10-19
-updated: 2026-10-26
+updated: 2026-11-03
 scope: ai-qa
 priority: P0
 size: L
@@ -49,3 +49,6 @@ Owner chốt 2026-10-21 ([AUDIT-markdown-normalization](../../04-reports/AUDIT-m
 | Unit | PDF nhiều trang, bảng giữa thân, ô gộp, bảng nhiều trang (`page_end`, `row_pages`, `row_spans`); MD (frontmatter, GFM, HTML nhúng); renderer và bất biến offset; Unicode VI/EN; từ chối DOCX/TXT, PDF scan, mã hóa, hỏng | `uv run pytest tests/unit` |
 | Xác nhận | Docling trên tập con V2-19, máy owner: ràng buộc cứng, `cell_spans`, thời gian/RAM; kết quả vào bảng §6 của ADR-008 | script trong `eval/` |
 | Eval | Script chấm V2-19 trên toàn corpus, lưu kết quả vào báo cáo | theo V2-19 |
+
+### Đóng ticket 2026-11-03
+Owner chốt `done`. Bằng chứng: tất cả tiêu chí đã tick; `validate-build.ps1 -Scope ai` xanh (compileall + ruff), `run-tests.ps1 -Scope ai-service -Type unit`: 96 test pass (2026-11-03).

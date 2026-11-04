@@ -2,9 +2,9 @@
 id: V2-19
 title: "Corpus SOP thật (VI, EN; PDF/MD) và bộ đo chất lượng trích xuất"
 type: test
-status: in-progress
+status: done
 created: 2026-10-19
-updated: 2026-10-25
+updated: 2026-11-03
 scope: tests
 priority: P0
 size: M
@@ -52,3 +52,21 @@ Sửa 2026-10-21 ([AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown
 Nhãn nháp heading/bảng/ô gộp/khung/metadata/tham chiếu mới phủ **các trang được chọn**, không phủ toàn bộ tài liệu. QT-01 trang 4 có bảng lồng/ô gộp ngang; cần duyệt cách biểu diễn bảng và phần kéo qua trang. Scorer chặn tính điểm toàn tài liệu với nhãn một phần hoặc gộp fixture từ chối vào heading/table. Chưa chạy Docling hoặc đo latency/RAM. Chưa đủ 20–50 file/5 họ, PDF ngắn và số scan yêu cầu; không đánh dấu AC corpus hoàn thành.
 
 File PDF/ảnh chỉ local (gitignore), nguồn/quyền đang chờ xác minh từng file; commit manifest + script tải thay binary. Xem [SOURCES](../../../datasets/extraction/SOURCES.md), [README](../../../datasets/extraction/pilot/README.md), [phiếu duyệt](../../../datasets/extraction/pilot/REVIEW.md) và [HANDOFF pilot](../../04-reports/HANDOFF-V2-06-V2-19-pilot-review-2026-10-25.md). Giữ `in-progress`; owner chưa duyệt file/nhãn nào.
+
+### Mở rộng corpus 2026-10-26 (chưa nghiệm thu)
+Owner đã ủy quyền Claude duyệt nhãn và đặt `review_status=reviewed` cho các file thuộc phạm vi V2-19 (`reviewer_id=claude-delegated:tiên`; owner chưa tự đọc lại các nhãn đợt này). Corpus hiện có **23 file** (21 PDF, 2 Markdown) trong 6 nhóm họ (iso_9001, epa_sop, fda_sop, administrative, non_standard, wiki_markdown); 4 PDF ảnh quét (nd30 + 3 Nghị quyết UBTVQH 1-3 trang), 2 PDF ngắn có chữ (2 trang), 4 PDF ISO có trang đầu không chữ. Giấy phép: EPA/FDA/k8s xác minh theo chính sách/LICENSE; văn bản VN xác minh thứ cấp (Điều 15 Luật SHTT, chưa đọc luật gốc); 8 PDF ISO VN vẫn chưa xác minh. Lượt 3 (2026-10-26): đã xem ảnh mọi trang của cả 23 file và đặt `annotation_scope=full_document`; `--require-reviewed` chạy xanh (chỉ kiểm hình thức, nhãn chưa được owner đọc lại). Chưa có: SOP GMP thật (chỉ có mẫu FDA ORA-LAB), giấy phép của 8 PDF ISO VN, script đếm tham chiếu chéo trên corpus, duyệt của owner. Giữ `in-progress`. Chi tiết: [SOURCES](../../../datasets/extraction/SOURCES.md), [pilot README](../../../datasets/extraction/pilot/README.md).
+
+### Owner duyệt nhãn 2026-11-01 (chưa nghiệm thu ticket)
+Owner tự xem từng trang của cả **23/23 file** bằng app local `eval/review_ui/server.py` (ảnh trang cạnh nhãn của trang, ghi chú agent có đánh dấu chỗ "KHÔNG CHẮC") và xác nhận: giữ nguyên toàn bộ 1365 nhãn (0 bỏ, 0 sửa, 0 thêm), metadata giữ nguyên. Mỗi bản ghi giờ có `reviewer_id=owner:tiên`, `owner_confirmed=full_document`, `owner_review_changes`; người duyệt ủy quyền trước giữ ở `delegated_reviewer_id`. `sopilot_eval.extraction --require-reviewed` chạy **xanh**. AC "Owner duyệt nhãn của từng file" đạt cho 23 file hiện có. Vẫn chưa có: SOP GMP thật, giấy phép của 8 PDF ISO VN, script đếm tham chiếu chéo trên corpus. Giữ `in-progress`. File dữ liệu nằm trong `datasets/` (gitignore), backup trước duyệt ở `datasets/extraction/pilot/local/backups/`.
+
+### Hoàn thiện corpus 2026-11-01 (chờ owner duyệt 2 file mới)
+- **SOP GMP thật:** thêm 2 PDF EN họ `gmp_sop` của Frederick National Laboratory (NCI), Biopharmaceutical Development Program: SOP 21301 *Deviations* (17 trang) và SOP 12188 *Labeling and Storage of CGMP Raw Materials, Samples, and Equipment* (5 trang). Có lớp chữ, khóa SHA-256, ảnh preview; nhãn **nháp do Claude soạn** (`review_status=draft`), cần owner duyệt trong `eval/review_ui/server.py`. Trang nguồn cho phép tải về dùng cho cơ sở cGMP nhưng không nói về tái phân phối, đơn vị vận hành là nhà thầu, nên binary chỉ local. Corpus: **25 file** (23 PDF, 2 Markdown), 7 nhóm họ, `corpus_version=sop-pdf-pilot-2026-11-01-v3`.
+- **Giấy phép 8 PDF ISO VN:** xác minh **thứ cấp** theo Luật SHTT Điều 15 khoản 2 và NĐ 17/2023/NĐ-CP Điều 8 (văn bản của cơ quan nhà nước không được bảo hộ quyền tác giả), cùng mức với các văn bản VN khác; chưa đọc Công báo. Chi tiết và điểm có thể tranh luận ở [SOURCES](../../../datasets/extraction/SOURCES.md).
+- **Đếm tham chiếu chéo trên corpus:** `eval/sopilot_eval/crossref.py` (8 unit test), kết quả `eval/results/crossref-v2-19.json`. Ứng viên regex trên lớp chữ, đã bỏ furniture đã gán nhãn, tự nhắc mã của chính tài liệu, biểu mẫu của chính quy trình tính là trong tài liệu; mã nội bộ (QT-02) chỉ khớp tài liệu cùng cơ quan. Trên 21 file có lớp chữ: **16/21 file có tham chiếu trong tài liệu** (189 lần, chủ yếu biểu mẫu BM-xx, "mục/Điều/Section"), 218 tham chiếu sang tài liệu khác nhưng **chỉ 3 (1,4%) trỏ tới tài liệu có trong corpus, ở 2/21 file** (nb-qt01 → nd30; nb-qt04 → nb-qt02, nb-qt03). Mật độ 5,6 tham chiếu/1000 từ (VI 6,8; EN 4,2). Đếm regex cao hơn nhãn vàng vì nhãn không ghi mọi lần lặp; đây là ứng viên, không phải nhãn đã phân xử. Căn cứ cho TECH-V2-ai-service §6.4a: mở rộng tham chiếu **giữa tài liệu** gần như không có đích trong workspace mẫu; tham chiếu **trong tài liệu** phổ biến hơn. Ngưỡng quyết định vẫn để owner.
+- Còn lại: owner duyệt nhãn 2 SOP GMP để gate xanh lại. Giữ `in-progress` tới khi xong.
+
+### Duyệt 2 SOP GMP và hoàn tất gate 2026-11-03 (chờ owner nghiệm thu)
+Agent Opus 5.5 xem ảnh mọi trang của `nci-bdp-labeling` (5/5) và `nci-bdp-deviations` (17/17): 0 nhãn sai/thiếu; chỉ sửa `coverage_note`/`review_notes` của deviations. Bản ghi ghi `reviewer_id=owner:tiên` theo chỉ đạo của owner, `owner_confirmed=delegated_opus_full_document` (khác `full_document` của 23 file owner tự xem). `sopilot_eval.extraction --require-reviewed` xanh: 25/25 file. **Còn mở:** quy ước furniture cho tiêu đề "SOP Title: Deviations" (đang gán furniture) khác labeling/fda-qms-sop (không gán); giữ nguyên nhãn, owner chọn một quy ước trước khi chấm boilerplate ở V2-21. Chuyển `review`.
+
+### Owner đóng ticket 2026-11-03
+Owner chốt `done` dựa trên bằng chứng ở mục trước (gate `--require-reviewed` xanh, 58 unit test pass), chấp nhận duyệt bằng Opus thay vì tự đọc lại. Quy ước furniture cho tiêu đề 'SOP Title: Deviations' vẫn mở, xử lý ở V2-21.
