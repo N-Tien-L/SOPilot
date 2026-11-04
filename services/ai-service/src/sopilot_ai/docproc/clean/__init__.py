@@ -16,6 +16,7 @@ from sopilot_ai.docproc.clean.model import (
 )
 from sopilot_ai.docproc.clean.warnings import build_warnings
 from sopilot_ai.docproc.model import StructuredDocument
+from sopilot_ai.docproc.tables import join_continued_tables
 from sopilot_ai.docproc.tokens import Tokenizer
 
 
@@ -32,6 +33,10 @@ def clean_document(
     config = config or CleanConfig()
     work = doc.model_copy(deep=True)
     mark_repeated_header_footer(work, config)
+    # A page header drawn as a table separates the parts of a multi-page table until it is
+    # marked, so the extractor could not join them; join them now, before element indexes
+    # are recorded by mark_frame_blocks.
+    join_continued_tables(work)
     kinds = mark_frame_blocks(work)
     boilerplate = collect_boilerplate(work, kinds)
     meta = extract_metadata(work)

@@ -21,7 +21,7 @@ class CleanConfig:
     """Starting values, to be settled on the V2-19 corpus."""
 
     header_footer_min_pages: int = 3  # SOPILOT_HEADER_FOOTER_MIN_PAGES
-    header_footer_ratio: float = 0.6
+    header_footer_ratio: float = 0.4
     page_min_chars: int = 20  # SOPILOT_PAGE_MIN_CHARS
     max_tokens: int = 512  # chunking.max_tokens, for NO_HEADINGS_DETECTED on long Markdown
 

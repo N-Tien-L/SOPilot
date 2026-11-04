@@ -7,17 +7,33 @@ from __future__ import annotations
 
 import io
 import os
+import re
+import unicodedata
 from functools import lru_cache
 from typing import Any
 
 from sopilot_ai.docproc.errors import ExtractionError, FailureCode
 from sopilot_ai.docproc.model import DocElement, StructuredDocument
+from sopilot_ai.docproc.tables import append_continuation, continuation_rows_to_skip
 
 # A PDF is "without a text layer" when fewer than this share of its pages has any character,
 # or it has fewer than MIN_TOTAL_CHARS characters (TECH-V2-ai-service §5.2).
 MIN_TEXT_PAGE_RATIO = 0.10
 MIN_TOTAL_CHARS = 200
 _BULLETS = {"-", "•", "*", "·", "●", "▪"}
+# Picture text that lies wholly in the top/bottom share of a page is a frame (logo cell), not
+# figure content: it keeps the header/footer role so it stays out of the Markdown.
+FIGURE_HEADER_ZONE = 0.15
+FIGURE_FOOTER_ZONE = 0.10
+MIN_FIGURE_WORDS = 2
+_WORD = re.compile(r"\w+")
+
+
+class _PictureSlot:
+    """Placeholder for a picture, resolved once the text Docling exported is known."""
+
+    def __init__(self, item: Any) -> None:
+        self.item = item
 
 
 def _precheck(data: bytes) -> int:
@@ -54,12 +70,26 @@ def _precheck(data: bytes) -> int:
 def _converter() -> Any:
     from docling.datamodel.accelerator_options import AcceleratorOptions
     from docling.datamodel.base_models import InputFormat
-    from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.datamodel.pipeline_options import (
+        PdfPipelineOptions,
+        TableFormerMode,
+        TableStructureOptions,
+        TableStructureV2Options,
+    )
     from docling.document_converter import DocumentConverter, PdfFormatOption
 
+    cell_matching = os.environ.get("SOPILOT_PDF_CELL_MATCHING", "1") != "0"
+    if os.environ.get("SOPILOT_PDF_TABLE_MODEL", "v1") == "v2":
+        table_options: Any = TableStructureV2Options(do_cell_matching=cell_matching)
+    else:
+        table_options = TableStructureOptions(
+            mode=TableFormerMode(os.environ.get("SOPILOT_PDF_TABLE_MODE", "accurate")),
+            do_cell_matching=cell_matching,
+        )
     options = PdfPipelineOptions(
         do_ocr=False,  # ADR-008: OCR stays off; image-only pages yield 0 characters.
         do_table_structure=True,
+        table_structure_options=table_options,
         artifacts_path=os.environ.get("SOPILOT_PDF_ARTIFACTS_PATH") or None,
         accelerator_options=AcceleratorOptions(
             num_threads=int(os.environ.get("SOPILOT_PDF_THREADS", "4")), device="cpu"
@@ -108,21 +138,16 @@ def _table_element(item: Any) -> DocElement | None:
 
 
 def _merge_tables(prev: DocElement, cur: DocElement) -> bool:
-    """Join a continuation table on the next page (same width, repeated header row)."""
-    assert prev.rows and cur.rows
-    if prev.page_end is None or cur.page is None or cur.page != prev.page_end + 1:
+    """Join a continuation table on the next page (same width, repeated header row).
+
+    Only the case where the next body item is the table itself: a page header that the PDF
+    draws as a table sits between the two parts here and is not known as frame yet, so the
+    cleaning step joins those pairs after marking it (``tables.join_continued_tables``).
+    """
+    skip = continuation_rows_to_skip(prev, cur, allow_no_header=False)
+    if skip is None:
         return False
-    if len(prev.rows[0]) != len(cur.rows[0]):
-        return False
-    if [c.strip() for c in prev.rows[0]] != [c.strip() for c in cur.rows[0]]:
-        return False
-    offset = len(prev.rows)
-    prev.rows.extend(cur.rows[1:])  # drop the repeated header row
-    prev.row_pages = (prev.row_pages or []) + (cur.row_pages or [cur.page] * len(cur.rows))[1:]
-    for r, c, rs, cs in cur.cell_spans or []:
-        if r >= 1:
-            prev.cell_spans = (prev.cell_spans or []) + [(r - 1 + offset, c, rs, cs)]
-    prev.page_end = cur.page_end
+    append_continuation(prev, cur, skip)
     return True
 
 
@@ -165,10 +190,82 @@ def _reading_order(items: list[Any]) -> list[Any]:
     return ordered
 
 
-def _convert(doc: Any) -> list[DocElement]:
+def _normalized(text: str) -> str:
+    return " ".join(_WORD.findall(unicodedata.normalize("NFC", text).lower()))
+
+
+def _element_text(el: DocElement) -> list[str]:
+    return [c for row in el.rows for c in row] if el.kind == "table" and el.rows else [el.text]
+
+
+def _exported_text(elements: list[DocElement]) -> tuple[dict[int, str], dict[int, set[str]]]:
+    """Per page: all text Docling exported, joined (for substring tests) and as whole items."""
+    joined: dict[int, list[str]] = {}
+    whole: dict[int, set[str]] = {}
+    for el in elements:
+        if el.page is None:
+            continue
+        pieces = [n for n in (_normalized(t) for t in _element_text(el)) if n]
+        for page in range(el.page, (el.page_end or el.page) + 1):
+            joined.setdefault(page, []).extend(pieces)
+            whole.setdefault(page, set()).update(pieces)
+    return {p: " " + " ".join(parts) + " " for p, parts in joined.items()}, whole
+
+
+def _picture_element(
+    item: Any, pdf: Any, page_text: dict[int, str], page_items: dict[int, set[str]]
+) -> DocElement | None:
+    """Text-layer lines inside a picture's box that Docling did not export (OCR stays off)."""
+    from pypdfium2._helpers.misc import PdfiumError
+
+    page, page_end = _pages(item)
+    if page is None or not 1 <= page <= len(pdf):
+        return None
+    prov = item.prov[0]
+    try:
+        pdf_page = pdf[page - 1]
+        height = pdf_page.get_height()
+        box = prov.bbox
+        if str(box.coord_origin).endswith("TOPLEFT"):
+            box = box.to_bottom_left_origin(height)
+        textpage = pdf_page.get_textpage()
+        try:
+            raw = textpage.get_text_bounded(left=box.l, bottom=box.b, right=box.r, top=box.t)
+        finally:
+            textpage.close()
+            pdf_page.close()
+    except PdfiumError:
+        return None
+    exported, whole = page_text.get(page, " "), page_items.get(page, set())
+    lines: list[str] = []
+    for raw_line in raw.splitlines():
+        line = " ".join(unicodedata.normalize("NFC", raw_line).split())
+        key = _normalized(line)
+        if not key:
+            continue
+        # A one-word line only counts as a duplicate when Docling exported exactly that item
+        # (a table cell, a short paragraph); a longer line when it sits inside exported text.
+        duplicate = f" {key} " in exported if " " in key else key in whole
+        if not duplicate:
+            lines.append(line)
+    if sum(len(_WORD.findall(line)) for line in lines) < MIN_FIGURE_WORDS:
+        return None
+    role = "figure_text"
+    if box.b >= height * (1 - FIGURE_HEADER_ZONE):
+        role = "header"
+    elif box.t <= height * FIGURE_FOOTER_ZONE:
+        role = "footer"
+    return DocElement(kind="paragraph", text="\n".join(lines), page=page, page_end=page_end,
+                      role=role)  # type: ignore[arg-type]
+
+
+def _convert(doc: Any, pdf: Any = None) -> list[DocElement]:
+    """Docling items to elements. With ``pdf`` (an open pdfium document), words of the text
+    layer inside picture regions that Docling did not export become ``figure_text`` elements."""
     from docling_core.types.doc import (
         DocItemLabel,
         ListItem,
+        PictureItem,
         SectionHeaderItem,
         TableItem,
         TextItem,
@@ -176,7 +273,7 @@ def _convert(doc: Any) -> list[DocElement]:
     )
     from docling_core.types.doc.document import ContentLayer
 
-    elements: list[DocElement] = []
+    elements: list[DocElement | _PictureSlot] = []
     last_content: DocElement | None = None
     iterated = [
         item for item, _ in doc.iterate_items(
@@ -197,6 +294,10 @@ def _convert(doc: Any) -> list[DocElement]:
             role = "boilerplate"
 
         element: DocElement | None = None
+        if isinstance(item, PictureItem):
+            if pdf is not None and item.prov:
+                elements.append(_PictureSlot(item))
+            continue
         if isinstance(item, TableItem):
             element = _table_element(item)
             if element and role == "content":
@@ -226,7 +327,29 @@ def _convert(doc: Any) -> list[DocElement]:
         elements.append(element)
         if role == "content":
             last_content = element
-    return elements
+    exported = [e for e in elements if isinstance(e, DocElement)]
+    if len(exported) == len(elements):
+        return exported
+    page_text, page_items = _exported_text(exported)
+    resolved: list[DocElement] = []
+    for entry in elements:
+        if isinstance(entry, DocElement):
+            resolved.append(entry)
+            continue
+        figure = _picture_element(entry.item, pdf, page_text, page_items)
+        if figure is not None:
+            resolved.append(figure)
+            # Two pictures can hold the same words (a repeated logo): the second is a duplicate.
+            _add_text(page_text, page_items, figure)
+    return resolved
+
+
+def _add_text(page_text: dict[int, str], page_items: dict[int, set[str]], el: DocElement) -> None:
+    assert el.page is not None
+    pieces = [n for n in (_normalized(t) for t in el.text.split("\n")) if n]
+    for page in range(el.page, (el.page_end or el.page) + 1):
+        page_text[page] = page_text.get(page, " ") + " ".join(pieces) + " "
+        page_items.setdefault(page, set()).update(pieces)
 
 
 def extract_pdf(data: bytes) -> StructuredDocument:
@@ -240,14 +363,21 @@ def extract_pdf(data: bytes) -> StructuredDocument:
         )
         if result.status in (ConversionStatus.FAILURE, ConversionStatus.SKIPPED):
             raise ExtractionError(FailureCode.EXTRACTION_ERROR)
-        elements = _convert(result.document)
+        import pypdfium2 as pdfium
+
+        pdf = pdfium.PdfDocument(data)
+        try:
+            elements = _convert(result.document, pdf)
+        finally:
+            pdf.close()
         if result.status == ConversionStatus.PARTIAL_SUCCESS:
             warnings.append({"kind": "PARTIAL_SUCCESS", "pages": []})
     except ExtractionError:
         raise
     except Exception:
         raise ExtractionError(FailureCode.EXTRACTION_ERROR) from None
-    if not any(e.role == "content" and (e.text.strip() or e.rows) for e in elements):
+    if not any(e.role in ("content", "figure_text") and (e.text.strip() or e.rows)
+               for e in elements):
         raise ExtractionError(FailureCode.NO_TEXT_LAYER)
     return StructuredDocument(file_type="PDF", elements=elements, page_count=page_count,
                               converter_warnings=warnings)

@@ -12,12 +12,17 @@ dependencies = [
 [project.optional-dependencies]
 # PDF adapter (ADR-008). Runtime depends on exactly one PDF library; OCR stays off.
 pdf = ["docling==2.142.1"]
+# Tokenizer of the active embedding model for the chunker (V2-22); weights are not loaded.
+tokenizer = ["transformers>=4.40"]
 dev = ["pytest>=8", "ruff>=0.6", "hypothesis>=6.100", "reportlab>=4"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
-markers = ["pdf: needs the optional Docling dependency and model artifacts"]
+markers = [
+    "pdf: needs the optional Docling dependency and model artifacts",
+    "tokenizer: needs the optional transformers dependency and a cached embedding tokenizer",
+]
 
 [tool.ruff]
 line-length = 100

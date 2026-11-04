@@ -2929,6 +2929,9 @@ dev = [
 pdf = [
     { name = "docling" },
 ]
+tokenizer = [
+    { name = "transformers" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2940,8 +2943,9 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6" },
     { name = "reportlab", marker = "extra == 'dev'", specifier = ">=4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
+    { name = "transformers", marker = "extra == 'tokenizer'", specifier = ">=4.40" },
 ]
-provides-extras = ["pdf", "dev"]
+provides-extras = ["pdf", "tokenizer", "dev"]
 
 [[package]]
 name = "sortedcontainers"

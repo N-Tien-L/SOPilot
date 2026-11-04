@@ -355,6 +355,27 @@ def test_hf_tokenizer_loads_by_model_and_revision_without_model_weights(monkeypa
     assert calls == [("intfloat/multilingual-e5-large", "abc123"), False]
 
 
+@pytest.mark.tokenizer
+def test_real_embedding_tokenizer_keeps_chunks_within_limit():
+    """bge-m3 tokenizer (models.yaml active embedding), loaded from the local HF cache only."""
+    pytest.importorskip("transformers")
+    try:
+        tokenizer = HFTokenizer("BAAI/bge-m3", "5617a9f61b028005a4858fdac845db406aefb181",
+                                local_files_only=True)
+    except OSError:
+        pytest.skip("bge-m3 tokenizer is not in the local Hugging Face cache")
+    assert tokenizer.count("") == 0
+    assert tokenizer.count("Quy trình xử lý đơn nghỉ phép năm 2026 😀") > 0
+    sentence = "Nhân viên gửi đơn nghỉ phép cho trưởng bộ phận trước ba ngày làm việc. "
+    elements = [_h("1. Mục đích"), _p(sentence * 120)]
+    rendered = render(StructuredDocument(file_type="PDF", elements=elements, page_count=1))
+    config = ChunkConfig(target_tokens=64, max_tokens=96, min_tokens=8)
+    out = chunk_document(rendered, tokenizer, title="Quy trình nghỉ phép", config=config)
+    assert len(out) > 1
+    assert all(tokenizer.count(c.index_text) <= config.max_tokens for c in out)
+    assert all(c.token_count == tokenizer.count(c.index_text) for c in out)
+
+
 # -- end to end and properties -------------------------------------------------------------------
 
 

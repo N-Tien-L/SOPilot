@@ -6,7 +6,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 ElementKind = Literal["heading", "paragraph", "list_item", "table", "page_break", "code"]
-ElementRole = Literal["content", "header", "footer", "boilerplate"]
+# figure_text: text-layer words inside a picture region that Docling does not export (flowcharts,
+# logo cells). Rendered like content, but kept apart so V2-21 can treat it as lower confidence.
+ElementRole = Literal["content", "header", "footer", "boilerplate", "figure_text"]
 
 
 class DocElement(BaseModel):

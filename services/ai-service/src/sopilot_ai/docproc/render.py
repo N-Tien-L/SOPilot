@@ -2,7 +2,7 @@
 
 Deterministic: the same ``StructuredDocument`` always renders to the same string. Offsets are
 Python string indices (Unicode code points) on ``markdown``; ``utf16_offset`` converts them for
-browsers. Only ``role == "content"`` elements are rendered.
+browsers. Only ``content`` and ``figure_text`` elements are rendered.
 """
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ import re
 
 from sopilot_ai.docproc.model import DocElement, PageSpan, RenderedDocument, StructuredDocument
 
-NORMALIZER_VERSION = "1"
+NORMALIZER_VERSION = "2"  # 2: figure_text elements are rendered
+
+_RENDERED_ROLES = ("content", "figure_text")
 
 _BLOCK_SEP = "\n\n"
 
@@ -75,7 +77,7 @@ def render(doc: StructuredDocument) -> RenderedDocument:
     markers: list[tuple[int, int]] = []
 
     for el in doc.elements:
-        if el.role != "content" or el.kind == "page_break":
+        if el.role not in _RENDERED_ROLES or el.kind == "page_break":
             out.append(el.model_copy(update={"char_start": None, "char_end": None,
                                              "row_spans": None}))
             continue

@@ -67,8 +67,15 @@ def _approver_from_table(table: DocElement) -> str | None:
 
 def _frame_texts(doc: StructuredDocument) -> list[str]:
     """Frame blocks first, then the leading content of the first page."""
-    texts = [element_text(el) for el in doc.elements
-             if el.role not in ("content", "figure_text") and el.kind != "table"]
+    texts: list[str] = []
+    for el in doc.elements:
+        if el.role in ("content", "figure_text"):
+            continue
+        if el.kind != "table":
+            texts.append(element_text(el))
+        elif el.role in ("header", "footer") and el.rows:
+            # A page header drawn as a grid: each row reads as "Mã hiệu: QT-02".
+            texts += [" ".join(c for c in row if c.strip()) for row in el.rows]
     leading = [el for el in doc.elements
                if el.role in ("content", "figure_text") and el.page in (None, 1)]
     texts += [el.text for el in leading[:_LEADING_ELEMENTS] if el.kind != "table"]

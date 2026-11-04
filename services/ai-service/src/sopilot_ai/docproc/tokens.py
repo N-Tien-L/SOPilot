@@ -18,12 +18,15 @@ class HFTokenizer:
     ``model`` and ``revision`` come from the active embedding entry of ``models.yaml``.
     """
 
-    def __init__(self, model: str, revision: str | None = None) -> None:
+    def __init__(self, model: str, revision: str | None = None,
+                 local_files_only: bool = False) -> None:
         from transformers import AutoTokenizer
 
         self.model = model
         self.revision = revision
-        self._tokenizer: Any = AutoTokenizer.from_pretrained(model, revision=revision or None)
+        kwargs = {"local_files_only": True} if local_files_only else {}
+        self._tokenizer: Any = AutoTokenizer.from_pretrained(
+            model, revision=revision or None, **kwargs)
 
     def count(self, text: str) -> int:
         return len(self._tokenizer.encode(text, add_special_tokens=False))
