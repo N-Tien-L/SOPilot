@@ -143,7 +143,24 @@ superseded_by: ""
 | Giám khảo faithfulness | **Gemma 4** (khác họ với Qwen để không tự chấm): bản MoE cỡ 26B trên L40S (48 GB) cho lượt chạy cuối; bản E4B trên A10 cho lượt chạy thử khi phát triển | Giảm kích thước tập con được chấm, và người chấm tay mẫu cố định | Khác họ với model sinh. Model giám khảo nhỏ yếu hơn `gpt-oss-120b`, nên báo cáo phải nêu rõ và thêm chấm tay 30–50 câu để đối chiếu. Tên và kích thước bản Gemma 4 chưa kiểm trên Ollama/Hugging Face (nguồn mâu thuẫn), phải xác nhận tag trước khi kéo |
 | Embedding, rerank | Local (`bge-m3`, `bge-reranker-v2-m3`) | — | Không phụ thuộc quota |
 
-**Tiêu chí chọn và kiểm model (bake-off, làm ở `V2-10` trước khi chốt cấu hình):**
+**Chốt model sinh câu trả lời và ứng viên thay thế (owner chốt 2026-11-04, V2-10):** owner bỏ bake-off đầy đủ bên dưới; chọn **Qwen3.5-9B, FP8, vLLM trên L4** (A10 nếu L4 quá chậm). Chỉ chạy một lần kiểm nhanh trước khi cam kết: khoảng 20 câu từ `sop-main` (có câu âm), `temperature=0`, đọc bằng mắt xem đáp đúng ngôn ngữ của câu hỏi và có `[n]` đúng nguồn, đo TTFT một lần lạnh và một lần nóng, đếm token đầu ra so với độ dài câu hiển thị để biết `enable_thinking=false` có thực sự hết sinh suy luận. Chi phí dự kiến $1–3.
+
+Dữ kiện đã kiểm ngày 2026-11-04 (nguồn thứ cấp, chưa đọc model card chính thức; mở Hugging Face để xác nhận trước khi kéo): Qwen3.5-9B là model dày 9B, Apache 2.0, ngữ cảnh khoảng 262K, BF16 khoảng 19,3 GB (nên dùng FP8 trên L4 24 GB); vLLM có recipe chính thức; chạy bằng `--default-chat-template-kwargs '{"enable_thinking": false}'`, riêng việc cờ này có ngừng sinh suy luận hay chỉ ẩn token thì nguồn mâu thuẫn. **Chưa có số đo so sánh tiếng Việt giữa các ứng viên**; chọn Qwen3.5-9B là giả thuyết hợp lý chứ không phải kết quả đo.
+
+Ứng viên thay thế, theo thứ tự nên thử khi gặp vấn đề (đổi chỉ qua `models.yaml`/biến môi trường của `LLMProvider`, không sửa pipeline):
+
+| Triệu chứng khi chạy thật | Đổi sang | GPU Modal | Ghi chú và điều chưa kiểm |
+|---|---|---|---|
+| Qwen3.5 lỗi với vLLM, vẫn sinh suy luận dù tắt thinking, hoặc hành vi lạ của kiến trúc mới | **Qwen3-8B** | L4 | Thế hệ trước cùng họ, trưởng thành hơn; Apache 2.0. Ngữ cảnh các nguồn lệch (32K–128K, đều đủ cho prompt 3–5K token). Cùng họ nên không tránh được điểm yếu tiếng Việt nếu có |
+| Quá chậm hoặc vượt ngân sách | **Qwen3.5-4B** (dự phòng gốc của ADR) | L4 hoặc T4 | Rẻ nhất; chất lượng trích dẫn/tuân thủ prompt thường giảm, cần đọc lại mẫu |
+| Chất lượng tiếng Việt của họ Qwen kém | **Gemma 4 E4B** (khoảng 8B tổng, 4,5B hiệu dụng) | A10 | Khác họ. Nguồn thứ cấp nêu Apache 2.0 và 140+ ngôn ngữ; **tiếng Việt không được nêu riêng**. Tag Hugging Face nêu: `google/gemma-4-E4B-it` |
+| Cần model lớn hơn mà vẫn rẻ | **Gemma 4 26B A4B** (MoE, 3,8B hoạt động trên 25,2B tổng) | L40S | Trọng số FP8 khoảng 26 GB nên không vừa L4/A10; đắt hơn nhiều ($1,95/giờ). Tag nêu: `google/gemma-4-26B-A4B-it` |
+
+**Ràng buộc giám khảo:** bảng trên đặt Gemma 4 làm giám khảo faithfulness vì khác họ với model sinh. Nếu đổi model sinh sang Gemma 4 thì giám khảo phải đổi sang họ khác (ví dụ Qwen3.5-9B hoặc Qwen3-8B) để không tự chấm; cập nhật hàng giám khảo cùng lúc.
+
+Đã xem xét nhưng không đề xuất: Phi-4 14B (MIT theo hầu hết nguồn, nhưng không có bằng chứng tiếng Việt), Granite 3.1 8B (Apache 2.0, 128K nhưng danh sách ngôn ngữ chính thức theo trí nhớ không có tiếng Việt, chưa kiểm), Llama (giấy phép các bản mới mâu thuẫn giữa các nguồn), Mistral 7B v0.3 (cũ, ngữ cảnh 32K).
+
+**Tiêu chí chọn và kiểm model (bake-off đầy đủ; owner đã bỏ ngày 2026-11-04, chỉ giữ lần kiểm nhanh ở trên; các mục sau còn là cách đo nếu muốn so sánh nghiêm túc sau này):**
 1. Chạy Qwen 3.5 9B và 4B trên khoảng 20 câu VI/EN lấy từ bộ eval (có câu không trả lời được), `temperature=0`, ghi model kèm revision.
 2. Đo thời gian đến token đầu (TTFT) p50/p95 gồm cả khởi động lạnh, token/giây, chi phí Modal mỗi lần chạy và mỗi câu.
 3. Đo mức tuân thủ quy tắc prompt: `[n]` đúng nguồn, câu mở đầu cố định khi thiếu thông tin, đáp bằng ngôn ngữ của câu hỏi, không để lộ canary.
