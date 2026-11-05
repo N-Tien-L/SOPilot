@@ -1,0 +1,30 @@
+# V2-07 RQ5: embedding models that run on the owner's CPU. Same docproc target/max (384/512),
+# counted with each model's own tokenizer. Revisions resolved from the HF API 2026-11-04.
+# Query instructions follow each model card; documents get no prefix.
+chunking:
+  mode: docproc
+  target_tokens: 384
+  max_tokens: 512
+  structured_dir: results/extraction-clean/structured
+  pilot_dataset: datasets/sop-pilot
+configs:
+  - {name: bge-m3-dense,  retriever: dense,  k: 5, embedder: &bge {provider: sentence-transformers, model: BAAI/bge-m3, revision: 5617a9f61b028005a4858fdac845db406aefb181}}
+  - {name: bge-m3-hybrid, retriever: hybrid, k: 5, embedder: *bge, weights: [1.0, 1.0]}
+  - name: qwen3-0.6b-dense
+    retriever: dense
+    k: 5
+    embedder: &qwen
+      provider: sentence-transformers
+      model: Qwen/Qwen3-Embedding-0.6B
+      revision: 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3
+      query_prefix: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:"
+  - {name: qwen3-0.6b-hybrid, retriever: hybrid, k: 5, embedder: *qwen, weights: [1.0, 1.0]}
+  - name: e5-large-instruct-dense
+    retriever: dense
+    k: 5
+    embedder: &e5
+      provider: sentence-transformers
+      model: intfloat/multilingual-e5-large-instruct
+      revision: 274baa43b0e13e37fafa6428dbc7938e62e5c439
+      query_prefix: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+  - {name: e5-large-instruct-hybrid, retriever: hybrid, k: 5, embedder: *e5, weights: [1.0, 1.0]}

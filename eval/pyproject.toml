@@ -3,11 +3,15 @@ name = "sopilot-eval"
 version = "0.1.0"
 description = "Reproducible retrieval evaluation harness for SOPilot (PRD-V2 FR-18)"
 requires-python = ">=3.11"
-dependencies = ["numpy>=1.26", "pyyaml>=6", "pypdf>=4"]
+dependencies = ["numpy>=1.26", "pyyaml>=6", "pypdf>=4", "sopilot-ai-service"]
 
 [project.optional-dependencies]
 local = ["sentence-transformers>=3", "torch"]
 dev = ["pytest>=8"]
+
+[tool.uv.sources]
+# sopilot_ai.docproc chunks the corpus exactly as ai-service does (V2-07, TECH-V2-ai-service §6.5).
+sopilot-ai-service = { path = "../services/ai-service", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -41,6 +41,7 @@ datasets/<name>/questions.jsonl         # one JSON per line:
 - `datasets/smoke` and the `hash` embedder only validate the harness. Never report their numbers.
 - Pin `revision` (HF commit hash) in the config before reporting results.
 - Hybrid gates the refusal threshold on dense cosine, because RRF scores are rank-based and not comparable across queries.
+- The BM25 tokenizer, BM25 and fusion (RRF, cross-lingual factor, `gate_score`) are imported from `sopilot_ai.retrieval` (V2-09), so harness and ai-service rank with the same code. `python -m sopilot_eval.service_parity --dataset datasets/sop-main --config configs/rq1-rq3-bge-m3.yaml --split all` (Docker, `--extra local`) compares top-10 of the service through Postgres with the harness (TECH-V2-ai-service §6.5, target mean Jaccard ≥ 0.95) and writes `results/service-parity/<timestamp>.json`.
 - RQ4 (tenant filter latency) needs Postgres + RLS and is not covered yet.
 - LLM-drafted questions must be human-reviewed and the process stated in the report.
 
@@ -48,9 +49,8 @@ datasets/<name>/questions.jsonl         # one JSON per line:
 
 Tiếp nối 2026-10-25: acquisition có khóa hash/kiểm PDF không OCR ở `sopilot_eval.acquire`; pilot truy xuất thật VI/EN ở [datasets/sop-pilot](datasets/sop-pilot/README.md), corpus PDF ở [../datasets/extraction/pilot](../datasets/extraction/pilot/README.md). Hai bộ có phiếu duyệt, vẫn draft; chưa có kết quả Docling/RQ. Scorer từ chối dùng nhãn từng trang như gold toàn tài liệu và không gộp ca từ chối vào điểm cấu trúc.
 
-The current `run` CLI labels results `document_page_proxy` and character chunking
-as exploratory. `chunking.mode: docproc` fails until V2-22/V2-07 implements the
-shared adapter; never silently use the old splitter for official RQ numbers.
+Character chunking (`chunking.size/overlap`) is exploratory only and its results are
+labelled `document_page_proxy`. Official numbers use `chunking.mode: docproc` (below).
 Repeated chunks from the same target earn nDCG relevance once. Threshold sweeps
 include a refuse-all endpoint even when scores tie.
 
@@ -76,3 +76,52 @@ Use a fresh `--basetemp` path each time: pytest clears that exact directory.
 a unique project, tmpfs and no host ports. It does not read `.env` or mount existing
 volumes. Only its own project is stopped without `-v`; owner's persistent V2 DB
 and V1 services are outside this check.
+
+## V2-07: official runs on `sop-main` (docproc chunks, span gold)
+
+`uv sync --extra local --extra dev` also installs `services/ai-service` (path dependency) so the
+harness chunks with `sopilot_ai.docproc` exactly as ai-service does: target 384 / max 512 tokens of
+the measured model's tokenizer, `index_text` (title `doc_id` + section path + content) embedded and
+BM25-indexed. The dataset keeps only canonical Markdown, so chunks are rebuilt from the cached
+extraction (`results/extraction-clean/structured`, from `predict_extraction.py --clean`) and the
+two Markdown pilot pages; the rebuild must match the frozen corpus byte for byte or the run fails.
+
+```powershell
+$env:HF_HUB_OFFLINE = "1"
+./.venv/Scripts/python.exe -m sopilot_eval.run --dataset datasets/sop-main --config configs/rq1-rq3-bge-m3.yaml --split dev --repeats 3
+./.venv/Scripts/python.exe -m sopilot_eval.run --dataset datasets/sop-main --config configs/rq1-rq3-bge-m3.yaml --split test --repeats 3
+./.venv/Scripts/python.exe -m sopilot_eval.analyze_v2_07 --dev results/<dev> --test results/<test> --out results/<test>/analysis
+./.venv/Scripts/python.exe -m sopilot_eval.smoke_models --dataset datasets/sop-main --kind embed --model BAAI/bge-m3 --revision <sha> --out results/smoke-models/bge-m3.json
+```
+
+- `--split` is required for V2-06 datasets; the dataset validator (frozen `test_sha256`, reviews)
+  runs first. `--repeats N` repeats the query pass for latency and checks ranks are identical.
+- Metrics: `span_recall@k` (share of the required spans of the best OR alternative covered by the
+  top k, a span counts when >= 50% of its characters are covered), `full@k` (all of them),
+  `any@k`, `mrr_span`; `hit@k`/`recall@k` remain the document/page proxy.
+- BM25 tokenizer is the final one of TECH-V2-ai-service §6.3 (`~` diacritic-free terms). The gate
+  is `dense_score` for dense/hybrid (every candidate has it), `rerank_score` (sigmoid) with rerank,
+  none for bm25. `cross_lingual_bm25_factor` scales the BM25 branch for chunks of another language.
+- `configs/rq2-rerank-bge-m3.yaml` is separate because the cross-encoder needs ~16 s/question on CPU.
+
+### `sop-main-v2` (harder extension, frozen 2026-11-05)
+
+`sop-main` was too easy to separate configs: 57–65 of 70 test questions score 1.0 everywhere, 36 of 81
+name the document code, there are only 5 cross-lingual questions and 4 dev negatives.
+`datasets/sop-main-v2` keeps the frozen `sop-main` questions as `subset=v1` (byte-identical, same
+reviews) and adds 96 drafted intents from `datasets/sop-main-v2/seed/*.json` as `subset=v2`. They
+contain no document codes, are paraphrased, each intent has a same-lingual and a cross-lingual
+phrasing, and there are near-miss negatives. Test grows to 200 answerable (70 cross-lingual) plus
+39 negatives; dev to 40 plus 14. Protocol and counts: `datasets/sop-main-v2/README.md`.
+
+```powershell
+./.venv/Scripts/python.exe -m sopilot_eval.extend_dataset --base datasets/sop-main --dataset datasets/sop-main-v2
+./.venv/Scripts/python.exe -m sopilot_eval.run --dataset datasets/sop-main-v2 --config configs/rq1-rq3-bge-m3.yaml --split test --allow-draft
+```
+
+- Frozen 2026-11-05 (`test_sha256 a568bf74…`). New questions were drafted by Claude, checked against the corpus by a
+  Claude subagent (`REVIEW-claude.md`) and approved by the owner on that review (`review_basis=claude_review`).
+  `--allow-draft` remains for future draft extensions; such runs record `dataset_info.reviewed=false`.
+- Per-question rows carry `intent_id`, `subset` and `tags`. `analyze_v2_07` groups by them and
+  bootstraps by `intent_id` cluster, because the two phrasings of one intent are not independent. It
+  also reports the paired difference against `hybrid` with the number of questions won and lost.
