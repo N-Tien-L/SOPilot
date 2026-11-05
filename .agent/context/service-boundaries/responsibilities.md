@@ -11,6 +11,12 @@ version: 1.0
 
 This document defines which service owns which feature, event contracts, and API boundaries. It is the **single source of truth** for feature ownership in the Poliwise microservices architecture.
 
+> **V2 (in progress):** `services/core-api` (port 8080) owns schema `core` and is the only writer of
+> `core.users`; `services/ai-service` owns `rag`. No gateway, RabbitMQ or Redis (ADR-004). Implemented
+> in core-api so far (V2-11): `POST /api/v1/auth/google/nonce`, `POST /api/v1/auth/google`,
+> `POST /api/v1/auth/dev-login` (`local`/`test` only), `GET /.well-known/jwks.json`. See
+> `authorization/v2-core-identity.md` and TECH-V2-core-api §5. The tables below describe frozen V1.
+
 ## When to Use
 
 Consult this file before implementing any feature to determine:

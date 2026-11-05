@@ -3,7 +3,7 @@ id: TECH-V2-CORE-API
 title: "Thiết kế kỹ thuật core-api (V2): danh tính, workspace, thành viên, tài liệu, outbox"
 status: approved
 created: 2026-10-20
-updated: 2026-10-21
+updated: 2026-11-05
 refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -543,7 +543,7 @@ Biến chưa đặt thì hàm trả `NULL`, so sánh trả `NULL`, không có d�
 | `core.find_pending_invitations_by_email(text)` | Hiện lời mời đang chờ sau đăng nhập |
 | `core.find_domain_workspaces(text)` | Domain join (P1) |
 | `core.claim_outbox_batch(int)` | Dispatcher lấy việc của mọi workspace (`FOR UPDATE SKIP LOCKED`) |
-| `core.create_personal_workspace(uuid user, text name, text email)` | JIT: tạo workspace + membership OWNER khi chưa có `wid` |
+| `core.create_personal_workspace(uuid user, uuid workspace_id, text name, text email)` | JIT: tạo workspace + membership OWNER khi chưa có `wid`. `workspace_id` là UUIDv7 do ứng dụng sinh (§4); nếu user đã có workspace cá nhân thì trả id cũ, bỏ qua id truyền vào |
 
 ### 4.3 Đặt biến trong Spring
 
@@ -609,7 +609,7 @@ Kiểm tra theo thứ tự, port từ `GoogleTokenVerifierService` và bổ sung
 }
 ```
 
-Không đưa email hay tên vào token. Khóa ký đọc từ file PEM mount qua env (`SOPILOT_JWT_PRIVATE_KEY_PATH`); profile `local`/`test` tự sinh cặp khóa khi thiếu. JWKS công bố khóa hiện hành và khóa trước đó để xoay khóa không làm rớt phiên.
+Không đưa email hay tên vào token. Khóa ký đọc từ file PEM mount qua env (`SOPILOT_JWT_PRIVATE_KEY_PATH`); profile `local`/`test` tự sinh cặp khóa khi thiếu. JWKS công bố khóa hiện hành và khóa trước đó để xoay khóa không làm rớt phiên. V2-11 mới công bố khóa hiện hành; khóa trước đó làm cùng V2-29.
 
 **Refresh token:** chuỗi ngẫu nhiên 256 bit, base64url, chỉ lưu SHA-256. Cookie `sp_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`, hạn `SOPILOT_REFRESH_TTL=P14D`. Port logic xoay vòng và phát hiện dùng lại từ `RefreshTokenService` cũ:
 
@@ -836,7 +836,7 @@ ai-service đọc object trực tiếp từ storage bằng thông tin trong job 
 
 | Biến | Mặc định | Ghi chú |
 |---|---|---|
-| `SPRING_PROFILES_ACTIVE` | `local` | `local`, `test`, `prod` (prod hiện không dùng) |
+| `SPRING_PROFILES_ACTIVE` | không có | `local` (dev), `test` (test tự động). Không đặt profile thì chạy chế độ thật: không có dev login, thiếu `SOPILOT_JWT_PRIVATE_KEY_PATH` hoặc `SOPILOT_NONCE_HMAC_KEY` thì không khởi động |
 | `SOPILOT_DB_URL`, `SOPILOT_DB_USER`, `SOPILOT_DB_PASSWORD` | — | Role `sopilot_core_app` |
 | `GOOGLE_CLIENT_ID` | — | |
 | `SOPILOT_JWT_PRIVATE_KEY_PATH`, `SOPILOT_JWT_KID` | tự sinh ở `local`/`test` | |

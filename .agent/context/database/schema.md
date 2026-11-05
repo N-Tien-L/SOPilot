@@ -17,6 +17,14 @@ Verification uses `eval/sopilot_eval/infra_check.py` on a disposable tmpfs proje
 no migration was applied to the owner's persistent DB. See `infrastructure/db/README.md`
 and `docs/04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md`.
 
+`core/V003__identity_and_personal_workspace.sql` (V2-11) adds `core.users`,
+`core.external_identities` (global, no RLS), `core.workspaces` and `core.memberships`
+(`FORCE ROW LEVEL SECURITY`, policies `workspace_visibility`, `membership_visibility`, plus
+`definer_access` for `sopilot_migrator` so SECURITY DEFINER helpers work under FORCE RLS) and
+`core.create_personal_workspace(uuid, uuid, text, text)` (SECURITY DEFINER, EXECUTE only for
+`sopilot_core_app`). Details: `tables/core.md` (V2 section). Verified by the core-api Testcontainers
+suites (`./mvnw verify`); not applied to the owner's persistent DB.
+
 ---
 
 # SYSTEM INSTRUCTION: Legacy V1 Database Schema & Architecture

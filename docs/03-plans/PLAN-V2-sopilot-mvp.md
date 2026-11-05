@@ -227,7 +227,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 ### Phase 3: core-api
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
-| `V2-11` | core-api: khung service, Google identity, JIT và workspace cá nhân | user | L | `V2-03`, `V2-08` | todo |
+| `V2-11` | core-api: khung service, Google identity, JIT và workspace cá nhân | user | L | `V2-03`, `V2-08` | in-progress |
 | `V2-29` | core-api: workspace CRUD, chuyển workspace và refresh session | user | L | `V2-11` | todo |
 | `V2-30` | core-api: lời mời, thành viên và quy tắc OWNER | user | M | `V2-29` | todo |
 | `V2-12` | core-api: tài liệu, upload, outbox, hạn mức tài liệu, thay bản an toàn, audit log | knowledge | L | `V2-09`, `V2-11` | todo |

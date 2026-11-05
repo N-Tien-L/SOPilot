@@ -51,6 +51,7 @@ This directory houses the comprehensive architectural, domain, schema, and inter
 | **Publishing/consuming RabbitMQ events** | `service-boundaries/events.md`, `service-boundaries/responsibilities.md` |
 | **Modifying database tables or queries** | `database/schema.md`, `database/tables/*.md`, `database/erd.mmd` |
 | **Updating user permissions or RBAC** | `authorization/rbac-matrix.md`, `authorization/dual-strategy.md` |
+| **V2 login, access tokens, JIT, RLS (core-api)** | `authorization/v2-core-identity.md`, `database/tables/core.md` (V2 section) |
 | **Handling file uploads or processing** | `storage/document-lifecycle.md`, `storage/minio.md` |
 | **Frontend UI, stores, or API integration** | `architecture/frontend.md`, `../rules/frontend.md` |
 | **AI Q&A or RAG pipeline** | `architecture/system-overview.md`, `database/tables/conversation.md` |

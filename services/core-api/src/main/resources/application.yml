@@ -1,0 +1,51 @@
+# core-api (TECH-V2-core-api §9). Secrets come from env (.env); do not put real values here.
+# No profile is active by default: without `local`/`test` there is no dev login and no
+# generated signing key, so a missing key fails startup instead of running insecurely.
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+
+spring:
+  application:
+    name: core-api
+  datasource:
+    url: ${SOPILOT_DB_URL:jdbc:postgresql://localhost:55432/sopilot}
+    username: ${SOPILOT_DB_USER:sopilot_core_app}
+    password: ${SOPILOT_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${SOPILOT_DB_POOL_SIZE:10}
+  mvc:
+    problemdetails:
+      enabled: false
+
+sopilot:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    jwks-uri: ${GOOGLE_JWKS_URI:https://www.googleapis.com/oauth2/v3/certs}
+    jwks-cache-ttl: PT1H
+  jwt:
+    private-key-path: ${SOPILOT_JWT_PRIVATE_KEY_PATH:}
+    kid: ${SOPILOT_JWT_KID:}
+    access-ttl: ${SOPILOT_ACCESS_TTL:PT15M}
+    generate-if-missing: false
+  auth:
+    nonce-hmac-key: ${SOPILOT_NONCE_HMAC_KEY:}
+    nonce-ttl: PT5M
+    allow-ephemeral-nonce-key: false
+    cookie-secure: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  pattern:
+    level: "%5p [trace=%X{traceId:-}]"

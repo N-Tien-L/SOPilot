@@ -23,6 +23,16 @@ if ($springBootScopes -contains $Scope) {
         if ($LASTEXITCODE -ne 0) { throw "Maven compilation failed." }
     } else { throw "Directory $serviceDir not found." }
 }
+elseif ($Scope -eq "core") {
+    # V2 core-api (Spring Boot, Java 21). Directory is services\core-api, not core-service.
+    Write-Host "Validating Spring Boot service: core-api"
+    $serviceDir = "services\core-api"
+    if (Test-Path $serviceDir) {
+        Set-Location $serviceDir
+        .\mvnw compile -q
+        if ($LASTEXITCODE -ne 0) { throw "Maven compilation failed." }
+    } else { throw "Directory $serviceDir not found." }
+}
 elseif ($pythonScopes -contains $Scope) {
     Write-Host "Validating Python service: $Scope"
     $serviceDir = "services\$Scope-service"

@@ -7,6 +7,15 @@ version: 1.0
 
 # API Contracts & Standards
 
+> **V2 core-api contract** (TECH-V2-core-api §5.0, implemented in V2-11): success
+> `{"data": ..., "traceId": "..."}`; error `{"error": {"code", "message", "details"}, "traceId"}` with
+> fixed messages (never `e.getMessage()`, A8); `X-Trace-Id` accepted (8–64 `[A-Za-z0-9-]`) or generated and
+> echoed. Codes so far: `400 VALIDATION_FAILED` (details list field names only), `401 INVALID_GOOGLE_TOKEN`,
+> `403 MEMBERSHIP_SUSPENDED`, `404 NOT_FOUND`, `405 METHOD_NOT_ALLOWED`, `415 UNSUPPORTED_MEDIA_TYPE`,
+> `500 INTERNAL_ERROR`. Access token: RS256, ≤ 15 min, claims `sub, wid, wrole, wdept, jti, iat, exp`,
+> `iss=sopilot-core`, `aud=[sopilot-core, sopilot-ai]`, keys at `/.well-known/jwks.json`.
+> The rest of this file describes frozen V1 (gateway, `ApiResponse` with `success`).
+
 ## Purpose
 
 This document defines the **standardized API contracts** that all Poliwise services must follow. It covers:

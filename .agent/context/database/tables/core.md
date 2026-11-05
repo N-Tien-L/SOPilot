@@ -7,6 +7,23 @@ owner: auth-service
 
 # Core Schema Tables
 
+## V2 (`services/core-api`, `infrastructure/db/migrations/core/`)
+
+core-api is the only owner/writer of V2 `core` (TECH-V2-core-api §3). Added by `V003` (V2-11):
+
+| Table | RLS | Key columns / constraints |
+|---|---|---|
+| `core.users` | no (global) | `id` uuid PK (UUIDv7 from app), `email` lower-case, not unique; `display_name`, `avatar_url`, `last_active_workspace_id` (no FK) |
+| `core.external_identities` | no (global) | `user_id` FK, `issuer`, `subject`, `email_at_link`, `hosted_domain`; `UNIQUE (issuer, subject)`, `UNIQUE (user_id, issuer)` |
+| `core.workspaces` | FORCE | `name` 1–100, `kind` `PERSONAL`/`TEAM`, `created_by` FK; `uq_personal_workspace` = one PERSONAL per user |
+| `core.memberships` | FORCE | PK `(workspace_id, user_id)`, `role` `OWNER`/`ADMIN`/`MEMBER`, `status` `ACTIVE`/`SUSPENDED` (+ `suspended_at` check), `display_name`, `email`, `department_id` (FK to departments arrives with V2-23) |
+
+Function `core.create_personal_workspace(p_user_id, p_workspace_id, p_name, p_email)` returns the
+user's PERSONAL workspace id, creating it and the OWNER membership if absent. Later tables
+(refresh tokens, departments, invitations, documents, outbox, audit) follow TECH §3 in new migrations.
+
+## V1 (frozen, `infrastructure/init-db/`)
+
 **Owner Service**: `auth-service`  
 **Purpose**: User authentication, roles, permissions, and login history
 
