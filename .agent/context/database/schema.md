@@ -17,6 +17,12 @@ Verification uses `eval/sopilot_eval/infra_check.py` on a disposable tmpfs proje
 no migration was applied to the owner's persistent DB. See `infrastructure/db/README.md`
 and `docs/04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md`.
 
+`rag/V003__rag_tables.sql` (V2-09) adds every `rag` table of TECH-V2-ai-service §3 and §7.6,
+RLS on each table with `workspace_id`, and the SECURITY DEFINER helpers
+`claim_ingestion_job`, `claim_outbox_batch`, `stale_active_versions`. Details:
+`tables/rag.md`. Verified on a disposable database with Flyway 10.20.1 and by the ai-service
+integration tests; not applied to the owner's persistent DB.
+
 `core/V003__identity_and_personal_workspace.sql` (V2-11) adds `core.users`,
 `core.external_identities` (global, no RLS), `core.workspaces` and `core.memberships`
 (`FORCE ROW LEVEL SECURITY`, policies `workspace_visibility`, `membership_visibility`, plus
