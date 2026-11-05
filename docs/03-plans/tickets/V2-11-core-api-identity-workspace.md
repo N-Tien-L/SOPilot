@@ -2,9 +2,9 @@
 id: V2-11
 title: "core-api: khung service, Google identity, JIT và workspace cá nhân"
 type: feat
-status: in-progress
+status: done
 created: 2026-10-17
-updated: 2026-11-04
+updated: 2026-11-05
 scope: user
 priority: P0
 size: L
@@ -43,9 +43,9 @@ Service Spring Boot `services/core-api` hợp nhất auth, user, metadata (phầ
 
 Ghi chú: Maven wrapper từng lỗi (AUDIT 2026-10-14); xác nhận `./mvnw` chạy được trước.
 
-## 5. Bằng chứng triển khai (2026-11-04, chưa review)
+## 5. Bằng chứng triển khai (2026-11-04, nghiệm thu 2026-11-05)
 
-Trạng thái `in-progress`: code đã commit trên nhánh `feat/user-core-api-identity`, chưa review; chưa chuyển `review`/`done`.
+Owner nghiệm thu 2026-11-05, chuyển `done`. Code ở commit `f25646b` trên nhánh `feat/user-core-api-identity`. Các mục "Chưa kiểm" dưới đây được chấp nhận còn mở: đăng nhập Google thật kiểm cùng V2-15, áp migration vào DB persistent làm khi chạy stack V2.
 
 - **Code:** `services/core-api/` (Spring Boot 3.5.16, Java 21, wrapper Maven 3.9.12 chạy được); migration `infrastructure/db/migrations/core/V003__identity_and_personal_workspace.sql` (`users`, `external_identities`, `workspaces`, `memberships`, RLS, `core.create_personal_workspace`).
 - **Port:** `GoogleIdTokenVerifier` từ V1 `GoogleTokenVerifierService` (V1 không sửa). Khác V1: kiểm `nonce` với cookie `sp_nonce` ký HMAC, lệch giờ 60 s, issuer chuẩn hóa, lỗi luôn `401 INVALID_GOOGLE_TOKEN` (V1 trả `e.getMessage()` cho client), log chỉ mã lý do.
