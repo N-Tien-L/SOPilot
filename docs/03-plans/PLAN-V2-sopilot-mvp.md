@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "Kế hoạch triển khai SOPilot V2: eval-first, chạy local, bàn giao nghiên cứu"
 status: approved
 created: 2026-10-17
-updated: 2026-11-05
+updated: 2026-11-07
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md
@@ -16,8 +16,8 @@ refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 33
-completed_tickets: 13
-implemented_tickets: 13
+completed_tickets: 14
+implemented_tickets: 14
 review_tickets: 0
 ---
 
@@ -203,7 +203,7 @@ flowchart TD
 |---|---|---|:---:|---|:---:|
 | `V2-05` | Eval harness truy xuất (FR-18) | tests | M | None | done |
 | `V2-06` | Corpus và bộ câu hỏi đa ngôn ngữ (VI, EN) có người duyệt | tests | L | None | done |
-| `V2-07` | Chạy RQ1–RQ3 và RQ5, viết báo cáo | tests | M | `V2-05`, `V2-06`, `V2-22` | todo |
+| `V2-07` | Chạy RQ1–RQ3 và RQ5, viết báo cáo | tests | M | `V2-05`, `V2-06`, `V2-22` | done |
 
 ### Phase 2: Nền tảng và ai-service
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
@@ -297,3 +297,5 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-05:** `V2-11` → `done` (41 unit + 14 integration test xanh, 3 chỗ lệch TECH đã duyệt và ghi vào TECH-V2-core-api; khóa trước đó trong JWKS chuyển `V2-29`); `completed_tickets` 11 → 12, `implemented_tickets` 11 → 12.
 
 > **Owner chốt 2026-11-05:** `V2-09` → `done` (bước 2/2: truy xuất hybrid lọc quyền trước `LIMIT`, 4 điểm tách riêng, endpoint nội dung, `reindex`; 178 test; Jaccard top-10 so với harness ≥ 0,993 ở mọi chế độ); `completed_tickets` 12 → 13, `implemented_tickets` 12 → 13. Mở khóa `V2-10`, `V2-12`.
+
+> **Owner chốt 2026-11-07:** `V2-07` → `done` (báo cáo [AUDIT-eval-rq1-rq3-2026-11-04](../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) `final`; giữ bge-m3 và `cross_lingual_bm25_factor` 1,0, không ghi `retrieval.thresholds`, chế độ mặc định và ngưỡng chuyển sang `V2-10`); `completed_tickets` 13 → 14, `implemented_tickets` 13 → 14.
