@@ -3,6 +3,10 @@
 # generated signing key, so a missing key fails startup instead of running insecurely.
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    # Read (and discard) an oversized upload instead of resetting the connection, so the client
+    # receives 413 FILE_TOO_LARGE. Slightly above spring.servlet.multipart.max-request-size.
+    max-swallow-size: 22MB
   error:
     include-message: never
     include-stacktrace: never
@@ -20,6 +24,11 @@ spring:
   mvc:
     problemdetails:
       enabled: false
+  servlet:
+    multipart:
+      # 20 MB per file (FR-06); the service re-checks the size and answers 413 FILE_TOO_LARGE.
+      max-file-size: 20MB
+      max-request-size: 21MB
 
 sopilot:
   google:
@@ -36,6 +45,25 @@ sopilot:
     nonce-ttl: PT5M
     allow-ephemeral-nonce-key: false
     cookie-secure: true
+
+  internal:
+    # One token for both directions between core-api and ai-service. Blank rejects every /internal call.
+    token: ${SOPILOT_INTERNAL_TOKEN:}
+    ai-base-url: ${SOPILOT_AI_BASE_URL:http://ai-service:8000}
+  s3:
+    endpoint: ${SOPILOT_S3_ENDPOINT:}
+    bucket: ${SOPILOT_S3_BUCKET:}
+    access-key: ${SOPILOT_S3_ACCESS_KEY:}
+    secret-key: ${SOPILOT_S3_SECRET_KEY:}
+    region: ${SOPILOT_S3_REGION:us-east-1}
+  quota:
+    # FR-09 (owner, 2026-10-21): 50 documents / 200 MB per workspace; 0 turns a limit off.
+    docs-per-workspace: ${SOPILOT_QUOTA_DOCS_PER_WORKSPACE:50}
+    bytes-per-workspace: ${SOPILOT_QUOTA_BYTES_PER_WORKSPACE:209715200}
+  outbox:
+    enabled: true
+    poll: ${SOPILOT_OUTBOX_POLL:PT5S}
+    max-attempts: ${SOPILOT_OUTBOX_MAX_ATTEMPTS:20}
 
 management:
   endpoints:

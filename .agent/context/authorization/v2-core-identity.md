@@ -27,5 +27,20 @@ The V1 notes in `google-admission.md` (roster admission, auth-service) do not ap
   sets `app.workspace_id`/`app.user_id` with `set_config(..., true)` inside a transaction. Unset means
   no rows. Policies `definer_access` (role `sopilot_migrator`) exist only so SECURITY DEFINER helpers
   work under FORCE RLS; `sopilot_core_app` is unaffected.
-- Not yet: membership checks per request (`JwtAuthFilter`, V2-29), suspended members (V2-23),
-  invitations and `pendingInvitations` (V2-30; returned as `[]`).
+- **Per-request auth (V2-12/V2-23):** `security/JwtAuthFilter` verifies the bearer token (`AccessTokenVerifier`:
+  RS256 signature, `iss`, `aud` contains `sopilot-core`, `exp`, claim shape) on every `/api/v1/**` except
+  `/api/v1/auth/**`; controllers take an `AuthPrincipal` (`sub`, `wid`, `wrole`, `wdept`). `tenancy/TenantTx` binds
+  `app.workspace_id`/`app.user_id` from that principal at the start of each transaction (an explicit wrapper,
+  not a transaction listener as TECH section 4.3 sketches). `role` and `wdept` are read from the token, so a change
+  takes effect at the next token issue (<= 15 min, ADR-007 section 4.5). `/internal/**` is guarded by
+  `InternalTokenFilter` (`X-Internal-Token`, constant-time compare, blank token = reject all).
+- **Roles:** OWNER/ADMIN upload, replace, retry, edit and delete documents, manage departments and members, and
+  read version history; every member lists, reads and downloads (`download-url`, <= 300 s). OWNER only: audit log.
+  An ADMIN cannot suspend or remove an OWNER; the workspace always keeps one ACTIVE OWNER (`LAST_OWNER`, checked
+  under a row lock on the owners). A PERSONAL workspace cannot be left.
+- **Re-issue:** `identity/SessionTokenService.reissue(user, workspace)` re-reads the membership: removed ->
+  `401 MEMBERSHIP_LOST`, `SUSPENDED` -> `403 MEMBERSHIP_SUSPENDED`, else a token with current role and `wdept`.
+  Refresh cookies and rotation (V2-29) must call it. Suspending a member does not yet revoke refresh tokens
+  (none exist).
+- Not yet: refresh/switch/logout and workspace CRUD (V2-29), invitation endpoints and acceptance, role changes,
+  `pendingInvitations` (V2-30; returned as `[]`).

@@ -886,3 +886,20 @@ Owner duyệt theo đề xuất cho Q1, Q3, Q4, Q5. Q2 được thay bằng quy�
 - Không port `core.employee_roster`, `metadata.document_access_rules`, `password_reset_tokens`, OTP, cột password hash (ADR-005 §4.1, ADR-007).
 - Không phát sự kiện RabbitMQ; không đọc schema của service khác.
 - Không gửi email mời (người mời tự chia sẻ link).
+
+---
+
+## 13. Ghi chú triển khai V2-12 và V2-23 (2026-11-06, chờ owner duyệt)
+
+Các chỗ code khác với đặc tả ở trên. Chưa phải quyết định đã duyệt; owner xem khi nghiệm thu V2-12/V2-23.
+
+| Mục | TECH | Code | Lý do |
+|---|---|---|---|
+| Thứ tự PUT S3 (§2.2) | PUT trước mọi bước DB | Kiểm tra và ghi row trước, PUT **cuối** transaction, rồi commit | Xung đột (trùng, hạn mức, đang xử lý) không bao giờ chạm storage nên không sinh object mồ côi; `StorageJanitor` dọn trường hợp commit lỗi sau PUT. Đổi lại giữ advisory lock suốt lúc PUT |
+| Đặt biến RLS (§4.3) | Listener trên `TransactionSynchronizationManager` | `TenantTx` bọc từng transaction, lấy tenant từ `AuthPrincipal` | Tường minh, không phụ thuộc thứ tự đăng ký synchronization |
+| Mã hết hạn mức (§5.0 và §3.3) | `422` ở §5.0, `409` ở §3.3 và ticket | `409 QUOTA_EXCEEDED` kèm `{kind, limit, used}` | Theo ticket V2-12 và §3.3 |
+| FK `invitations.department_id` (§3.2) | `ON DELETE RESTRICT` | `ON DELETE SET NULL (department_id)`; `DepartmentService` chặn khi còn lời mời **chờ** | Lời mời đã dùng/thu hồi là lịch sử, không được ghim phòng ban mãi |
+| Bảng tạo sớm | `categories`, `document_departments` thuộc V2-24 | Tạo ở `V005` | `documents.category_id` và việc chặn xóa phòng ban cần chúng; API vẫn ở V2-24 |
+| `failure_message` (§5.5, §6) | Theo `Accept-Language` | Câu tiếng Việt cố định theo mã, lưu lúc ghi | Giá trị lưu trong DB; locale theo header cần dịch lúc đọc |
+| Ngày hiệu lực (§8.2) | `effectiveDate` ISO | Giá trị không phải ISO bị bỏ qua | ai-service trích từ văn bản tự do và dead-letter mọi `4xx` |
+| `PATCH /members/{userId}` (§5.3) | Có `role` | Chưa nhận `role` | Đổi role và quy tắc OWNER đầy đủ là V2-30 |

@@ -182,3 +182,15 @@ Before implementing database changes, verify service ownership in:
 
 *(Full column definitions, constraints and types live in `.agent/context/database/tables/<schema>.md`; the DDL in `infrastructure/init-db/*.sql` is authoritative.)*
 
+`core/V004__departments_and_member_profiles.sql` (V2-23) adds `core.departments` (flat, `FORCE` RLS),
+`memberships.employee_code` / `job_title` with the composite FK `(workspace_id, department_id) ->
+departments` (`RESTRICT`) and `core.invitations` (table only; endpoints are V2-30). Its department FK uses
+`ON DELETE SET NULL (department_id)` instead of TECH's `RESTRICT`: used or revoked invitations are history and
+must not pin a department; `DepartmentService` refuses deletion while a pending invitation names it.
+
+`core/V005__documents_outbox_audit.sql` (V2-12) adds `core.categories` (target of `documents.category_id`; API in
+V2-24), `core.documents`, `core.document_versions`, `core.document_departments`, `core.outbox_events` and
+`core.audit_logs` (all `FORCE` RLS; `UPDATE`/`DELETE` revoked on `audit_logs` for `sopilot_core_app`) and two
+SECURITY DEFINER helpers, `core.claim_outbox_batch(int)` and `core.referenced_object_keys(text[])` (EXECUTE only for
+`sopilot_core_app`; `definer_access` policies for `sopilot_migrator` on `outbox_events` and `document_versions`).
+Details: `tables/core.md` (V2 section). Verified by the core-api suites and `tests/tenant-isolation`.

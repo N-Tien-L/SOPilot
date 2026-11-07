@@ -19,10 +19,23 @@
     <properties>
         <java.version>21</java.version>
         <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
+        <awssdk.version>2.57.9</awssdk.version>
         <!-- V2 Flyway migrations live outside the service; integration tests apply them to Testcontainers. -->
         <sopilot.migrations.dir>${project.basedir}/../../infrastructure/db/migrations</sopilot.migrations.dir>
         <sopilot.db.init.dir>${project.basedir}/../../infrastructure/db/init</sopilot.db.init.dir>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -53,6 +66,12 @@
             <version>${nimbus-jose-jwt.version}</version>
         </dependency>
 
+        <!-- Standard S3 API client (bucket and endpoint from env; MinIO locally). -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -66,6 +85,11 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>minio</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

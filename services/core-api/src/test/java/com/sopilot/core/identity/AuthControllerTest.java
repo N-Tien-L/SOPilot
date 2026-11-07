@@ -6,7 +6,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.sopilot.core.config.InternalProperties;
+import com.sopilot.core.security.AccessTokenVerifier;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -37,9 +42,17 @@ class AuthControllerTest {
 
     private static final String CLEARED = "sp_nonce=; Path=/api/v1/auth; Max-Age=0";
 
+    /** The web slice also loads the servlet filters, which need these properties and the token verifier. */
+    @TestConfiguration
+    @EnableConfigurationProperties(InternalProperties.class)
+    static class FilterSupport {
+    }
+
     abstract static class Base {
         @Autowired
         MockMvc mvc;
+        @MockitoBean
+        AccessTokenVerifier accessTokenVerifier;
         @MockitoBean
         NonceService nonces;
         @MockitoBean
@@ -66,6 +79,7 @@ class AuthControllerTest {
 
     @Nested
     @WebMvcTest(controllers = {AuthController.class, DevLoginController.class})
+    @Import(FilterSupport.class)
     @ActiveProfiles("prod")
     class OutsideLocalAndTest extends Base {
 
@@ -158,6 +172,7 @@ class AuthControllerTest {
 
     @Nested
     @WebMvcTest(controllers = {AuthController.class, DevLoginController.class})
+    @Import(FilterSupport.class)
     @ActiveProfiles("test")
     class InTestProfile extends Base {
 

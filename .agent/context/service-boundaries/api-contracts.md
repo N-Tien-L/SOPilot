@@ -14,6 +14,19 @@ version: 1.0
 > `403 MEMBERSHIP_SUSPENDED`, `404 NOT_FOUND`, `405 METHOD_NOT_ALLOWED`, `415 UNSUPPORTED_MEDIA_TYPE`,
 > `500 INTERNAL_ERROR`. Access token: RS256, ≤ 15 min, claims `sub, wid, wrole, wdept, jti, iat, exp`,
 > `iss=sopilot-core`, `aud=[sopilot-core, sopilot-ai]`, keys at `/.well-known/jwks.json`.
+> **V2-12/V2-23 additions** (all need `Authorization: Bearer`; workspace and role come from the token only, never
+> from path or body; another workspace's object is `404`): `GET/POST /api/v1/departments`, `PATCH/DELETE
+> /api/v1/departments/{id}` (`409 DEPARTMENT_NAME_TAKEN`, `409 DEPARTMENT_IN_USE` with counts);
+> `GET /api/v1/members`, `GET /members/me`, `PATCH /members/{userId}` (profile + department), `POST
+> /members/{userId}/suspend|reactivate`, `DELETE /members/{userId}`, `POST /members/leave` (`409 LAST_OWNER`,
+> `409 EMPLOYEE_CODE_TAKEN`, `409 DEPARTMENT_ARCHIVED`); `POST /api/v1/documents` (multipart `file`, 20 MB, PDF or
+> Markdown only: `415 UNSUPPORTED_TYPE|INVALID_ENCODING`, `413 FILE_TOO_LARGE`, `409 DUPLICATE_DOCUMENT|
+> QUOTA_EXCEEDED`), `POST /documents/{id}/versions` (`409 VERSION_IN_PROGRESS|DOCUMENT_UNCHANGED`), `POST
+> /documents/{id}/retry` (`409 VERSION_NOT_FAILED`), `GET /documents` (cursor page), `GET /documents/{id}`, `PATCH
+> /documents/{id}` (title, description, language), `GET /documents/{id}/download-url|versions`, `DELETE
+> /documents/{id}`; `GET /api/v1/audit-logs` (OWNER). `PATCH /internal/documents/{id}/versions/{versionId}/status`
+> (header `X-Internal-Token`) is ai-service's callback (TECH-V2-core-api section 8.2). Lists use
+> `{"data": [...], "page": {"cursor", "hasMore"}, "traceId"}`.
 > The rest of this file describes frozen V1 (gateway, `ApiResponse` with `success`).
 
 ## Purpose

@@ -1,5 +1,6 @@
 package com.sopilot.core.identity;
 
+import com.sopilot.core.audit.AuditService;
 import com.sopilot.core.common.ApiException;
 import com.sopilot.core.common.UuidV7;
 import com.sopilot.core.identity.UserRepository.UserRecord;
@@ -39,15 +40,18 @@ public class IdentityService {
     private final WorkspaceRepository workspaces;
     private final RlsContext rls;
     private final AccessTokenIssuer tokens;
+    private final AuditService audit;
 
     public IdentityService(JdbcTemplate jdbc, UserRepository users, ExternalIdentityRepository identities,
-                           WorkspaceRepository workspaces, RlsContext rls, AccessTokenIssuer tokens) {
+                           WorkspaceRepository workspaces, RlsContext rls, AccessTokenIssuer tokens,
+                           AuditService audit) {
         this.jdbc = jdbc;
         this.users = users;
         this.identities = identities;
         this.workspaces = workspaces;
         this.rls = rls;
         this.tokens = tokens;
+        this.audit = audit;
     }
 
     @Transactional
@@ -76,6 +80,7 @@ public class IdentityService {
         WorkspaceRecord workspace = workspaces.findVisible(workspaceId)
                 .orElseThrow(() -> new IllegalStateException("Personal workspace is not visible"));
         users.setLastActiveWorkspace(userId, workspaceId);
+        audit.record(workspaceId, userId, "LOGIN", "USER", userId, java.util.Map.of());
 
         IssuedToken token = tokens.issue(userId, workspaceId, membership.role().name(), membership.departmentId());
         return new LoginResponse(
