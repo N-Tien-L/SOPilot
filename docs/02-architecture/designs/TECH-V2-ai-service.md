@@ -599,10 +599,10 @@ class DocElement(BaseModel):
     page: int | None = None         # PDF: trang bắt đầu (số trang thật, từ 1); MD: None
     page_end: int | None = None     # PDF: trang kết thúc, = page nếu không kéo qua trang (bảng nhiều trang); MD: None
     row_pages: list[int] | None = None    # table PDF: trang của từng hàng trong rows, cùng độ dài rows
-    char_start: int | None = None   # offset trên Markdown chuẩn, do render đặt; None với phần tử role ≠ content
+    char_start: int | None = None   # offset trên Markdown chuẩn, do render đặt; None với phần tử không render (role ∉ {content, figure_text})
     char_end: int | None = None
     row_spans: list[tuple[int, int]] | None = None  # table: [char_start, char_end) của từng hàng trong Markdown chuẩn, do render đặt
-    role: Literal["content", "header", "footer", "boilerplate"] = "content"
+    role: Literal["content", "header", "footer", "boilerplate", "figure_text"] = "content"  # figure_text: chữ lớp chữ PDF trong vùng ảnh mà Docling không xuất (sơ đồ), được render như nội dung; chữ trong vùng ảnh nằm 15% đầu/10% cuối trang giữ role header/footer
 
 class StructuredDocument(BaseModel):
     file_type: Literal["PDF", "MD"]
@@ -613,7 +613,7 @@ class StructuredDocument(BaseModel):
 def render(doc: StructuredDocument) -> RenderedDocument: ...   # docproc.render: markdown, offset từng phần tử, page_index
 ```
 
-**Markdown chuẩn (owner chốt 2026-10-21).** `extracted_documents.markdown` là chuỗi do `docproc.render` sinh từ các phần tử `role = content` **sau** chuẩn hóa và làm sạch. Đây là bản duy nhất dùng cho chunk, `index_text`, trích dẫn, gợi ý metadata, trình xem trích dẫn (FR-14) và màn xem FR-31. Quy tắc:
+**Markdown chuẩn (owner chốt 2026-10-21).** `extracted_documents.markdown` là chuỗi do `docproc.render` sinh từ các phần tử `role = content` hoặc `figure_text` **sau** chuẩn hóa và làm sạch. Đây là bản duy nhất dùng cho chunk, `index_text`, trích dẫn, gợi ý metadata, trình xem trích dẫn (FR-14) và màn xem FR-31. Quy tắc:
 - Renderer là code của SOPilot, tất định, có `normalizer_version`. Chuỗi Markdown do thư viện PDF tự xuất (nếu có) **không** được dùng làm nguồn offset. Thư viện chỉ cung cấp cây phần tử qua adapter `extract/pdf.py`; đây là nơi duy nhất phụ thuộc thư viện.
 - Render: heading → `#` theo level; đoạn → một khối, các dòng bị ngắt cứng trong PDF được nối bằng khoảng trắng; list item giữ số thứ tự nguồn (`5.1`, `a)`); bảng → bảng GFM, xuống dòng trong ô thay bằng khoảng trắng, ô gộp ghi một lần ở ô đầu, các ô còn lại để trống, ký tự `|` trong ô được escape; khối cách nhau đúng một dòng trống.
 - Offset `[char_start, char_end)` tính theo **Unicode code point** (chỉ số chuỗi Python) trên `markdown`. Bất biến kiểm thử: với mọi phần tử nội dung, `markdown[char_start:char_end]` bằng đúng đoạn render của phần tử đó. API công khai trả thêm offset UTF-16 (`charStart16`, `charEnd16`) để trình duyệt cắt chuỗi đúng khi có ký tự ngoài BMP.
@@ -633,7 +633,7 @@ Quy tắc theo định dạng (V2-20; PDF dùng Docling theo ADR-008, xác nhậ
 
 ### 5.3 Tách khung và metadata (V2-21)
 
-- Header/footer lặp: dòng xuất hiện ở ≥ 60% số trang tại cùng vùng đầu/cuối trang (sau khi thay số trang bằng `#`) → `role = header|footer`, bỏ khỏi nội dung. **Chỉ áp dụng khi PDF có ít nhất `SOPILOT_HEADER_FOOTER_MIN_PAGES` trang (mặc định 3, giá trị khởi đầu chốt trên corpus V2-19)**: với 1–2 trang mọi dòng đầu/cuối đều đạt ≥ 60% nên luật sẽ xóa tiêu đề và đoạn cuối. Phần tử `heading` đầu tiên của tài liệu không bao giờ bị đánh `header`.
+- Header/footer lặp: dòng xuất hiện ở ≥ 40% số trang (owner chốt 2026-11-04, đổi từ 60%: phụ lục biểu mẫu dùng header khác nên header chính chỉ phủ 41–57% số trang; đo trên corpus V2-19 cho khung lọt 19,8% ở 60% và 8,1% ở 40%, không thêm lỗi xóa nhầm thật) tại cùng vùng đầu/cuối trang (sau khi thay số trang bằng `#`) → `role = header|footer`, bỏ khỏi nội dung. **Chỉ áp dụng khi PDF có ít nhất `SOPILOT_HEADER_FOOTER_MIN_PAGES` trang (mặc định 3, giá trị khởi đầu chốt trên corpus V2-19)**: với 1–2 trang mọi dòng đầu/cuối đều đạt ≥ 60% nên luật sẽ xóa tiêu đề và đoạn cuối. Phần tử `heading` đầu tiên của tài liệu không bao giờ bị đánh `header`.
 - Khối khung VI/EN nhận diện bằng luật: quốc hiệu/tiêu ngữ, số/ký hiệu, nơi nhận, khối chữ ký, bảng Soạn thảo/Soát xét/Phê duyệt (Prepared/Reviewed/Approved), bảng theo dõi sửa đổi (Revision history). Đánh `role = boilerplate`, lưu vào `extracted_documents.boilerplate`.
 - Metadata trích từ khung trước khi bỏ: `docCode` (mã số/mã hiệu), `revisionLabel` (lần ban hành), `effectiveDate`, `approvedBy`. Gửi về core-api trong callback `READY`.
 - Không xóa nội dung thật: V2-21 báo cáo tỷ lệ khung lọt vào nội dung và tỷ lệ nội dung bị xóa nhầm trên corpus V2-19.

@@ -112,6 +112,7 @@ Run all scripts from the repository root (PowerShell):
 | ai-qa-service | `ai-qa-service` | `ai-qa` | `tests/unit`, `tests/integration` |
 | ingestion-service | `ingestion-service` | `ingestion` | Only `-Type all` (tests live in `tests/ingestion_tests`) |
 | API Gateway | `api-gateway` | `gateway` | `-Type all|unit` (Jest); no e2e config |
+| ai-service (V2) | `ai-service` | `ai` | `-Type unit` = `tests/unit`; installs extras `dev` and `pdf` (Docling) |
 | Frontend | not supported (no `test` script) | `web` | Gates are `pnpm build` + `pnpm lint` |
 
 - `validate-build.ps1`: Spring = `mvnw compile`; Python = `compileall` + `ruff check`; gateway = `pnpm build` + eslint; web = `pnpm build` + `pnpm lint`.

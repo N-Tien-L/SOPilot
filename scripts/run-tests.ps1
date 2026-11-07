@@ -1,6 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
-    [ValidateSet("auth-service", "user-service", "knowledge-service", "metadata-service", "feedback-service", "ai-qa-service", "ingestion-service", "api-gateway", "frontend")]
+    [ValidateSet("core-api", "auth-service", "user-service", "knowledge-service", "metadata-service", "feedback-service", "ai-qa-service", "ingestion-service", "ai-service", "api-gateway", "frontend")]
     [string]$Scope,
 
     [Parameter(Mandatory=$false)]
@@ -21,7 +21,9 @@ Write-Host "Running tests for scope: $Scope (Type: $Type)" -ForegroundColor Cyan
 $ExitCode = 0
 
 switch ($Scope) {
-    { $_ -in "auth-service", "user-service", "knowledge-service", "metadata-service", "feedback-service" } {
+    # core-api: -Type unit = surefire unit tests; -Type all = mvnw verify, which also runs the
+    # *IT Testcontainers suites (needs Docker).
+    { $_ -in "core-api", "auth-service", "user-service", "knowledge-service", "metadata-service", "feedback-service" } {
         $ServiceDir = Join-Path $BaseDir "services\$Scope"
         Set-Location $ServiceDir
         Write-Host "Running Java tests in $ServiceDir..."
@@ -44,6 +46,19 @@ switch ($Scope) {
         }
         $pytestTemp = Join-Path $ServiceDir ("scratch\pytest-" + [guid]::NewGuid().ToString("N"))
         uv run pytest $pytestArgs -v --basetemp $pytestTemp
+        $ExitCode = $LASTEXITCODE
+        Set-Location $BaseDir
+    }
+    "ai-service" {
+        $ServiceDir = Join-Path $BaseDir "services\ai-service"
+        Set-Location $ServiceDir
+        Write-Host "Running Python tests in $ServiceDir..."
+        $pytestArgs = if ($Type -eq "integration") { "tests/integration" } elseif ($Type -eq "unit") { "tests/unit" } else { "tests/" }
+        if (-not (Test-Path $pytestArgs)) {
+            Write-Error "No $Type test directory exists for $Scope ($pytestArgs)."
+        }
+        # Extras: dev tools plus the optional PDF adapter (Docling). PDF tests skip if absent.
+        uv run --extra dev --extra pdf pytest $pytestArgs -v
         $ExitCode = $LASTEXITCODE
         Set-Location $BaseDir
     }

@@ -1,0 +1,6 @@
+# Local development only. Enables dev login and in-memory keys when none are configured.
+sopilot:
+  jwt:
+    generate-if-missing: true
+  auth:
+    allow-ephemeral-nonce-key: true

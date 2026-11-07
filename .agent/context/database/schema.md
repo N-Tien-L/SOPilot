@@ -17,6 +17,20 @@ Verification uses `eval/sopilot_eval/infra_check.py` on a disposable tmpfs proje
 no migration was applied to the owner's persistent DB. See `infrastructure/db/README.md`
 and `docs/04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md`.
 
+`rag/V003__rag_tables.sql` (V2-09) adds every `rag` table of TECH-V2-ai-service §3 and §7.6,
+RLS on each table with `workspace_id`, and the SECURITY DEFINER helpers
+`claim_ingestion_job`, `claim_outbox_batch`, `stale_active_versions`. Details:
+`tables/rag.md`. Verified on a disposable database with Flyway 10.20.1 and by the ai-service
+integration tests; not applied to the owner's persistent DB.
+
+`core/V003__identity_and_personal_workspace.sql` (V2-11) adds `core.users`,
+`core.external_identities` (global, no RLS), `core.workspaces` and `core.memberships`
+(`FORCE ROW LEVEL SECURITY`, policies `workspace_visibility`, `membership_visibility`, plus
+`definer_access` for `sopilot_migrator` so SECURITY DEFINER helpers work under FORCE RLS) and
+`core.create_personal_workspace(uuid, uuid, text, text)` (SECURITY DEFINER, EXECUTE only for
+`sopilot_core_app`). Details: `tables/core.md` (V2 section). Verified by the core-api Testcontainers
+suites (`./mvnw verify`); not applied to the owner's persistent DB.
+
 ---
 
 # SYSTEM INSTRUCTION: Legacy V1 Database Schema & Architecture
@@ -168,3 +182,15 @@ Before implementing database changes, verify service ownership in:
 
 *(Full column definitions, constraints and types live in `.agent/context/database/tables/<schema>.md`; the DDL in `infrastructure/init-db/*.sql` is authoritative.)*
 
+`core/V004__departments_and_member_profiles.sql` (V2-23) adds `core.departments` (flat, `FORCE` RLS),
+`memberships.employee_code` / `job_title` with the composite FK `(workspace_id, department_id) ->
+departments` (`RESTRICT`) and `core.invitations` (table only; endpoints are V2-30). Its department FK uses
+`ON DELETE SET NULL (department_id)` instead of TECH's `RESTRICT`: used or revoked invitations are history and
+must not pin a department; `DepartmentService` refuses deletion while a pending invitation names it.
+
+`core/V005__documents_outbox_audit.sql` (V2-12) adds `core.categories` (target of `documents.category_id`; API in
+V2-24), `core.documents`, `core.document_versions`, `core.document_departments`, `core.outbox_events` and
+`core.audit_logs` (all `FORCE` RLS; `UPDATE`/`DELETE` revoked on `audit_logs` for `sopilot_core_app`) and two
+SECURITY DEFINER helpers, `core.claim_outbox_batch(int)` and `core.referenced_object_keys(text[])` (EXECUTE only for
+`sopilot_core_app`; `definer_access` policies for `sopilot_migrator` on `outbox_events` and `document_versions`).
+Details: `tables/core.md` (V2 section). Verified by the core-api suites and `tests/tenant-isolation`.

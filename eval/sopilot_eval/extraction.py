@@ -291,11 +291,101 @@ def evaluate(root: Path, predictions: Path) -> dict:
     }
 
 
+def evaluate_selected_pages(root: Path, predictions: Path) -> dict:
+    """Score reviewed labels that cover only some pages, on those pages only.
+
+    The strict ``evaluate`` refuses partial labels because comparing page-limited gold with a
+    whole-document prediction would count every unlabelled heading or table as a false
+    positive. Here predictions are cut down to ``annotated_pages`` first. Documents without
+    reviewed, page-limited labels are listed under ``excluded`` and not scored. Metadata is not
+    scored (it belongs to V2-21). A heading or table that continues across a labelled page
+    boundary is compared per page, as the labels are.
+    """
+    documents, annotations = validate_extraction(root)
+    gold_by_id = {row["doc_id"]: row for row in annotations}
+    scored, excluded = [], {}
+    for doc in documents:
+        gold = gold_by_id[doc["doc_id"]]
+        if gold.get("annotation_scope") != "selected_pages" or not gold.get("annotated_pages"):
+            excluded[doc["doc_id"]] = "no page-limited labels"
+        elif gold["review_status"] not in {"reviewed", "adjudicated"}:
+            excluded[doc["doc_id"]] = "labels not reviewed"
+        else:
+            scored.append(doc)
+    outputs = {row["doc_id"]: row for row in read_jsonl(predictions)}
+    missing = {d["doc_id"] for d in scored} - set(outputs)
+    if missing:
+        raise ValueError(f"predictions missing for: {sorted(missing)}")
+    results: dict[str, dict] = {}
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for doc in scored:
+        gold = gold_by_id[doc["doc_id"]]
+        pages = set(gold["annotated_pages"])
+        out = outputs[doc["doc_id"]]
+        require(out, "headings", "tables", "page_markdown")
+        page_text = out["page_markdown"]
+        view = {
+            **out,
+            "headings": [h for h in out["headings"] if h["page"] in pages],
+            "tables": [x for x in out["tables"] if x["page"] in pages],
+            "metadata": {},
+            "canonical_markdown": "\n\n".join(
+                page_text.get(str(p), "") for p in sorted(pages)
+            ),
+        }
+        score = score_document(gold, view)
+        for key in ("metadata_correct", "metadata_gold", "metadata_accuracy"):
+            score.pop(key)
+        # Level-agnostic view: some extractors return reliable text and page but flat levels.
+        score["headings_text_only"] = _pr_counts(
+            [(normalized(h["text"]), h["page"]) for h in gold["headings"]],
+            [(normalized(h["text"]), h["page"]) for h in view["headings"]],
+        )
+        score["annotated_pages"] = sorted(pages)
+        results[doc["doc_id"]] = score
+        groups[f"family={doc['family']};lang={doc['lang']}"].append(score)
+    summary = {}
+    for group, scores in groups.items():
+        counts: Counter = Counter()
+        for score in scores:
+            for kind in ("headings", "headings_text_only", "tables", "merged_cells"):
+                for key in ("matched", "gold", "predicted"):
+                    counts[f"{kind}_{key}"] += score[kind][key]
+            counts["furniture_leaked"] += score["furniture_leaked"]
+            counts["furniture_gold"] += score["furniture_gold"]
+        row: dict = {"documents": len(scores), **counts}
+        for kind in ("headings", "headings_text_only", "tables", "merged_cells"):
+            for metric, denom in (("precision", "predicted"), ("recall", "gold")):
+                total = counts[f"{kind}_{denom}"]
+                row[f"{kind}_{metric}"] = counts[f"{kind}_matched"] / total if total else None
+        row["furniture_leakage_rate"] = (
+            counts["furniture_leaked"] / counts["furniture_gold"]
+            if counts["furniture_gold"]
+            else None
+        )
+        summary[group] = row
+    return {
+        "kind": "extraction_selected_pages",
+        "scored": [d["doc_id"] for d in scored],
+        "excluded": excluded,
+        "by_document": results,
+        "by_family_language": summary,
+        "limits": "Only labelled pages are scored; matching is exact on normalized text, level, "
+        "page, table size and column titles. Labels are page-limited, so results do not describe "
+        "whole documents. Metadata is not scored.",
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--predictions", type=Path)
     parser.add_argument("--require-reviewed", action="store_true")
+    parser.add_argument(
+        "--selected-pages",
+        action="store_true",
+        help="score page-limited reviewed labels on their pages only",
+    )
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     try:
@@ -303,7 +393,11 @@ def main() -> None:
             args.dataset, args.require_reviewed
         )
         result = (
-            evaluate(args.dataset, args.predictions)
+            (
+                evaluate_selected_pages(args.dataset, args.predictions)
+                if args.selected_pages
+                else evaluate(args.dataset, args.predictions)
+            )
             if args.predictions
             else {
                 "documents": len(documents),
