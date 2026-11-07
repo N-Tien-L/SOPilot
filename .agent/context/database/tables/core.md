@@ -7,6 +7,40 @@ owner: auth-service
 
 # Core Schema Tables
 
+## V2 (`services/core-api`, `infrastructure/db/migrations/core/`)
+
+core-api is the only owner/writer of V2 `core` (TECH-V2-core-api §3). Added by `V003` (V2-11):
+
+| Table | RLS | Key columns / constraints |
+|---|---|---|
+| `core.users` | no (global) | `id` uuid PK (UUIDv7 from app), `email` lower-case, not unique; `display_name`, `avatar_url`, `last_active_workspace_id` (no FK) |
+| `core.external_identities` | no (global) | `user_id` FK, `issuer`, `subject`, `email_at_link`, `hosted_domain`; `UNIQUE (issuer, subject)`, `UNIQUE (user_id, issuer)` |
+| `core.workspaces` | FORCE | `name` 1–100, `kind` `PERSONAL`/`TEAM`, `created_by` FK; `uq_personal_workspace` = one PERSONAL per user |
+| `core.memberships` | FORCE | PK `(workspace_id, user_id)`, `role` `OWNER`/`ADMIN`/`MEMBER`, `status` `ACTIVE`/`SUSPENDED` (+ `suspended_at` check), `display_name`, `email`, `department_id` (FK to departments arrives with V2-23) |
+
+Added by `V004` (V2-23) and `V005` (V2-12):
+
+| Table | RLS | Key columns / constraints |
+|---|---|---|
+| `core.departments` | FORCE | `name` 1-100, `status` `ACTIVE`/`ARCHIVED`; `UNIQUE (workspace_id, lower(name))`; `UNIQUE (workspace_id, id)` is the FK target |
+| `core.memberships` (extended) | FORCE | + `employee_code` (unique per workspace when set), `job_title`; FK `(workspace_id, department_id)` -> departments `RESTRICT` |
+| `core.invitations` | FORCE | `email`, `role` `ADMIN`/`MEMBER`, profile fields, `token_hash` unique, `expires_at`, `accepted_at`/`revoked_at`; one pending per `(workspace_id, email)`; department FK `SET NULL`; logic is V2-30 |
+| `core.categories` | FORCE | `name`, `status`; `UNIQUE (workspace_id, lower(name))`; API is V2-24 |
+| `core.documents` | FORCE | `title`/`description`/`language` each with `*_source` (`SYSTEM`/`SUGGESTED`/`USER`), `visibility` `WORKSPACE`/`DEPARTMENTS`, `access_revision`, `current_version_id` (READY, serves Q&A), `latest_version_id`, `deleted_at` (soft delete until ai-service confirms) |
+| `core.document_versions` | FORCE | `version_no`, `status` `UPLOADED`/`PROCESSING`/`READY`/`FAILED`/`SUPERSEDED`, `failure_code`/`failure_message` (fixed sentence per code), `file_type` `PDF`/`MD`, `size_bytes` <= 20 MB, `sha256`, `object_key` unique, extraction metadata, `warning_codes`, `attempt` |
+| `core.document_departments` | FORCE | `(document_id, department_id)`; department FK `RESTRICT`; written by V2-24 |
+| `core.outbox_events` | FORCE | `id` = Idempotency-Key, `event_type` `INGEST_REQUESTED`/`ACCESS_UPDATED`/`DOCUMENT_DELETED`, `status` `PENDING`/`DELIVERED`/`DEAD`, `attempts`, `next_attempt_at` |
+| `core.audit_logs` | FORCE | append-only for the app role; `action`, `target_*`, `details` jsonb, `trace_id` |
+
+Functions: `core.claim_outbox_batch(int)` leases due events of every workspace for 60 s (`FOR UPDATE SKIP LOCKED`);
+`core.referenced_object_keys(text[])` tells the storage janitor which object keys a version still references.
+
+Function `core.create_personal_workspace(p_user_id, p_workspace_id, p_name, p_email)` returns the
+user's PERSONAL workspace id, creating it and the OWNER membership if absent. Later tables
+(refresh tokens, departments, invitations, documents, outbox, audit) follow TECH §3 in new migrations.
+
+## V1 (frozen, `infrastructure/init-db/`)
+
 **Owner Service**: `auth-service`  
 **Purpose**: User authentication, roles, permissions, and login history
 

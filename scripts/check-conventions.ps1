@@ -35,7 +35,8 @@ foreach ($file in $changedFiles) {
         }
     }
     elseif ($Scope -ne "infra") {
-        $expectedDir = "services\$Scope-service"
+        # V2 core-api lives in services\core-api, not services\core-service.
+        $expectedDir = if ($Scope -eq "core") { "services\core-api" } else { "services\$Scope-service" }
         if (-not $file.StartsWith($expectedDir)) {
             $violations += "File changed outside ${expectedDir}: $file"
         }

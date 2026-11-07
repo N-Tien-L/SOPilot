@@ -1,0 +1,84 @@
+name: Tenant isolation (FR-19)
+
+# V2-14: zero cross-workspace leakage, proven on every pull request. Docker is preinstalled on
+# ubuntu-latest; the suites start their own disposable pgvector Postgres (no .env, no named volume).
+on:
+  pull_request:
+  push:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tenant-isolation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Three workspaces, both application roles, every tenant table of core and rag found from the catalog.
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Database isolation suite
+        working-directory: tests/tenant-isolation
+        run: |
+          uv sync
+          uv run pytest -v
+
+  # The suite must be able to fail: switch RLS off on every tenant table and require a red run.
+  # If this job passes the suite, the suite is not looking at anything.
+  negative-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Isolation suite with RLS disabled must FAIL
+        working-directory: tests/tenant-isolation
+        run: |
+          uv sync
+          if ISOLATION_MUTATION=disable-rls uv run pytest -q; then
+            echo "::error::The isolation suite passed with RLS disabled, so it cannot detect a leak."
+            exit 1
+          fi
+          echo "Suite failed with RLS disabled, as required."
+
+  # HTTP API: three workspaces with secrets in every kind of data; forged tokens; one pooled connection.
+  core-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Tenant isolation tests of core-api
+        working-directory: services/core-api
+        run: |
+          chmod +x mvnw
+          ./mvnw -B verify -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false \
+            -Dit.test='TenantIsolationIT,TenantIsolationApiIT'
+
+  # Retrieval: the access filter applies before LIMIT and never crosses workspaces; delete removes everything.
+  ai-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Retrieval isolation tests of ai-service
+        working-directory: services/ai-service
+        run: |
+          uv sync --extra dev
+          uv run pytest tests/integration/test_retrieval.py -v

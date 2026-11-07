@@ -1,0 +1,11 @@
+# Automated tests and eval only. Enables dev login and in-memory keys when none are configured.
+sopilot:
+  jwt:
+    generate-if-missing: true
+  auth:
+    allow-ephemeral-nonce-key: true
+  # Tests drive the dispatcher by hand so retries and DEAD are deterministic.
+  outbox:
+    enabled: false
+  internal:
+    token: test-internal-token

@@ -16,7 +16,7 @@ Từ `eval/`, dùng pypdf **6.21.0** (phiên bản đã tạo canonical/hash/off
 ./.venv/Scripts/python.exe -m sopilot_eval.dataset --dataset datasets/sop-pilot --require-reviewed
 ```
 
-Lệnh cuối phải thất bại vì chưa có người duyệt. Hai acquisition hỗ trợ `--offline` để kiểm cache/hash, không gọi mạng. Builder không ghi đè artifact đã bị sửa; khi sửa seed/nhãn cần cập nhật có chủ đích, không xóa review log để dựng lại draft. Không mở `.env` hoặc cần API key. GitLab pin cùng commit ở `sources.json`; nguồn PDF pin theo SHA-256 trong lock của extraction.
+Lệnh cuối xanh từ 2026-11-01 (owner đã duyệt); nó phải đỏ lại nếu câu/span bị sửa mà chưa duyệt lại. Hai acquisition hỗ trợ `--offline` để kiểm cache/hash, không gọi mạng. Builder không ghi đè artifact đã bị sửa; khi sửa seed/nhãn cần cập nhật có chủ đích, không xóa review log để dựng lại draft. Không mở `.env` hoặc cần API key. GitLab pin cùng commit ở `sources.json`; nguồn PDF pin theo SHA-256 trong lock của extraction.
 
 Canonical EN lấy nguyên các section allowlist, bỏ frontmatter và email template trong details, giữ caveat cùng danh sách, không mở nội dung các link phụ. Canonical VI là **text inventory pypdf được nối theo trang và chuẩn hóa NFC/whitespace**, không phải Markdown có cấu trúc từ Docling. `page-map.json` giữ trang vật lý và khoảng ký tự. Trước RQ chính thức phải rebase canonical/spans theo docproc V2-20/V2-22 và duyệt/version lại; không dùng output thăm dò này như chất lượng parser hoặc scorer span-aware hoàn chỉnh.
 
@@ -24,7 +24,7 @@ Canonical EN lấy nguyên các section allowlist, bỏ frontmatter và email te
 
 ## Duyệt
 
-Mở [REVIEW.md](REVIEW.md): mỗi ý có VI/EN, hai đáp án nháp, quote, offset và nguồn/trang. 24 câu do Codex soạn, 0 câu bị loại ở giai đoạn tạo pilot, **0 câu được người duyệt**; chưa dùng model đầu ra làm judge. Không chỉnh `review_status` hoặc điền reviewer giả cho validator xanh. `review.jsonl` hiện trống.
+Mở [REVIEW.md](REVIEW.md): mỗi ý có VI/EN, hai đáp án nháp, quote, offset và nguồn/trang. 24 câu do Codex soạn, 0 câu bị loại ở giai đoạn tạo pilot; chưa dùng model đầu ra làm judge. **2026-11-01: owner duyệt 24/24 câu** qua `eval/review_ui/server.py` (0 loại, 0 sửa); `review.jsonl` có 24 bản ghi, `--require-reviewed` xanh. Không chỉnh `review_status` hoặc điền reviewer giả bằng tay; sửa câu/span phải duyệt lại.
 
 Sau duyệt pilot: sửa/loại câu, chốt quy mô corpus thật, bổ sung đa dạng cấu trúc và câu hỏi; chia theo nhóm policy/evidence và giữ cặp VI/EN cùng split; chốt test trước chạy mô hình. Không dùng test chỉnh ngưỡng.
 

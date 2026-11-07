@@ -1,0 +1,7 @@
+target/
+.mvn/wrapper/maven-wrapper.jar
+.idea/
+*.iml
+.vscode/
+# Local signing keys must never be committed (SOPILOT_JWT_PRIVATE_KEY_PATH).
+*.pem

@@ -10,8 +10,17 @@ from pathlib import Path
 @dataclass(frozen=True)
 class Chunk:
     doc: str
-    page: int
+    page: int | None
     text: str
+    # docproc chunks (V2-22) only; the character splitter leaves these unset.
+    index_text: str | None = None
+    char_start: int | None = None
+    char_end: int | None = None
+    page_end: int | None = None
+    lang: str | None = None
+    kind: str | None = None
+    section_path: tuple[str, ...] = ()
+    doc_id: str | None = None
 
     @property
     def sha(self) -> str:

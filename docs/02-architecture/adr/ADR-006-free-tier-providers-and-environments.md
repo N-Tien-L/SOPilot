@@ -3,7 +3,7 @@ id: ADR-006
 title: "V2: nhà cung cấp AI/hạ tầng miễn phí; môi trường eval local và các phương án deploy"
 status: approved
 created: 2026-10-17
-updated: 2026-10-20
+updated: 2026-11-01
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md
@@ -81,8 +81,8 @@ superseded_by: ""
 | Embedding | `BAAI/bge-m3` chạy local qua container Text Embeddings Inference CPU, hoặc sentence-transformers | Ghim commit hash của model trên Hugging Face |
 | Model so sánh | `Qwen/Qwen3-Embedding-0.6B`, `intfloat/multilingual-e5-large-instruct` | multilingual-e5 chỉ đọc được 512 token, chunk phải phù hợp |
 | Rerank | `BAAI/bge-reranker-v2-m3` chạy local | Bật hoặc tắt theo cấu hình thí nghiệm |
-| LLM sinh câu trả lời | Ưu tiên chạy local qua Ollama hoặc llama.cpp nếu máy đủ mạnh; nếu không thì dùng API (Gemini hoặc Groq) **chỉ trên một tập con** | Ghi lại model, nhiệt độ (`temperature=0`) và seed |
-| LLM làm giám khảo (faithfulness) | Một model cố định cho mọi lần chạy | Tốn quota, nên chỉ chạy trên tập con có kích thước cố định |
+| LLM sinh câu trả lời | Model nhỏ mã nguồn mở tự triển khai trên Modal (vLLM), chọn ở §4.4 | Ghi lại model kèm revision, nhiệt độ (`temperature=0`), seed, loại GPU và chi phí |
+| LLM làm giám khảo (faithfulness) | Một model cố định, khác họ model sinh, cho mọi lần chạy (§4.4) | Tốn ngân sách Modal, nên chỉ chạy trên tập con có kích thước cố định |
 
 **Thiết kế thí nghiệm:**
 - **Tách hai lớp đo:**
@@ -127,25 +127,56 @@ superseded_by: ""
 | Guard | Groq `meta-llama/llama-prompt-guard-2-86m` | 14.4 nghìn request/ngày | Bị loại cho V2 sau bài test 2026-10-20 (§4.4); dòng này chỉ còn giá trị lịch sử cho phương án deploy |
 | CI | GitHub Actions | Miễn phí với repo public | Chạy test FR-19 |
 
-### 4.4 Phân vai LLM cho V2 chạy local (owner chốt 2026-10-19)
+> **Sửa 2026-11-01:** hai hàng LLM của B1 (Gemini, Groq `gpt-oss-120b`) là bản gốc 2026-10-17 và không còn là lựa chọn cho sinh câu trả lời; xem §4.4. Phương án deploy dùng model trên Modal sẽ phải tính cả khởi động lạnh và hạn mức $30/tháng; chưa kiểm cho trường hợp phục vụ công khai.
 
-Hạn mức bản miễn phí do owner chụp ngày 2026-10-19 (chi tiết ở AUDIT-v2 §4.1). Hạn mức có thể đổi; kiểm tra lại trước mỗi đợt eval.
+### 4.4 Phân vai LLM cho V2 (owner chốt 2026-10-19; sửa 2026-11-01)
+
+> **Sửa 2026-11-01 (owner, V2-02):** bản 2026-10-19 dùng Gemini và Groq `gpt-oss-120b` cho sinh câu trả lời và giám khảo, theo hạn mức free tier. Owner đổi sang **model mã nguồn mở nhỏ tự triển khai trên Modal** để chứng minh hệ thống không phụ thuộc model thương mại cỡ lớn. Các hàng guard, gợi ý metadata, embedding, rerank giữ nguyên. Lịch sử hạn mức và kết quả gọi thử ở AUDIT-v2 §4.1.
+
+**Hạ tầng cho hai việc cần LLM mạnh (sinh câu trả lời, giám khảo):** Modal gói Starter, hai tài khoản, mỗi tài khoản $30 compute mỗi tháng (đọc ở `modal.com/pricing` ngày 2026-11-01; **chưa kiểm điều khoản về nhiều tài khoản**). Giá theo giây, quy đổi theo giờ: T4 $0,59, L4 $0,80, A10 $1,10, L40S $1,95, A100 40 GB $2,10; CPU $0,047/core-giờ, RAM $0,008/GiB-giờ, cộng thêm khoảng $0,22/giờ cho container GPU 2 core 16 GiB (ước tính). Tránh ghim region (×1,15–1,75) và chế độ non-preemptible (×3). Không dùng endpoint dùng chung của Modal (tính theo token, không nằm trong $30). Chạy bằng server tương thích OpenAI (vLLM) sau `LLMProvider`, thu về 0 khi không dùng (scale-to-zero), cache trọng số trong Volume. Chạy 24/7 không khả thi (một L4 khoảng $576/tháng), nên dùng cho eval theo lô và demo có làm nóng trước.
 
 | Việc | Model chính | Dự phòng | Lý do |
 |---|---|---|---|
-| Sinh câu trả lời | Gemini 3.1 Flash Lite (15 RPM, 250K TPM, 500 RPD) | Groq `openai/gpt-oss-120b` | Gemini có TPM dư cho prompt RAG 3–5K token; Groq bị chặn ở 8K TPM, khoảng 2 câu/phút |
+| Sinh câu trả lời | **Qwen 3.5 9B**, lượng tử hóa Q4 hoặc FP8, trên A10 hoặc L4 (24 GB) | **Qwen 3.5 4B** trên L4 hoặc T4 nếu 9B không đạt độ trễ hoặc ngân sách | Họ Qwen được khuyến nghị nhiều nhất cho tiếng Việt ở cỡ này; ngữ cảnh 256K dư cho prompt RAG 3–5K token; 9B vừa 24 GB. **Chưa đo trên bộ SOP của dự án** (xem tiêu chí chọn bên dưới) |
 | Guard injection/jailbreak | Bốn lớp không gọi LLM (PRD FR-13): luật đầu vào hai mức, ghép prompt có thẻ dữ liệu, canary token kiểm đầu ra, log | — | Llama Prompt Guard 2 86M bị loại sau bài test V2-02 (2026-10-20): chặn đúng 4/20 tấn công tiếng Việt, chặn nhầm 2/10 câu tiếng Anh dễ nhầm và 1/10 chunk tài liệu. Quyền đọc đã được thực thi trong SQL nên guard chỉ là lớp phụ |
-| Gợi ý metadata | Groq `openai/gpt-oss-20b` (30 RPM, 1K RPD, 8K TPM) | Chỉ kết quả luật | Prompt ngắn; giữ RPD Gemini cho hỏi đáp |
-| Giám khảo faithfulness | Groq `openai/gpt-oss-120b` | Giảm kích thước tập con | Khác họ với model sinh; 200K TPD nên chia lượt chấm qua nhiều ngày |
+| Gợi ý metadata | Groq `openai/gpt-oss-20b` (30 RPM, 1K RPD, 8K TPM), giữ theo owner | Chỉ kết quả luật | Prompt ngắn. Đây là phụ thuộc Groq còn lại duy nhất; nếu bỏ nốt thì đổi sang model sinh ở trên hoặc chỉ dùng luật |
+| Giám khảo faithfulness | **Gemma 4** (khác họ với Qwen để không tự chấm): bản MoE cỡ 26B trên L40S (48 GB) cho lượt chạy cuối; bản E4B trên A10 cho lượt chạy thử khi phát triển | Giảm kích thước tập con được chấm, và người chấm tay mẫu cố định | Khác họ với model sinh. Model giám khảo nhỏ yếu hơn `gpt-oss-120b`, nên báo cáo phải nêu rõ và thêm chấm tay 30–50 câu để đối chiếu. Tên và kích thước bản Gemma 4 chưa kiểm trên Ollama/Hugging Face (nguồn mâu thuẫn), phải xác nhận tag trước khi kéo |
 | Embedding, rerank | Local (`bge-m3`, `bge-reranker-v2-m3`) | — | Không phụ thuộc quota |
 
-Không dùng: Gemini Flash/Flash Lite đời 2.5–3.6 (20 RPD), Gemini Pro (0 ở bản miễn phí), Groq `gpt-oss-safeguard-20b` (3 RPM). Không có node LLM phân loại ý định: chào hỏi được trả lời bằng luật và semantic router dùng embedding câu hỏi, không gọi LLM (owner chốt 2026-10-20, V2-27; phương án LLM classifier cho vùng xám bị loại), câu dưới ngưỡng bằng chứng bị từ chối mà không gọi LLM sinh (PRD FR-12, FR-13). Dữ liệu gửi qua bản miễn phí của Gemini có thể được dùng để cải thiện sản phẩm; README phải cảnh báo không đưa tài liệu nội bộ thật khi dùng gói này.
+**Chốt model sinh câu trả lời và ứng viên thay thế (owner chốt 2026-11-04, V2-10):** owner bỏ bake-off đầy đủ bên dưới; chọn **Qwen3.5-9B, FP8, vLLM trên L4** (A10 nếu L4 quá chậm). Chỉ chạy một lần kiểm nhanh trước khi cam kết: khoảng 20 câu từ `sop-main` (có câu âm), `temperature=0`, đọc bằng mắt xem đáp đúng ngôn ngữ của câu hỏi và có `[n]` đúng nguồn, đo TTFT một lần lạnh và một lần nóng, đếm token đầu ra so với độ dài câu hiển thị để biết `enable_thinking=false` có thực sự hết sinh suy luận. Chi phí dự kiến $1–3.
+
+Dữ kiện đã kiểm ngày 2026-11-04 (nguồn thứ cấp, chưa đọc model card chính thức; mở Hugging Face để xác nhận trước khi kéo): Qwen3.5-9B là model dày 9B, Apache 2.0, ngữ cảnh khoảng 262K, BF16 khoảng 19,3 GB (nên dùng FP8 trên L4 24 GB); vLLM có recipe chính thức; chạy bằng `--default-chat-template-kwargs '{"enable_thinking": false}'`, riêng việc cờ này có ngừng sinh suy luận hay chỉ ẩn token thì nguồn mâu thuẫn. **Chưa có số đo so sánh tiếng Việt giữa các ứng viên**; chọn Qwen3.5-9B là giả thuyết hợp lý chứ không phải kết quả đo.
+
+Ứng viên thay thế, theo thứ tự nên thử khi gặp vấn đề (đổi chỉ qua `models.yaml`/biến môi trường của `LLMProvider`, không sửa pipeline):
+
+| Triệu chứng khi chạy thật | Đổi sang | GPU Modal | Ghi chú và điều chưa kiểm |
+|---|---|---|---|
+| Qwen3.5 lỗi với vLLM, vẫn sinh suy luận dù tắt thinking, hoặc hành vi lạ của kiến trúc mới | **Qwen3-8B** | L4 | Thế hệ trước cùng họ, trưởng thành hơn; Apache 2.0. Ngữ cảnh các nguồn lệch (32K–128K, đều đủ cho prompt 3–5K token). Cùng họ nên không tránh được điểm yếu tiếng Việt nếu có |
+| Quá chậm hoặc vượt ngân sách | **Qwen3.5-4B** (dự phòng gốc của ADR) | L4 hoặc T4 | Rẻ nhất; chất lượng trích dẫn/tuân thủ prompt thường giảm, cần đọc lại mẫu |
+| Chất lượng tiếng Việt của họ Qwen kém | **Gemma 4 E4B** (khoảng 8B tổng, 4,5B hiệu dụng) | A10 | Khác họ. Nguồn thứ cấp nêu Apache 2.0 và 140+ ngôn ngữ; **tiếng Việt không được nêu riêng**. Tag Hugging Face nêu: `google/gemma-4-E4B-it` |
+| Cần model lớn hơn mà vẫn rẻ | **Gemma 4 26B A4B** (MoE, 3,8B hoạt động trên 25,2B tổng) | L40S | Trọng số FP8 khoảng 26 GB nên không vừa L4/A10; đắt hơn nhiều ($1,95/giờ). Tag nêu: `google/gemma-4-26B-A4B-it` |
+
+**Ràng buộc giám khảo:** bảng trên đặt Gemma 4 làm giám khảo faithfulness vì khác họ với model sinh. Nếu đổi model sinh sang Gemma 4 thì giám khảo phải đổi sang họ khác (ví dụ Qwen3.5-9B hoặc Qwen3-8B) để không tự chấm; cập nhật hàng giám khảo cùng lúc.
+
+Đã xem xét nhưng không đề xuất: Phi-4 14B (MIT theo hầu hết nguồn, nhưng không có bằng chứng tiếng Việt), Granite 3.1 8B (Apache 2.0, 128K nhưng danh sách ngôn ngữ chính thức theo trí nhớ không có tiếng Việt, chưa kiểm), Llama (giấy phép các bản mới mâu thuẫn giữa các nguồn), Mistral 7B v0.3 (cũ, ngữ cảnh 32K).
+
+**Tiêu chí chọn và kiểm model (bake-off đầy đủ; owner đã bỏ ngày 2026-11-04, chỉ giữ lần kiểm nhanh ở trên; các mục sau còn là cách đo nếu muốn so sánh nghiêm túc sau này):**
+1. Chạy Qwen 3.5 9B và 4B trên khoảng 20 câu VI/EN lấy từ bộ eval (có câu không trả lời được), `temperature=0`, ghi model kèm revision.
+2. Đo thời gian đến token đầu (TTFT) p50/p95 gồm cả khởi động lạnh, token/giây, chi phí Modal mỗi lần chạy và mỗi câu.
+3. Đo mức tuân thủ quy tắc prompt: `[n]` đúng nguồn, câu mở đầu cố định khi thiếu thông tin, đáp bằng ngôn ngữ của câu hỏi, không để lộ canary.
+4. Chọn model **nhỏ nhất** đạt cả bốn: tuân thủ quy tắc không kém rõ rệt so với model lớn hơn, TTFT chấp nhận được cho eval, và tổng chi phí còn trong ngân sách. Không đạt thì dùng bản dự phòng và ghi lại.
+5. Giám khảo: đối chiếu với chấm tay 30–50 câu; ghi độ đồng thuận. Báo cáo ghi giới hạn của giám khảo nhỏ.
+6. Mỗi lần chạy ghi `run.json` với loại GPU, thời lượng và chi phí; đặt cảnh báo ngân sách (workspace budget) trên cả hai tài khoản, đặt idle timeout ngắn (30–60 giây) và dừng app sau mỗi phiên.
+
+**Ước tính ngân sách (chưa đo, ước lượng sơ bộ ngày 2026-11-01):** bake-off khoảng $3; phát triển với model thật khoảng $11; khoảng 10 lượt chạy đánh giá câu trả lời khoảng $7; khoảng 10 lượt giám khảo trên L40S khoảng $11; bộ kiểm tiếng Việt và đo độ trễ khoảng $3; dự phòng 50%. Tổng khoảng $50, vừa trong $60 của hai tài khoản trong một tháng nếu chạy theo lô, tắt container khi rảnh và phát triển bằng stub hoặc model 4B cục bộ. Thay số bằng số đo thật sau bake-off.
+
+Không dùng: Gemini (mọi đời) và Groq `gpt-oss-120b` cho hai việc trên, Groq `gpt-oss-safeguard-20b` (3 RPM). Không có node LLM phân loại ý định: chào hỏi được trả lời bằng luật và semantic router dùng embedding câu hỏi, không gọi LLM (owner chốt 2026-10-20, V2-27; phương án LLM classifier cho vùng xám bị loại), câu dưới ngưỡng bằng chứng bị từ chối mà không gọi LLM sinh (PRD FR-12, FR-13). Dữ liệu gửi tới Modal (model tự triển khai) và Groq (gợi ý metadata) rời khỏi máy owner; README phải cảnh báo không đưa tài liệu nội bộ thật khi chạy demo.
 
 **Các ràng buộc thiết kế mà B1 đặt ra:**
 1. **Mỗi câu hỏi chỉ gọi LLM 2 lần:**
-   - Lần 1, guard: chặn prompt injection (classifier, xem §4.4; nội dung độc hại dựa vào bộ lọc của model sinh).
-   - Lần 2, sinh câu trả lời, mang tối đa 5–6 chunk.
-   - Việc viết lại câu hỏi chỉ chạy khi có lịch sử hội thoại. Tiêu đề hội thoại sinh bằng luật đơn giản.
+   - Guard không gọi LLM (bốn lớp luật, xem §4.4); nội dung độc hại dựa vào luật và model sinh.
+   - Lần gọi chính: sinh câu trả lời, mang tối đa 5–6 chunk.
+   - Việc viết lại câu hỏi chỉ chạy khi có lịch sử hội thoại (lần gọi thứ hai và duy nhất còn lại). Với model tự triển khai, giới hạn này là mục tiêu độ trễ và chi phí, không còn là giới hạn quota. Tiêu đề hội thoại sinh bằng luật đơn giản.
 2. **Hạn mức** (FR-09): số câu hỏi mỗi user mỗi ngày, cộng một hạn mức chung toàn hệ thống để bảo vệ quota.
 3. **Service ngủ thì không chạy job.** Outbox của core-api phải *đẩy* HTTP sang ai-service để đánh thức nó, không chỉ dựa vào scheduler. Worker của ai-service quét job còn tồn mỗi khi khởi động.
 4. **Không dùng cron để giữ service luôn thức.** Render cho 750 giờ/tháng dùng chung cho mọi service, giữ hai service thức 24/7 sẽ hết quota. Trước buổi demo thì gọi trước một lần để đánh thức.
