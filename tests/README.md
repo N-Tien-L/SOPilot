@@ -20,6 +20,7 @@ SOPilot follows a microservices monorepo structure. Testing is distributed as fo
 |---|---|---|
 | **Platform E2E** | `tests/e2e/` | Playwright, TypeScript |
 | **Cross-Service Integration** | `tests/integration/` | Pytest / Jest / Newman / HTTP test clients |
+| **Tenant isolation (V2, FR-19)** | `tests/tenant-isolation/` | Pytest + psycopg against the real V2 migrations and roles; see its README |
 | **Smoke / Health Checks** | `tests/smoke/` | PowerShell / Bash / Python scripts |
 | **Performance & Load** | `tests/performance/` | k6 / Locust |
 | **Shared Test Fixtures** | `tests/fixtures/` | Sample documents, mock JSON payloads, seed SQLs |

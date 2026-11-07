@@ -35,6 +35,7 @@ datasets/<name>/questions.jsonl         # one JSON per line:
 | RQ2 | `rerank: {model: ...}` (latency p50/p95 included) |
 | RQ3 | refusal sweep in `report.md`: false refusal vs false answer by top-1 score threshold. This is a retrieval-level proxy; answer-level refusal needs the LLM layer. |
 | RQ5 | change `embedder.model` |
+| RQ4 | `rq4_rls_latency.py`: latency of one retrieval transaction (ai-service's own dense + BM25) with the application filter only vs the filter plus RLS, same data and queries, interleaved; needs Docker, no model. `uv run python rq4_rls_latency.py --workspaces 5 --chunks 2000 --queries 300` |
 
 ## Caveats
 
