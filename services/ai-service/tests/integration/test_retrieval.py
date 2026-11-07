@@ -269,8 +269,11 @@ async def test_access_filter_applies_before_limit(engine, corpus: Corpus) -> Non
 # -- fusion, gate, four scores ---------------------------------------------------------------
 
 async def test_hybrid_candidates_always_have_dense_score(engine, database, corpus) -> None:
+    # With one candidate per branch and equal weights the dense-only and BM25-only candidates tie
+    # on RRF and the tie breaks on the random chunk UUID; weigh dense higher so the BM25-only
+    # candidate always ranks second.
     cfg = RetrievalConfig(mode="hybrid", candidate_pool=1, rerank_pool=10,
-                          thresholds={"hybrid": 0.0})
+                          rrf_weights=(2.0, 1.0), thresholds={"hybrid": 0.0})
     retriever = Retriever(BowEmbedder(), cfg)
     owner = corpus.principal()
     bm25_only_seen = False
