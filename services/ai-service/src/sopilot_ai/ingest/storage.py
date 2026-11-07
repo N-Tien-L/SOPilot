@@ -20,10 +20,12 @@ class MinioObjectStore:
     """S3 API through the ``minio`` SDK with the read-only ai-service credential."""
 
     def __init__(self, endpoint: str, access_key: str, secret_key: str, bucket: str,
-                 secure: bool = False) -> None:
+                 secure: bool = False, region: str = "us-east-1") -> None:
         from minio import Minio
 
-        self._client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+        # An explicit region skips the GetBucketLocation call that the read-only policy denies.
+        self._client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure,
+                             region=region)
         self._bucket = bucket
 
     def get(self, key: str) -> bytes:

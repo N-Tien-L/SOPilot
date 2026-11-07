@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     s3_endpoint: str = Field("minio:9000", alias="SOPILOT_S3_ENDPOINT")
     s3_secure: bool = Field(False, alias="SOPILOT_S3_SECURE")
+    # Explicit: otherwise the SDK calls GetBucketLocation, which the read-only policy denies.
+    s3_region: str = Field("us-east-1", alias="SOPILOT_S3_REGION")
     s3_bucket: str = Field("sopilot-v2-documents", alias="SOPILOT_S3_BUCKET")
     s3_access_key: SecretStr = Field(SecretStr(""), alias="SOPILOT_S3_AI_ACCESS_KEY")
     s3_secret_key: SecretStr = Field(SecretStr(""), alias="SOPILOT_S3_AI_SECRET_KEY")
