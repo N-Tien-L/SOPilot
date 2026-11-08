@@ -30,7 +30,7 @@ Giữ các component chat; bỏ trang admin hệ thống, analytics, roster, câ
 - [ ] **Kiểm tra bằng trình duyệt thật** các luồng đăng nhập/chọn workspace/chat/khoảng trống trong phạm vi ticket (bố cục màn hẹp); upload/viewer/quản trị nghiệm thu ở V2-31/V2-32/V2-33; báo rõ nếu chưa kiểm tra (build/lint không thay thế được).
 
 ## 3. Hướng dẫn
-- **File:** `frontend/web/` theo `.agent/rules/frontend.md`; API client `frontend/web/lib/api.ts`; types `frontend/web/types`.
+- **File:** `frontend/web/` theo `.claude/rules/frontend.md`; API client `frontend/web/lib/api.ts`; types `frontend/web/types`.
 - **Giữ bản demo chạy được trong lúc chuyển (ADR-004 §4.5):** frontend sửa tại chỗ, nên khi bỏ gọi gateway cũ thì nó không còn chạy với stack cũ.
   - Chỉ bắt đầu nối API khi các ticket trong `depends_on` đã có endpoint chạy được trên `docker-compose.v2.yml`; trước đó chỉ làm phần UI không phụ thuộc backend (thu gọn trang, component trình xem) trên nhánh của ticket.
   - Đích của `rewrites` (TECH-V2-core-api §1.1) đọc từ env server-side (`CORE_API_URL`, mặc định `http://core-api:8080`; `AI_SERVICE_URL`, mặc định `http://ai-service:8000`) để chạy được cả trong compose lẫn `pnpm dev` trên host. Ghi vào `frontend/web/.env.example`.

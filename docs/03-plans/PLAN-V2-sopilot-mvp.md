@@ -276,7 +276,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 - [ ] 33/33 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
 - [ ] `docker compose up` dựng toàn bộ hệ thống trên máy local; UC-01 đến UC-06 và UC-12 chạy được.
 - [ ] FR-19 và FR-29: 0 rò rỉ. Báo cáo RQ1–RQ3 trong `docs/04-reports/`.
-- [ ] `AGENTS.md`, `CLAUDE.md` (mục drift) và `.agent/context/` phản ánh kiến trúc mới.
+- [ ] `CLAUDE.md` (kiến trúc, mục drift), `.claude/` và `.agent/context/` phản ánh kiến trúc mới.
 
 > **Nghiệm thu 2026-10-25:** V2-05/V2-08 `done` theo phạm vi owner chốt; xem [biên bản](../04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md). Benchmark RQ và triển khai DB hiện có là công việc riêng.
 

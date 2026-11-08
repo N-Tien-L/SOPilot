@@ -18,7 +18,7 @@ assignee: pair
 # TICKET V2-32: Frontend: nội dung nhận diện và trình xem trích dẫn
 
 ## 1. Bối cảnh & Mục tiêu
-Tách phạm vi từ V2-15 XL ngày 2026-10-24; giữ nguyên yêu cầu PRD/TECH đã duyệt. Dùng skill frontend-delivery và `.agent/rules/frontend.md` khi triển khai. FR-14/FR-31, TECH-V2-ai-service §7.3/§7.5.
+Tách phạm vi từ V2-15 XL ngày 2026-10-24; giữ nguyên yêu cầu PRD/TECH đã duyệt. Dùng skill frontend-delivery và `.claude/rules/frontend.md` khi triển khai. FR-14/FR-31, TECH-V2-ai-service §7.3/§7.5.
 
 ## 2. Tiêu chí Hoàn thành
 - [ ] Màn "Nội dung hệ thống nhận diện" (FR-31): chỉ mở khi `currentVersion` tồn tại (`READY`); PDF hiện file gốc (URL ký sẵn) cạnh Markdown chuẩn, mốc "Trang N" bấm vào thì PDF nhảy trang; màn hẹp dùng hai tab; MD hiện Markdown chuẩn + nút tải gốc. Nhãn phiên bản: khi `latestVersion` khác `currentVersion`, hiện "Phiên bản N đang dùng để hỏi đáp; phiên bản N+1 đang xử lý / xử lý lỗi". Cảnh báo chỉ hiện khi API có `warnings`; khối khung đã loại liệt kê thu gọn. Câu cố định: `READY` là đã xử lý xong, không có nghĩa nội dung đã được kiểm tra. Không có editor hay nút "đã kiểm tra".

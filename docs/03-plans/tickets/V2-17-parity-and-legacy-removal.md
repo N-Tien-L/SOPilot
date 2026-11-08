@@ -28,15 +28,15 @@ Chỉ gỡ khi V2 đạt parity. Gỡ trong một commit riêng để lịch s�
   - Eval harness (`eval/`) và CI (`.github/workflows/ci.yml`) chạy xanh chỉ với stack V2.
   - `docker compose -f docker-compose.v2.yml up` từ volume trống chạy hết UC demo (V2-16) mà không bật container V1 nào.
   - Tag `v1-final` (V2-15) tồn tại và đã đẩy lên remote; thêm tag/nhánh mốc M1 nếu khác commit.
-- [ ] Gỡ `auth-service`, `user-service`, `knowledge-service`, `metadata-service`, `feedback-service`, `api-gateway`, `ai-qa-service`, `ingestion-service`, `docker-compose.yml`, `docker-compose.dev.yml` cũ và phần hạ tầng chỉ V1 dùng (`infrastructure/init-db/`, `infrastructure/combined_init.sql`, `infrastructure/onlyoffice/`, `infrastructure/seed*` nếu V2-16 không dùng lại) — chỉ đúng đường dẫn cụ thể, không dùng xóa đệ quy bằng wildcard (AGENTS.md). Đổi tên `docker-compose.v2.yml` thành `docker-compose.yml` trong cùng thay đổi nếu owner đồng ý.
-- [ ] Không xóa Docker volume V1 (`sopilot_postgres_data`, `sopilot_minio_data`, ...) trong ticket này; chỉ ghi lệnh dọn để owner tự chạy khi muốn (AGENTS.md: không `down -v`, không prune).
-- [ ] Cập nhật `AGENTS.md` (bảng topology, quy tắc migration, script), `CLAUDE.md` (mục drift: xóa mục đã hết hiệu lực), `GEMINI.md`, `README.md`.
+- [ ] Gỡ `auth-service`, `user-service`, `knowledge-service`, `metadata-service`, `feedback-service`, `api-gateway`, `ai-qa-service`, `ingestion-service`, `docker-compose.yml`, `docker-compose.dev.yml` cũ và phần hạ tầng chỉ V1 dùng (`infrastructure/init-db/`, `infrastructure/combined_init.sql`, `infrastructure/onlyoffice/`, `infrastructure/seed*` nếu V2-16 không dùng lại) — chỉ đúng đường dẫn cụ thể, không dùng xóa đệ quy bằng wildcard (CLAUDE.md). Đổi tên `docker-compose.v2.yml` thành `docker-compose.yml` trong cùng thay đổi nếu owner đồng ý.
+- [ ] Không xóa Docker volume V1 (`sopilot_postgres_data`, `sopilot_minio_data`, ...) trong ticket này; chỉ ghi lệnh dọn để owner tự chạy khi muốn (CLAUDE.md: không `down -v`, không prune).
+- [ ] Cập nhật `CLAUDE.md` (bảng kiến trúc, lệnh, mục drift: xóa mục đã hết hiệu lực), `.claude/settings.json` (bỏ quyền `ask` cho đường dẫn V1), `README.md`; xóa `.claude/rules/v1-frozen.md`.
 - [ ] Cập nhật `.agent/context/` (service-boundaries, database, authorization, events, storage, architecture/frontend) và `scripts/*.ps1` cho cấu trúc mới.
 - [ ] `./scripts/pre-commit-check.ps1` PASS.
 - [ ] Giữ mốc git (tag/nhánh) của M1 trước khi gỡ.
 
 ## 3. Hướng dẫn
-Làm theo thứ tự: kiểm điều kiện an toàn → xác nhận tag → cập nhật script/doc → gỡ service → chạy pre-commit. Xóa luôn ghi chú "V2 transition" ở đầu `AGENTS.md`. Cần owner yêu cầu rõ ràng trước khi commit.
+Làm theo thứ tự: kiểm điều kiện an toàn → xác nhận tag → cập nhật script/doc → gỡ service → chạy pre-commit. Xóa luôn `.claude/rules/v1-frozen.md` và job V1 trong `.github/workflows/ci.yml`. Cần owner yêu cầu rõ ràng trước khi commit.
 
 ## 4. Kiểm thử
 `./scripts/pre-commit-check.ps1`, `./scripts/check-services.ps1` (cập nhật cho 2 service).
