@@ -20,7 +20,7 @@ The V1 notes in `google-admission.md` (roster admission, auth-service) do not ap
 - **Access token** (`security/AccessTokenIssuer`): RS256, `kid`, `iss=sopilot-core`,
   `aud=[sopilot-core, sopilot-ai]`, `sub`, `wid`, `wrole`, `wdept` (always present, null until V2-23),
   `jti`, `iat`, `exp`; TTL ≤ 15 min enforced at startup. No email/name. Public key at
-  `/.well-known/jwks.json`. No refresh token yet (V2-29).
+  `/.well-known/jwks.json` (current key, plus the previous public key during a rotation, V2-29).
 - **Dev login** exists only with profile `local` or `test` (`@Profile`); otherwise the route is 404.
   Without those profiles the service also refuses to start without a signing key and nonce key.
 - **RLS**: `core.workspaces` and `core.memberships` are `FORCE ROW LEVEL SECURITY`. `RlsContext.bind`
@@ -40,7 +40,18 @@ The V1 notes in `google-admission.md` (roster admission, auth-service) do not ap
   under a row lock on the owners). A PERSONAL workspace cannot be left.
 - **Re-issue:** `identity/SessionTokenService.reissue(user, workspace)` re-reads the membership: removed ->
   `401 MEMBERSHIP_LOST`, `SUSPENDED` -> `403 MEMBERSHIP_SUSPENDED`, else a token with current role and `wdept`.
-  Refresh cookies and rotation (V2-29) must call it. Suspending a member does not yet revoke refresh tokens
-  (none exist).
-- Not yet: refresh/switch/logout and workspace CRUD (V2-29), invitation endpoints and acceptance, role changes,
-  `pendingInvitations` (V2-30; returned as `[]`).
+- **Refresh (V2-29, `identity/RefreshTokenService`):** 256-bit token in the `sp_refresh` cookie (HttpOnly,
+  SameSite=Strict, path `/api/v1/auth`, 14 days); only its SHA-256 is stored in `core.refresh_tokens` (global, no
+  RLS). Each use exchanges it for the next token of the same family under a row lock; a token that was already
+  exchanged or revoked revokes the whole family. The membership is re-read on every refresh (removed ->
+  `401 MEMBERSHIP_LOST`, suspended -> `403 MEMBERSHIP_SUSPENDED`, chain revoked), and the new access token carries
+  `wrole`/`wdept` from the database. `/auth/refresh` and `/auth/logout` also require `Origin` =
+  `SOPILOT_FRONTEND_ORIGIN`. Suspend, remove and leave revoke the member's chains for that workspace.
+- **Workspaces (V2-29):** `workspace/WorkspaceService` (list, current, rename, soft delete) and
+  `identity/WorkspaceSessionService` (create TEAM, switch; they issue tokens, so they sit in `identity` to keep
+  `ArchitectureTest` cycle-free). `/current` endpoints use the token's `wid`. Delete is soft: `workspaces.deleted_at`,
+  one `DOCUMENT_DELETED` outbox event per document; a deleted workspace has no usable membership, so refresh
+  ends with `MEMBERSHIP_LOST` (access tokens already issued live <= 15 min). The row is not purged yet.
+- `WorkspaceRole` lives in `security` (moved from `WorkspaceRepository`) so `workspace` can use `AuthPrincipal`.
+- Not yet: invitation endpoints and acceptance, role changes, `pendingInvitations` (V2-30; returned as `[]`),
+  workspace domains (FR-05, P1).

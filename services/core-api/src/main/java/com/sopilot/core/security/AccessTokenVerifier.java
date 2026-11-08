@@ -2,14 +2,16 @@ package com.sopilot.core.security;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
+import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.sopilot.core.workspace.WorkspaceRepository.WorkspaceRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,7 +24,8 @@ public class AccessTokenVerifier {
 
     private static final long SKEW_SECONDS = 5;
 
-    private final RSASSAVerifier verifier;
+    /** Verifier per {@code kid}: the current key and, during a rotation, the previous one. */
+    private final Map<String, RSASSAVerifier> verifiers;
     private final Clock clock;
 
     @Autowired
@@ -32,7 +35,11 @@ public class AccessTokenVerifier {
 
     AccessTokenVerifier(SigningKeyProvider keys, Clock clock) {
         try {
-            this.verifier = new RSASSAVerifier(keys.signingKey().toRSAPublicKey());
+            Map<String, RSASSAVerifier> byKid = new HashMap<>();
+            for (RSAKey key : keys.verificationKeys()) {
+                byKid.put(key.getKeyID(), new RSASSAVerifier(key.toRSAPublicKey()));
+            }
+            this.verifiers = Map.copyOf(byKid);
         } catch (Exception e) {
             throw new IllegalStateException("Invalid access-token verification key");
         }
@@ -42,7 +49,8 @@ public class AccessTokenVerifier {
     public Optional<AuthPrincipal> verify(String token) {
         try {
             SignedJWT jwt = SignedJWT.parse(token);
-            if (!JWSAlgorithm.RS256.equals(jwt.getHeader().getAlgorithm()) || !jwt.verify(verifier)) {
+            RSASSAVerifier verifier = verifiers.get(jwt.getHeader().getKeyID());
+            if (verifier == null || !JWSAlgorithm.RS256.equals(jwt.getHeader().getAlgorithm()) || !jwt.verify(verifier)) {
                 return Optional.empty();
             }
             JWTClaimsSet claims = jwt.getJWTClaimsSet();

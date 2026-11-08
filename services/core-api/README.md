@@ -7,7 +7,11 @@ Package: `com.sopilot.core` (modules `common`, `config`, `security`, `tenancy`, 
 
 Implemented so far (V2-11): Google login with nonce, JIT user + PERSONAL workspace + OWNER
 membership, RS256 access token (≤ 15 min, claims `wid`/`wrole`/`wdept`), JWKS, dev login for
-`local`/`test`. Refresh/switch/logout are V2-29; invitations V2-30.
+`local`/`test`. Invitations are V2-30.
+
+Added by V2-29: rotating refresh tokens (`sp_refresh` cookie, replay detection, membership re-read on every refresh),
+logout, workspace switch, workspace CRUD (create TEAM, list, current, rename, soft delete), refresh revoked on
+suspend/remove/leave, and JWKS that also publishes the previous signing key during a rotation.
 
 Added by V2-23: flat departments, member profiles, suspend/reactivate/remove/leave with the last-owner and
 admin-vs-owner rules, `wdept` from the database at token re-issue (`SessionTokenService`).
@@ -22,7 +26,12 @@ S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/
 | `POST /api/v1/auth/google/nonce` | Public | `{data:{nonce}}` + HttpOnly cookie `sp_nonce` (5 min, HMAC-signed) |
 | `POST /api/v1/auth/google` | Public | `{idToken}` + cookie `sp_nonce`; `401 INVALID_GOOGLE_TOKEN` on any failure |
 | `POST /api/v1/auth/dev-login` | Public, **`local`/`test` profile only** | `{email, displayName?}`; issuer `sopilot-dev`; `404` in any other profile |
-| `GET /.well-known/jwks.json` | Public | Public signing key for ai-service |
+| `POST /api/v1/auth/refresh` | Cookie `sp_refresh` + `Origin` = `SOPILOT_FRONTEND_ORIGIN` | Rotates the cookie, returns the same body as login; replay revokes the chain; `401 UNAUTHENTICATED\|MEMBERSHIP_LOST`, `403 MEMBERSHIP_SUSPENDED`; a rejection also clears the cookie |
+| `POST /api/v1/auth/logout` | Cookie + `Origin` | Always `204`; revokes the chain and clears the cookie |
+| `POST /api/v1/auth/switch-workspace` | Bearer | `{workspaceId}`; `404` if not a member (or deleted), `403 MEMBERSHIP_SUSPENDED`; ends the old chain, starts a new one |
+| `GET /api/v1/workspaces`, `GET\|PATCH\|DELETE /api/v1/workspaces/current` | Member; PATCH/DELETE OWNER | `/current` is the token's workspace, no id in the path; PERSONAL cannot be deleted (`409 PERSONAL_WORKSPACE`) |
+| `POST /api/v1/workspaces` | Bearer | `{name}` creates a TEAM workspace with the caller as OWNER; `201` with tokens for it |
+| `GET /.well-known/jwks.json` | Public | Current and, during a rotation, previous public signing key for ai-service |
 | `GET /actuator/health` | Public | No details |
 | `GET/POST /api/v1/departments`, `PATCH/DELETE /api/v1/departments/{id}` | Member read; OWNER/ADMIN write | `409 DEPARTMENT_NAME_TAKEN`, `409 DEPARTMENT_IN_USE` (counts) |
 | `GET /api/v1/members`, `PATCH /members/{userId}`, `POST /members/{userId}/suspend\|reactivate`, `DELETE /members/{userId}` | OWNER/ADMIN | ADMIN cannot touch an OWNER; `409 LAST_OWNER` |
@@ -45,6 +54,9 @@ No profile is active by default. Outside `local`/`test` the service refuses to s
 | `GOOGLE_CLIENT_ID` | — | Blank rejects every Google login |
 | `SOPILOT_JWT_PRIVATE_KEY_PATH`, `SOPILOT_JWT_KID` | in-memory key in `local`/`test` | Unencrypted PKCS#8 PEM, RSA ≥ 2048; kid defaults to the key thumbprint |
 | `SOPILOT_ACCESS_TTL` | `PT15M` | Startup fails above 15 minutes |
+| `SOPILOT_REFRESH_TTL` | `P14D` | Refresh-token lifetime |
+| `SOPILOT_FRONTEND_ORIGIN` | `http://localhost:3000` | The only `Origin` accepted by refresh and logout |
+| `SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH` | unset | X.509 PEM public key of the key being replaced; keep it for one access-token lifetime after rotating (`openssl pkey -in old.pem -pubout`) |
 | `SOPILOT_NONCE_HMAC_KEY` | random in `local`/`test` | ≥ 32 bytes |
 | `SOPILOT_INTERNAL_TOKEN`, `SOPILOT_AI_BASE_URL` | blank (rejects every `/internal` call), `http://ai-service:8000` | One token shared with ai-service |
 | `SOPILOT_S3_ENDPOINT`, `SOPILOT_S3_BUCKET`, `SOPILOT_S3_ACCESS_KEY`, `SOPILOT_S3_SECRET_KEY`, `SOPILOT_S3_REGION` | blank, blank, blank, blank, `us-east-1` | Unset storage fails document operations with `503`, not startup |

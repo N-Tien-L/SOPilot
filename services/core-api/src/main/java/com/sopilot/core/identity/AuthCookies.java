@@ -11,6 +11,7 @@ import java.time.Duration;
 public class AuthCookies {
 
     public static final String NONCE_COOKIE = "sp_nonce";
+    public static final String REFRESH_COOKIE = "sp_refresh";
     public static final String AUTH_PATH = "/api/v1/auth";
 
     private final boolean secure;
@@ -25,6 +26,14 @@ public class AuthCookies {
 
     public String clearNonceCookie() {
         return build(NONCE_COOKIE, "", Duration.ZERO);
+    }
+
+    public String refreshCookie(String value, Duration maxAge) {
+        return build(REFRESH_COOKIE, value, maxAge);
+    }
+
+    public String clearRefreshCookie() {
+        return build(REFRESH_COOKIE, "", Duration.ZERO);
     }
 
     private String build(String name, String value, Duration maxAge) {

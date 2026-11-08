@@ -10,7 +10,7 @@ import com.sopilot.core.outbox.OutboxDispatcher;
 import com.sopilot.core.security.AccessTokenVerifier;
 import com.sopilot.core.security.AuthPrincipal;
 import com.sopilot.core.tenancy.TenantTx;
-import com.sopilot.core.workspace.WorkspaceRepository.WorkspaceRole;
+import com.sopilot.core.security.WorkspaceRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
