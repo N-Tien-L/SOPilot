@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.sopilot.core.config.InternalProperties;
+import com.sopilot.core.config.SopilotProperties;
 import com.sopilot.core.security.AccessTokenVerifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -44,7 +45,7 @@ class AuthControllerTest {
 
     /** The web slice also loads the servlet filters, which need these properties and the token verifier. */
     @TestConfiguration
-    @EnableConfigurationProperties(InternalProperties.class)
+    @EnableConfigurationProperties({InternalProperties.class, SopilotProperties.class})
     static class FilterSupport {
     }
 
@@ -61,12 +62,22 @@ class AuthControllerTest {
         IdentityService identityService;
         @MockitoBean
         AuthCookies cookies;
+        @MockitoBean
+        RefreshTokenService refreshTokens;
+        @MockitoBean
+        WorkspaceSessionService workspaceSessions;
 
         @BeforeEach
         void stubCookies() {
             when(cookies.clearNonceCookie()).thenReturn(CLEARED);
             when(cookies.nonceCookie(anyString(), any())).thenReturn("sp_nonce=signed; Path=/api/v1/auth; HttpOnly");
             when(nonces.ttl()).thenReturn(Duration.ofMinutes(5));
+            when(cookies.refreshCookie(anyString(), any())).thenReturn("sp_refresh=r; Path=/api/v1/auth; HttpOnly");
+            when(refreshTokens.ttl()).thenReturn(Duration.ofDays(14));
+        }
+
+        static IdentityService.LoginSession session() {
+            return new IdentityService.LoginSession(login(), "refresh-token");
         }
 
         static LoginResponse login() {
@@ -108,7 +119,7 @@ class AuthControllerTest {
             var identity = new ExternalIdentityClaims("https://accounts.google.com", "sub", "an@acme.com", "An", null, null);
             when(nonces.validate("cookie-value")).thenReturn(Optional.of("the-nonce"));
             when(verifier.verify("id-token", "the-nonce")).thenReturn(identity);
-            when(identityService.login(identity)).thenReturn(login());
+            when(identityService.loginWithSession(identity)).thenReturn(session());
 
             mvc.perform(post("/api/v1/auth/google").contentType(MediaType.APPLICATION_JSON)
                             .cookie(new jakarta.servlet.http.Cookie("sp_nonce", "cookie-value"))
@@ -141,7 +152,7 @@ class AuthControllerTest {
             var identity = new ExternalIdentityClaims("https://accounts.google.com", "sub", "an@acme.com", "An", null, null);
             when(nonces.validate(any())).thenReturn(Optional.of("n"));
             when(verifier.verify(anyString(), anyString())).thenReturn(identity);
-            when(identityService.login(any()))
+            when(identityService.loginWithSession(any()))
                     .thenThrow(new IllegalStateException("password=hunter2 at jdbc:postgresql://db"));
 
             mvc.perform(post("/api/v1/auth/google").contentType(MediaType.APPLICATION_JSON)
@@ -178,14 +189,15 @@ class AuthControllerTest {
 
         @Test
         void devLoginUsesDevIssuerAndNormalizedEmail() throws Exception {
-            when(identityService.login(any())).thenReturn(login());
+            when(identityService.loginWithSession(any())).thenReturn(session());
 
             mvc.perform(post("/api/v1/auth/dev-login").contentType(MediaType.APPLICATION_JSON)
                             .content("{\"email\":\"Binh@Acme.com\",\"displayName\":\"Binh\"}"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+                    .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                    .andExpect(header().string("Set-Cookie", containsString("sp_refresh=")));
 
-            verify(identityService).login(argThat(c -> c.issuer().equals("sopilot-dev")
+            verify(identityService).loginWithSession(argThat(c -> c.issuer().equals("sopilot-dev")
                     && c.subject().equals("binh@acme.com") && c.email().equals("binh@acme.com")));
         }
 

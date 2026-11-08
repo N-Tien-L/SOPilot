@@ -1,7 +1,7 @@
 package com.sopilot.core.member;
 
 import com.sopilot.core.workspace.WorkspaceRepository.MembershipStatus;
-import com.sopilot.core.workspace.WorkspaceRepository.WorkspaceRole;
+import com.sopilot.core.security.WorkspaceRole;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;

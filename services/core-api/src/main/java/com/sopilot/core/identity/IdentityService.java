@@ -8,6 +8,7 @@ import com.sopilot.core.identity.dto.LoginResponse;
 import com.sopilot.core.security.AccessTokenIssuer;
 import com.sopilot.core.security.AccessTokenIssuer.IssuedToken;
 import com.sopilot.core.tenancy.RlsContext;
+import com.sopilot.core.tenancy.TenantTx;
 import com.sopilot.core.workspace.WorkspaceRepository;
 import com.sopilot.core.workspace.WorkspaceRepository.MembershipRecord;
 import com.sopilot.core.workspace.WorkspaceRepository.MembershipStatus;
@@ -41,10 +42,12 @@ public class IdentityService {
     private final RlsContext rls;
     private final AccessTokenIssuer tokens;
     private final AuditService audit;
+    private final RefreshTokenService refresh;
+    private final TenantTx tenant;
 
     public IdentityService(JdbcTemplate jdbc, UserRepository users, ExternalIdentityRepository identities,
                            WorkspaceRepository workspaces, RlsContext rls, AccessTokenIssuer tokens,
-                           AuditService audit) {
+                           AuditService audit, RefreshTokenService refresh, TenantTx tenant) {
         this.jdbc = jdbc;
         this.users = users;
         this.identities = identities;
@@ -52,10 +55,49 @@ public class IdentityService {
         this.rls = rls;
         this.tokens = tokens;
         this.audit = audit;
+        this.refresh = refresh;
+        this.tenant = tenant;
+    }
+
+    /** A login together with the first refresh token of its chain (sent only as an HttpOnly cookie). */
+    public record LoginSession(LoginResponse response, String refreshToken) {
+        @Override
+        public String toString() {
+            return "LoginSession[response=" + response + ", refreshToken=<redacted>]";
+        }
+    }
+
+    /** Login without a refresh chain; the browser flow uses {@link #loginWithSession}. */
+    @Transactional
+    public LoginResponse login(ExternalIdentityClaims identity) {
+        return authenticate(identity).response();
     }
 
     @Transactional
-    public LoginResponse login(ExternalIdentityClaims identity) {
+    public LoginSession loginWithSession(ExternalIdentityClaims identity) {
+        Authenticated a = authenticate(identity);
+        return new LoginSession(a.response(), refresh.start(a.userId(), a.workspaceId()));
+    }
+
+    /**
+     * The login payload for a user already authenticated into {@code workspaceId} (refresh, switch,
+     * create workspace). The caller has verified the membership; this only reads display fields.
+     */
+    public LoginResponse describe(UUID userId, UUID workspaceId, IssuedToken token) {
+        return tenant.run(workspaceId, userId, () -> {
+            UserRecord user = users.findById(userId).orElseThrow(() -> new IllegalStateException("User row is missing"));
+            WorkspaceRecord workspace = workspaces.findVisible(workspaceId)
+                    .orElseThrow(() -> new IllegalStateException("Workspace is not visible"));
+            MembershipRecord membership = workspaces.findMembership(workspaceId, userId)
+                    .orElseThrow(() -> new IllegalStateException("Membership is missing"));
+            return response(token, user, workspace, membership);
+        });
+    }
+
+    private record Authenticated(LoginResponse response, UUID userId, UUID workspaceId) {
+    }
+
+    private Authenticated authenticate(ExternalIdentityClaims identity) {
         // Serialize concurrent first logins of the same identity; released at commit/rollback.
         jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", IGNORE,
                 "identity:" + identity.issuer() + "\n" + identity.subject());
@@ -83,6 +125,11 @@ public class IdentityService {
         audit.record(workspaceId, userId, "LOGIN", "USER", userId, java.util.Map.of());
 
         IssuedToken token = tokens.issue(userId, workspaceId, membership.role().name(), membership.departmentId());
+        return new Authenticated(response(token, user, workspace, membership), userId, workspaceId);
+    }
+
+    private static LoginResponse response(IssuedToken token, UserRecord user, WorkspaceRecord workspace,
+                                          MembershipRecord membership) {
         return new LoginResponse(
                 token.value(),
                 token.expiresInSeconds(),

@@ -235,6 +235,11 @@ public class DocumentRepository {
                         rs.getString(5), rs.getString(6)), documentId);
     }
 
+    public List<UUID> liveDocumentIds(UUID workspaceId) {
+        return jdbc.queryForList("SELECT id FROM core.documents WHERE workspace_id = ? AND deleted_at IS NULL "
+                + "ORDER BY id", UUID.class, workspaceId);
+    }
+
     public void softDelete(UUID documentId) {
         jdbc.update("UPDATE core.documents SET deleted_at = now() WHERE id = ?", documentId);
     }
