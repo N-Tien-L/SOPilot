@@ -54,7 +54,14 @@ environment_setup/
 # AI/Editor rules
 .cursor/
 .roo/
-.claude/
+# Local Claude Code state; the shared project config is tracked
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/rules/
+!.claude/skills/
+!.claude/agents/
+.claude/hooks/__pycache__/
 .agents/
 scratch/
 .agentrules/
