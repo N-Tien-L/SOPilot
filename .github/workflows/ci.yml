@@ -7,6 +7,18 @@ on:
     branches: [ main, develop ]
 
 jobs:
+  # V2 Flyway chains: naming, no gaps, no destructive DDL, and no edits to migrations that exist on the base branch.
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Check migrations
+      shell: pwsh
+      run: ./scripts/check-migrations.ps1 -BaseRef "origin/${{ github.base_ref || 'main' }}"
+
   backend-java:
     runs-on: ubuntu-latest
     strategy:
