@@ -32,6 +32,13 @@ Added by `V004` (V2-23) and `V005` (V2-12):
 | `core.outbox_events` | FORCE | `id` = Idempotency-Key, `event_type` `INGEST_REQUESTED`/`ACCESS_UPDATED`/`DOCUMENT_DELETED`, `status` `PENDING`/`DELIVERED`/`DEAD`, `attempts`, `next_attempt_at` |
 | `core.audit_logs` | FORCE | append-only for the app role; `action`, `target_*`, `details` jsonb, `trace_id` |
 
+Added by `V006` (V2-29):
+
+| Table | RLS | Key columns / constraints |
+|---|---|---|
+| `core.refresh_tokens` | no (global, TECH §3.1) | `user_id` FK, `target_workspace_id` (no FK; not named `workspace_id` so the isolation suite lists the table as global), `family_id`, `token_hash` bytea unique (SHA-256), `expires_at`, `used_at`, `revoked_at`, `revoked_reason` (`LOGOUT`/`REUSE_DETECTED`/`MEMBERSHIP_LOST`/`SUSPENDED`/`EXPIRED_FAMILY`); indexes on `family_id` and `(user_id, target_workspace_id)` |
+| `core.workspaces` (extended) | FORCE | + `deleted_at` (soft delete; hidden from `findVisible`, `findMembership` and the workspace list) |
+
 Functions: `core.claim_outbox_batch(int)` leases due events of every workspace for 60 s (`FOR UPDATE SKIP LOCKED`);
 `core.referenced_object_keys(text[])` tells the storage janitor which object keys a version still references.
 

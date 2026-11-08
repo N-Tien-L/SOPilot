@@ -20,6 +20,7 @@ TENANT_SCHEMAS = ("core", "rag")
 GLOBAL_TABLES = frozenset({
     "core.users",                 # identity is global; a user belongs to many workspaces
     "core.external_identities",   # (issuer, subject) -> user
+    "core.refresh_tokens",        # looked up by token_hash before the workspace is known; target_workspace_id is a value, not a tenant key (V2-29)
     "core.flyway_schema_history",
     "rag.embedding_cache",        # vectors keyed by content hash, never returns text (ADR-007 §4.5)
     "rag.system_usage",           # system-wide counters only
