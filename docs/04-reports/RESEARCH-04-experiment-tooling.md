@@ -1,13 +1,14 @@
 ---
-id: HANDOFF-research-04-experiment-tooling
+id: RESEARCH-04-experiment-tooling
 title: "Nhóm 04: Công cụ thí nghiệm, khoảng trống và đặc tả sửa tối thiểu"
 status: final
-type: handoff
+type: research
 scope: research
 created: 2026-10-19
 updated: 2026-10-19
+author: "Owner"
 refs:
-  - docs/04-reports/HANDOFF-research-01-scope-and-rqs.md
+  - docs/04-reports/RESEARCH-01-scope-and-rqs.md
   - docs/04-reports/HANDOFF-research-workstreams-2026-10-18.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-006-free-tier-providers-and-environments.md

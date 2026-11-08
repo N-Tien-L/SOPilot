@@ -6,6 +6,7 @@ type: handoff
 scope: research
 created: 2026-10-18
 updated: 2026-10-18
+author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/03-plans/PLAN-V2-sopilot-mvp.md
@@ -37,12 +38,12 @@ Thứ tự: nhóm 1 trước; nhóm 2 và 3 điều chỉnh qua lại; nhóm 4 d
 - Đọc tài liệu thượng nguồn theo `refs` và kiểm tra trạng thái hiện tại. PRD/ADR/PLAN V2 đang là draft tại thời điểm bàn giao; không tự coi đã được duyệt.
 - Đầu ra của mỗi prompt là tài liệu phân tích có các bước nhỏ, phụ thuộc, tiêu chí hoàn thành, lựa chọn cần owner chốt và bằng chứng cần thu thập. Chưa triển khai code, tải model, chạy thí nghiệm dài, gọi API có phí, commit/push hoặc deploy theo các prompt này.
 - Dùng nguồn chính thức/paper gốc khi cần tra cứu; phân biệt kết quả nguồn, suy luận, giả thuyết và phép đo của project. Không coi leaderboard tổng là bằng chứng model tốt nhất trên SOP.
-- Lưu kết quả tìm hiểu vào một file `HANDOFF-research-0N-<topic>.md` trong `docs/04-reports/`, có frontmatter theo docs/README.md. Kiểm tra file đã tồn tại trước; kế thừa quyết định owner đã chốt, giữ nội dung còn giá trị. Không sửa PRD/ADR/PLAN/ticket khi chưa được yêu cầu.
+- Lưu kết quả tìm hiểu vào một file `RESEARCH-0N-<topic>.md` trong `docs/04-reports/`, có frontmatter theo docs/README.md. Kiểm tra file đã tồn tại trước; kế thừa quyết định owner đã chốt, giữ nội dung còn giá trị. Không sửa PRD/ADR/PLAN/ticket khi chưa được yêu cầu.
 - Tài liệu tìm hiểu không là nguồn trạng thái thực thi. Kết thúc session nêu rõ điều đã xác minh, điều chưa biết, các bước nhỏ đề xuất và đầu vào cho nhóm sau. `final` chỉ kết thúc tài liệu bàn giao, không chứng nhận thí nghiệm hay nghiệm thu.
 
 ## Nhóm 1 — Phạm vi và câu hỏi nghiên cứu
 
-Đầu ra đề nghị: `docs/04-reports/HANDOFF-research-01-scope-and-rqs.md`.
+Đầu ra đề nghị: `docs/04-reports/RESEARCH-01-scope-and-rqs.md`.
 
 ```text
 Tôi muốn tìm hiểu sâu nhóm 1: Chốt phạm vi và câu hỏi nghiên cứu SOPilot.
@@ -56,7 +57,7 @@ Giúp tôi xác định vấn đề nghiên cứu, đóng góp dự kiến, RQ c
 
 ## Nhóm 2 — Bộ dữ liệu đánh giá
 
-Đầu ra đề nghị: `docs/04-reports/HANDOFF-research-02-dataset-and-labeling.md`.
+Đầu ra đề nghị: `docs/04-reports/RESEARCH-02-dataset-and-labeling.md`.
 
 ```text
 Tôi muốn tìm hiểu sâu nhóm 2: Xây dựng bộ dữ liệu đánh giá đáng tin cậy cho SOPilot.
@@ -70,7 +71,7 @@ Phân tích cách xây corpus SOP, chọn nguồn/giấy phép, thiết kế câ
 
 ## Nhóm 3 — Phương pháp thực nghiệm và model
 
-Đầu ra đề nghị: `docs/04-reports/HANDOFF-research-03-methods-and-models.md`.
+Đầu ra đề nghị: `docs/04-reports/RESEARCH-03-methods-and-models.md`.
 
 ```text
 Tôi muốn tìm hiểu sâu nhóm 3: Thiết kế phương pháp thực nghiệm và shortlist model cho SOPilot.
@@ -84,7 +85,7 @@ Thiết kế cách so embedding đúng vai trò dense trong pipeline có BM25: d
 
 ## Nhóm 4 — Công cụ và pipeline thí nghiệm
 
-Đầu ra đề nghị: `docs/04-reports/HANDOFF-research-04-experiment-tooling.md`.
+Đầu ra đề nghị: `docs/04-reports/RESEARCH-04-experiment-tooling.md`.
 
 ```text
 Tôi muốn tìm hiểu sâu nhóm 4: Hoàn thiện công cụ và pipeline phục vụ thí nghiệm SOPilot.
@@ -98,7 +99,7 @@ Xác minh các điểm đã ghi nhận: runtime bm25_search dùng ts_rank còn e
 
 ## Nhóm 5 — Chạy, phân tích và chọn stack
 
-Đầu ra đề nghị: `docs/04-reports/HANDOFF-research-05-runs-and-analysis.md`.
+Đầu ra đề nghị: `docs/04-reports/RESEARCH-05-runs-and-analysis.md`.
 
 ```text
 Tôi muốn tìm hiểu sâu nhóm 5: Chạy thí nghiệm, phân tích và chọn stack SOPilot.
@@ -112,7 +113,7 @@ Lưu các bước nhỏ, tiêu chí quyết định, bảng kết quả cần c�
 
 ## Nhóm 6 — Kiểm chứng và báo cáo khoa học
 
-Đầu ra đề nghị: `docs/04-reports/HANDOFF-research-06-validation-and-paper.md`.
+Đầu ra đề nghị: `docs/04-reports/RESEARCH-06-validation-and-paper.md`.
 
 ```text
 Tôi muốn tìm hiểu sâu nhóm 6: Kiểm chứng hệ thống và hoàn thiện báo cáo khoa học SOPilot.

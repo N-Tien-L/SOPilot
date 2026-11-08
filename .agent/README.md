@@ -33,7 +33,7 @@ Files with a "V1 LEGACY" banner describe the frozen V1 stack; V2-17 rewrites the
 |---|---|
 | Entry point, architecture, guardrails, workflow, commands | [`CLAUDE.md`](../CLAUDE.md), `.claude/` |
 | Specs, plans, ticket status, reports; frontmatter & status conventions | [`docs/README.md`](../docs/README.md), `docs/0*-*/` |
-| Contracts, schema, events, RBAC, storage | `.agent/context/` |
+| Contracts, schema, events, RBAC, storage (derived summaries; code and `docs/` specs win on conflict) | `.agent/context/` |
 | Scripts | `scripts/` |
 
 If you modify REST endpoints, DB schemas, events, RBAC permissions or service contracts, update the matching file in `.agent/context/` in the same change and list the updated docs in your response.

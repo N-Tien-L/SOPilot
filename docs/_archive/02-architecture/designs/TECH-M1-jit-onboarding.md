@@ -1,14 +1,16 @@
 ---
 id: TECH-M1-JIT-ONBOARDING
 title: "Thiết kế kỹ thuật JIT Onboarding & Pre-provisioned Directory"
-status: approved
+status: superseded
 created: 2026-09-25
-updated: 2026-09-25
-refs: [docs/01-requirements/PRD-M1-jit-onboarding.md, docs/02-architecture/adr/ADR-001-employee-roster-ownership.md, docs/02-architecture/adr/ADR-002-google-jit-auth-boundary.md]
-author: "Principal Software Architect & Tech Lead"
+updated: 2026-11-08
+refs: [docs/_archive/01-requirements/PRD-M1-jit-onboarding.md, docs/02-architecture/adr/ADR-001-employee-roster-ownership.md, docs/02-architecture/adr/ADR-002-google-jit-auth-boundary.md]
+author: "Owner"
 affected_services: [user-service, auth-service, api-gateway, feedback-service, frontend/web]
 affected_schemas: [core]
 ---
+
+> **Đóng 2026-11-08:** `superseded` vì PRD-M1 và ADR-001/002 đã `superseded`; thay bằng [TECH-V2-core-api](../../../02-architecture/designs/TECH-V2-core-api.md) và ADR-005. Giữ file làm lịch sử V1; không dùng làm đặc tả.
 
 # THIẾT KẾ KỸ THUẬT (TECHNICAL DESIGN DOCUMENT)
 

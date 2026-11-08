@@ -1,13 +1,14 @@
 ---
-id: HANDOFF-research-02-dataset-and-labeling
+id: RESEARCH-02-dataset-and-labeling
 title: "Nhóm 02: Corpus GitLab và thiết kế eval EN/VI có nhãn bằng chứng"
 status: final
-type: handoff
+type: research
 scope: research
 created: 2026-10-19
 updated: 2026-10-19
+author: "Owner"
 refs:
-  - docs/04-reports/HANDOFF-research-01-scope-and-rqs.md
+  - docs/04-reports/RESEARCH-01-scope-and-rqs.md
   - docs/04-reports/HANDOFF-research-workstreams-2026-10-18.md
   - eval/README.md
 ---

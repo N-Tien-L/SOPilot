@@ -5,6 +5,7 @@ type: chore
 status: done
 created: 2026-10-17
 updated: 2026-11-01
+author: "Owner"
 scope: ai-qa
 priority: P0
 size: S

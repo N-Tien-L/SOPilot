@@ -1,10 +1,11 @@
 ---
 id: AUDIT-GOOGLE-ADMISSION-2026-10-15
 title: "Google identity và roster admission"
-type: test-audit
+type: audit
 status: final
 created: 2026-10-15
 updated: 2026-10-15
+author: "Owner"
 scope: [auth-service, user-service, api-gateway]
 verdict: PASSED_WITH_WARNINGS
 ---
@@ -52,4 +53,4 @@ docker compose exec -T postgres psql -U sopilot -d sopilot -v ON_ERROR_STOP=1 -f
 docker compose up -d --build auth-service user-service api-gateway
 ```
 
-Không reset volume. Test Google thật bằng email trong roster; tài khoản legacy cần khớp role/phòng ban. Xem [ADR-003](../02-architecture/adr/ADR-003-google-identity-and-roster-admission.md) và [contract](../02-architecture/designs/TECH-google-admission.md).
+Không reset volume. Test Google thật bằng email trong roster; tài khoản legacy cần khớp role/phòng ban. Xem [ADR-003](../../02-architecture/adr/ADR-003-google-identity-and-roster-admission.md) và [contract](../02-architecture/designs/TECH-google-admission.md).

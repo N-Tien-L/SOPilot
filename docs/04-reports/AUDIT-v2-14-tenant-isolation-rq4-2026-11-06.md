@@ -4,6 +4,7 @@ title: "V2-14: cách ly tenant trong CI và RQ4 (độ trễ RLS)"
 status: draft
 created: 2026-11-06
 updated: 2026-11-06
+author: "Owner"
 type: audit
 scope: tests
 verdict: pending-owner-review

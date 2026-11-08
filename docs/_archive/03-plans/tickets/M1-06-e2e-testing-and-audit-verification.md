@@ -5,6 +5,7 @@ type: test
 status: superseded
 created: 2026-10-15
 updated: 2026-10-20
+author: "Owner"
 scope: tests
 priority: P1
 size: M
@@ -15,7 +16,7 @@ branch: "test/m1-06-e2e-jit-verification"
 assignee: pair
 ---
 
-> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../PLAN-V2-sopilot-mvp.md); không làm tiếp. E2E của M1 không còn áp dụng; nghiệm thu V2 ở V2-14, V2-26 và V2-17 (parity).
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../03-plans/PLAN-V2-sopilot-mvp.md); không làm tiếp. E2E của M1 không còn áp dụng; nghiệm thu V2 ở V2-14, V2-26 và V2-17 (parity).
 
 ## Context
 Xác thực toàn diện luồng nghiệp vụ từ khâu HR nạp danh bạ, kiểm thử các trường hợp thành công/lỗi import, kiểm thử luồng đăng nhập 1-Click JIT của nhân viên, đối soát với RabbitMQ event và kiểm toán tại `feedback-service` (`analytics.audit_logs`).

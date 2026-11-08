@@ -4,6 +4,7 @@ title: "V2: hồ sơ thành viên theo workspace, phòng ban phẳng và quyền
 status: approved
 created: 2026-10-19
 updated: 2026-10-20
+author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-005-workspace-tenancy-and-google-jit.md

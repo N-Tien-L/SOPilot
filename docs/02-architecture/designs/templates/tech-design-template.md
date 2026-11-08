@@ -5,7 +5,7 @@ status: draft # draft | approved | superseded
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 refs: [docs/01-requirements/PRD-XXX.md, docs/02-architecture/adr/ADR-XXX.md]
-author: "[Principal Architect / Agent]"
+author: "Owner"
 affected_services: ["auth-service", "user-service", "api-gateway"]
 affected_schemas: ["core"]
 ---

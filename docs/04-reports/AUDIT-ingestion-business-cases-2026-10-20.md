@@ -4,7 +4,8 @@ title: "Khảo sát sơ bộ nghiệp vụ nhập và cập nhật SOP trước 
 status: draft
 created: 2026-10-20
 updated: 2026-10-20
-type: research
+author: "Owner"
+type: audit
 scope: ingestion
 verdict: needs-user-validation
 refs:

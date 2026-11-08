@@ -1,11 +1,11 @@
 ---
 id: AUDIT-XXX
 title: "[Báo cáo kiểm định chất lượng / Test & Architecture Audit]"
-type: quality-audit # quality-audit | test-audit | security-audit | performance-audit | post-mortem | handoff
+type: audit # luôn là audit (khớp tiền tố AUDIT-); loại kiểm định ghi ở scope hoặc tiêu đề
 status: draft # draft | final
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
-author: "[QA Lead / Code Reviewer / Agent]"
+author: "Owner"
 milestone: "[Milestone X]"
 scope: [all] # all | auth-service | user-service | web | ...
 verdict: PASSED # PASSED | FAILED | PASSED_WITH_WARNINGS

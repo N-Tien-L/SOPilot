@@ -5,6 +5,7 @@ type: docs
 status: done
 created: 2026-10-17
 updated: 2026-10-20
+author: "Owner"
 scope: docs
 priority: P0
 size: S

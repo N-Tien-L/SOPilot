@@ -1,11 +1,12 @@
 ---
-id: HANDOFF-research-01-scope-and-rqs
+id: RESEARCH-01-scope-and-rqs
 title: "Nhóm 1: Phạm vi, câu hỏi và tiêu chí kết luận nghiên cứu SOPilot"
 status: final
-type: handoff
+type: research
 scope: research
 created: 2026-10-18
 updated: 2026-10-19
+author: "Owner"
 refs:
   - docs/04-reports/HANDOFF-research-workstreams-2026-10-18.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md

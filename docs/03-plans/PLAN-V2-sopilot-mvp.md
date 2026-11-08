@@ -3,7 +3,8 @@ id: PLAN-V2-SOPILOT-MVP
 title: "Kế hoạch triển khai SOPilot V2: eval-first, chạy local, bàn giao nghiên cứu"
 status: approved
 created: 2026-10-17
-updated: 2026-11-07
+updated: 2026-11-08
+author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md
@@ -12,7 +13,7 @@ refs:
   - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
   - docs/02-architecture/adr/ADR-007-departments-member-profiles-document-access.md
-  - docs/01-requirements/PRD-V2-ingestion-mvp-scope.md
+  - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 33
@@ -280,7 +281,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 
 > **Nghiệm thu 2026-10-25:** V2-05/V2-08 `done` theo phạm vi owner chốt; xem [biên bản](../04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md). Benchmark RQ và triển khai DB hiện có là công việc riêng.
 
-> **Pilot dữ liệu 2026-10-25:** V2-06 có 4 tài liệu thật VI/EN, 12 ý / 24 câu dev/draft, 16 span; chưa có test hoặc owner review. V2-19 đã tải/khóa hash 11 PDF thật / 224 trang, đủ số file ứng viên 6 VI + 2 EN + 1 scan, nhưng nhãn mới phủ các trang được chọn và chưa owner duyệt. Giữ cả hai `in-progress`, không đổi counters/DAG; chưa nghiệm thu gate V2-20 hoặc chạy RQ. Phiếu duyệt và bằng chứng ở [HANDOFF pilot](../04-reports/HANDOFF-V2-06-V2-19-pilot-review-2026-10-25.md).
+> **Pilot dữ liệu 2026-10-25:** V2-06 có 4 tài liệu thật VI/EN, 12 ý / 24 câu dev/draft, 16 span; chưa có test hoặc owner review. V2-19 đã tải/khóa hash 11 PDF thật / 224 trang, đủ số file ứng viên 6 VI + 2 EN + 1 scan, nhưng nhãn mới phủ các trang được chọn và chưa owner duyệt. Giữ cả hai `in-progress`, không đổi counters/DAG; chưa nghiệm thu gate V2-20 hoặc chạy RQ. Phiếu duyệt và bằng chứng ở [HANDOFF pilot](../04-reports/RESEARCH-V2-06-V2-19-pilot-review-2026-10-25.md).
 
 > **Owner duyệt dữ liệu 2026-11-01:** V2-06 pilot 24/24 câu `reviewed` (0 loại/sửa), V2-19 23/23 file `owner_confirmed=full_document` (0 nhãn bị bỏ/sửa); cả hai `--require-reviewed` xanh. Duyệt bằng `eval/review_ui/server.py`. Giữ cả hai `in-progress` (V2-06 thiếu chốt quy mô, tập test/freeze; V2-19 thiếu SOP GMP, giấy phép 8 PDF ISO VN, script đếm tham chiếu chéo); không đổi counters/DAG.
 
@@ -301,3 +302,21 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-07:** `V2-07` → `done` (báo cáo [AUDIT-eval-rq1-rq3-2026-11-04](../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) `final`; giữ bge-m3 và `cross_lingual_bm25_factor` 1,0, không ghi `retrieval.thresholds`, chế độ mặc định và ngưỡng chuyển sang `V2-10`); `completed_tickets` 13 → 14, `implemented_tickets` 13 → 14.
 
 > **Cập nhật 2026-11-06:** `V2-12`, `V2-14`, `V2-23` → `review` (đợt 1 core-api và cách ly tenant; còn mở các mục phụ thuộc `V2-29`, `V2-30`, `V2-10`, `V2-13`, run GitHub Actions và chạy thật hai service); `review_tickets` 0 → 3, `implemented_tickets` 14 → 17. Chờ owner nghiệm thu.
+
+---
+
+## 6. Nhật ký cập nhật
+
+Chuyển từ phần đầu `docs/README.md` ngày 2026-11-08 để README chỉ giữ cấu trúc và quy ước. Nội dung giữ nguyên, theo thứ tự đã đăng; mục mới thêm ở cuối.
+
+**Kế hoạch V2 (`approved` 2026-10-20):** [PLAN-V2](../03-plans/PLAN-V2-sopilot-mvp.md), 33 ticket `V2-01` đến `V2-33` (ingestion SOP: `V2-19` đến `V2-22`, xem [AUDIT-ingestion-sop-data](../04-reports/AUDIT-ingestion-sop-data-2026-10-19.md); nhân sự, phòng ban, metadata: `V2-23` đến `V2-26`; semantic router và đo định tuyến: `V2-27`; bộ kiểm hệ thống SOP tiếng Việt: `V2-28`).
+
+**Chuẩn bị 2026-10-24:** tách hai ticket XL thành V2-11/V2-29/V2-30 và V2-15/V2-31/V2-32/V2-33, không thêm phạm vi. Công cụ dataset/extraction và bằng chứng review ở [AUDIT readiness](../04-reports/AUDIT-v2-readiness-preparation-2026-10-24.md).
+
+**Cập nhật 2026-10-21 (audit đầu-cuối ai-service theo loại query):** owner chốt D1–D11 ([TECH-V2-ai-service](../02-architecture/designs/TECH-V2-ai-service.md) §11a, [PLAN-V2](../03-plans/PLAN-V2-sopilot-mvp.md)): cổng `hybrid` luôn có `dense_score`; `refusal_reason` tách "thiếu tài liệu" khỏi "ngoài phạm vi" và "đầu vào không hợp lệ"; ô gộp lặp xuống từng hàng quy trình; metadata `code/rev/effective` trong `<source>`; câu rỗng hoặc quá 1000 ký tự bị từ chối; che PII; router mở rộng chạy sau cổng ngưỡng; term bỏ dấu cho BM25. Sửa `V2-06`, `V2-07`, `V2-09`, `V2-10`, `V2-13`, `V2-15` đến `V2-16`, `V2-19` đến `V2-22`, `V2-27`; thêm `V2-28`.
+
+**Cập nhật 2026-10-21 (chuẩn hóa Markdown và màn xem trích xuất):** [AUDIT-markdown-normalization-and-preview](../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md). MVP chỉ nhận PDF có lớp chữ và MD (bỏ TXT); một bản Markdown chuẩn sau làm sạch là nguồn chung cho chunk/index/trích dẫn; màn "Nội dung hệ thống nhận diện" (PRD-V2 FR-31) mở khi `READY`; hạn mức tài liệu mặc định 50 tài liệu/200 MB. [PRD-V2-ingestion-mvp-scope](../_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md) đã hợp nhất vào PRD-V2 và chuyển `superseded`. Thư viện PDF: Docling ([ADR-008](../02-architecture/adr/ADR-008-pdf-extraction-docling.md), owner chốt 2026-10-21, chưa có số đo); `V2-20` xác nhận theo ràng buộc cứng.
+
+**V2 (owner duyệt 2026-10-20, `approved`):** [PRD-V2](../01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004 kiến trúc hai service](../02-architecture/adr/ADR-004-two-service-architecture.md), [ADR-005 workspace và Google JIT](../02-architecture/adr/ADR-005-workspace-tenancy-and-google-jit.md), [ADR-006 provider miễn phí, eval local và deploy](../02-architecture/adr/ADR-006-free-tier-providers-and-environments.md), [phân tích nền 2026-10-17](../04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md). [ADR-007 phòng ban, hồ sơ thành viên và quyền tài liệu](../02-architecture/adr/ADR-007-departments-member-profiles-document-access.md). Bộ này thay thế PRD-M1, ADR-001, ADR-002, ADR-003 (đã `superseded`); backlog NEXT/M1 đóng ở `V2-04`.
+
+Cập nhật auth 2026-10-15: [Google identity/admission và kiểm thử](../_archive/04-reports/AUDIT-google-admission-2026-10-15.md), [policy ADR-003](../02-architecture/adr/ADR-003-google-identity-and-roster-admission.md). Bản này bổ sung checkpoint bên dưới, không thay kết luận audit toàn dự án thành release-ready.

@@ -8,7 +8,7 @@ It is a personal project, built to learn and demonstrate backend engineering: se
 
 ## Current status
 
-- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Done so far: specifications ([PRD](docs/01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md) and others, 33 tickets), a retrieval-evaluation harness, and local database/storage infrastructure. Not yet built: the two services and any end-to-end V2 flow. Ticket counts are not a completion measure.
+- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Done so far: specifications ([PRD](docs/01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md) and others, 33 tickets), a retrieval-evaluation harness, local database/storage infrastructure, and parts of both services (core-api identity, workspaces, documents and outbox; ai-service ingestion, extraction, chunking and retrieval). Not yet built: the question-answering pipeline, the V2 frontend and any end-to-end V2 flow. Ticket counts are not a completion measure; status per capability is in [implementation evidence](docs/portfolio/implementation-evidence.md).
 - **V1 (frozen):** eight services, from a course project built with a classmate. I audited it and found problems on its question-answering path (below); those findings drive V2.
 - **Source is public** at [N-Tien-L/SOPilot](https://github.com/N-Tien-L/SOPilot). There is no live demo or screenshot set.
 - No evidence of real users, deployment or measured performance exists.
@@ -53,7 +53,7 @@ The edges show only the paths covered in the case study; the other services own 
 2. **Permission-aware retrieval and honest naming.** Access rules are applied inside the retrieval SQL, before ranking. The "BM25" side is actually PostgreSQL `ts_rank`, and the reranker is not on the active path: [section 2](docs/portfolio/engineering-case-study.md#2-retrieval-and-permission-aware-access).
 3. **Evaluation scope.** A retrieval-only harness with real BM25, guard rails against silent fallbacks, and results explicitly limited to document/page proxies: [section 3](docs/portfolio/engineering-case-study.md#3-evaluation-what-the-metrics-measure).
 
-Each highlight pairs the V1 finding with the proposed V2 design. For the V2 consolidation and its reasons, see the case study's V2 section and [ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md). The V2 services are not implemented.
+Each highlight pairs the V1 finding with the proposed V2 design. For the V2 consolidation and its reasons, see the case study's V2 section and [ADR-004](docs/02-architecture/adr/ADR-004-two-service-architecture.md). The V2 services are only partly implemented (see the status above).
 
 ## Where to read next
 

@@ -5,6 +5,7 @@ type: handoff
 status: final
 created: 2026-10-15
 updated: 2026-10-15
+author: "Owner"
 ---
 
 # Bàn giao implementation — 2026-10-15

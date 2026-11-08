@@ -5,6 +5,7 @@ type: feat
 status: review
 created: 2026-10-17
 updated: 2026-11-06
+author: "Owner"
 scope: knowledge
 priority: P0
 size: L

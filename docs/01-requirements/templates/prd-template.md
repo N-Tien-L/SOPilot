@@ -4,7 +4,7 @@ title: "[Tên tính năng / Nghiệp vụ]"
 status: draft # draft | approved | superseded
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
-author: "[Tên tác giả / Agent Role]"
+author: "Owner"
 milestone: "[Milestone X]"
 priority: P0 # P0 (Blocker) | P1 (High) | P2 (Medium) | P3 (Low)
 ---

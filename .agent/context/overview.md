@@ -1,4 +1,5 @@
 # Project Overview: SOPilot
+> **V1 LEGACY (frozen):** describes the eight-service V1 stack (gateway, RabbitMQ, `init-db`). For V2 work, the V2 tickets and `docs/02-architecture/designs/TECH-V2-*` win over this file until V2-17 rewrites it. Use it to read and port V1 behaviour, not as the V2 contract.
 
 > **Notice:** This project was originally codenamed *Poliwise* and has been unified under the product name **SOPilot**.
 > PostgreSQL database `sopilot` uses the domain schemas `core`, `metadata`, `knowledge`, `conversation`, `analytics` (created in `infrastructure/init-db/000_bootstrap.sql`). There is no `poliwise_*` schema prefix. **DO NOT rename database schemas or prefix tables.**

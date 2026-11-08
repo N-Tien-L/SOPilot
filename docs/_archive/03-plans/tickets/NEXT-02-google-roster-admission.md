@@ -2,9 +2,10 @@
 id: NEXT-02
 title: "Áp dụng chính sách roster cho đăng nhập Google của tài khoản cũ"
 type: fix
-status: review
+status: superseded
 created: 2026-10-15
-updated: 2026-10-20
+updated: 2026-11-08
+author: "Owner"
 scope: auth
 priority: P1
 size: M
@@ -12,7 +13,7 @@ parent_plan: PLAN-NEXT
 depends_on: []
 ---
 
-> **Ghi chú 2026-10-20 (V2-04):** giữ nguyên trạng thái để lưu lịch sử; không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang [V2-11](V2-11-core-api-identity-workspace.md). Binding `(issuer, sub)` và xác minh Google ID token được giữ (ADR-004 §4.5); kiểm tra roster bị bỏ (ADR-005).
+> **Ghi chú 2026-10-20 (V2-04):** đóng `superseded` ngày 2026-11-08 (trạng thái cũ: `review`); giữ file làm lịch sử, không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang [V2-11](../../../03-plans/tickets/V2-11-core-api-identity-workspace.md). Binding `(issuer, sub)` và xác minh Google ID token được giữ (ADR-004 §4.5); kiểm tra roster bị bỏ (ADR-005).
 
 # NEXT-02: Áp dụng chính sách roster cho đăng nhập Google của tài khoản cũ
 
@@ -40,4 +41,4 @@ Audit 2026-10-14: F02. Không đổi các quyết định sản phẩm chưa đ�
 Dữ liệu runtime phải dùng môi trường test cô lập; không tự reset DB hoặc gửi tài liệu local ra AI bên ngoài.
 
 ## Evidence 2026-10-15
-41 auth tests, 23 user tests, 42 gateway tests v? 28 HTTP/PostgreSQL checks pass. C? 3 batch x 6 login ??ng th?i, issuer canonicalization, ??i email, ch?ng kh?c subject, admin fallback, legacy mismatch v? refresh replay/expiration/logout. Xem docs/04-reports/AUDIT-google-admission-2026-10-15.md. Tr?ng th?i review kh?ng thay cho Google hosted UI ho?c to?n b? M1-06.
+41 auth tests, 23 user tests, 42 gateway tests v? 28 HTTP/PostgreSQL checks pass. C? 3 batch x 6 login ??ng th?i, issuer canonicalization, ??i email, ch?ng kh?c subject, admin fallback, legacy mismatch v? refresh replay/expiration/logout. Xem docs/_archive/04-reports/AUDIT-google-admission-2026-10-15.md. Tr?ng th?i review kh?ng thay cho Google hosted UI ho?c to?n b? M1-06.

@@ -2,7 +2,7 @@
 id: AUDIT-ingestion-sop-data-2026-10-19
 title: "Phân tích pipeline nạp SOP: định dạng, cấu trúc tài liệu thật và lỗ hổng"
 status: final
-type: research
+type: audit
 scope: ingestion
 verdict: conditional-recommendation
 author: "Owner"
@@ -11,7 +11,7 @@ updated: 2026-10-20
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/03-plans/tickets/V2-09-ai-service-ingest-retrieval.md
-  - docs/04-reports/HANDOFF-research-02-dataset-and-labeling.md
+  - docs/04-reports/RESEARCH-02-dataset-and-labeling.md
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket.
@@ -109,7 +109,7 @@ Phần khung nên **bỏ khỏi index nhưng giữ làm metadata**: mã số, l�
 
 PRD-V2 và V2-09 đã chốt một phần: định dạng PDF/DOCX/MD/TXT, OCR ảnh ngoài phạm vi, trùng chỉ theo SHA-256 trong workspace, giữ số trang và tiêu đề mục, không cắt bằng `tiktoken`. `ingestion-service` sẽ được thay bằng `services/ai-service` (V2-09) và gỡ ở V2-17. Vì vậy các mục 3–9 nên đi vào TECH-V2 (V2-03) và V2-09, không sửa trên `ingestion-service` cũ.
 
-Corpus eval của V2-06 (HANDOFF-research-02) là GitLab Handbook tiếng Anh dạng Markdown: không đo được chất lượng trích xuất DOCX/PDF tiếng Việt. Mục 1 cần một corpus trích xuất riêng.
+Corpus eval của V2-06 (RESEARCH-02) là GitLab Handbook tiếng Anh dạng Markdown: không đo được chất lượng trích xuất DOCX/PDF tiếng Việt. Mục 1 cần một corpus trích xuất riêng.
 
 ## 7. Chưa xác minh
 - Chưa chạy pipeline trên file DOCX/PDF thật; các lỗi DOCX numbering, bảng, header/footer PDF suy ra từ code và hành vi đã biết của thư viện.

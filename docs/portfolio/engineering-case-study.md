@@ -13,7 +13,7 @@ Organizations keep procedures and policies in long documents that people rarely 
 The repository holds two things that must not be confused:
 
 - **V1 (frozen):** eight services (NestJS gateway, five Spring Boot services, two FastAPI services) plus PostgreSQL/pgvector, RabbitMQ, Redis and MinIO, and a Next.js frontend. Most of the code is here.
-- **V2 (in progress):** a redesign into two services. Only the evaluation harness and local database/storage infrastructure exist. The two services themselves do not.
+- **V2 (in progress):** a redesign into two services. The evaluation harness, local database/storage infrastructure and parts of both services exist (core-api identity, workspaces, documents, outbox; ai-service ingestion, extraction, chunking, retrieval). The question-answering pipeline and the V2 frontend do not.
 
 No evidence of real users, deployment, or measured latency or answer quality was found.
 
@@ -82,7 +82,7 @@ The design choice worth noting is the guard rails: configs that request unimplem
 
 ## V2 direction (proposed / in progress)
 
-V2 is the focus of current work. What exists today: the specifications ([PRD-V2](../01-requirements/PRD-V2-sopilot-mvp.md), ADR-004 to ADR-008, two technical designs, 33 tickets), the evaluation harness, and local PostgreSQL/MinIO infrastructure with role isolation. What does not exist: `core-api`, `ai-service`, the application tables and any end-to-end V2 workflow.
+V2 is the focus of current work. What exists today: the specifications ([PRD-V2](../01-requirements/PRD-V2-sopilot-mvp.md), ADR-004 to ADR-008, two technical designs, 33 tickets), the evaluation harness, local PostgreSQL/MinIO infrastructure with role isolation, the `core` and `rag` application tables, and parts of `core-api` and `ai-service` (see [implementation evidence](implementation-evidence.md) for status per capability). What does not exist: the question-answering pipeline, the V2 frontend and any end-to-end V2 workflow.
 
 [ADR-004](../02-architecture/adr/ADR-004-two-service-architecture.md) records the decision (owner-approved 2026-10-20) to replace the eight services with `core-api` (Spring Boot) and `ai-service` (FastAPI). Documented reasons: a target of zero monthly hosting cost, one maintainer unable to operate eight services, and each remaining service having a real boundary (language, load, lifecycle). It rejects keeping eight services and rejects a Supabase-based design.
 

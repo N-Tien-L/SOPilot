@@ -2,11 +2,12 @@
 id: AUDIT-retrieval-stack-research-2026-10-18
 title: "Nghiên cứu lựa chọn embedding, hybrid retrieval và reranker cho SOPilot"
 status: final
-type: research
+type: audit
 scope: retrieval
 verdict: conditional-recommendation
 created: 2026-10-18
 updated: 2026-10-18
+author: "Owner"
 refs:
   - docs/02-architecture/adr/ADR-006-free-tier-providers-and-environments.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md

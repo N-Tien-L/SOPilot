@@ -2,7 +2,7 @@
 
 Bộ chính từ 2026-11-01: [sop-main/README.md](sop-main/README.md) (23 tài liệu canonical docproc, 105 câu dev/test). Pilot nguồn thật ngày 2026-10-25 (nay là nguồn của tập dev): [sop-pilot/README.md](sop-pilot/README.md), [phiếu duyệt](sop-pilot/REVIEW.md). Có 4 tài liệu VI/EN, 24 câu dev/draft, chưa có nhãn owner duyệt hoặc test chính thức. Mẫu synthetic bên dưới vẫn giữ để kiểm công cụ.
 
-`annotation-example/` là ví dụ **synthetic, draft**, gồm 1 tài liệu EN và 5 câu EN/VI. Không dùng số liệu của nó làm kết quả RQ. Corpus nghiên cứu và quy mô vẫn cần owner chốt/duyệt theo V2-06; thiết kế GitLab ở `docs/04-reports/HANDOFF-research-02-dataset-and-labeling.md` là tài liệu nguồn khi thu thập corpus thật.
+`annotation-example/` là ví dụ **synthetic, draft**, gồm 1 tài liệu EN và 5 câu EN/VI. Không dùng số liệu của nó làm kết quả RQ. Corpus nghiên cứu và quy mô vẫn cần owner chốt/duyệt theo V2-06; thiết kế GitLab ở `docs/04-reports/RESEARCH-02-dataset-and-labeling.md` là tài liệu nguồn khi thu thập corpus thật.
 
 ## Schema v1
 

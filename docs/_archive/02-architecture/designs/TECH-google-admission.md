@@ -1,13 +1,16 @@
 ---
 id: TECH-GOOGLE-ADMISSION
 title: "Google admission contract"
-status: draft
+status: superseded
 created: 2026-10-15
-updated: 2026-10-15
-refs: [docs/01-requirements/PRD-M1-jit-onboarding.md, docs/02-architecture/adr/ADR-001-employee-roster-ownership.md, docs/02-architecture/adr/ADR-002-google-jit-auth-boundary.md, docs/02-architecture/adr/ADR-003-google-identity-and-roster-admission.md]
+updated: 2026-11-08
+author: "Owner"
+refs: [docs/_archive/01-requirements/PRD-M1-jit-onboarding.md, docs/02-architecture/adr/ADR-001-employee-roster-ownership.md, docs/02-architecture/adr/ADR-002-google-jit-auth-boundary.md, docs/02-architecture/adr/ADR-003-google-identity-and-roster-admission.md]
 affected_services: [auth-service, user-service, api-gateway]
 affected_schemas: [core]
 ---
+
+> **Đóng 2026-11-08:** `superseded` vì ADR-001 đến 003 đã `superseded`; thay bằng [TECH-V2-core-api](../../../02-architecture/designs/TECH-V2-core-api.md) và ADR-005. Giữ file làm lịch sử V1; không dùng làm đặc tả.
 
 # Google admission contract
 

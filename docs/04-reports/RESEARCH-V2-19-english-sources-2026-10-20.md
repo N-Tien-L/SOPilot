@@ -1,9 +1,10 @@
 ---
-id: HANDOFF-V2-19-english-sources-2026-10-20
+id: RESEARCH-V2-19-english-sources-2026-10-20
 title: "Nguồn tiếng Anh cho corpus trích xuất V2-19"
 status: final
 created: 2026-10-20
 updated: 2026-10-20
+author: "Owner"
 type: research
 scope: tests
 refs:

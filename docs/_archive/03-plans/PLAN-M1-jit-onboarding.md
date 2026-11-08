@@ -3,22 +3,23 @@ id: PLAN-M1-JIT-ONBOARDING
 title: "Mốc 1: Kế hoạch triển khai JIT Onboarding & Pre-provisioned Directory"
 status: superseded
 created: 2026-09-25
-updated: 2026-10-20
-refs: [docs/01-requirements/PRD-M1-jit-onboarding.md, docs/02-architecture/designs/TECH-M1-jit-onboarding.md]
+updated: 2026-11-08
+author: "Owner"
+refs: [docs/_archive/01-requirements/PRD-M1-jit-onboarding.md, docs/_archive/02-architecture/designs/TECH-M1-jit-onboarding.md]
 milestone: "Milestone 1: JIT Onboarding v1.0"
 total_tickets: 6
 completed_tickets: 2
-implemented_tickets: 4
-review_tickets: 2
+implemented_tickets: 2
+review_tickets: 0
 ---
 
-> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](PLAN-V2-sopilot-mvp.md). M1-01/02 giữ `done`, M1-03/04/05 giữ trạng thái làm lịch sử (port sang V2-11/V2-15), M1-06 `superseded`. Không cập nhật tiến độ ở đây nữa.
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../03-plans/PLAN-V2-sopilot-mvp.md). M1-01/02 giữ `done`, M1-03/04/05 chuyển `superseded` ngày 2026-11-08 (trước đó `review`/`review`/`in-progress`; port sang V2-11/V2-15), M1-06 `superseded`. Không cập nhật tiến độ ở đây nữa.
 
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
 
 > **Mã kế hoạch:** `PLAN-M1-JIT-ONBOARDING` | **Milestone:** Milestone 1: JIT Onboarding v1.0 | **Trạng thái:** Superseded (2026-10-20)  
 > **Tham chiếu nghiệp vụ:** [PRD-M1](../01-requirements/PRD-M1-jit-onboarding.md)  
-> **Tham chiếu kỹ thuật:** [TECH-M1](../02-architecture/designs/TECH-M1-jit-onboarding.md) | [ADR-001](../02-architecture/adr/ADR-001-employee-roster-ownership.md) | [ADR-002](../02-architecture/adr/ADR-002-google-jit-auth-boundary.md)
+> **Tham chiếu kỹ thuật:** [TECH-M1](../02-architecture/designs/TECH-M1-jit-onboarding.md) | [ADR-001](../../02-architecture/adr/ADR-001-employee-roster-ownership.md) | [ADR-002](../../02-architecture/adr/ADR-002-google-jit-auth-boundary.md)
 
 ---
 
@@ -51,13 +52,13 @@ flowchart TD
 | Ticket ID | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
 | [`M1-02`](tickets/M1-02-user-service-roster-management.md) | Quản lý Danh bạ Nhân sự & Internal Claim API | `user` | M | `M1-01` | done |
-| [`M1-03`](tickets/M1-03-auth-service-google-jit-integration.md) | Xác thực Google Token & Cấp phát JWT Session | `auth` | M | `M1-02` | review |
+| [`M1-03`](tickets/M1-03-auth-service-google-jit-integration.md) | Xác thực Google Token & Cấp phát JWT Session | `auth` | M | `M1-02` | superseded |
 
 ### Phase 3: Gateway & Giao diện Frontend (Client Integration)
 | Ticket ID | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
-| [`M1-04`](tickets/M1-04-api-gateway-routing.md) | Cấu hình API Gateway Routing & Proxy Guards | `gateway` | S | `M1-02`, `M1-03` | review |
-| [`M1-05`](tickets/M1-05-frontend-web-roster-and-google-login.md) | Màn hình Đăng nhập Google & Quản lý Danh bạ Admin | `web` | L | `M1-04` | in-progress |
+| [`M1-04`](tickets/M1-04-api-gateway-routing.md) | Cấu hình API Gateway Routing & Proxy Guards | `gateway` | S | `M1-02`, `M1-03` | superseded |
+| [`M1-05`](tickets/M1-05-frontend-web-roster-and-google-login.md) | Màn hình Đăng nhập Google & Quản lý Danh bạ Admin | `web` | L | `M1-04` | superseded |
 
 ### Phase 4: Kiểm thử Tích hợp & Nghiệm thu (Testing & Sign-off)
 | Ticket ID | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |

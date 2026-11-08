@@ -5,6 +5,7 @@ type: feat
 status: done
 created: 2026-10-17
 updated: 2026-11-05
+author: "Owner"
 scope: ai-qa
 priority: P0
 size: L

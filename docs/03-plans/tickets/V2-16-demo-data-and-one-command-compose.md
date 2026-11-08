@@ -5,6 +5,7 @@ type: feat
 status: todo
 created: 2026-10-17
 updated: 2026-10-21
+author: "Owner"
 scope: platform
 priority: P0
 size: M

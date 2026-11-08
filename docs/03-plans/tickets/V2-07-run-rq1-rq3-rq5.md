@@ -5,6 +5,7 @@ type: docs
 status: done
 created: 2026-10-17
 updated: 2026-11-07
+author: "Owner"
 scope: tests
 priority: P0
 size: M
@@ -26,7 +27,7 @@ Sửa 2026-10-21 (rà soát trước implement, TECH-V2-ai-service §6.5): số 
 
 ## 2. Tiêu chí Hoàn thành
 - [x] Cấu hình RQ chính thức dùng `chunking: docproc` (target 384 / max 512 token, tokenizer của model đang đo, giống `config/models.yaml` của ai-service); báo cáo ghi phiên bản `docproc` và `normalizer_version`. Kết quả chạy bằng bộ chunk cũ chỉ được ghi là thăm dò.
-- [x] Sửa 2026-10-21 (audit theo loại query, owner chốt D11/P0-1/P0-6), **làm trước khi chạy số liệu chính thức** để không phải đo lại: (a) harness cài tokenizer BM25 cuối của TECH-V2-ai-service §6.3 (term bỏ dấu `~`) trong `eval/sopilot_eval/retrievers.py::tokenize`; (b) cổng `hybrid` của harness dùng `dense_score` luôn có giá trị: ứng viên đầu chỉ có điểm BM25 được tính cosine trực tiếp (TECH-V2-ai-service §6.4, [HANDOFF-research-04](../../04-reports/HANDOFF-research-04-experiment-tooling.md) §5), vì RQ3 đo ngưỡng trên đúng điểm này; (c) `V2-06` đã gắn `query_types` và đóng băng tập test. Báo cáo tách số liệu theo `query_types`.
+- [x] Sửa 2026-10-21 (audit theo loại query, owner chốt D11/P0-1/P0-6), **làm trước khi chạy số liệu chính thức** để không phải đo lại: (a) harness cài tokenizer BM25 cuối của TECH-V2-ai-service §6.3 (term bỏ dấu `~`) trong `eval/sopilot_eval/retrievers.py::tokenize`; (b) cổng `hybrid` của harness dùng `dense_score` luôn có giá trị: ứng viên đầu chỉ có điểm BM25 được tính cosine trực tiếp (TECH-V2-ai-service §6.4, [RESEARCH-04](../../04-reports/RESEARCH-04-experiment-tooling.md) §5), vì RQ3 đo ngưỡng trên đúng điểm này; (c) `V2-06` đã gắn `query_types` và đóng băng tập test. Báo cáo tách số liệu theo `query_types`.
 - [x] Đo thử (smoke) thời gian và RAM của `bge-m3` và `bge-reranker-v2-m3` trên máy owner với ~50 chunk; quyết định cấu hình nào vào ma trận dựa trên số đo.
 - [x] RQ1/RQ1b: dense, bm25, hybrid (cả hai bộ trọng số 1/1 và 0.7/0.3) với `bge-m3` ghim revision, trên tập test, **báo cáo tách theo `lang` và theo cross-lingual**.
 - [x] Sửa 2026-10-21 (TECH-V2-ai-service §6.4): nếu hybrid thua dense ở nhóm cross-lingual, chạy thêm hybrid với `cross_lingual_bm25_factor` ∈ {0.3, 0} (harness cài hệ số này trong RRF của mình cho tới khi `V2-09` có `retrieval.fusion`); chọn giá trị trên tập dev, báo cáo trên tập test, ghi vào `retrieval.cross_lingual_bm25_factor`. Nếu không thua, giữ `1.0` và ghi lý do. **(Chốt 2026-11-07: giữ `1.0`. Luật dev chọn 0,3 nhưng chỉ hơn 1 câu, test không khác, hệ số không chạm nguyên nhân; xem báo cáo §4.2, §12.)**

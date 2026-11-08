@@ -2,7 +2,7 @@
 
 > **V2 input scope (owner approved 2026-10-20, narrowed 2026-10-21):** PDF with a text layer and Markdown only; TXT was dropped on 2026-10-21 and DOCX is deferred until after the MVP. The V2 upload contract rejects `.txt`/DOCX with `415`, creates no job and points the user to `.md` or a PDF with a text layer; no server-side conversion and no OCR. One PDF library (chosen in V2-20, ADR-008) feeds a shared structured representation; ai-service renders one canonical Markdown after cleaning, and every chunk/citation offset refers to it. The read-only "Nội dung hệ thống nhận diện" view (PRD-V2 FR-31) opens only when a version is `READY`. Document quota defaults to 50 documents / 200 MB per workspace. Rationale: [AUDIT-markdown-normalization](../../docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md). See [PRD-V2 FR-06](../../docs/01-requirements/PRD-V2-sopilot-mvp.md) and [TECH-V2 core-api](../../docs/02-architecture/designs/TECH-V2-core-api.md). This is the V2 target contract, not a change to the legacy ingestion runtime described below.
 
-This directory houses the comprehensive architectural, domain, schema, and interface contracts for the Poliwise platform. All AI agents must reference these documents as the primary source of truth.
+This directory holds derived summaries of the architectural, domain, schema and interface contracts (the platform was originally codenamed Poliwise). **It is not the source of truth.** Precedence when sources disagree: running code, then the specs in `docs/` (PRD, ADR, TECH; see [`docs/README.md`](../../docs/README.md)), then this directory, then service READMEs. Update the matching file here in the same change that alters an endpoint, table, event or role, and report the mismatch if you find one.
 
 ---
 
@@ -56,3 +56,4 @@ This directory houses the comprehensive architectural, domain, schema, and inter
 | **Handling file uploads or processing** | `storage/document-lifecycle.md`, `storage/minio.md` |
 | **Frontend UI, stores, or API integration** | `architecture/frontend.md`, `../../.claude/rules/frontend.md` |
 | **AI Q&A or RAG pipeline** | `architecture/system-overview.md`, `database/tables/conversation.md` |
+| **V2 ingestion, retrieval, Q&A (ai-service)** | `database/tables/rag.md`, TECH-V2-ai-service (section cited by the ticket); `architecture/system-overview.md` and `database/tables/conversation.md` describe V1 |

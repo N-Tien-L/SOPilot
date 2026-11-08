@@ -1,9 +1,10 @@
 ---
-id: HANDOFF-claude-code-slide-workflow-2026-10-21
+id: RESEARCH-claude-code-slide-workflow-2026-10-21
 title: "Nghiên cứu Claude Code và PPT Master cho slide chuyên nghiệp"
 status: final
 created: 2026-10-21
 updated: 2026-10-21
+author: "Owner"
 type: research
 scope: presentation-tooling
 verdict: recommended-for-pilot

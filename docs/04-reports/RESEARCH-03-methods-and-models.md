@@ -1,14 +1,15 @@
 ---
-id: HANDOFF-research-03-methods-and-models
+id: RESEARCH-03-methods-and-models
 title: "Nhóm 03: Phương pháp, model và ma trận thí nghiệm tối thiểu"
 status: final
-type: handoff
+type: research
 scope: research
 created: 2026-10-19
 updated: 2026-10-19
+author: "Owner"
 refs:
   - docs/README.md
-  - docs/04-reports/HANDOFF-research-01-scope-and-rqs.md
+  - docs/04-reports/RESEARCH-01-scope-and-rqs.md
   - docs/04-reports/AUDIT-retrieval-stack-research-2026-10-18.md
 ---
 

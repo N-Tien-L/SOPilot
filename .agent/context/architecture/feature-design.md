@@ -1,4 +1,5 @@
 ﻿# Poliwise — Feature Design Reference
+> **V1 LEGACY (frozen):** describes the eight-service V1 stack (gateway, RabbitMQ, `init-db`). For V2 work, the V2 tickets and `docs/02-architecture/designs/TECH-V2-*` win over this file until V2-17 rewrites it. Use it to read and port V1 behaviour, not as the V2 contract.
 
 > **Purpose**: This document describes the design of every feature in Poliwise. Use this to verify that the actual implementation matches the intended design. Each section covers the feature's owner, schema, key capabilities, data flow, and access control.
 >

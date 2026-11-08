@@ -2,9 +2,10 @@
 id: M1-03
 title: "Auth-Service: Google Token Verification & JIT Integration"
 type: feat
-status: review
+status: superseded
 created: 2026-09-27
-updated: 2026-10-20
+updated: 2026-11-08
+author: "Owner"
 scope: auth
 priority: P0
 size: M
@@ -15,7 +16,7 @@ branch: "feat/auth-google-jit"
 assignee: pair
 ---
 
-> **Ghi chú 2026-10-20 (V2-04):** giữ nguyên trạng thái để lưu lịch sử; không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang [V2-11](V2-11-core-api-identity-workspace.md). Xác minh Google ID token và xoay vòng refresh token được giữ; claim JIT qua roster bị bỏ (ADR-005).
+> **Ghi chú 2026-10-20 (V2-04):** đóng `superseded` ngày 2026-11-08 (trạng thái cũ: `review`); giữ file làm lịch sử, không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang [V2-11](../../../03-plans/tickets/V2-11-core-api-identity-workspace.md). Xác minh Google ID token và xoay vòng refresh token được giữ; claim JIT qua roster bị bỏ (ADR-005).
 
 ## Context
 `auth-service` chịu trách nhiệm xác thực mật mã các token đăng nhập và phát hành JWT session. Ticket này triển khai xác thực Google ID Token với Google JWKS, gọi internal claim sang `user-service`, và cấp phát Access Token + Refresh Token chuẩn của hệ sinh thái SOPilot.

@@ -1,15 +1,16 @@
 ---
-id: HANDOFF-V2-19-CORPUS-SOURCES-2026-10-20
+id: RESEARCH-V2-19-CORPUS-SOURCES-2026-10-20
 title: "Nguồn đề xuất cho corpus trích xuất SOP V2-19"
 status: final
 created: 2026-10-20
 updated: 2026-10-20
+author: "Owner"
 type: research
 scope: "V2-19: lựa chọn nguồn corpus"
 refs:
   - docs/03-plans/tickets/V2-19-sop-extraction-corpus.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
-  - docs/01-requirements/PRD-V2-ingestion-mvp-scope.md
+  - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
 ---
 
 # Nguồn corpus V2-19
@@ -49,10 +50,10 @@ Trang Chính phủ yêu cầu ghi nguồn khi phát hành lại thông tin; đâ
 
 ## 4. Tiếng Anh và MD/TXT
 
-Xem [nghiên cứu nguồn EN](HANDOFF-V2-19-english-sources-2026-10-20.md) để có URL file, license evidence và phần đã/chưa kiểm chứng.
+Xem [nghiên cứu nguồn EN](RESEARCH-V2-19-english-sources-2026-10-20.md) để có URL file, license evidence và phần đã/chưa kiểm chứng.
 
 - **EPA actual SOP:** ưu tiên Soil Sampling và Field Sampling Quality Control; dùng để đo heading đánh số, metadata revision/effective date và header/footer. EPA QA/G-6 là hướng dẫn viết SOP, phù hợp làm nguồn thiết kế nhãn hoặc một mẫu manual; không thay toàn bộ SOP thực tế bằng tài liệu hướng dẫn.
-- **GitLab Handbook:** hợp miền tác nghiệp nhân viên và đã có nghiên cứu nội bộ tại [HANDOFF dataset](HANDOFF-research-02-dataset-and-labeling.md). Chọn vài file MD ở commit cố định; kiểm license nội dung, include và frontmatter. Nếu trùng nguồn retrieval, lưu ID/manifest riêng và không gộp kết quả đánh giá.
+- **GitLab Handbook:** hợp miền tác nghiệp nhân viên và đã có nghiên cứu nội bộ tại [HANDOFF dataset](RESEARCH-02-dataset-and-labeling.md). Chọn vài file MD ở commit cố định; kiểm license nội dung, include và frontmatter. Nếu trùng nguồn retrieval, lưu ID/manifest riêng và không gộp kết quả đánh giá.
 - **curl INSTALL.md / Kubernetes task Markdown:** mẫu kỹ thuật mở bổ sung heading, list, code và template. Chỉ lấy ít mẫu vì không đại diện SOP doanh nghiệp. Không loại shortcode trước khi đo rồi báo parser tự xử lý được shortcode.
 - **curl RELEASE-NOTES:** ứng viên TXT tự nhiên, cấu trúc không theo SOP chuẩn. Lưu bytes gốc; nếu đổi tên thành `.txt`, ghi thao tác trong manifest. Không chuyển mọi MD thành TXT để tăng số tài liệu độc lập.
 

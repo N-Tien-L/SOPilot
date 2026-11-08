@@ -1,12 +1,12 @@
 ---
-id: HANDOFF-V2-06-V2-19-PILOT-REVIEW-2026-10-25
+id: RESEARCH-V2-06-V2-19-PILOT-REVIEW-2026-10-25
 title: "Pilot dữ liệu thật V2-06/V2-19 và gói nhãn chờ owner duyệt"
 status: final
 created: 2026-10-25
 updated: 2026-10-25
 type: research
 scope: tests
-author: Codex
+author: "Owner"
 refs:
   - docs/03-plans/tickets/V2-06-multilingual-eval-dataset.md
   - docs/03-plans/tickets/V2-19-sop-extraction-corpus.md

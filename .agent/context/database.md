@@ -1,4 +1,5 @@
 # Database Ownership & Schema Architecture
+> **V1 LEGACY (frozen):** describes the eight-service V1 stack (gateway, RabbitMQ, `init-db`). For V2 work, the V2 tickets and `docs/02-architecture/designs/TECH-V2-*` win over this file until V2-17 rewrites it. Use it to read and port V1 behaviour, not as the V2 contract.
 
 > **Notice:** This project was originally codenamed *Poliwise* and has been unified under the product name **SOPilot**.
 > PostgreSQL database is named `sopilot` (user: `sopilot`). The application schemas are strictly partitioned by domain: `core`, `metadata`, `knowledge`, `conversation`, `analytics`.
