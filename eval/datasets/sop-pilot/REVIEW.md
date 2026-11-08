@@ -1,6 +1,6 @@
 # Phiếu duyệt pilot câu hỏi V2-06
 
-**24 câu nháp = 12 ý, mỗi ý một bản VI và EN; chưa có câu được owner duyệt.** Có 20 câu answerable và 4 câu âm; 12 câu hỏi khác ngôn ngữ tài liệu. Tất cả thuộc dev; chưa tạo test chính thức, chưa freeze. Cỡ pilot không thay mục tiêu cuối của ticket.
+**24 câu = 12 ý, mỗi ý một bản VI và EN. Cập nhật 2026-11-01: owner duyệt 24/24 câu, không loại/sửa câu nào (`review.jsonl`); các checkbox bên dưới giữ nguyên dạng phiếu gốc.** Có 20 câu answerable và 4 câu âm; 12 câu hỏi khác ngôn ngữ tài liệu. Tất cả thuộc dev; chưa tạo test chính thức, chưa freeze. Cỡ pilot không thay mục tiêu cuối của ticket.
 
 Mỗi ý bên dưới cần kiểm: câu hỏi tự nhiên, bản VI/EN cùng nghĩa, bằng chứng đủ mọi điều kiện/ngoại lệ, đáp án không suy diễn. Các span trong cùng một evidence set phải có **đủ tất cả**. Với câu âm, đọc đủ bốn tài liệu đã chọn, không chỉ dựa trên search hoặc retriever.
 

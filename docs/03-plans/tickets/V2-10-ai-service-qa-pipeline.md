@@ -64,3 +64,6 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 | Integration | câu hỏi trả lời được / không trả lời được trên DB thật, LLM mock | `uv run pytest tests/integration` |
 | Nghiệm thu | phần tiếng Việt (ô gộp, mã tài liệu, hiệu lực, không dấu) đo bằng bộ kiểm `V2-28` sau khi có ticket đó; không chặn `done` của ticket này | — |
 | Thủ công | một câu hỏi thật với provider thật, ghi model và kết quả | — |
+
+### Owner đơn giản hóa chọn model 2026-11-04
+Owner bỏ bake-off đầy đủ (4 tiêu chí so sánh Qwen 9B/4B trong ADR-006 §4.4). Chốt **Qwen3.5-9B FP8 trên L4** làm model sinh câu trả lời, chỉ chạy một lần kiểm nhanh khoảng 20 câu từ `sop-main` trước khi cam kết (đúng ngôn ngữ, `[n]` đúng nguồn, TTFT lạnh/nóng, kiểm `enable_thinking=false` có hiệu lực). Có bảng ứng viên thay thế theo triệu chứng (Qwen3-8B, Qwen3.5-4B, Gemma 4 E4B, Gemma 4 26B A4B) và ràng buộc đổi giám khảo nếu chuyển sang Gemma 4, ở ADR-006 §4.4. Giữ nguyên `LLMProvider` kiểu OpenAI-compatible để đổi model chỉ bằng cấu hình. Chưa có số đo tiếng Việt giữa các ứng viên; chưa kiểm điều khoản dùng hai tài khoản Modal.

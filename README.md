@@ -62,7 +62,7 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
 | [Engineering case study](docs/portfolio/engineering-case-study.md) | Decisions, trade-offs and failure modes |
 | [Implementation evidence](docs/portfolio/implementation-evidence.md) | Per-capability status, source paths, tests, evaluation scope |
 | [Documentation hub](docs/README.md) | PRDs, ADRs, technical designs, plans, audits (mostly Vietnamese) |
-| [AGENTS.md](AGENTS.md) | Repository layout, rules and commands |
+| [CLAUDE.md](CLAUDE.md) | Repository layout, rules and commands (Claude Code; details in `.claude/`) |
 | [`eval/README.md`](eval/README.md) | Evaluation harness usage |
 
 ## Getting started
@@ -72,7 +72,7 @@ Not verified: these commands were not run while writing this documentation.
 - **V1 stack:** copy `.env.example` to `.env`, fill in provider keys, then `docker compose up -d --build` from the repository root. The web app is on port 3000 and the gateway on 3001. The LLM and embedding providers need external API keys, and CLAUDE.md records that some configured LLM model IDs have been retired.
 - **V2 database and storage:** follow [infrastructure/db/README.md](infrastructure/db/README.md) (`docker-compose.v2.yml`; run one stack at a time).
 - **Evaluation harness:** `cd eval && uv sync --extra dev && uv run pytest -q`, per [eval/README.md](eval/README.md).
-- Build, lint and test commands per service are in [AGENTS.md](AGENTS.md).
+- Build, lint and test commands per service are in [CLAUDE.md](CLAUDE.md).
 
 ## Known limitations and next steps
 

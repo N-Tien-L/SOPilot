@@ -13,7 +13,7 @@ if (-not $repoRoot -or -not (Test-Path $repoRoot)) {
 Set-Location $repoRoot
 
 # 1. Identify Changed Files
-Write-Host "`n[1/5] Identifying changed files..." -ForegroundColor Cyan
+Write-Host "`n[1/6] Identifying changed files..." -ForegroundColor Cyan
 $ChangedFiles = git diff --cached --name-only
 if (-not $ChangedFiles) {
     $ChangedFiles = git diff --name-only HEAD
@@ -27,7 +27,7 @@ if (-not $ChangedFiles) {
 }
 
 # 2. Check for Debug Statements & Secrets in Diff
-Write-Host "`n[2/5] Checking for debug statements and secrets..." -ForegroundColor Cyan
+Write-Host "`n[2/6] Checking for debug statements and secrets..." -ForegroundColor Cyan
 $DiffContent = git diff --cached -- ':!scripts/*' ':!docs/*' ':!*.md'
 if (-not $DiffContent) {
     $DiffContent = git diff HEAD -- ':!scripts/*' ':!docs/*' ':!*.md'
@@ -64,7 +64,7 @@ if ($HasInvalidTodo) {
 } else { Write-Host "✅ All TODOs have ticket references" -ForegroundColor Green }
 
 # 3. Determine Affected Services & Build/Test
-Write-Host "`n[3/5] Determining affected services and running tests..." -ForegroundColor Cyan
+Write-Host "`n[3/6] Determining affected services and running tests..." -ForegroundColor Cyan
 $AffectedServices = @()
 
 foreach ($File in $ChangedFiles) {
@@ -103,21 +103,38 @@ if ($AffectedServices.Count -eq 0) {
     }
 }
 
-# 4. Validate Docker Compose Config
-Write-Host "`n[4/5] Validating Docker Compose config..." -ForegroundColor Cyan
-if (Test-Path "docker-compose.yml") {
-    docker compose config --quiet
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ docker-compose.yml is invalid" -ForegroundColor Red
-        $FailedChecks++
+# 4. Validate Docker Compose Config (V2 first; V1 kept until V2-17)
+Write-Host "`n[4/6] Validating Docker Compose config..." -ForegroundColor Cyan
+foreach ($ComposeFile in @("docker-compose.v2.yml", "docker-compose.yml")) {
+    if (Test-Path $ComposeFile) {
+        # V2 requires its secrets (${VAR:?}); validate structure with the placeholder values, never with .env.
+        if ($ComposeFile -eq "docker-compose.v2.yml") {
+            docker compose -f $ComposeFile --env-file .env.example config --quiet
+        } else {
+            docker compose -f $ComposeFile config --quiet
+        }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ $ComposeFile is invalid" -ForegroundColor Red
+            $FailedChecks++
+        } else {
+            Write-Host "✅ $ComposeFile is valid" -ForegroundColor Green
+        }
     } else {
-        Write-Host "✅ Docker Compose config is valid" -ForegroundColor Green
+        Write-Host "⚠️ $ComposeFile not found, skipping." -ForegroundColor Yellow
     }
-} else {
-    Write-Host "⚠️ docker-compose.yml not found, skipping." -ForegroundColor Yellow
 }
 
-# 5. Summary
+# 5. V2 Flyway migrations: naming, numbering, immutability, no destructive DDL
+Write-Host "`n[5/6] Checking V2 migrations..." -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "check-migrations.ps1")
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Migration check failed" -ForegroundColor Red
+    $FailedChecks++
+} else {
+    Write-Host "✅ Migration check passed" -ForegroundColor Green
+}
+
+# 6. Summary
 Write-Host "`n========================================="
 if ($FailedChecks -gt 0) {
     Write-Host "❌ Pre-commit verification FAILED ($FailedChecks errors)" -ForegroundColor Red

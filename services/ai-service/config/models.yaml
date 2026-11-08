@@ -1,0 +1,68 @@
+# The only place that declares models (ADR-006 §4.1.2, TECH-V2-ai-service §4.2).
+# ${VAR} and ${VAR:default} are expanded from the environment when the file is loaded.
+embedding:
+  active: bge-m3
+  models:
+    bge-m3:
+      provider: local                  # local | cloudflare | openai_compatible
+      model: BAAI/bge-m3
+      revision: ${EMBEDDING_REVISION:}  # pin the HF commit; empty is a startup error in profile eval
+      dim: 1024
+      max_tokens: 8192
+      query_prefix: ""
+      batch_size: 16
+rerank:
+  enabled: ${RERANK_ENABLED:false}
+  provider: local                      # local | none
+  model: BAAI/bge-reranker-v2-m3
+  revision: ${RERANK_REVISION:}
+  max_pairs: 25
+llm:
+  generate:
+    chain:
+      - {provider: gemini, model: "${GEMINI_GENERATE_MODEL:gemini-3.1-flash-lite-preview}", rpm: 15, tpm: 250000, rpd: 500}
+      - {provider: groq, model: openai/gpt-oss-120b, rpm: 30, tpm: 8000, rpd: 1000, context_max_tokens: null}
+    temperature: 0.2
+    max_output_tokens: 800
+  rewrite:
+    chain:
+      - {provider: groq, model: openai/gpt-oss-20b, rpm: 30, tpm: 8000, rpd: 1000}
+      - {provider: gemini, model: "${GEMINI_GENERATE_MODEL:gemini-3.1-flash-lite-preview}"}
+    temperature: 0
+  small_task:
+    chain:
+      - {provider: groq, model: openai/gpt-oss-20b, rpm: 30, tpm: 8000, rpd: 1000}
+    temperature: 0
+  judge:
+    chain:
+      - {provider: groq, model: openai/gpt-oss-120b}
+    temperature: 0
+providers:
+  gemini: {base_url: "https://generativelanguage.googleapis.com/v1beta/openai", api_key_env: GEMINI_API_KEY}
+  groq: {base_url: "https://api.groq.com/openai/v1", api_key_env: GROQ_API_KEY}
+  local_llm: {base_url: "${LOCAL_LLM_BASE_URL:http://ollama:11434/v1}", api_key_env: null}
+  # Embedding endpoints for the non-local providers (unused while bge-m3 runs locally).
+  openai_compatible: {base_url: "${EMBEDDING_BASE_URL:http://tei:80/v1}", api_key_env: EMBEDDING_API_KEY}
+  cloudflare: {base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID:}/ai/run", api_key_env: CLOUDFLARE_API_TOKEN}
+retrieval:
+  candidate_pool: 50
+  rerank_pool: 25
+  context_k: 5
+  rrf_k: 60
+  rrf_weights: [1.0, 1.0]
+  doc_code_boost: 0.02
+  cross_lingual_bm25_factor: 1.0
+  context:
+    expand: true
+    section_max_tokens: 1200
+    max_tokens: 3000
+  thresholds:            # placeholders until calibrated on the V2-06 dev set (V2-07)
+    dense: 0.45
+    bm25: null
+    hybrid: 0.45
+    hybrid_rerank: 0.30
+  mode: hybrid
+chunking:
+  target_tokens: 384
+  max_tokens: 512
+  min_tokens: 64

@@ -18,7 +18,7 @@ assignee: pair
 # TICKET V2-31: Frontend: nạp nhiều tài liệu và theo dõi xử lý
 
 ## 1. Bối cảnh & Mục tiêu
-Tách phạm vi từ V2-15 XL ngày 2026-10-24; giữ nguyên yêu cầu PRD/TECH đã duyệt. Dùng skill frontend-delivery và `.agent/rules/frontend.md` khi triển khai.
+Tách phạm vi từ V2-15 XL ngày 2026-10-24; giữ nguyên yêu cầu PRD/TECH đã duyệt. Dùng skill frontend-delivery và `.claude/rules/frontend.md` khi triển khai.
 
 ## 2. Tiêu chí Hoàn thành
 - [ ] Chọn tối đa 10 file mỗi lượt (chọn file thứ 11 bị chặn kèm thông báo), gửi từng request upload, tối đa 3 đồng thời; mỗi file hiện trạng thái "Đang tải lên", "Đang xử lý", "Sẵn sàng" hoặc lỗi với lý do riêng (PRD-V2 FR-30). Upload xong chỉ hiện "Đang xử lý", không có liên kết nội dung cho tới `READY`.

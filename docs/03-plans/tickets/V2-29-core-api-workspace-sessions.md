@@ -25,6 +25,7 @@ Tách phần FR-03 khỏi V2-11 XL. Theo TECH-V2-core-api §3.1–§3.2, §4, §
 - [ ] Token ≤ 15 phút gắn `workspace_id`, role và chỗ cho `wdept`; refresh kiểm trạng thái membership và nhận giá trị hiện hành.
 - [ ] Refresh token xoay vòng, phát hiện replay và thu hồi session theo TECH; không log token, lỗi không lộ nội bộ.
 - [ ] RLS context được đặt trong transaction, connection trả pool không giữ tenant cũ.
+- [ ] JWKS công bố khóa hiện hành và khóa trước đó (TECH §5.1) để xoay khóa ký không làm rớt phiên; V2-11 mới có khóa hiện hành.
 - [ ] Lời mời/OWNER policy của V2-30 dùng lại dịch vụ workspace/session này, không nhân đôi logic.
 
 ## 3. Hướng dẫn

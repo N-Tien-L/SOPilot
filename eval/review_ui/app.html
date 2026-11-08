@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOPilot · Duyệt V2-06 / V2-19</title>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--ink:#1b2230;--muted:#5f6b7d;--line:#dde1e8;--soft:#eef1f5;
+ --accent:#2457d6;--accent-bg:#e7eefc;--ok:#18794a;--ok-bg:#e3f4ea;--bad:#b3261e;--bad-bg:#fbe9e8;
+ --warn:#8a5a00;--warn-bg:#fff2d2;--hl:#ffe58a;--hl2:#ffd0a8;--hl3:#c8e6ff;--hl4:#d9f2c4;--faint:#eceff3}
+@media (prefers-color-scheme:dark){:root{--bg:#13161c;--panel:#1c2129;--ink:#e7eaf0;--muted:#98a2b3;--line:#2d3440;--soft:#232a34;
+ --accent:#7da3ff;--accent-bg:#1f2a44;--ok:#5fd08f;--ok-bg:#16301f;--bad:#ff8f87;--bad-bg:#3a1c1a;--warn:#ffc766;--warn-bg:#3a2f12;
+ --hl:#6b5a12;--hl2:#6b3d18;--hl3:#163f63;--hl4:#2c4a1c;--faint:#262c36}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.45 system-ui,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+button.bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+button.ghost{border-color:transparent;background:transparent}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.sm{padding:1px 7px;font-size:12px}
+input,select,textarea{border:1px solid var(--line);border-radius:6px;padding:4px 7px;background:var(--panel)}
+textarea{width:100%;resize:vertical}
+kbd{font:11px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--soft)}
+header{display:flex;gap:12px;align-items:center;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:15px;margin:0}
+header .tabs a{padding:5px 12px;border-radius:6px;text-decoration:none;color:var(--ink)}
+header .tabs a.on{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.spacer{flex:1}
+a{color:var(--accent)}
+.badge{display:inline-flex;gap:4px;align-items:center;font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);background:var(--soft);white-space:nowrap}
+.badge.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.badge.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.badge.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.badge.acc{background:var(--accent-bg);color:var(--accent);border-color:transparent}
+main{flex:1;min-height:0;display:flex}
+.side{width:250px;flex:none;border-right:1px solid var(--line);background:var(--panel);overflow:auto}
+.side .item{padding:7px 12px;border-bottom:1px solid var(--line);cursor:pointer;display:block;color:inherit;text-decoration:none}
+.side .item:hover{background:var(--soft)}
+.side .item.on{background:var(--accent-bg)}
+.side .item .t{font-weight:600;font-size:13px}
+.side .item .m{font-size:12px;color:var(--muted);display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.side .grp{padding:8px 12px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--bg)}
+.side .tools{padding:8px 12px;display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--line);font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--line)}
+.dot.reviewed{background:var(--ok)}.dot.excluded{background:var(--bad)}.dot.draft{background:#9aa3b2}.dot.wip{background:#e0a100}
+.col{overflow:auto;min-width:0}
+.pane{padding:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}.small{font-size:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lbl{font-size:12px;color:var(--muted);margin:8px 0 3px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:12px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);cursor:pointer;user-select:none;background:var(--panel)}
+.chip.on{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.status-reviewed{border-left:4px solid var(--ok)}.status-draft{border-left:4px solid #9aa3b2}.status-excluded{border-left:4px solid var(--bad)}
+.eset{border:1px dashed var(--line);border-radius:8px;padding:8px;margin:6px 0}
+.eset .hd{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;margin-bottom:5px}
+.span{border-radius:6px;padding:6px 8px;margin:4px 0;display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.span .q{flex:1;font-size:13px}
+.span .id{font:11px ui-monospace,monospace;color:var(--muted)}
+.c0{background:var(--hl)}.c1{background:var(--hl2)}.c2{background:var(--hl3)}.c3{background:var(--hl4)}
+.viewer{display:flex;flex-direction:column;height:100%}
+.vbar{display:flex;gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.vtext{flex:1;overflow:auto;padding:12px 16px;background:var(--panel)}
+.vtext pre{white-space:pre-wrap;word-break:break-word;font:13.5px/1.6 "Segoe UI",system-ui,sans-serif;margin:0}
+.vtext pre .o{background:var(--faint);border-radius:2px}
+.vtext pre .page-mark{display:block;font:11px ui-monospace,monospace;color:var(--accent);border-top:1px solid var(--line);margin-top:6px;padding-top:2px}
+.vimg{flex:1;overflow:auto;background:var(--soft);border-top:1px solid var(--line);text-align:center;min-height:0}
+.vimg img{max-width:100%;display:block;margin:0 auto;background:#fff}
+.vimg img.zoom{max-width:none;width:160%}
+.selbar{position:fixed;z-index:20;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;gap:5px;flex-wrap:wrap;max-width:520px}
+.results{max-height:40vh;overflow:auto;border-bottom:1px solid var(--line);background:var(--panel)}
+.results .r{padding:6px 12px;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer}
+.results .r:hover{background:var(--soft)}
+.results mark{background:var(--hl)}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;z-index:50;max-width:80vw}
+.toast.err{background:var(--bad);color:#fff}
+.home{max-width:980px;margin:30px auto;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.home .card{padding:18px}
+.home a.card{color:inherit;text-decoration:none;display:block}
+.home a.card:hover{border-color:var(--accent)}
+.bar{height:8px;border-radius:99px;background:var(--soft);overflow:hidden;margin:10px 0}
+.bar>i{display:block;height:100%;background:var(--ok)}
+.pages{display:flex;gap:3px;flex-wrap:wrap}
+.pages button{min-width:30px;padding:2px 6px;font-size:12px;position:relative}
+.pages button.cur{outline:2px solid var(--accent)}
+.pages button.done{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.pages button .n{position:absolute;top:-6px;right:-5px;font-size:9px;background:var(--accent);color:#fff;border-radius:99px;padding:0 4px}
+.lab{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin:5px 0;background:var(--panel)}
+.lab.d-ok{border-color:var(--ok);background:var(--ok-bg)}
+.lab.d-edit{border-color:var(--warn);background:var(--warn-bg)}
+.lab.d-reject{border-color:var(--bad);background:var(--bad-bg)}
+.lab.d-reject .body{text-decoration:line-through;opacity:.6}
+.lab .acts{display:flex;gap:3px;float:right;margin-left:6px}
+.lab .body{font-size:13px}
+.lab .edit{margin-top:6px;display:grid;grid-template-columns:90px 1fr;gap:4px 8px;align-items:center;font-size:12px}
+.lab .edit input,.lab .edit select,.lab .edit textarea{font-size:12.5px;padding:2px 6px}
+.sec{margin:12px 0 4px;font-weight:600;font-size:13px;display:flex;gap:8px;align-items:center}
+.notes{white-space:pre-wrap;font-size:12.5px;max-height:220px;overflow:auto;background:var(--soft);border-radius:8px;padding:8px}
+.notes mark{background:var(--warn-bg);color:var(--warn);font-weight:600}
+.footer{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:9px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.help{font-size:12px;color:var(--muted)}
+.md{white-space:pre-wrap;font:13px/1.55 ui-monospace,Consolas,monospace;padding:16px;text-align:left;background:var(--panel);margin:0}
+</style>
+</head>
+<body>
+<header>
+  <h1>SOPilot · Duyệt nhãn</h1>
+  <nav class="tabs"><a href="#/" id="tab-home">Tổng quan</a><a href="#/v206" id="tab-v206">V2-06 Câu hỏi</a><a href="#/v219" id="tab-v219">V2-19 Trích xuất PDF</a></nav>
+  <span class="spacer"></span>
+  <span id="vbadges" class="row"></span>
+  <label class="small muted">Người duyệt <input id="reviewer" size="14"></label>
+</header>
+<main id="main"></main>
+<script>
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const QT = ["fact","procedure","condition_exception","number_deadline","responsibility","comparison","multi_passage"];
+const QT_VI = {fact:"sự kiện",procedure:"quy trình",condition_exception:"điều kiện/ngoại lệ",number_deadline:"số liệu/hạn",responsibility:"trách nhiệm",comparison:"so sánh",multi_passage:"nhiều đoạn"};
+const S = {v206: null, v219: null, route: [], ui: {}};
+const reviewerEl = $("#reviewer");
+reviewerEl.value = localStorage.getItem("sopilot.reviewer") || "owner:tiên";
+reviewerEl.onchange = () => localStorage.setItem("sopilot.reviewer", reviewerEl.value.trim());
+const reviewer = () => reviewerEl.value.trim();
+
+function toast(msg, err) {
+  const t = document.createElement("div"); t.className = "toast" + (err ? " err" : ""); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), err ? 6000 : 1800);
+}
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok || j.error) { toast(j.error || r.statusText, true); throw new Error(j.error); }
+  return j;
+}
+const inField = e => /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+
+function badges(v, label) {
+  if (!v) return "";
+  const b = (x, name, okText, badText) => `<span class="badge ${x.ok ? "ok" : "bad"}" title="${esc(x.error || "")}">${name}: ${x.ok ? okText : badText}</span>`;
+  return `<span class="small muted">${label}</span>` + b(v.structure, "cấu trúc", "hợp lệ", "lỗi") + b(v.gate, "gate --require-reviewed", "xanh", "chưa");
+}
+function renderBadges() {
+  const r = S.route[0];
+  const v = r === "v206" ? S.v206?.validation : r === "v219" ? S.v219?.validation : null;
+  $("#vbadges").innerHTML = v ? badges(v, r === "v206" ? "V2-06" : "V2-19") : "";
+}
+
+// ======================================================================== routing
+async function route() {
+  S.route = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  for (const id of ["home", "v206", "v219"]) $("#tab-" + id).classList.toggle("on", (S.route[0] || "home") === id);
+  const r = S.route[0];
+  if (r === "v206") { if (!S.v206) await loadV206(); renderV206(); }
+  else if (r === "v219") { if (!S.v219) await loadV219(); renderV219(); }
+  else { await Promise.all([loadV206(), loadV219()]); renderHome(); }
+  renderBadges();
+}
+window.addEventListener("hashchange", route);
+
+// ======================================================================== home
+function v206Progress() {
+  const qs = S.v206.questions, ex = S.v206.excluded;
+  const done = qs.filter(q => q.review_status === "reviewed").length + ex.length;
+  return {done, total: qs.length + ex.length, reviewed: qs.length - qs.filter(q => q.review_status !== "reviewed").length, excluded: ex.length};
+}
+function v219Owner(rec) { return rec.owner_confirmed === "full_document"; }
+function renderHome() {
+  const p6 = v206Progress();
+  const anns = S.v219.annotations, own = anns.filter(v219Owner).length, wip = Object.keys(S.v219.drafts).length;
+  $("#main").innerHTML = `<div class="col" style="flex:1"><div class="home">
+   <a class="card" href="#/v206"><h3>V2-06 · Câu hỏi đa ngôn ngữ</h3>
+     <div class="muted small">${S.v206.manifest.corpus_version} · ${S.v206.manifest.documents.length} tài liệu · ${S.v206.spans.length} span</div>
+     <div class="bar"><i style="width:${100 * p6.done / Math.max(1, p6.total)}%"></i></div>
+     <div>${p6.done}/${p6.total} câu đã có phán quyết · <b>${p6.reviewed}</b> duyệt · <b>${p6.excluded}</b> loại</div>
+     <p class="small muted">Mỗi ý gồm bản VI + EN. Đối chiếu câu hỏi, đáp án, span bằng chứng với văn bản canonical và ảnh trang PDF; quét chọn văn bản để sửa span.</p>
+     <div class="row">${badges(S.v206.validation, "")}</div></a>
+   <a class="card" href="#/v219"><h3>V2-19 · Nhãn cấu trúc PDF</h3>
+     <div class="muted small">${S.v219.manifest.corpus_version} · ${anns.length} file</div>
+     <div class="bar"><i style="width:${100 * own / Math.max(1, anns.length)}%"></i></div>
+     <div><b>${own}</b>/${anns.length} file owner đã xác nhận · ${wip} file đang duyệt dở</div>
+     <p class="small muted">File chưa có <code>owner_confirmed</code> cần owner xem. Xem từng trang: ảnh bên trái, nhãn của trang bên phải; sửa/loại mục sai rồi <kbd>Enter</kbd> sang trang tiếp.</p>
+     <div class="row">${badges(S.v219.validation, "")}</div></a>
+   <div class="card small muted" style="grid-column:1/-1">Mọi thao tác ghi thẳng vào file dữ liệu; lần ghi đầu mỗi phiên lưu bản sao ở <code>local/backups/</code> của bộ dữ liệu. Tên người duyệt (góc phải) được ghi vào <code>reviewer_id</code>.</div>
+  </div></div>`;
+}
+
+// ======================================================================== V2-06
+async function loadV206() {
+  S.v206 = await api("/api/v206");
+  const d = S.v206;
+  d.cps = {}; for (const [k, t] of Object.entries(d.texts)) d.cps[k] = t == null ? null : Array.from(t);
+  d.spanById = Object.fromEntries(d.spans.map(s => [s.span_id, s]));
+  const intents = new Map();
+  for (const q of [...d.questions, ...d.excluded]) {
+    if (!intents.has(q.intent_id)) intents.set(q.intent_id, []);
+    intents.get(q.intent_id).push(q);
+  }
+  for (const qs of intents.values()) qs.sort((a, b) => a.lang === "vi" ? -1 : 1);
+  d.intents = [...intents.entries()].map(([id, qs]) => ({id, qs}));
+  d.audit = Object.fromEntries(d.negative_audit.map(a => [a.intent_id, a]));
+}
+async function act206(path, body, msg) {
+  const j = await api(path, body);
+  await loadV206(); renderV206(); renderBadges();
+  if (msg) toast(msg);
+  if (j.validation && !j.validation.structure.ok) toast("Validator: " + j.validation.structure.error, true);
+  return j;
+}
+function qStatus(q) { return q.review_status; }
+function curIntent() {
+  const d = S.v206; const id = S.route[1] || d.intents[0]?.id;
+  return d.intents.find(i => i.id === id) || d.intents[0];
+}
+function intentSets(intent) {
+  const ans = intent.qs.filter(q => q.answerable && q.review_status !== "excluded");
+  if (!ans.length) return {sets: null, ids: [], mismatch: false};
+  const key = JSON.stringify(ans[0].evidence_sets);
+  return {sets: ans[0].evidence_sets, ids: ans.map(q => q.id), mismatch: ans.some(q => JSON.stringify(q.evidence_sets) !== key)};
+}
+function renderV206() {
+  const d = S.v206, it = curIntent();
+  const filter = S.ui.v206filter || "all";
+  const list = d.intents.filter(i => filter === "all" || i.qs.some(q => q.review_status === "draft"));
+  const side = `<div class="tools"><label><input type="checkbox" id="f206" ${filter === "todo" ? "checked" : ""}> Chỉ ý còn nháp</label></div>` +
+    list.map(i => {
+      const q0 = i.qs[0];
+      return `<a class="item ${i === it ? "on" : ""}" href="#/v206/${encodeURIComponent(i.id)}">
+       <div class="t">${esc(i.id)}</div>
+       <div class="m">${i.qs.map(q => `<span class="dot ${q.review_status}" title="${q.lang}: ${q.review_status}"></span>${q.lang.toUpperCase()}`).join(" ")}
+        <span class="badge ${q0.split === "test" ? "acc" : ""}">${q0.split}</span>${q0.answerable ? "" : `<span class="badge warn">câu âm</span>`}<span class="badge">nguồn ${q0.corpus_lang.toUpperCase()}</span></div></a>`;
+    }).join("");
+  const p = v206Progress();
+  $("#main").innerHTML = `<aside class="side"><div class="grp">${p.done}/${p.total} câu có phán quyết</div>${side}</aside>
+   <section class="col pane" style="width:min(560px,42vw);flex:none" id="qpane"></section>
+   <section class="col" style="flex:1;border-left:1px solid var(--line)" id="viewer"></section>`;
+  $("#f206").onchange = e => { S.ui.v206filter = e.target.checked ? "todo" : "all"; renderV206(); };
+  if (!it) return;
+  renderQPane(it);
+  if (!S.ui.docId || S.ui.intentShown !== it.id) {
+    const es = intentSets(it).sets; const first = es?.[0]?.[0] && d.spanById[es[0][0]];
+    S.ui.docId = first ? first.doc_id : (S.ui.docId || d.manifest.documents[0].doc_id);
+    S.ui.focusSpan = first ? first.span_id : null; S.ui.intentShown = it.id; S.ui.page = first?.pages?.[0];
+  }
+  renderViewer(it);
+}
+function spanColor(intent) {
+  const m = {}; let k = 0;
+  for (const es of intentSets(intent).sets || []) for (const sid of es) if (!(sid in m)) m[sid] = k++ % 4;
+  return m;
+}
+function renderQPane(it) {
+  const d = S.v206, {sets, ids, mismatch} = intentSets(it), colors = spanColor(it);
+  const audit = d.audit[it.id] || {};
+  let h = `<div class="row" style="margin-bottom:10px"><h2 style="margin:0;font-size:16px">${esc(it.id)}</h2><span class="spacer"></span>
+    <button class="ok" id="approveAll" title="Duyệt mọi câu nháp của ý này (A)">✓ Duyệt cả cặp <kbd>A</kbd></button>
+    <button id="prevI">← <kbd>K</kbd></button><button id="nextI"><kbd>J</kbd> →</button></div>`;
+  if (sets) {
+    h += `<div class="card"><h3>Bằng chứng <span class="small muted">(các bộ là OR; span trong một bộ là AND)</span></h3>
+      ${mismatch ? `<div class="badge bad">Các câu trong ý này đang có evidence_sets khác nhau; sửa ở đây sẽ áp dụng chung.</div>` : ""}
+      ${sets.map((es, i) => `<div class="eset"><div class="hd">Bộ ${i + 1} — cần đủ tất cả <span class="spacer"></span>
+        ${sets.length > 1 ? `<button class="sm ghost" data-delset="${i}">xoá bộ</button>` : ""}</div>
+        ${es.map(sid => { const s = d.spanById[sid]; return `<div class="span c${colors[sid]}" data-focus="${esc(sid)}">
+          <div class="q">“${esc(s?.quote)}”<div class="id">${esc(sid)} · ${esc(s?.doc_id)} · trang ${esc((s?.pages || []).join(",") || "—")} · [${s?.start_char}, ${s?.end_char})</div></div>
+          <button class="sm ghost" data-rmspan="${i}|${esc(sid)}" title="Bỏ span khỏi bộ">✕</button></div>`; }).join("")}
+        </div>`).join("")}
+      <div class="help">Sửa span: quét chọn văn bản ở khung bên phải → chọn “thay” / “thêm vào bộ” / “bộ OR mới”.</div></div>`;
+  } else {
+    h += `<div class="card small"><b>Câu âm</b> — không có bằng chứng. Hãy xác nhận corpus thực sự không trả lời được (dùng ô tìm kiếm bên phải).</div>`;
+  }
+  for (const q of it.qs) {
+    const ex = q.review_status === "excluded";
+    const rv = d.reviews.find(r => r.question_id === q.id);
+    h += `<div class="card status-${q.review_status}" data-q="${esc(q.id)}">
+      <h3>${q.lang.toUpperCase()}${q.cross_lingual ? ` → tài liệu ${q.corpus_lang.toUpperCase()} <span class="badge acc">cross-lingual</span>` : ""}
+       <span class="badge ${q.review_status === "reviewed" ? "ok" : ex ? "bad" : ""}">${q.review_status}</span>
+       <span class="spacer"></span><span class="small muted">${esc(q.id)}</span></h3>
+      ${q.rebase_note && q.review_status === "draft" ? `<div class="badge warn" style="margin-bottom:6px">${esc(q.rebase_note)}</div>` : ""}
+      ${ex ? `<div class="small muted">Đã loại${q.exclude_note ? ": " + esc(q.exclude_note) : ""}</div><div style="margin-top:8px"><button data-restore="${esc(q.id)}">↺ Khôi phục</button></div>` : `
+      <div class="lbl">Câu hỏi</div><textarea rows="2" data-f="question">${esc(q.question)}</textarea>
+      ${q.answerable ? `<div class="lbl">Đáp án tham chiếu</div><textarea rows="3" data-f="reference_answer">${esc(q.reference_answer)}</textarea>` : ""}
+      <div class="lbl">Loại câu (query_types)</div><div class="chips">${QT.map(t => `<span class="chip ${q.query_types.includes(t) ? "on" : ""}" data-qt="${t}" title="${t}">${QT_VI[t]}</span>`).join("")}</div>
+      ${q.answerable ? "" : `<div class="lbl">Audit câu âm</div>
+        <div class="small"><div class="lbl">Lý do</div><textarea rows="2" data-audit="reason">${esc(S.ui["ar_" + q.id] ?? (audit.reason || "Đã đọc đủ các tài liệu trong corpus pilot, không có thông tin trả lời."))}</textarea>
+        <div class="lbl">Từ đã tìm (phẩy ngăn cách)</div><input style="width:100%" data-audit="terms" value="${esc(S.ui["at_" + q.id] ?? (audit.search_terms || []).join(", "))}">
+        <div class="row" style="margin-top:5px"><button class="sm" data-searchterms>🔎 Tìm các từ này</button><span class="small muted">${esc(audit.reason ? "Gợi ý của agent: " + audit.reason : "")}</span></div></div>`}
+      <div class="lbl">Ghi chú duyệt</div><input style="width:100%" data-notes placeholder="Để trống = “Đồng ý, không sửa.”" value="${esc(S.ui["n_" + q.id] ?? (rv?.notes || ""))}">
+      <div class="row" style="margin-top:9px">
+        <button class="ok" data-dec="reviewed">✓ Duyệt</button>
+        <button class="bad" data-dec="excluded">✗ Loại</button>
+        ${q.review_status !== "draft" ? `<button data-dec="draft">↺ Về nháp</button>` : ""}
+        <span class="spacer"></span>${rv ? `<span class="small muted">${esc(rv.reviewer_id)} · ${esc(rv.reviewed_at)}</span>` : ""}</div>`}
+    </div>`;
+  }
+  h += `<div class="help">Phím: <kbd>J</kbd>/<kbd>K</kbd> ý sau/trước · <kbd>A</kbd> duyệt cả cặp · <kbd>/</kbd> tìm trong corpus. Sửa nội dung một câu đã duyệt sẽ đưa nó về nháp.</div>`;
+  const pane = $("#qpane"); pane.innerHTML = h;
+
+  const idx = d.intents.indexOf(it);
+  const go = k => { const n = d.intents[idx + k]; if (n) location.hash = "#/v206/" + encodeURIComponent(n.id); };
+  $("#prevI").onclick = () => go(-1); $("#nextI").onclick = () => go(1);
+  S.ui.go206 = go;
+  $("#approveAll").onclick = () => approveAll(it);
+  pane.querySelectorAll("[data-focus]").forEach(el => el.onclick = e => {
+    if (e.target.closest("button")) return;
+    const s = d.spanById[el.dataset.focus]; S.ui.docId = s.doc_id; S.ui.focusSpan = s.span_id; S.ui.page = s.pages?.[0]; renderViewer(it);
+  });
+  pane.querySelectorAll("[data-rmspan]").forEach(el => el.onclick = () => {
+    const [i, sid] = el.dataset.rmspan.split("|"); const ns = sets.map(x => [...x]);
+    ns[+i] = ns[+i].filter(x => x !== sid);
+    if (!ns.filter(x => x.length).length) return toast("Câu answerable cần ít nhất một span.", true);
+    act206("/api/v206/evidence", {ids, evidence_sets: ns}, "Đã bỏ span");
+  });
+  pane.querySelectorAll("[data-delset]").forEach(el => el.onclick = () => {
+    const ns = sets.filter((_, i) => i !== +el.dataset.delset); act206("/api/v206/evidence", {ids, evidence_sets: ns}, "Đã xoá bộ");
+  });
+  pane.querySelectorAll("[data-restore]").forEach(el => el.onclick = () => act206("/api/v206/restore", {id: el.dataset.restore}, "Đã khôi phục"));
+  pane.querySelectorAll("[data-q]").forEach(card => {
+    const q = d.questions.find(x => x.id === card.dataset.q); if (!q) return;
+    card.querySelectorAll("[data-f]").forEach(t => t.onchange = () => act206("/api/v206/question", {id: q.id, patch: {[t.dataset.f]: t.value}}, "Đã lưu"));
+    card.querySelectorAll("[data-qt]").forEach(c => c.onclick = () => {
+      const t = c.dataset.qt, cur = new Set(q.query_types); cur.has(t) ? cur.delete(t) : cur.add(t);
+      if (!cur.size) return toast("Cần ít nhất một loại.", true);
+      act206("/api/v206/question", {id: q.id, patch: {query_types: QT.filter(x => cur.has(x))}});
+    });
+    const notes = $("[data-notes]", card); notes.oninput = () => S.ui["n_" + q.id] = notes.value;
+    card.querySelectorAll("[data-audit]").forEach(a => a.oninput = () => S.ui[(a.dataset.audit === "reason" ? "ar_" : "at_") + q.id] = a.value);
+    const st = $("[data-searchterms]", card);
+    if (st) st.onclick = () => { S.ui.search = $("[data-audit=terms]", card).value.split(",")[0].trim(); runSearchTerms($("[data-audit=terms]", card).value); };
+    card.querySelectorAll("[data-dec]").forEach(b => b.onclick = () => decide(q, b.dataset.dec, card));
+  });
+}
+function decisionBody(q, decision, card) {
+  const body = {id: q.id, decision, reviewer_id: reviewer(), notes: $("[data-notes]", card)?.value || ""};
+  if (!q.answerable && decision === "reviewed") body.unanswerable_audit = {
+    reason: $("[data-audit=reason]", card).value, search_terms: $("[data-audit=terms]", card).value.split(","), conclusion: "unanswerable_in_pilot_corpus_human_checked"};
+  return body;
+}
+async function decide(q, decision, card) {
+  if (!reviewer()) return toast("Nhập tên người duyệt ở góc phải.", true);
+  if (decision === "excluded" && !(card && $("[data-notes]", card).value.trim()) && !confirm("Loại câu này mà không ghi lý do?")) return;
+  await act206("/api/v206/decide", decisionBody(q, decision, card), {reviewed: "Đã duyệt", excluded: "Đã loại", draft: "Đã về nháp"}[decision]);
+}
+async function approveAll(it) {
+  if (!reviewer()) return toast("Nhập tên người duyệt ở góc phải.", true);
+  const todo = it.qs.filter(q => q.review_status === "draft");
+  if (!todo.length) { S.ui.go206?.(1); return; }
+  const bodies = todo.map(q => decisionBody(q, "reviewed", document.querySelector(`[data-q="${CSS.escape(q.id)}"]`)));
+  for (const b of bodies) await api("/api/v206/decide", b);
+  await loadV206(); renderBadges(); toast(`Đã duyệt ${todo.length} câu`);
+  const d = S.v206, idx = d.intents.findIndex(i => i.id === it.id);
+  const next = d.intents.slice(idx + 1).find(i => i.qs.some(q => q.review_status === "draft")) || d.intents.find(i => i.qs.some(q => q.review_status === "draft"));
+  if (next && next.id !== it.id) location.hash = "#/v206/" + encodeURIComponent(next.id); else renderV206();
+}
+
+// ---- document viewer (canonical text + page image + search)
+function renderViewer(it) {
+  const d = S.v206, docId = S.ui.docId, doc = d.manifest.documents.find(x => x.doc_id === docId);
+  const cps = d.cps[docId], colors = spanColor(it), pmap = d.page_map[docId] || [];
+  const previews = d.previews[docId] || [];
+  const showImg = previews.length > 0 && S.ui.imgMode !== "off";
+  const v = $("#viewer");
+  v.innerHTML = `<div class="viewer">
+    <div class="vbar"><select id="docSel">${d.manifest.documents.map(x => `<option value="${x.doc_id}" ${x.doc_id === docId ? "selected" : ""}>${x.doc_id} (${x.lang})</option>`).join("")}</select>
+      <span class="small muted">${esc(doc.license)}</span><span class="spacer"></span>
+      <input id="search" placeholder="Tìm trong cả corpus… ( / )" size="24" value="${esc(S.ui.search || "")}">
+      ${previews.length ? `<button class="sm" id="imgToggle">${showImg ? "Ẩn ảnh PDF" : "Hiện ảnh PDF"}</button>` : `<span class="small muted">không có ảnh trang</span>`}</div>
+    <div class="results" id="results" hidden></div>
+    <div class="vtext" id="vtext" style="${showImg ? "flex:1 1 50%" : ""}">${cps ? `<pre id="doctext"></pre>` : `<p class="muted">Thiếu file canonical local (chạy prepare_pilot theo README).</p>`}</div>
+    ${showImg ? `<div class="vbar small"><span>Trang PDF</span><select id="pageSel">${previews.map(p => `<option ${p === S.ui.page ? "selected" : ""}>${p}</option>`).join("")}</select>
+      <button class="sm" id="zoom">phóng</button><a class="small" target="_blank" href="/pdf/${docId}.pdf#page=${S.ui.page || 1}">mở PDF ↗</a>
+      <span class="muted">Đối chiếu chữ canonical với ảnh gốc.</span></div>
+      <div class="vimg" style="flex:1 1 50%"><img id="pimg" src="/img/${docId}/${S.ui.page || previews[0]}" class="${S.ui.zoom ? "zoom" : ""}"></div>` : ""}
+  </div>`;
+  $("#docSel").onchange = e => { S.ui.docId = e.target.value; S.ui.focusSpan = null; S.ui.page = (d.previews[e.target.value] || [])[0]; renderViewer(it); };
+  const tg = $("#imgToggle"); if (tg) tg.onclick = () => { S.ui.imgMode = showImg ? "off" : "on"; renderViewer(it); };
+  const ps = $("#pageSel"); if (ps) ps.onchange = e => { S.ui.page = +e.target.value; renderViewer(it); };
+  const zm = $("#zoom"); if (zm) zm.onclick = () => { S.ui.zoom = !S.ui.zoom; $("#pimg").classList.toggle("zoom", S.ui.zoom); };
+  const sb = $("#search"); let tmr;
+  sb.oninput = () => { clearTimeout(tmr); tmr = setTimeout(() => { S.ui.search = sb.value; runSearch(sb.value); }, 250); };
+  if (S.ui.search) runSearch(S.ui.search);
+  if (!cps) return;
+  // segments
+  const marks = d.spans.filter(s => s.doc_id === docId);
+  const bounds = new Set([0, cps.length]);
+  for (const s of marks) { bounds.add(s.start_char); bounds.add(s.end_char); }
+  for (const p of pmap) bounds.add(p.start_char);
+  if (S.ui.flash && S.ui.flash.doc === docId) { bounds.add(S.ui.flash.start); bounds.add(S.ui.flash.end); }
+  const b = [...bounds].filter(x => x >= 0 && x <= cps.length).sort((x, y) => x - y);
+  const pageStarts = Object.fromEntries(pmap.filter(p => p.end_char > p.start_char).map(p => [p.start_char, p.page]));
+  let html = "";
+  for (let i = 0; i < b.length - 1; i++) {
+    const a = b[i], z = b[i + 1];
+    if (pageStarts[a] !== undefined) html += `<span class="page-mark" data-page="${pageStarts[a]}">— trang ${pageStarts[a]} —</span>`;
+    const cover = marks.filter(s => s.start_char <= a && s.end_char >= z);
+    const mine = cover.find(s => s.span_id in colors);
+    const fl = S.ui.flash && S.ui.flash.doc === docId && S.ui.flash.start <= a && S.ui.flash.end >= z;
+    const cls = mine ? "c" + colors[mine.span_id] : fl ? "c2" : cover.length ? "o" : "";
+    const title = cover.map(s => s.span_id).join(", ");
+    html += `<span data-s="${a}"${cls ? ` class="${cls}"` : ""}${title ? ` title="${esc(title)}"` : ""}${mine ? ` data-sid="${esc(mine.span_id)}"` : ""}${fl ? " data-flash" : ""}>${esc(cps.slice(a, z).join(""))}</span>`;
+  }
+  const pre = $("#doctext"); pre.innerHTML = html;
+  const target = (S.ui.flash && pre.querySelector("[data-flash]")) || (S.ui.focusSpan && pre.querySelector(`[data-sid="${CSS.escape(S.ui.focusSpan)}"]`));
+  if (target) target.scrollIntoView({block: "center"});
+  S.ui.flash = null;
+  pre.onmouseup = () => setTimeout(() => selectionMenu(it), 0);
+  // follow scroll -> page image
+  const vt = $("#vtext");
+  if (showImg) vt.onscroll = () => {
+    const marksEls = [...pre.querySelectorAll(".page-mark")]; const top = vt.getBoundingClientRect().top + vt.clientHeight / 2;
+    let pg = null; for (const m of marksEls) if (m.getBoundingClientRect().top < top) pg = +m.dataset.page;
+    if (pg && pg !== S.ui.page && previews.includes(pg)) { S.ui.page = pg; $("#pimg").src = `/img/${docId}/${pg}`; $("#pageSel").value = pg; }
+  };
+}
+function cpLen(s) { return Array.from(s).length; }
+function posOf(node, off) {
+  if (node.nodeType === 3) { const seg = node.parentElement.closest("[data-s]"); return seg ? +seg.dataset.s + cpLen(node.data.slice(0, off)) : null; }
+  const child = node.childNodes[off];
+  if (child) { const seg = child.nodeType === 1 ? (child.matches("[data-s]") ? child : child.querySelector("[data-s]")) : null; return seg ? +seg.dataset.s : null; }
+  const segs = node.querySelectorAll("[data-s]"); const last = segs[segs.length - 1];
+  return last ? +last.dataset.s + cpLen(last.textContent) : null;
+}
+function closeSel() { document.querySelectorAll(".selbar").forEach(x => x.remove()); }
+function selectionMenu(it) {
+  closeSel();
+  const sel = getSelection(); if (!sel.rangeCount || sel.isCollapsed) return;
+  const r = sel.getRangeAt(0), pre = $("#doctext"); if (!pre.contains(r.startContainer) || !pre.contains(r.endContainer)) return;
+  let a = posOf(r.startContainer, r.startOffset), z = posOf(r.endContainer, r.endOffset);
+  if (a == null || z == null) return;
+  const d = S.v206, docId = S.ui.docId, cps = d.cps[docId];
+  while (a < z && /\s/.test(cps[a])) a++; while (z > a && /\s/.test(cps[z - 1])) z--;
+  if (z <= a) return;
+  const quote = cps.slice(a, z).join("");
+  const {sets, ids} = intentSets(it);
+  const rect = r.getBoundingClientRect();
+  const bar = document.createElement("div"); bar.className = "selbar";
+  bar.style.left = Math.min(innerWidth - 540, Math.max(8, rect.left)) + "px"; bar.style.top = Math.min(innerHeight - 120, rect.bottom + 6) + "px";
+  let h = `<div class="small" style="width:100%">“${esc(quote.length > 120 ? quote.slice(0, 120) + "…" : quote)}” <span class="muted">[${a}, ${z})</span></div>`;
+  if (!sets) h += `<span class="small muted">Câu âm: không có bằng chứng để sửa. Nếu đoạn này trả lời được câu hỏi, hãy loại câu âm.</span>`;
+  else {
+    const inDoc = [...new Set(sets.flat())].filter(sid => d.spanById[sid]?.doc_id === docId);
+    for (const sid of inDoc) h += `<button class="sm" data-replace="${esc(sid)}">Thay ${esc(sid)}</button>`;
+    sets.forEach((_, i) => h += `<button class="sm" data-addto="${i}">+ vào bộ ${i + 1}</button>`);
+    h += `<button class="sm" data-newset>+ bộ OR mới</button>`;
+  }
+  h += `<button class="sm ghost" data-close>✕</button>`;
+  bar.innerHTML = h; document.body.appendChild(bar);
+  bar.querySelector("[data-close]").onclick = closeSel;
+  bar.querySelectorAll("[data-replace]").forEach(btn => btn.onclick = async () => {
+    const sid = btn.dataset.replace;
+    const users = d.questions.filter(q => q.evidence_sets.some(es => es.includes(sid)) && q.intent_id !== it.id);
+    if (users.length && !confirm(`Span ${sid} cũng dùng ở: ${users.map(q => q.id).join(", ")}. Vẫn sửa?`)) return;
+    closeSel(); S.ui.focusSpan = sid;
+    await act206("/api/v206/span", {span_id: sid, doc_id: docId, start: a, end: z, quote}, "Đã cập nhật span " + sid);
+  });
+  const create = async (mut) => {
+    let n = 1, sid; do sid = `${it.id}-s${n++}`; while (d.spanById[sid]);
+    const near = d.spans.filter(s => s.doc_id === docId && s.start_char <= a).sort((x, y) => y.start_char - x.start_char)[0];
+    closeSel();
+    await api("/api/v206/span", {span_id: sid, create: true, doc_id: docId, start: a, end: z, quote, section_id: near?.section_id || "manual"});
+    const ns = sets.map(x => [...x]); mut(ns, sid); S.ui.focusSpan = sid;
+    await act206("/api/v206/evidence", {ids, evidence_sets: ns}, "Đã thêm span " + sid);
+  };
+  bar.querySelectorAll("[data-addto]").forEach(btn => btn.onclick = () => create((ns, sid) => ns[+btn.dataset.addto].push(sid)));
+  const nb = bar.querySelector("[data-newset]"); if (nb) nb.onclick = () => create((ns, sid) => ns.push([sid]));
+}
+async function runSearch(q) {
+  const box = $("#results"); if (!box) return;
+  if (!q || q.trim().length < 2) { box.hidden = true; return; }
+  const result = await (await fetch("/api/v206/search?q=" + encodeURIComponent(q))).json();
+  box.hidden = false;
+  box.innerHTML = `<div class="r muted">${result.length} kết quả cho “${esc(q)}” <button class="sm ghost" style="float:right" id="closeRes">đóng</button></div>` +
+    result.slice(0, 80).map((h, i) => `<div class="r" data-i="${i}"><b>${esc(h.doc_id)}</b> · …${esc(h.before)}<mark>${esc(h.match)}</mark>${esc(h.after)}…</div>`).join("");
+  $("#closeRes").onclick = () => { S.ui.search = ""; $("#search").value = ""; box.hidden = true; };
+  box.querySelectorAll("[data-i]").forEach(el => el.onclick = () => {
+    const h = result[+el.dataset.i]; const it = curIntent();
+    S.ui.docId = h.doc_id; S.ui.flash = {doc: h.doc_id, start: h.start, end: h.end}; S.ui.focusSpan = null;
+    const pg = (S.v206.page_map[h.doc_id] || []).find(p => p.start_char <= h.start && p.end_char >= h.start); if (pg) S.ui.page = pg.page;
+    renderViewer(it);
+  });
+}
+async function runSearchTerms(terms) {
+  const list = terms.split(",").map(t => t.trim()).filter(t => t.length >= 2);
+  const box = $("#results"); box.hidden = false;
+  const rows = [];
+  for (const t of list) { const r = await (await fetch("/api/v206/search?q=" + encodeURIComponent(t))).json(); rows.push([t, r]); }
+  box.innerHTML = `<div class="r muted">Đếm theo từ (bấm để xem) <button class="sm ghost" style="float:right" id="closeRes">đóng</button></div>` +
+    rows.map(([t, r]) => `<div class="r" data-t="${esc(t)}"><b>${esc(t)}</b>: ${r.length} lần ${r.length ? "· " + [...new Set(r.map(h => h.doc_id))].join(", ") : "· <span class='muted'>không thấy</span>"}</div>`).join("");
+  $("#closeRes").onclick = () => box.hidden = true;
+  box.querySelectorAll("[data-t]").forEach(el => el.onclick = () => { S.ui.search = el.dataset.t; $("#search").value = el.dataset.t; runSearch(el.dataset.t); });
+}
+
+// ======================================================================== V2-19
+const KINDS = [["headings", "Heading"], ["tables", "Bảng"], ["furniture", "Khung cần bỏ"], ["cross_references", "Tham chiếu chéo"]];
+async function loadV219() {
+  S.v219 = await api("/api/v219");
+  S.v219.byId = Object.fromEntries(S.v219.annotations.map(a => [a.doc_id, a]));
+}
+function docMeta(id) { return S.v219.manifest.documents.find(d => d.doc_id === id); }
+function isMd(id) { return docMeta(id).path.endsWith(".md"); }
+function pagesOf(id) {
+  if (isMd(id)) return ["md"];
+  const n = docMeta(id).page_count || Math.max(1, ...S.v219.previews[id]); return Array.from({length: n}, (_, i) => i + 1);
+}
+function getDraft(id) {
+  const ds = S.v219.drafts;
+  if (!ds[id]) {
+    const rec = S.v219.byId[id], items = {};
+    for (const [k] of KINDS) items[k] = structuredClone(rec[k] || []);
+    ds[id] = {items, metadata: structuredClone(rec.metadata || {}), metadata_d: null, pages_done: [], notes: "", started_at: new Date().toISOString()};
+  }
+  return ds[id];
+}
+let saveT;
+function saveDraft(id) { clearTimeout(saveT); saveT = setTimeout(() => api("/api/v219/draft", {doc_id: id, draft: S.v219.drafts[id]}).catch(() => {}), 400); }
+const pageKey = p => p === "md" ? null : p;
+function itemsOnPage(dr, p) {
+  const out = [];
+  for (const [k] of KINDS) dr.items[k].forEach((it, i) => { if ((it.page ?? null) === pageKey(p)) out.push([k, i, it]); });
+  return out;
+}
+function docStatus(id) {
+  const rec = S.v219.byId[id];
+  if (S.v219.drafts[id]) return "wip";
+  return v219Owner(rec) ? "reviewed" : "draft";
+}
+function renderV219() {
+  const d = S.v219, docs = d.manifest.documents;
+  const id = S.route[1] && d.byId[S.route[1]] ? S.route[1] : (docs.find(x => docStatus(x.doc_id) !== "reviewed") || docs[0]).doc_id;
+  const pages = pagesOf(id);
+  let page = S.route[2] === "md" ? "md" : +S.route[2] || pages[0];
+  if (!pages.includes(page)) page = pages[0];
+  const fam = {};
+  for (const x of docs) (fam[x.family] ||= []).push(x);
+  const own = d.annotations.filter(v219Owner).length;
+  const side = `<div class="grp">${own}/${d.annotations.length} file owner đã xác nhận</div>` + Object.entries(fam).map(([f, xs]) => `<div class="grp">${esc(f)}</div>` + xs.map(x => {
+    const st = docStatus(x.doc_id), dr = d.drafts[x.doc_id], np = pagesOf(x.doc_id).length;
+    return `<a class="item ${x.doc_id === id ? "on" : ""}" href="#/v219/${x.doc_id}"><div class="t"><span class="dot ${st}"></span> ${esc(x.doc_id)}</div>
+      <div class="m"><span>${x.lang}</span><span>${np === 1 && isMd(x.doc_id) ? "md" : np + " tr"}</span>${x.expected_outcome === "FAILED" ? `<span class="badge bad">scan</span>` : ""}
+      ${st === "wip" ? `<span class="badge warn">${dr.pages_done.length}/${np} trang</span>` : st === "reviewed" ? `<span class="badge ok">owner ✓</span>` : ""}
+</div></a>`;
+  }).join("")).join("");
+  $("#main").innerHTML = `<aside class="side">${side}</aside>
+    <section class="col" style="flex:1;display:flex;flex-direction:column" id="pview"></section>
+    <section class="col" style="width:min(460px,36vw);flex:none;border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column" id="lpane"></section>`;
+  renderPage(id, page);
+}
+function goPage(id, p) { location.hash = `#/v219/${id}/${p}`; }
+function renderPage(id, page) {
+  const d = S.v219, meta = docMeta(id), rec = d.byId[id], dr = getDraft(id), pages = pagesOf(id);
+  const counts = {}; for (const p of pages) counts[p] = itemsOnPage(dr, p).length;
+  const hasImg = d.previews[id].includes(page);
+  $("#pview").innerHTML = `<div class="vbar"><b>${esc(id)}</b><span class="small muted">${esc(meta.family)} · ${meta.lang} · ${esc(meta.license)}</span>
+      <span class="badge ${meta.expected_outcome === "FAILED" ? "bad" : ""}">${esc(meta.expected_outcome)}${rec.expected_reason ? " · " + esc(rec.expected_reason) : meta.expected_warning ? " · " + esc(meta.expected_warning) : ""}</span>
+      <span class="spacer"></span>${page !== "md" ? `<button class="sm" id="zoom">phóng</button><a class="small" target="_blank" href="/pdf/${id}.pdf#page=${page}">mở PDF trang ${page} ↗</a>` : ""}</div>
+    <div class="vbar"><div class="pages">${pages.map(p => `<button data-p="${p}" class="${p === page ? "cur" : ""} ${dr.pages_done.includes(p) ? "done" : ""}">${p === "md" ? "toàn file" : p}${counts[p] ? `<span class="n">${counts[p]}</span>` : ""}</button>`).join("")}</div></div>
+    <div class="vimg">${page === "md" ? `<pre class="md">${esc(d.markdown[id] || "(thiếu file markdown local)")}</pre>` :
+      hasImg ? `<img src="/img/${id}/${page}" id="pimg" class="${S.ui.zoom ? "zoom" : ""}">` :
+      `<iframe src="/pdf/${id}.pdf#page=${page}" style="width:100%;height:100%;border:0"></iframe>`}</div>`;
+  $("#pview").querySelectorAll("[data-p]").forEach(b => b.onclick = () => goPage(id, b.dataset.p === "md" ? "md" : +b.dataset.p));
+  const zm = $("#zoom"); if (zm) zm.onclick = () => { S.ui.zoom = !S.ui.zoom; $("#pimg")?.classList.toggle("zoom", S.ui.zoom); };
+  renderLabels(id, page);
+}
+function itemBody(k, it) {
+  if (k === "headings") return `<span class="badge acc">H${it.level}</span> ${esc(it.text)}`;
+  if (k === "tables") return `<span class="badge acc">${it.rows}×${it.cols}</span> <span class="small muted">${esc(it.annotation_scope || "")}</span><div class="small">${(it.column_titles || []).map(esc).join(" │ ")}</div>${(it.cell_spans || []).length ? `<div class="small muted">ô gộp: ${it.cell_spans.map(s => `r${s.row}c${s.col}${s.rowspan > 1 ? " ↓" + s.rowspan : ""}${s.colspan > 1 ? " →" + s.colspan : ""}`).join(", ")}</div>` : ""}`;
+  if (k === "furniture") return esc(it.text);
+  return `<span class="badge">${it.kind === "within_document" ? "trong tài liệu" : "giữa tài liệu"}</span> ${esc(it.text)}${it.location ? ` <span class="small muted">@ ${esc(it.location)}</span>` : ""}`;
+}
+function itemEditor(k, it) {
+  const pg = `<label>trang</label><input data-e="page" type="number" value="${it.page ?? ""}">`;
+  if (k === "headings") return `<label>chữ</label><input data-e="text" value="${esc(it.text)}"><label>cấp</label><select data-e="level">${[1, 2, 3, 4, 5, 6].map(n => `<option ${n === it.level ? "selected" : ""}>${n}</option>`).join("")}</select>${pg}`;
+  if (k === "tables") return `<label>hàng × cột</label><span><input data-e="rows" type="number" style="width:70px" value="${it.rows}"> × <input data-e="cols" type="number" style="width:70px" value="${it.cols}"></span>
+    <label>tiêu đề cột<br><span class="muted">mỗi dòng 1 cột</span></label><textarea data-e="column_titles" rows="${Math.max(2, (it.column_titles || []).length)}">${esc((it.column_titles || []).join("\n"))}</textarea>
+    <label>ô gộp<br><span class="muted">row,col,rowspan,colspan; …</span></label><input data-e="cell_spans" value="${esc((it.cell_spans || []).map(s => [s.row, s.col, s.rowspan, s.colspan].join(",")).join("; "))}">
+    <label>phạm vi</label><input data-e="annotation_scope" value="${esc(it.annotation_scope || "")}" list="scopes">${pg}`;
+  if (k === "furniture") return `<label>chữ</label><input data-e="text" value="${esc(it.text)}">${pg}`;
+  return `<label>loại</label><select data-e="kind"><option value="within_document" ${it.kind === "within_document" ? "selected" : ""}>trong tài liệu</option><option value="between_documents" ${it.kind === "between_documents" ? "selected" : ""}>giữa tài liệu</option></select>
+    <label>chữ</label><input data-e="text" value="${esc(it.text)}"><label>vị trí</label><input data-e="location" value="${esc(it.location || "")}">${pg}`;
+}
+function parseEdit(k, field, val) {
+  if (field === "page") return val === "" ? null : +val;
+  if (field === "level" || field === "rows" || field === "cols") return +val;
+  if (field === "column_titles") return val.split("\n").map(s => s.trim()).filter(Boolean);
+  if (field === "cell_spans") return val.split(";").map(s => s.trim()).filter(Boolean).map(s => { const [row, col, rowspan, colspan] = s.split(",").map(x => +x.trim()); return {row, col, rowspan: rowspan || 1, colspan: colspan || 1}; });
+  return val;
+}
+function blankItem(k, page) {
+  const p = pageKey(page);
+  if (k === "headings") return {text: "", level: 1, page: p};
+  if (k === "tables") return {page: p, rows: 1, cols: 1, column_titles: [], cell_spans: [], annotation_scope: "full_table"};
+  if (k === "furniture") return {page: p, text: ""};
+  return {page: p, kind: "within_document", text: "", location: ""};
+}
+function hlNotes(t) { return esc(t).replace(/KHÔNG CHẮC|Chưa kiểm|chưa kiểm/g, m => `<mark>${m}</mark>`); }
+function renderLabels(id, page) {
+  const d = S.v219, rec = d.byId[id], dr = getDraft(id), pages = pagesOf(id), on = itemsOnPage(dr, page);
+  const open = S.ui.editing || {};
+  let h = `<div class="col pane" style="flex:1">`;
+  h += `<details class="card" ${(S.ui.docOpen ?? page === pages[0]) ? "open" : ""} id="docdet"><summary><b>Thông tin file</b> <span class="small muted">metadata, ghi chú agent</span></summary>
+    <div class="lbl">Metadata kỳ vọng ${dr.metadata_d === "reject" ? `<span class="badge bad">đã bỏ</span>` : ""}</div>
+    <div class="lab ${dr.metadata_d ? "d-" + dr.metadata_d : ""}"><div class="acts"><button class="sm" id="mOk">✓</button><button class="sm" id="mRej">✗</button></div>
+      <div class="edit" style="grid-template-columns:110px 1fr">${["doc_code", "revision", "issued_date", "effective_date", "revision_date"].filter(k => k in dr.metadata || ["doc_code", "revision", "issued_date"].includes(k)).map(k => `<label>${k}</label><input data-m="${k}" value="${esc(dr.metadata[k] || "")}">`).join("")}</div></div>
+    <div class="small muted">Trống = không có. Ngày theo YYYY-MM-DD.</div>
+    ${rec.coverage_note ? `<div class="lbl">Phạm vi</div><div class="small">${esc(rec.coverage_note)}</div>` : ""}
+    ${rec.review_notes ? `<div class="lbl">Ghi chú của ${esc(rec.reviewer_id || "agent")} (đọc kỹ chỗ <mark>KHÔNG CHẮC</mark>)</div><div class="notes">${hlNotes(rec.review_notes)}</div>` : ""}
+    ${v219Owner(rec) ? `<div class="lbl"><span class="badge ok">owner đã xác nhận</span> ${esc(rec.reviewer_id)} · ${esc(rec.reviewed_at)}</div>` : ""}
+  </details>`;
+  h += `<div class="row"><h3 style="margin:4px 0;font-size:15px">${page === "md" ? "Toàn file" : "Trang " + page}</h3><span class="small muted">${on.length} nhãn</span>${dr.pages_done.includes(page) ? `<span class="badge ok">đã xem</span>` : ""}</div>`;
+  if (!on.length) h += `<div class="small muted">Không có nhãn trên trang này${rec.expected_outcome === "FAILED" ? " (file kỳ vọng bị từ chối: chỉ cần xác nhận đây đúng là ảnh quét, không có lớp chữ)" : ""}. Nếu trang có heading/bảng/khung, thêm bên dưới.</div>`;
+  for (const [k, label] of KINDS) {
+    const its = on.filter(x => x[0] === k);
+    h += `<div class="sec">${label} <span class="small muted">${its.length}</span><span class="spacer"></span><button class="sm" data-add="${k}">+ thêm</button></div>`;
+    for (const [, i, it] of its) {
+      const key = k + ":" + i, ed = open[key];
+      h += `<div class="lab ${it._d ? "d-" + it._d : ""}" data-k="${k}" data-i="${i}"><div class="acts">
+        <button class="sm" data-a="ok" title="Đúng">✓</button><button class="sm" data-a="edit" title="Sửa">✎</button><button class="sm" data-a="reject" title="Sai / bỏ">✗</button></div>
+        <div class="body">${itemBody(k, it) || `<span class="muted">(trống)</span>`}${it._added ? ` <span class="badge acc">mới</span>` : ""}</div>
+        ${ed ? `<div class="edit">${itemEditor(k, it)}</div>` : ""}</div>`;
+    }
+  }
+  h += `<datalist id="scopes"><option>full_table<option>page_fragment<option>nested_table<option>continued</datalist>
+    <div class="lbl">Ghi chú của owner cho file</div><textarea id="ownNotes" rows="2" placeholder="Tuỳ chọn">${esc(dr.notes || "")}</textarea></div>`;
+  const allDone = pages.every(p => dr.pages_done.includes(p));
+  const undecided = Object.values(dr.items).flat().filter(x => !x._d).length;
+  h += `<div class="footer"><button class="primary" id="pageOk">✓ Trang đúng → tiếp <kbd>Enter</kbd></button>
+    <button id="prevP"><kbd>←</kbd></button><button id="nextP"><kbd>→</kbd></button><span class="small muted">${dr.pages_done.length}/${pages.length} trang</span><span class="spacer"></span>
+    <button class="ok" id="finish" ${allDone ? "" : "disabled"} title="${allDone ? "" : "Cần xem hết các trang"}">Hoàn tất file</button>
+    <button class="sm ghost" id="discard" title="Bỏ toàn bộ quyết định đang dở của file này">bỏ nháp</button></div>`;
+  const pane = $("#lpane"); pane.innerHTML = h;
+  $("#docdet summary").onclick = () => { S.ui.docOpen = !$("#docdet").open; };
+  const rer = () => { saveDraft(id); renderPage(id, page); };
+  pane.querySelectorAll(".lab[data-k]").forEach(el => {
+    const k = el.dataset.k, i = +el.dataset.i, it = dr.items[k][i], key = k + ":" + i;
+    el.querySelectorAll("[data-a]").forEach(b => b.onclick = () => {
+      const a = b.dataset.a;
+      if (a === "edit") { S.ui.editing = {...open, [key]: !open[key]}; if (!it._added) it._d = "edit"; }
+      else it._d = it._d === a ? undefined : a;
+      if (it._added && a === "reject") { dr.items[k].splice(i, 1); S.ui.editing = {}; }
+      rer();
+    });
+    el.querySelectorAll("[data-e]").forEach(inp => inp.onchange = () => {
+      it[inp.dataset.e] = parseEdit(k, inp.dataset.e, inp.value); if (!it._added) it._d = "edit";
+      if (inp.dataset.e === "page") S.ui.editing = {};
+      rer();
+    });
+  });
+  pane.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+    const k = b.dataset.add, it = blankItem(k, page); it._added = true; it._d = "ok";
+    dr.items[k].push(it); S.ui.editing = {[k + ":" + (dr.items[k].length - 1)]: true}; rer();
+  });
+  pane.querySelectorAll("[data-m]").forEach(inp => inp.onchange = () => { dr.metadata[inp.dataset.m] = inp.value.trim(); dr.metadata_d = "edit"; rer(); });
+  $("#mOk").onclick = () => { dr.metadata_d = dr.metadata_d === "ok" ? null : "ok"; rer(); };
+  $("#mRej").onclick = () => { dr.metadata_d = dr.metadata_d === "reject" ? null : "reject"; rer(); };
+  $("#ownNotes").onchange = e => { dr.notes = e.target.value; saveDraft(id); };
+  $("#pageOk").onclick = () => pageDone(id, page);
+  $("#prevP").onclick = () => { const i = pages.indexOf(page); if (i > 0) goPage(id, pages[i - 1]); };
+  $("#nextP").onclick = () => { const i = pages.indexOf(page); if (i < pages.length - 1) goPage(id, pages[i + 1]); };
+  $("#discard").onclick = async () => {
+    if (!confirm("Bỏ mọi quyết định đang dở của " + id + "?")) return;
+    delete S.v219.drafts[id]; await api("/api/v219/draft", {doc_id: id, draft: null}); renderV219();
+  };
+  $("#finish").onclick = () => finishDoc(id, undecided);
+}
+function pageDone(id, page) {
+  const dr = getDraft(id), pages = pagesOf(id);
+  for (const [, , it] of itemsOnPage(dr, page)) if (!it._d) it._d = "ok";
+  if (!dr.pages_done.includes(page)) dr.pages_done.push(page);
+  S.ui.editing = {}; saveDraft(id);
+  const next = pages.slice(pages.indexOf(page) + 1).find(p => !dr.pages_done.includes(p)) ?? pages.find(p => !dr.pages_done.includes(p));
+  if (next !== undefined) goPage(id, next); else { renderV219(); toast("Đã xem hết trang. Bấm “Hoàn tất file”."); }
+}
+async function finishDoc(id, undecided) {
+  if (!reviewer()) return toast("Nhập tên người duyệt ở góc phải.", true);
+  const dr = getDraft(id);
+  if (!dr.metadata_d && Object.keys(dr.metadata).some(k => dr.metadata[k])) dr.metadata_d = "ok";
+  const nRej = Object.values(dr.items).flat().filter(x => x._d === "reject" && !x._added).length;
+  const nEdit = Object.values(dr.items).flat().filter(x => x._d === "edit").length;
+  const nAdd = Object.values(dr.items).flat().filter(x => x._added).length;
+  if (!confirm(`Ghi xác nhận owner cho ${id}?\n${nRej} mục bị bỏ, ${nEdit} mục sửa, ${nAdd} mục thêm.${undecided ? `\n${undecided} mục chưa đánh dấu sẽ tính là đúng.` : ""}`)) return;
+  await api("/api/v219/draft", {doc_id: id, draft: dr});
+  const j = await api("/api/v219/finish", {doc_id: id, reviewer_id: reviewer(), notes: dr.notes || ""});
+  S.v219 = j.state; S.v219.byId = Object.fromEntries(S.v219.annotations.map(a => [a.doc_id, a]));
+  toast("Đã xác nhận " + id); renderBadges();
+  if (!j.state.validation.structure.ok) toast("Validator: " + j.state.validation.structure.error, true);
+  const nxt = S.v219.manifest.documents.find(x => docStatus(x.doc_id) !== "reviewed");
+  location.hash = nxt ? "#/v219/" + nxt.doc_id : "#/v219/" + id;
+  if (!nxt) renderV219();
+}
+
+// ======================================================================== keys
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeSel();
+  if (inField(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+  const r = S.route[0];
+  if (r === "v206") {
+    if (e.key === "j") S.ui.go206?.(1);
+    else if (e.key === "k") S.ui.go206?.(-1);
+    else if (e.key === "a") $("#approveAll")?.click();
+    else if (e.key === "/") { e.preventDefault(); $("#search")?.focus(); }
+  } else if (r === "v219") {
+    if (e.key === "Enter") { e.preventDefault(); $("#pageOk")?.click(); }
+    else if (e.key === "ArrowRight") $("#nextP")?.click();
+    else if (e.key === "ArrowLeft") $("#prevP")?.click();
+  }
+});
+route();
+</script>
+</body>
+</html>

@@ -16,7 +16,7 @@ Cập nhật auth 2026-10-15: [Google identity/admission và kiểm thử](04-re
 
 > **`docs/plans/` đã bị xóa** (2026-10-20, V2-04); bản sao cũ còn trong lịch sử git. Chỉ dùng `docs/03-plans/`. PLAN-M1 và PLAN-NEXT đã `superseded` bởi PLAN-V2.
 
-Thư mục này là nguồn sự thật duy nhất cho đặc tả sản phẩm (PRD, ADR, TECH), kế hoạch (PLAN, ticket) và báo cáo nghiệm thu (AUDIT, HANDOFF). Ngữ cảnh kỹ thuật dài hạn của từng service (contract, schema, event, RBAC) nằm ở [`.agent/context/`](../.agent/context/README.md); quy tắc làm việc cho agent nằm ở [`AGENTS.md`](../AGENTS.md).
+Thư mục này là nguồn sự thật duy nhất cho đặc tả sản phẩm (PRD, ADR, TECH), kế hoạch (PLAN, ticket) và báo cáo nghiệm thu (AUDIT, HANDOFF). Ngữ cảnh kỹ thuật dài hạn của từng service (contract, schema, event, RBAC) nằm ở [`.agent/context/`](../.agent/context/README.md); quy tắc làm việc cho agent nằm ở [`CLAUDE.md`](../CLAUDE.md) và `.claude/`.
 
 ---
 
@@ -96,14 +96,12 @@ ADR dùng `amends` khi chỉ điều chỉnh một phần ADR cũ (ADR cũ vẫn
 
 ## 🤖 Kỹ năng agent tương ứng
 
-Mỗi nhóm tài liệu có một skill trong `.agent/skills/`. Danh sách đầy đủ skill nằm trong [`AGENTS.md`](../AGENTS.md).
+Skill của Claude Code nằm trong `.claude/skills/` (từ 2026-11-08, thay `.agent/skills/`). Danh sách đầy đủ và cách dùng nằm trong [`CLAUDE.md`](../CLAUDE.md).
 
 | Tác vụ / Nhóm tài liệu | Skill | Output |
 |---|---|---|
-| Phân tích yêu cầu / PRD | [`analyze-requirements`](../.agent/skills/analyze-requirements/SKILL.md) | `docs/01-requirements/PRD-*.md` |
-| Thiết kế kỹ thuật / ADR | [`design-architecture`](../.agent/skills/design-architecture/SKILL.md) | `docs/02-architecture/designs/TECH-*.md`, `adr/ADR-*.md` |
-| Lập kế hoạch & phân rã ticket | [`plan-and-decompose`](../.agent/skills/plan-and-decompose/SKILL.md) | `docs/03-plans/PLAN-*.md`, `tickets/*.md` |
-| Triển khai code theo ticket | [`execute-ticket`](../.agent/skills/execute-ticket/SKILL.md) | Code + cập nhật `.agent/context/` |
-| Viết test | [`write-test`](../.agent/skills/write-test/SKILL.md) | Test chuẩn AAA cho Java/Python/NestJS |
-| Chạy test & kiểm tra | [`run-test`](../.agent/skills/run-test/SKILL.md) | `./scripts/run-tests.ps1`, `./scripts/pre-commit-check.ps1` |
-| Phân tích chất lượng & audit | [`analyze-quality`](../.agent/skills/analyze-quality/SKILL.md) | `docs/04-reports/AUDIT-*.md` |
+| PRD, ADR, TECH, PLAN, ticket, AUDIT | [`spec-docs`](../.claude/skills/spec-docs/SKILL.md) | `docs/0*-*/` |
+| Triển khai code theo ticket | [`execute-ticket`](../.claude/skills/execute-ticket/SKILL.md) | Code + cập nhật `.agent/context/` |
+| Viết, chạy và phân loại lỗi test | [`testing`](../.claude/skills/testing/SKILL.md) | `./scripts/run-tests.ps1`, `./scripts/pre-commit-check.ps1` |
+| Tìm nguyên nhân lỗi khi chạy | [`debug-and-diagnose`](../.claude/skills/debug-and-diagnose/SKILL.md) | Báo cáo nguyên nhân + bản sửa |
+| Thay đổi schema `core`/`rag` | [`flyway-migration`](../.claude/skills/flyway-migration/SKILL.md) | `infrastructure/db/migrations/*/V*.sql` |

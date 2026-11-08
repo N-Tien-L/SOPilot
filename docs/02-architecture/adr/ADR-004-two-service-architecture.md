@@ -86,7 +86,7 @@ Mỗi service chỉ ghi schema của mình. ai-service không đọc `core`; m�
 - Port có chọn lọc: xác minh Google token và binding `(issuer, sub)` (ADR-003), xoay vòng refresh token, trích xuất/chunk/embedding, SQL truy xuất hybrid, các component chat ở frontend.
 - Mỗi phần port phải có test riêng trong service mới, chạy được mà không cần service cũ (port cả test cũ nếu có, rồi sửa theo hợp đồng V2). Ghi nguồn port (file cũ) trong ticket để V2-17 biết phần nào đã thay thế xong.
 - Trong giai đoạn chuyển, hai stack tách hẳn: compose V2 có project name, container và volume riêng, port host không trùng; mỗi lúc chỉ bật một stack (V2-08). Bản V1 chạy được cuối cùng được đánh tag `v1-final` trước khi frontend chuyển sang V2 (V2-15).
-- Khi V2 đạt parity với PRD-V2, gỡ các service cũ trong một commit riêng (lịch sử git giữ lại), rồi cập nhật `AGENTS.md`, script và `.agent/context/`.
+- Khi V2 đạt parity với PRD-V2, gỡ các service cũ trong một commit riêng (lịch sử git giữ lại), rồi cập nhật `CLAUDE.md`, `.claude/`, script và `.agent/context/`.
 
 ## 5. Tác động & hệ quả
 - **Tích cực:** chỉ 2 tiến trình ứng dụng; deploy được lên một VM miễn phí; ranh giới dữ liệu đơn giản; mỗi service có câu chuyện riêng cho CV.

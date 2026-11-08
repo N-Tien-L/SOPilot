@@ -54,7 +54,14 @@ environment_setup/
 # AI/Editor rules
 .cursor/
 .roo/
-.claude/
+# Local Claude Code state; the shared project config is tracked
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/rules/
+!.claude/skills/
+!.claude/agents/
+.claude/hooks/__pycache__/
 .agents/
 scratch/
 .agentrules/
@@ -112,6 +119,9 @@ infrastructure/seed/seed_data.sql
 .agentrules
 
 temp/
+# Python virtualenvs
+.venv/
+*.egg-info/
 
 # Extraction pilot corpus: source PDFs and derived text, redistribution not confirmed
 datasets/

@@ -3,7 +3,7 @@ id: TECH-V2-CORE-API
 title: "Thiết kế kỹ thuật core-api (V2): danh tính, workspace, thành viên, tài liệu, outbox"
 status: approved
 created: 2026-10-20
-updated: 2026-10-21
+updated: 2026-11-05
 refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -543,7 +543,7 @@ Biến chưa đặt thì hàm trả `NULL`, so sánh trả `NULL`, không có d�
 | `core.find_pending_invitations_by_email(text)` | Hiện lời mời đang chờ sau đăng nhập |
 | `core.find_domain_workspaces(text)` | Domain join (P1) |
 | `core.claim_outbox_batch(int)` | Dispatcher lấy việc của mọi workspace (`FOR UPDATE SKIP LOCKED`) |
-| `core.create_personal_workspace(uuid user, text name, text email)` | JIT: tạo workspace + membership OWNER khi chưa có `wid` |
+| `core.create_personal_workspace(uuid user, uuid workspace_id, text name, text email)` | JIT: tạo workspace + membership OWNER khi chưa có `wid`. `workspace_id` là UUIDv7 do ứng dụng sinh (§4); nếu user đã có workspace cá nhân thì trả id cũ, bỏ qua id truyền vào |
 
 ### 4.3 Đặt biến trong Spring
 
@@ -609,7 +609,7 @@ Kiểm tra theo thứ tự, port từ `GoogleTokenVerifierService` và bổ sung
 }
 ```
 
-Không đưa email hay tên vào token. Khóa ký đọc từ file PEM mount qua env (`SOPILOT_JWT_PRIVATE_KEY_PATH`); profile `local`/`test` tự sinh cặp khóa khi thiếu. JWKS công bố khóa hiện hành và khóa trước đó để xoay khóa không làm rớt phiên.
+Không đưa email hay tên vào token. Khóa ký đọc từ file PEM mount qua env (`SOPILOT_JWT_PRIVATE_KEY_PATH`); profile `local`/`test` tự sinh cặp khóa khi thiếu. JWKS công bố khóa hiện hành và khóa trước đó để xoay khóa không làm rớt phiên. V2-11 mới công bố khóa hiện hành; khóa trước đó làm cùng V2-29.
 
 **Refresh token:** chuỗi ngẫu nhiên 256 bit, base64url, chỉ lưu SHA-256. Cookie `sp_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`, hạn `SOPILOT_REFRESH_TTL=P14D`. Port logic xoay vòng và phát hiện dùng lại từ `RefreshTokenService` cũ:
 
@@ -836,7 +836,7 @@ ai-service đọc object trực tiếp từ storage bằng thông tin trong job 
 
 | Biến | Mặc định | Ghi chú |
 |---|---|---|
-| `SPRING_PROFILES_ACTIVE` | `local` | `local`, `test`, `prod` (prod hiện không dùng) |
+| `SPRING_PROFILES_ACTIVE` | không có | `local` (dev), `test` (test tự động). Không đặt profile thì chạy chế độ thật: không có dev login, thiếu `SOPILOT_JWT_PRIVATE_KEY_PATH` hoặc `SOPILOT_NONCE_HMAC_KEY` thì không khởi động |
 | `SOPILOT_DB_URL`, `SOPILOT_DB_USER`, `SOPILOT_DB_PASSWORD` | — | Role `sopilot_core_app` |
 | `GOOGLE_CLIENT_ID` | — | |
 | `SOPILOT_JWT_PRIVATE_KEY_PATH`, `SOPILOT_JWT_KID` | tự sinh ở `local`/`test` | |
@@ -886,3 +886,20 @@ Owner duyệt theo đề xuất cho Q1, Q3, Q4, Q5. Q2 được thay bằng quy�
 - Không port `core.employee_roster`, `metadata.document_access_rules`, `password_reset_tokens`, OTP, cột password hash (ADR-005 §4.1, ADR-007).
 - Không phát sự kiện RabbitMQ; không đọc schema của service khác.
 - Không gửi email mời (người mời tự chia sẻ link).
+
+---
+
+## 13. Ghi chú triển khai V2-12 và V2-23 (2026-11-06, chờ owner duyệt)
+
+Các chỗ code khác với đặc tả ở trên. Chưa phải quyết định đã duyệt; owner xem khi nghiệm thu V2-12/V2-23.
+
+| Mục | TECH | Code | Lý do |
+|---|---|---|---|
+| Thứ tự PUT S3 (§2.2) | PUT trước mọi bước DB | Kiểm tra và ghi row trước, PUT **cuối** transaction, rồi commit | Xung đột (trùng, hạn mức, đang xử lý) không bao giờ chạm storage nên không sinh object mồ côi; `StorageJanitor` dọn trường hợp commit lỗi sau PUT. Đổi lại giữ advisory lock suốt lúc PUT |
+| Đặt biến RLS (§4.3) | Listener trên `TransactionSynchronizationManager` | `TenantTx` bọc từng transaction, lấy tenant từ `AuthPrincipal` | Tường minh, không phụ thuộc thứ tự đăng ký synchronization |
+| Mã hết hạn mức (§5.0 và §3.3) | `422` ở §5.0, `409` ở §3.3 và ticket | `409 QUOTA_EXCEEDED` kèm `{kind, limit, used}` | Theo ticket V2-12 và §3.3 |
+| FK `invitations.department_id` (§3.2) | `ON DELETE RESTRICT` | `ON DELETE SET NULL (department_id)`; `DepartmentService` chặn khi còn lời mời **chờ** | Lời mời đã dùng/thu hồi là lịch sử, không được ghim phòng ban mãi |
+| Bảng tạo sớm | `categories`, `document_departments` thuộc V2-24 | Tạo ở `V005` | `documents.category_id` và việc chặn xóa phòng ban cần chúng; API vẫn ở V2-24 |
+| `failure_message` (§5.5, §6) | Theo `Accept-Language` | Câu tiếng Việt cố định theo mã, lưu lúc ghi | Giá trị lưu trong DB; locale theo header cần dịch lúc đọc |
+| Ngày hiệu lực (§8.2) | `effectiveDate` ISO | Giá trị không phải ISO bị bỏ qua | ai-service trích từ văn bản tự do và dead-letter mọi `4xx` |
+| `PATCH /members/{userId}` (§5.3) | Có `role` | Chưa nhận `role` | Đổi role và quy tắc OWNER đầy đủ là V2-30 |

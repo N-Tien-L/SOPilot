@@ -18,7 +18,7 @@ assignee: pair
 # TICKET V2-33: Frontend: thành viên, phòng ban và metadata tài liệu
 
 ## 1. Bối cảnh & Mục tiêu
-Tách phạm vi từ V2-15 XL ngày 2026-10-24; giữ nguyên yêu cầu PRD/TECH đã duyệt. Dùng skill frontend-delivery và `.agent/rules/frontend.md` khi triển khai. FR-04/FR-22 đến FR-29.
+Tách phạm vi từ V2-15 XL ngày 2026-10-24; giữ nguyên yêu cầu PRD/TECH đã duyệt. Dùng skill frontend-delivery và `.claude/rules/frontend.md` khi triển khai. FR-04/FR-22 đến FR-29.
 
 ## 2. Tiêu chí Hoàn thành
 - [ ] Thành viên: hồ sơ (họ tên, mã nhân viên, chức danh, phòng ban), tạm khóa/mở khóa; phòng ban và category phẳng: tạo, đổi tên, ngừng sử dụng, xóa khi hợp lệ. Ẩn phòng ban ở workspace một thành viên.

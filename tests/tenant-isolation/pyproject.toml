@@ -1,0 +1,11 @@
+[project]
+name = "sopilot-tenant-isolation"
+version = "0.1.0"
+description = "FR-19 tenant isolation checks against the real V2 schema, roles and RLS (V2-14)"
+requires-python = ">=3.11"
+dependencies = ["psycopg[binary]>=3.2", "pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+pythonpath = ["."]
+python_files = ["test_*.py"]
