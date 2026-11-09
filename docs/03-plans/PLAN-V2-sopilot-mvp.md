@@ -221,7 +221,7 @@ flowchart TD
 | `V2-34` | Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh | infra | M | `V2-02` | done |
 | `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
 | `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | todo |
-| `V2-35` | Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM | infra | L | `V2-09`, `V2-34` | todo |
+| `V2-35` | Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM | infra | L | `V2-09`, `V2-34` | in-progress |
 
 ### Phase 2b: Ingestion SOP (AUDIT-ingestion-sop-data)
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |

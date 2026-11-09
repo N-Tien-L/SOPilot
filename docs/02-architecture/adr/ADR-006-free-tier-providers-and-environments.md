@@ -3,7 +3,7 @@ id: ADR-006
 title: "V2: nhà cung cấp AI/hạ tầng miễn phí; môi trường eval local và các phương án deploy"
 status: approved
 created: 2026-10-17
-updated: 2026-11-01
+updated: 2026-11-09
 author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -142,7 +142,7 @@ superseded_by: ""
 | Guard injection/jailbreak | Bốn lớp không gọi LLM (PRD FR-13): luật đầu vào hai mức, ghép prompt có thẻ dữ liệu, canary token kiểm đầu ra, log | — | Llama Prompt Guard 2 86M bị loại sau bài test V2-02 (2026-10-20): chặn đúng 4/20 tấn công tiếng Việt, chặn nhầm 2/10 câu tiếng Anh dễ nhầm và 1/10 chunk tài liệu. Quyền đọc đã được thực thi trong SQL nên guard chỉ là lớp phụ |
 | Gợi ý metadata | Groq `openai/gpt-oss-20b` (30 RPM, 1K RPD, 8K TPM), giữ theo owner | Chỉ kết quả luật | Prompt ngắn. Đây là phụ thuộc Groq còn lại duy nhất; nếu bỏ nốt thì đổi sang model sinh ở trên hoặc chỉ dùng luật |
 | Giám khảo faithfulness | **Gemma 4** (khác họ với Qwen để không tự chấm): bản MoE cỡ 26B trên L40S (48 GB) cho lượt chạy cuối; bản E4B trên A10 cho lượt chạy thử khi phát triển | Giảm kích thước tập con được chấm, và người chấm tay mẫu cố định | Khác họ với model sinh. Model giám khảo nhỏ yếu hơn `gpt-oss-120b`, nên báo cáo phải nêu rõ và thêm chấm tay 30–50 câu để đối chiếu. Tên và kích thước bản Gemma 4 chưa kiểm trên Ollama/Hugging Face (nguồn mâu thuẫn), phải xác nhận tag trước khi kéo |
-| Embedding, rerank | Local (`bge-m3`, `bge-reranker-v2-m3`) | — | Không phụ thuộc quota |
+| Embedding, rerank | Embedding: local (`bge-m3`). Rerank: `bge-reranker-v2-m3` local trên CPU hoặc **trên GPU A10 chung container với vLLM** (V2-35, owner chọn 2026-11-09) | Rerank local | Không phụ thuộc quota. Rerank CPU mất 15,7–18,1 giây/câu; chung container GPU không thêm GPU và không thêm lượt khởi động lạnh riêng. Chunk gửi lên Modal cùng mức với prompt. Hai URL cùng một container: `sopilot-vllm-serve` (chat) và `sopilot-vllm-rerank` (`POST /v1/rerank`) |
 
 **Chốt model sinh câu trả lời và ứng viên thay thế (owner chốt 2026-11-04, V2-10):** owner bỏ bake-off đầy đủ bên dưới; chọn **Qwen3.5-9B, FP8, vLLM trên L4** (A10 nếu L4 quá chậm). Chỉ chạy một lần kiểm nhanh trước khi cam kết: khoảng 20 câu từ `sop-main` (có câu âm), `temperature=0`, đọc bằng mắt xem đáp đúng ngôn ngữ của câu hỏi và có `[n]` đúng nguồn, đo TTFT một lần lạnh và một lần nóng, đếm token đầu ra so với độ dài câu hiển thị để biết `enable_thinking=false` có thực sự hết sinh suy luận. Chi phí dự kiến $1–3.
 
