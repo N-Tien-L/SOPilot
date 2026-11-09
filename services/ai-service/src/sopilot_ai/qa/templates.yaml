@@ -1,0 +1,112 @@
+# Fixed sentences and the rule router's trigger words (TECH-V2-ai-service §7.1, V2-10).
+# Owner duyệt 2026-11-08 (bản hiện tại). Câu tự hại cần SOPILOT_SUPPORT_CONTACT khi có. Client-facing text is fixed here with a stable key (CLAUDE.md rule 6).
+#
+# `triggers` are phrases matched against whole tokens with diacritics stripped, so "cảm ơn" and
+# "cam on" both match. They are stripped from the question before the rest is judged
+# ("bóc rồi xét"): "chào, quy trình nghỉ phép thế nào?" still goes to RAG on the part after "chào".
+# `priority` orders the kinds when several were stripped from a question with nothing left
+# (higher wins).
+
+greeting:
+  priority: 1
+  triggers:
+    - xin chao
+    - chao
+    - chao ban
+    - alo
+    - hi
+    - hello
+    - hey
+    - good morning
+    - good afternoon
+    - good evening
+  text:
+    vi: "Xin chào! Mình có thể giúp bạn tra cứu quy trình và tài liệu nội bộ. Bạn muốn hỏi về nội dung nào?"
+    en: "Hello! I can help you look up internal procedures and documents. What would you like to know?"
+
+thanks:
+  priority: 2
+  triggers:
+    - cam on
+    - cam on ban
+    - thanks
+    - thank you
+    - thank
+    - thx
+    - tks
+    - ok
+  text:
+    vi: "Không có gì ạ! Nếu cần tra cứu thêm quy trình nào, bạn cứ hỏi nhé."
+    en: "You're welcome! Ask me if you need to look up anything else."
+
+about_bot:
+  priority: 3
+  triggers:
+    - ban la ai
+    - ban la gi
+    - ban ten gi
+    - ban lam duoc gi
+    - ban co the lam gi
+    - ban giup duoc gi
+    - who are you
+    - what are you
+    - what can you do
+    - what do you do
+    - what is your name
+  text:
+    vi: "Mình là trợ lý tra cứu quy trình và tài liệu nội bộ. Mình trả lời dựa trên các tài liệu bạn được phép xem và luôn kèm trích dẫn nguồn. Bạn thử hỏi, ví dụ: “Quy trình xin nghỉ phép gồm những bước nào?”"
+    en: "I am an assistant for looking up internal procedures and documents. I answer from the documents you can access and always cite the source. Try asking, for example: \"What are the steps to request leave?\""
+
+# Used when a question holds only profanity (and greetings): neutral, with a hint on how to ask.
+abuse_only:
+  text:
+    vi: "Mình chưa nhận được câu hỏi nào để tra cứu. Bạn hãy hỏi cụ thể về một quy trình hoặc tài liệu, ví dụ: “Quy trình xin nghỉ phép gồm những bước nào?”"
+    en: "I have not received a question to look up. Please ask about a specific procedure or document, for example: \"What are the steps to request leave?\""
+
+not_understood:
+  text:
+    vi: "Mình chưa hiểu câu hỏi. Bạn có thể diễn đạt lại và nêu rõ quy trình hoặc tài liệu cần tra cứu không?"
+    en: "I did not understand the question. Could you rephrase it and name the procedure or document you need?"
+
+input_empty:
+  text:
+    vi: "Bạn chưa nhập câu hỏi. Hãy nhập câu hỏi về quy trình hoặc tài liệu cần tra cứu."
+    en: "No question was entered. Please type a question about the procedure or document you need."
+
+input_too_long:
+  text:
+    vi: "Câu hỏi dài quá {max_chars} ký tự. Bạn hãy rút gọn hoặc tách thành các câu hỏi ngắn hơn."
+    en: "The question is longer than {max_chars} characters. Please shorten it or split it into shorter questions."
+
+followup_clarify:
+  text:
+    vi: "Mình chưa xác định được bạn đang hỏi về nội dung nào. Bạn vui lòng nêu đầy đủ câu hỏi, gồm cả tên quy trình hoặc tài liệu."
+    en: "I could not tell what you are referring to. Please state the full question, including the procedure or document name."
+
+guard_block:
+  text:
+    vi: "Mình không thể thực hiện yêu cầu này. Mình chỉ hỗ trợ tra cứu nội dung trong các tài liệu bạn được phép xem."
+    en: "I cannot do that. I can only help look up content in the documents you are allowed to see."
+
+harm_block:
+  text:
+    vi: "Mình không thể hỗ trợ yêu cầu này."
+    en: "I cannot help with this request."
+
+self_harm:
+  text:
+    vi: "Mình rất tiếc khi nghe điều đó. Bạn không phải một mình: hãy nói chuyện với người thân, đồng nghiệp tin cậy hoặc liên hệ {support_contact}. Nếu bạn đang gặp nguy hiểm, hãy gọi ngay số cấp cứu 115."
+    en: "I am sorry you are going through this. You are not alone: please talk to someone you trust or contact {support_contact}. If you are in danger, call your local emergency number now."
+
+# First words of an answer when the sources do not hold the information (D2). The system prompt
+# makes the model start with exactly this; `qa/checks.py` recognises it as GENERATOR_NOT_FOUND.
+not_found_opening:
+  text:
+    vi: "Không tìm thấy thông tin này trong các tài liệu hiện có."
+    en: "I could not find this in the available documents."
+
+# Same as `self_harm` when no support contact is configured (SOPILOT_SUPPORT_CONTACT is empty).
+self_harm_no_contact:
+  text:
+    vi: "Mình rất tiếc khi nghe điều đó. Bạn không phải một mình: hãy nói chuyện với người thân hoặc đồng nghiệp tin cậy. Nếu bạn đang gặp nguy hiểm, hãy gọi ngay số cấp cứu 115."
+    en: "I am sorry you are going through this. You are not alone: please talk to someone you trust. If you are in danger, call your local emergency number now."

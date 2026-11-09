@@ -18,29 +18,32 @@ rerank:
   revision: ${RERANK_REVISION:}
   max_pairs: 25
 llm:
+  # Owner chốt 2026-11-01 (ADR-006 §4.4) and 2026-11-04 (V2-10): one self-hosted model behind an
+  # OpenAI-compatible server (vLLM on Modal). No fallback chain yet; a second endpoint is added here
+  # only when the owner asks for one. Model id, URL and key come from the environment.
+  # rpm/tpm/context ceiling are our own server limits: placeholders until measured on the endpoint.
   generate:
     chain:
-      - {provider: gemini, model: "${GEMINI_GENERATE_MODEL:gemini-3.1-flash-lite-preview}", rpm: 15, tpm: 250000, rpd: 500}
-      - {provider: groq, model: openai/gpt-oss-120b, rpm: 30, tpm: 8000, rpd: 1000, context_max_tokens: null}
+      - provider: modal
+        model: "${SOPILOT_LLM_MODEL:}"
+        rpm: "${SOPILOT_LLM_RPM:60}"
+        tpm: "${SOPILOT_LLM_TPM:200000}"
+        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:}"
+        extra_body: {chat_template_kwargs: {enable_thinking: false}}
     temperature: 0.2
     max_output_tokens: 800
   rewrite:
     chain:
-      - {provider: groq, model: openai/gpt-oss-20b, rpm: 30, tpm: 8000, rpd: 1000}
-      - {provider: gemini, model: "${GEMINI_GENERATE_MODEL:gemini-3.1-flash-lite-preview}"}
+      - provider: modal
+        model: "${SOPILOT_LLM_MODEL:}"
+        rpm: "${SOPILOT_LLM_RPM:60}"
+        tpm: "${SOPILOT_LLM_TPM:200000}"
+        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:}"
+        extra_body: {chat_template_kwargs: {enable_thinking: false}}
     temperature: 0
-  small_task:
-    chain:
-      - {provider: groq, model: openai/gpt-oss-20b, rpm: 30, tpm: 8000, rpd: 1000}
-    temperature: 0
-  judge:
-    chain:
-      - {provider: groq, model: openai/gpt-oss-120b}
-    temperature: 0
+    max_output_tokens: 200
 providers:
-  gemini: {base_url: "https://generativelanguage.googleapis.com/v1beta/openai", api_key_env: GEMINI_API_KEY}
-  groq: {base_url: "https://api.groq.com/openai/v1", api_key_env: GROQ_API_KEY}
-  local_llm: {base_url: "${LOCAL_LLM_BASE_URL:http://ollama:11434/v1}", api_key_env: null}
+  modal: {base_url: "${SOPILOT_LLM_BASE_URL:}", api_key_env: SOPILOT_LLM_API_KEY}
   # Embedding endpoints for the non-local providers (unused while bge-m3 runs locally).
   openai_compatible: {base_url: "${EMBEDDING_BASE_URL:http://tei:80/v1}", api_key_env: EMBEDDING_API_KEY}
   cloudflare: {base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID:}/ai/run", api_key_env: CLOUDFLARE_API_TOKEN}

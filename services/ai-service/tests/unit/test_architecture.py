@@ -46,9 +46,16 @@ def test_docproc_is_pure() -> None:
     assert _violations(_modules("docproc"), banned) == []
 
 
-@pytest.mark.parametrize("subpackage", ["retrieval", "providers", "docproc"])
+@pytest.mark.parametrize("subpackage", ["retrieval", "providers", "docproc", "qa"])
 def test_lower_layers_do_not_import_http_or_worker(subpackage: str) -> None:
     assert _violations(_modules(subpackage), UPPER_LAYERS) == []
+
+
+def test_rule_based_qa_modules_and_context_assembly_do_no_io():
+    """V2-10 deterministic part: no storage or HTTP, so ``eval/`` can import it."""
+    paths = [PKG / "retrieval" / "context.py", *_modules("qa")]
+    banned = IO_LIBS + ("sopilot_ai.db",)
+    assert _violations(paths, banned) == []
 
 
 def _files_containing(pattern: str) -> set[str]:

@@ -1,0 +1,30 @@
+# Follow-up markers (TECH-V2-ai-service §7.1 step 4, owner D5, V2-10).
+# DRAFT for owner review. A question with a marker, or shorter than SOPILOT_FOLLOWUP_MAX_TOKENS
+# tokens (default 4), depends on the earlier turns. If the rewrite step failed, such a question
+# gets a "state the full question" sentence instead of retrieval on a context-free fragment.
+#
+# Matched as whole words against lowercase NFC tokens with diacritics kept: "do" (because) must not
+# match "đó", nor "nay" match "này".
+
+max_tokens: 4   # fallback; the service reads SOPILOT_FOLLOWUP_MAX_TOKENS
+
+markers:
+  vi:
+    - đó
+    - này
+    - vậy còn
+    - thế còn
+    - còn
+    - nó
+    - ở trên
+    - như trên
+    - như vậy
+  en:
+    - it
+    - that
+    - this
+    - those
+    - them
+    - what about
+    - how about
+    - and then

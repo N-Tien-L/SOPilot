@@ -1,0 +1,72 @@
+# Common Vietnamese and English words that count as "meaningful tokens" even when no document of
+# the asker contains them (TECH-V2-ai-service §7.1 step 3, owner D4, V2-10).
+# Owner duyệt 2026-11-08 (bản hiện tại). Keep it to content words (topics and actions of an SOP
+# question). Never add greetings, thanks, pronouns, particles or intensifiers ("quá", "bạn",
+# "please"): a question that is only those must get the "not understood" sentence, not retrieval.
+# Entries are lowercase, diacritics kept; a token also matches its diacritic-stripped spelling.
+
+words:
+  - quy trình
+  - quy định
+  - quy chế
+  - chính sách
+  - thủ tục
+  - biểu mẫu
+  - tài liệu
+  - hướng dẫn
+  - bước
+  - nghỉ
+  - phép
+  - lương
+  - thưởng
+  - phụ cấp
+  - công tác
+  - tạm ứng
+  - hoàn ứng
+  - thanh toán
+  - mua
+  - hàng
+  - duyệt
+  - phê duyệt
+  - đề nghị
+  - hợp đồng
+  - tuyển
+  - dụng
+  - nghỉ việc
+  - kỷ luật
+  - an toàn
+  - bảo mật
+  - thiết bị
+  - laptop
+  - tài khoản
+  - mật khẩu
+  - bao nhiêu
+  - mất bao lâu
+  - ngày
+  - tháng
+  - năm
+  - tiền
+  - leave
+  - vacation
+  - salary
+  - bonus
+  - expense
+  - expenses
+  - travel
+  - policy
+  - procedure
+  - process
+  - approval
+  - approve
+  - request
+  - form
+  - document
+  - contract
+  - security
+  - password
+  - account
+  - equipment
+  - onboarding
+  - how many
+  - how long
+  - how much
