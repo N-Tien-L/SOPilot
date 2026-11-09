@@ -27,6 +27,15 @@ version: 1.0
 > /documents/{id}`; `GET /api/v1/audit-logs` (OWNER). `PATCH /internal/documents/{id}/versions/{versionId}/status`
 > (header `X-Internal-Token`) is ai-service's callback (TECH-V2-core-api section 8.2). Lists use
 > `{"data": [...], "page": {"cursor", "hasMore"}, "traceId"}`.
+> **ai-service (V2-09, V2-10; `/ai/v1/**`, same Bearer token, ai-service verifies it through JWKS; another user's or
+> workspace's conversation is `404`):** `GET /documents/{id}/versions/{versionId}/content`;
+> `POST /conversations/{id|new}/messages` body `{content, lang?}` answers with `text/event-stream`
+> (events `meta`, `delta`, `replace`, `refusal`, `citations`, `done`, `error`; TECH-V2-ai-service §7.2; `error` codes
+> `QUOTA_EXCEEDED`, `LLM_UNAVAILABLE`, `INTERNAL_ERROR`, fixed text); `GET /conversations`, `GET /conversations/{id}`
+> (an answer whose cited document is no longer readable comes back as `{hidden: true, reason: ACCESS_REVOKED|
+> DOCUMENT_DELETED}`), `PATCH /conversations/{id}` (title), `DELETE /conversations/{id}` (soft). These routes use plain
+> JSON, not the core-api `{"data", "traceId"}` envelope. `503` when the LLM endpoint or embedding model is not
+> configured (the first question builds them).
 > The rest of this file describes frozen V1 (gateway, `ApiResponse` with `success`).
 
 ## Purpose

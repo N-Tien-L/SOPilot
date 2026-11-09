@@ -3,7 +3,7 @@ id: TECH-V2-AI-SERVICE
 title: "Thiết kế kỹ thuật ai-service (V2): ingest có cấu trúc, truy xuất hybrid có lọc quyền, hỏi đáp có trích dẫn"
 status: approved
 created: 2026-10-20
-updated: 2026-11-08
+updated: 2026-11-09
 refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -827,6 +827,13 @@ Lý do chọn BM25 tự viết thay cho `ts_rank` hay extension: (1) điểm kh�
 - **`QueryFrame`.** `qa/query_frame.py` là hàm thuần, dựng `QueryFrame` **một lần** sau bước PII (văn bản đã che, trước guard), gom: ngôn ngữ (tỉ lệ ký tự có dấu, ghi đè được bằng `lang` của request), mã tài liệu (dùng lại `qa/doc_code.py`), ngày và số tiền, dấu hiệu nối tiếp (`qa/followup_rules.yaml`), dấu hiệu so sánh/nhiều ý (từ khóa trong YAML như "so sánh", "khác nhau", "khác gì", "vs", "compare", "difference", hoặc ≥ 2 mã tài liệu) và số token có nghĩa (tính sau "bóc"). Router, truy xuất và prompt đọc từ `QueryFrame`, không tự phát hiện lại. Dấu hiệu so sánh **chỉ ghi** vào `messages.route` (`route.signals.comparison = true`), không rẽ nhánh và không đổi truy xuất (tách câu nhiều ý vẫn hoãn, D9).
 - **Cổng ngưỡng để lỏng, LLM tự từ chối.** Giữ ngưỡng giữ chỗ trong `config/models.yaml` (`hybrid: 0.45`); cổng chỉ chặn khi điểm rất thấp, không hạ thêm và không đặt giá trị mới từ số RQ3. Lý do: cosine là cổng yếu (khoảng điểm của câu trả lời được và câu ngoài kho chồng lấn, [AUDIT-eval-rq1-rq3](../../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) §6; V2-07 §6, chốt 2026-11-07), nên đặt ngưỡng chặt sẽ từ chối nhầm câu hợp lệ. Phần còn lại giao cho LLM sinh: câu qua cổng nhưng LLM mở đầu bằng câu cố định của bước 6 → `GENERATOR_NOT_FOUND` (D2, bước 10). Mọi câu có truy xuất đều ghi `gate_score`, `threshold` và loại từ chối (`NO_EVIDENCE` | `GENERATOR_NOT_FOUND` | không từ chối) vào `messages.route` để hiệu chỉnh sau.
 
+- **Quyết định khi triển khai (V2-10 mốc 3, 2026-11-09).**
+  - *Hạn mức.* Bước 1 đặt chỗ nguyên tử (`INSERT … ON CONFLICT … DO UPDATE … WHERE questions < giới_hạn`) và hoàn lại khi kết thúc bằng `TEMPLATE`, `REFUSED_GUARD` hoặc `ERROR`. `ANSWERED` và `REFUSED_NO_EVIDENCE` (cả `GENERATOR_NOT_FOUND`) vẫn tính vì đã tốn embedding hoặc LLM. Cả hai giới hạn bằng 0 thì không đọc hay ghi bảng nào.
+  - *Lịch sử cho bước viết lại* là tối đa 3 cặp (câu hỏi, câu trả lời) có `outcome = ANSWERED` và chưa bị ẩn (§7.5); lượt bị từ chối hay trả bằng câu mẫu không phải lịch sử. Hội thoại chưa có lượt `ANSWERED` nào thì không có gì để viết lại và câu đi tiếp với câu gốc.
+  - *Kiểm echo bỏ câu mở đầu cố định.* Văn bản `protected` mà output guard so sánh không chứa câu mở đầu của bước 6, vì LLM được yêu cầu nói đúng câu đó. Nếu để lại, mọi `GENERATOR_NOT_FOUND` bị đổi thành `REFUSED_GUARD` (integration test phát hiện ở mốc 3).
+  - *Ghi một lần ở cuối.* Hội thoại mới (nếu có), tin USER, tin ASSISTANT, trích dẫn, `retrieval_results` và `guard_events` ghi trong **một** `tenant_tx` sau khi pipeline xong; `citations` và `done` chỉ phát sau khi ghi xong. Client ngắt giữa chừng: ghi tin `ERROR` kèm `route.aborted = true`, nội dung là phần văn bản client đã nhận (không gồm đoạn guard đang giữ lại), và hoàn lượt hạn mức; luồng đọc LLM tự đóng kết nối ở thread đọc sau lần đọc hiện tại. `tokens_in`/`tokens_out` để `NULL` vì stream không trả `usage`; `messages.model` là model thực sự trả lời (`on_start` của `LLMChain`).
+  - *Dựng service lúc có câu hỏi đầu tiên* (nạp embedder, kiểm `/models`), không phải lúc khởi động, để API vẫn chạy khi chưa có model hay endpoint LLM; thiếu cấu hình thì câu hỏi nhận `503`. Tiêu đề hội thoại là ≤ 60 ký tự đầu của câu hỏi đã che PII, cắt ở ranh giới từ.
+
 1. **Hạn mức** (§7.4), bỏ qua khi tắt (mặc định). Hết → SSE `error {code: QUOTA_EXCEEDED}`; không gọi gì thêm.
 2. **Kiểm đầu vào và guard** (lớp 1 FR-13):
    - **Hợp lệ (D4):** câu rỗng hoặc chỉ có khoảng trắng sau NFC, hoặc dài hơn `SOPILOT_MAX_QUESTION_CHARS=1000` ký tự (đếm code point sau NFC) thì **từ chối, không cắt bớt**: SSE `refusal {reason: "INPUT_INVALID"}` với câu mẫu nêu giới hạn (câu quá dài) hoặc đề nghị nhập câu hỏi (câu rỗng), `outcome = TEMPLATE`, `refusal_reason = INPUT_INVALID`, không gọi LLM, không tính hạn mức. Không có phần nào của câu quá dài lọt qua guard.
@@ -867,6 +874,21 @@ Ngôn ngữ câu hỏi phát hiện bằng luật nhẹ (tỷ lệ ký tự có 
 | `done` | `{finalText, outcome, refusalReason, warnings: [{code, values}], usage: {questionsLeftToday}}` (`usage` là `null` khi hạn mức tắt; `refusalReason` là `null` khi không từ chối; `warnings` rỗng khi không có cờ, §7.1 bước 11) | Cuối cùng; frontend thay văn bản đã stream bằng `finalText` (đã xóa `[n]` không hợp lệ) |
 | `error` | `{code, message}` | `QUOTA_EXCEEDED`, `LLM_UNAVAILABLE`, `INTERNAL_ERROR` |
 
+**Kết quả → sự kiện (triển khai mốc 3).**
+
+| Kết quả | Sự kiện |
+|---|---|
+| `ANSWERED` | `delta`…, `citations` (nếu có), `done` |
+| Câu mẫu không phải từ chối (chào hỏi, cảm ơn, hỏi về bot, chỉ chửi) | một `delta` rồi `done`; `outcome = TEMPLATE`, `refusalReason = null` |
+| `INPUT_INVALID` (rỗng, quá dài, không hiểu, nối tiếp không rõ) | `refusal`, `done` |
+| Guard đầu vào | `refusal {reason: "GUARD"}`, `done` (`REFUSED_GUARD`) |
+| Guard đầu ra (canary, echo) | `delta`… đã phát, rồi `replace`, `done` (`REFUSED_GUARD`) |
+| `NO_EVIDENCE` | `refusal` kèm `nearestDocuments`, `done` |
+| `GENERATOR_NOT_FOUND` | câu của model đã stream bằng `delta`; chỉ `done`, không `citations` |
+| `QUOTA_EXCEEDED`, `LLM_UNAVAILABLE`, `INTERNAL_ERROR` | chỉ `error` (không có `done`); lượt vẫn được ghi (`outcome` là `QUOTA_EXCEEDED` hoặc `ERROR`) |
+
+Body `content` tối đa 20.000 ký tự (vượt thì `422`); từ 1.001 đến 20.000 ký tự nhận câu mẫu "quá dài" (D4). `conversationId` không phải `new` hay UUID, hoặc không phải của người gọi, là `404`.
+
 Header `Cache-Control: no-cache`, `X-Accel-Buffering: no`. Ping comment `: ping` mỗi 15 s để proxy không cắt kết nối.
 
 ### 7.3 Trình xem trích dẫn (FR-14) và "Nội dung hệ thống nhận diện" (FR-31)
@@ -906,7 +928,7 @@ Hạn mức thương mại tạm tắt (owner chốt 2026-10-20, PRD-V2 §8.10):
 | `DELETE /ai/v1/conversations/{id}` | Xóa mềm |
 | `POST /ai/v1/conversations/{id}/messages` | §7.2 |
 
-Mọi truy vấn có `workspace_id = :wid AND user_id = :sub` (ngoài RLS). Khi đọc lại hội thoại, mỗi câu trả lời có trích dẫn được kiểm `document_id` với bộ lọc §6.1 hiện tại: nếu **bất kỳ** trích dẫn nào trỏ tới tài liệu không còn đọc được (đổi phạm vi, đổi phòng ban, bị xóa), toàn bộ câu trả lời và đoạn trích của nó bị thay bằng `{hidden: true, reason: "ACCESS_REVOKED" | "DOCUMENT_DELETED"}`; câu hỏi vẫn hiện (PRD §8.8). Viết lại câu hỏi (§7.1 bước 4) chỉ dùng các lượt chưa bị ẩn.
+Mọi truy vấn có `workspace_id = :wid AND user_id = :sub` (ngoài RLS). Lý do ẩn là `DOCUMENT_DELETED` khi có trích dẫn tới tài liệu đã xóa hoặc không còn dòng quyền, ngược lại `ACCESS_REVOKED`; điều kiện "đọc được" dùng đúng vị từ của `allowed_cte()` (`cited_access_cte()` trong `access_filter.py`). Khi đọc lại hội thoại, mỗi câu trả lời có trích dẫn được kiểm `document_id` với bộ lọc §6.1 hiện tại: nếu **bất kỳ** trích dẫn nào trỏ tới tài liệu không còn đọc được (đổi phạm vi, đổi phòng ban, bị xóa), toàn bộ câu trả lời và đoạn trích của nó bị thay bằng `{hidden: true, reason: "ACCESS_REVOKED" | "DOCUMENT_DELETED"}`; câu hỏi vẫn hiện (PRD §8.8). Viết lại câu hỏi (§7.1 bước 4) chỉ dùng các lượt chưa bị ẩn.
 
 **Trích dẫn tới phiên bản cũ (owner chốt 2026-10-21, D10).** Core-api xóa bản cũ khi có bản mới nên `/content` (§7.3) chỉ phục vụ phiên bản đang hoạt động và trả `404` cho `version_id` cũ. Khi đọc lại hội thoại, mỗi trích dẫn có thêm `isCurrentVersion` (so `version_id` của trích dẫn với `rag.document_access.active_version_id`). Trích dẫn không còn là bản hiện hành vẫn hiện `snippet` đã lưu (`message_citations.snippet`), frontend gắn nhãn "Phiên bản cũ" và không mở trình xem. MVP không giữ `extracted_documents` của phiên bản cũ.
 

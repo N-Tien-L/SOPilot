@@ -52,13 +52,13 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 
 **Viết lại và nối tiếp**
 
-- [ ] **viết lại và nối tiếp.** Ghi `messages.rewrite_status`. Viết lại lỗi và câu có dấu hiệu nối tiếp (`qa/followup_rules.yaml`: "đó", "này", "vậy còn", "thế còn", "it", "that", "what about", hoặc ít hơn `SOPILOT_FOLLOWUP_MAX_TOKENS` token) → câu mẫu đề nghị nêu đầy đủ câu hỏi, không truy xuất, `route.layer = 'followup_rule'`; không có dấu hiệu nối tiếp thì dùng câu gốc. Prompt sinh nhận câu đã viết lại cộng câu gốc, **không** nhận lịch sử hội thoại; test bằng provider giả ghi lại prompt. (Nguồn: D5.)
+- [x] **viết lại và nối tiếp.** Ghi `messages.rewrite_status`. Viết lại lỗi và câu có dấu hiệu nối tiếp (`qa/followup_rules.yaml`: "đó", "này", "vậy còn", "thế còn", "it", "that", "what about", hoặc ít hơn `SOPILOT_FOLLOWUP_MAX_TOKENS` token) → câu mẫu đề nghị nêu đầy đủ câu hỏi, không truy xuất, `route.layer = 'followup_rule'`; không có dấu hiệu nối tiếp thì dùng câu gốc. Prompt sinh nhận câu đã viết lại cộng câu gốc, **không** nhận lịch sử hội thoại; test bằng provider giả ghi lại prompt. (Nguồn: D5.)
 
 **Truy xuất và ghép context**
 
 - [ ] Ghép context small-to-big trong `retrieval/context.py` (hàm thuần, `eval/` import được): nhóm cùng `section_path` của chunk trúng, nhóm ≤ `section_max_tokens` lấy nguyên, lớn hơn lấy ±1 kèm đoạn dẫn của mục cho `PROCEDURE_STEP`/`TABLE`, gộp cửa sổ liền nhau, trần `context.max_tokens`; truy vấn chunk mở rộng đi qua bộ lọc quyền §6.1; `[n]` trỏ source, khoảng trích dẫn chỉ phủ chunk trúng; ghi `messages.context_sources`. `context.expand = false` giữ hành vi chỉ đưa chunk trúng. (Nguồn: TECH-V2-ai-service §6.4a.)
 - [ ] Ablation ghép context trên tập con cố định của harness: `expand` bật/tắt, báo cáo độ phủ bằng chứng (tỉ lệ gold span nằm trong context, không cần LLM, chạy trên toàn tập test), faithfulness, citation precision, số token prompt; tách riêng câu hỏi về điều kiện/ngoại lệ và câu nhiều passage. Mặc định `expand` giữ `true` trừ khi số đo cho thấy kém hơn.
-- [ ] Rerank và context LLM chỉ nhận ứng viên đã lọc quyền; cache câu trả lời/truy xuất (nếu có) có khóa gồm `workspace_id`, `wrole`, `wdept`.
+- [x] Rerank và context LLM chỉ nhận ứng viên đã lọc quyền; cache câu trả lời/truy xuất (nếu có) có khóa gồm `workspace_id`, `wrole`, `wdept`.
 
 **Prompt**
 
@@ -66,16 +66,16 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 
 **Trích dẫn, outcome và từ chối**
 
-- [ ] Mỗi `[n]` ánh xạ `document_id`, `page`, đoạn trích; trích dẫn không ánh xạ được bị loại.
+- [x] Mỗi `[n]` ánh xạ `document_id`, `page`, đoạn trích; trích dẫn không ánh xạ được bị loại.
 - [ ] **outcome.** Điền `messages.refusal_reason` (`NO_EVIDENCE`, `GENERATOR_NOT_FOUND`, `OUT_OF_SCOPE`, `INPUT_INVALID`, TECH-V2-ai-service §3.4). System prompt bắt buộc câu mở đầu cố định khi source không có thông tin; so khớp chuỗi tất định (VI/EN) → `outcome = REFUSED_NO_EVIDENCE`, `GENERATOR_NOT_FOUND`, không lưu trích dẫn. Câu `ANSWERED` không có `[n]` hợp lệ nào ghi `checks.citationCount = 0`. Hàm `qa/pipeline.py` cung cấp điểm gắn `OUT_OF_SCOPE` cho router của `V2-27` (chỉ sau khi cổng từ chối, không kèm tài liệu gần nhất). Mục "Dưới ngưỡng bằng chứng… ghi vào danh sách chưa trả lời được" bên dưới chỉ áp dụng cho `NO_EVIDENCE` và `GENERATOR_NOT_FOUND`. (Nguồn: D2.)
 - [ ] Dưới ngưỡng bằng chứng: trả lời "không tìm thấy" kèm tài liệu gần nhất, `refusal_reason = NO_EVIDENCE`, ghi vào danh sách chưa trả lời được. RQ3 mức câu trả lời báo cáo tách **cổng từ chối** (`NO_EVIDENCE`) khỏi **LLM tự từ chối** (`GENERATOR_NOT_FOUND`) ([RESEARCH-03](../../04-reports/RESEARCH-03-methods-and-models.md) §7.2).
 - [ ] **kiểm số và ngày.** `qa/checks.py` (hàm thuần) đối chiếu số, ngày, số tiền trong câu trả lời cuối với nội dung các source; giá trị không có trong source → `done.warnings` `NUMBER_NOT_IN_SOURCES` và `checks.numberWarnings`. Chỉ gắn cờ, không sửa văn bản. Đo tương quan với nhãn faithfulness của tập con. (Nguồn: P1-3.)
-- [ ] `messages.route`, `rewrite_status`, `checks` được điền cho mọi câu (cột nằm trong migration của `V2-09`). Đo TTFT đầu-cuối ở `V2-16`. (Nguồn: P0-8, P1-7.)
+- [x] `messages.route`, `rewrite_status`, `checks` được điền cho mọi câu (cột nằm trong migration của `V2-09`). Đo TTFT đầu-cuối ở `V2-16`. (Nguồn: P0-8, P1-7.)
 
 **Hội thoại**
 
-- [ ] Hội thoại chỉ người tạo xem được (lọc theo user và workspace). Khi mở lại, câu trả lời có trích dẫn tới tài liệu không còn quyền bị ẩn kèm lý do (ADR-007 §4.5).
-- [ ] (Chuyển từ V2-14) Mở rộng bộ cách ly tenant: hỏi đáp và API hội thoại với ≥ 3 workspace có "chuỗi bí mật" riêng không bao giờ trả chuỗi, trích dẫn hay hội thoại của workspace khác (`404` cho id ngoài workspace); chạy trong `tenant-isolation.yml`.
+- [x] Hội thoại chỉ người tạo xem được (lọc theo user và workspace). Khi mở lại, câu trả lời có trích dẫn tới tài liệu không còn quyền bị ẩn kèm lý do (ADR-007 §4.5).
+- [ ] (Chuyển từ V2-14) Mở rộng bộ cách ly tenant: hỏi đáp và API hội thoại với ≥ 3 workspace có "chuỗi bí mật" riêng không bao giờ trả chuỗi, trích dẫn hay hội thoại của workspace khác (`404` cho id ngoài workspace); chạy trong `tenant-isolation.yml`. *Mốc 3 (2026-11-09): test đã viết (`tests/integration/test_qa_isolation.py`, 4 test, xanh); còn thiếu bước chạy nó trong workflow, chờ owner duyệt sửa `.github/workflows/tenant-isolation.yml` (CLAUDE.md mục 8).*
 
 **Harness**
 
@@ -105,3 +105,14 @@ Sửa 2026-11-09 (owner chốt): tiêu chí kiểm nhanh và thủ công cần e
 
 ### Duyệt mốc theo handoff (2026-11-09)
 Owner duyệt **mốc 1** (phần tất định: PII, guard, router, `QueryFrame`, kiểm số/ngày, trích dẫn, ghép context, khung `pipeline.py`) và **mốc 2** (`providers/llm.py`, `qa/prompt.py`, output guard; chưa gọi endpoint thật vì `V2-34` còn `todo`). Bằng chứng: 391 unit test, 27 integration test (baseline), `validate-build.ps1 -Scope ai` xanh. Chưa đánh dấu `[x]` tiêu chí nào vì ticket chưa xong; mốc 3 bắt đầu.
+
+### Mốc 3: API, lưu trữ, hội thoại (2026-11-09, chờ owner duyệt)
+Đã làm: `POST /ai/v1/conversations/{id|new}/messages` (SSE), `GET/PATCH/DELETE` hội thoại, `conversations/{repository,service,steps,factory,events}.py`, `quota/counters.py`, `retrieval/context_store.py`, `access_filter.cited_access_cte()`; các quyết định triển khai ghi ở TECH-V2-ai-service §7.1 và §7.2. Bằng chứng (chạy 2026-11-09):
+
+- `./scripts/run-tests.ps1 -Scope ai-service -Type all`: 458 xanh trước khi thêm test cách ly; `pytest tests/integration` sau đó: 52 xanh (22 trong `test_qa_api.py`, 4 trong `test_qa_isolation.py`). `validate-build.ps1 -Scope ai` xanh. `tests/tenant-isolation`: 31 xanh.
+- Đã phát hiện và sửa một lỗi của mốc 2 nhờ integration test: câu mở đầu cố định nằm trong quy tắc của system prompt nên output guard coi lời tự từ chối của model là prompt echo (`REFUSED_GUARD` thay vì `GENERATOR_NOT_FOUND`); `protected` nay bỏ câu đó (test `test_the_fixed_not_found_opening_is_not_an_echo_of_the_rules`).
+- Chưa kiểm: gọi endpoint Modal thật (`V2-34` còn `todo`), mở trình duyệt, đo TTFT (V2-16). `eval/` còn 1 test đỏ `test_v2_plan_all_frontmatter_counters_dag_and_handover_match` do PLAN và các ticket đang sửa dở (Mermaid DAG khác `depends_on`), không liên quan đến thay đổi này.
+- Review `v2-reviewer` (Opus 5.5): không có blocker. Đã sửa các điểm xác nhận được: đóng luồng LLM từ thread khác khi client ngắt (`ValueError`), `with_pings` đóng khi `__anext__` đang chạy (`RuntimeError`), `SOPILOT_FOLLOWUP_MAX_TOKENS=` rỗng làm API không khởi động, hoàn lượt hạn mức khi không ghi được lượt, nội dung tin của lượt bị ngắt; thêm test đường client ngắt kết nối.
+- **Cần owner quyết (khoảng trống của TECH §7.5):** §7.5 chỉ ẩn câu trả lời "có trích dẫn". Câu `ANSWERED` không có `[n]` hợp lệ, `GENERATOR_NOT_FOUND` và `ERROR` giữa chừng vẫn mang văn bản lấy từ source nhưng không có dòng `message_citations`, nên sau khi mất quyền câu đó vẫn hiện và vẫn vào lịch sử viết lại. Cách xử lý đề xuất: ẩn khi bất kỳ `documentId` trong `messages.context_sources` không còn đọc được (đã lưu sẵn). Chưa làm vì đổi hành vi đã chốt.
+- Chưa sửa (nhẹ): câu viết lại không qua guard đầu vào lần nữa; `GET/PATCH/DELETE` với id không phải UUID trả `422` còn `POST` trả `404`; hai câu hỏi đồng thời trong một hội thoại có thể ghép nhầm cặp lịch sử; câu hỏi bị hủy ngay khi đang đặt chỗ hạn mức có thể không được hoàn (chỉ khi hạn mức bật).
+- Chưa tick: `[ ]` outcome (chưa có gì phát `OUT_OF_SCOPE`, thuộc `V2-27`), ghép context (cần ablation mốc 4), kiểm số (đo tương quan ở mốc 4), isolation trong CI (chờ duyệt workflow), danh sách chưa trả lời được (`V2-13`), harness (mốc 4).
