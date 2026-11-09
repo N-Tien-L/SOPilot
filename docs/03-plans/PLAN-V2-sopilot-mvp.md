@@ -18,8 +18,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 35
 completed_tickets: 20
-implemented_tickets: 20
-review_tickets: 0
+implemented_tickets: 21
+review_tickets: 1
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket. *Sửa 2026-10-21: TXT cũng bị bỏ, phạm vi còn PDF có lớp chữ và MD.*
@@ -221,7 +221,7 @@ flowchart TD
 | `V2-34` | Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh | infra | M | `V2-02` | done |
 | `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
 | `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | todo |
-| `V2-35` | Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM | infra | L | `V2-09`, `V2-34` | in-progress |
+| `V2-35` | Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM | infra | L | `V2-09`, `V2-34` | review |
 
 ### Phase 2b: Ingestion SOP (AUDIT-ingestion-sop-data)
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |

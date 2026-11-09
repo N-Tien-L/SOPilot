@@ -70,7 +70,7 @@ https://<workspace-name>--sopilot-vllm-serve.modal.run    # /v1/chat/completions
 https://<workspace-name>--sopilot-vllm-rerank.modal.run   # POST /v1/rerank
 ```
 
-`POST /v1/rerank` nhận `{"query": str, "passages": [str]}` (tối đa 64 passage) và trả `{"logits": [float]}` cùng thứ tự; Bearer là `VLLM_API_KEY`, thiếu hoặc sai trả `401`. Lần đầu chạy `modal run infrastructure/modal/serve_vllm.py::download_model` để tải thêm trọng số reranker vào Volume. Kiểm tra: `python infrastructure/modal/test_endpoint.py --rerank` (cần `SOPILOT_RERANK_BASE_URL`). Container ngủ sau 60 giây nhàn rỗi, nên làm nóng trước khi chạy eval (khởi động lạnh khoảng 260 giây, lớn hơn timeout rerank 30/120 giây).
+`POST /v1/rerank` nhận `{"query": str, "passages": [str]}` (tối đa 64 passage) và trả `{"logits": [float]}` cùng thứ tự; Bearer là `VLLM_API_KEY`, thiếu hoặc sai trả `401`. Lần đầu chạy `modal run infrastructure/modal/serve_vllm.py::download_model` để tải thêm trọng số reranker vào Volume. Kiểm tra: `python infrastructure/modal/test_endpoint.py --rerank` (cần `SOPILOT_RERANK_BASE_URL`). Container ngủ sau 60 giây nhàn rỗi, nên làm nóng trước khi chạy eval (khởi động lạnh khoảng 160 giây khi cache FlashInfer đã có trên volume, lần đầu khoảng 320 giây; lớn hơn timeout rerank 30 giây của ai-service).
 
 ---
 
