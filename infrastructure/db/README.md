@@ -4,7 +4,7 @@ Local infrastructure for SOPilot V2 (ADR-004 §4.4, ticket V2-08). It runs as a 
 
 ## Start
 
-1. Copy the "V2" block of `.env.example` into `.env` and replace every `<generate-...>` value.
+1. Copy the root `.env.example` to `.env` and replace every `<generate-...>` value. The apps have their own files (`services/core-api/.env.example`, `services/ai-service/.env.example`).
 2. Start it:
 
    ```powershell
