@@ -609,7 +609,7 @@ Kiểm tra theo thứ tự, port từ `GoogleTokenVerifierService` và bổ sung
 }
 ```
 
-Không đưa email hay tên vào token. Khóa ký đọc từ file PEM mount qua env (`SOPILOT_JWT_PRIVATE_KEY_PATH`); profile `local`/`test` tự sinh cặp khóa khi thiếu. JWKS công bố khóa hiện hành và khóa trước đó để xoay khóa không làm rớt phiên. V2-11 mới công bố khóa hiện hành; khóa trước đó làm cùng V2-29.
+Không đưa email hay tên vào token. Khóa ký đọc từ file PEM mount qua env (`SOPILOT_JWT_PRIVATE_KEY_PATH`); profile `local`/`test` tự sinh cặp khóa khi thiếu. JWKS công bố khóa hiện hành và khóa trước đó để xoay khóa không làm rớt phiên. Khóa trước đó được công bố khi đặt `SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH` (V2-29, xem §14).
 
 **Refresh token:** chuỗi ngẫu nhiên 256 bit, base64url, chỉ lưu SHA-256. Cookie `sp_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`, hạn `SOPILOT_REFRESH_TTL=P14D`. Port logic xoay vòng và phát hiện dùng lại từ `RefreshTokenService` cũ:
 
@@ -903,3 +903,19 @@ Các chỗ code khác với đặc tả ở trên. Owner duyệt khi nghiệm th
 | `failure_message` (§5.5, §6) | Theo `Accept-Language` | Câu tiếng Việt cố định theo mã, lưu lúc ghi | Giá trị lưu trong DB; locale theo header cần dịch lúc đọc |
 | Ngày hiệu lực (§8.2) | `effectiveDate` ISO | Giá trị không phải ISO bị bỏ qua | ai-service trích từ văn bản tự do và dead-letter mọi `4xx` |
 | `PATCH /members/{userId}` (§5.3) | Có `role` | Chưa nhận `role` | Đổi role và quy tắc OWNER đầy đủ là V2-30 |
+
+## 14. Ghi chú triển khai V2-29 (2026-11-08, owner duyệt 2026-11-09)
+
+Các chỗ code khác với đặc tả ở trên. Owner duyệt khi nghiệm thu V2-29 (2026-11-09); bảng này thắng các mục tương ứng phía trên.
+
+| Mục | TECH | Code | Lý do |
+|---|---|---|---|
+| Xóa workspace (§5.2) | Xóa mềm, xóa cứng khi ai-service xác nhận hết | Chỉ xóa mềm (`workspaces.deleted_at`) và một sự kiện `DOCUMENT_DELETED` cho mỗi tài liệu; **chưa xóa cứng** dòng workspace | Xóa cứng trong hook outbox sẽ cascade xóa chính dòng outbox đang được dispatcher cập nhật. Cần job dọn riêng. **Owner chốt 2026-11-09: ngoài MVP**, không thêm ticket (chạy local, xóa mềm đã chặn truy cập và refresh) |
+| Thu hồi refresh khi xóa workspace | Không nêu | Không thu hồi từng dòng; `findMembership` bỏ qua workspace đã xóa nên lần refresh kế tiếp trả `401 MEMBERSHIP_LOST` và thu hồi chuỗi | Tránh module `workspace` phụ thuộc `identity` (vòng phụ thuộc). Access token đã cấp còn sống tối đa 15 phút |
+| Vị trí mã (§5.2) | Controller/service trong `workspace/` | `WorkspaceController/Service` (liệt kê, `/current`) ở `workspace/`; tạo workspace và đổi workspace (cấp token) ở `identity/WorkspaceSession*` | `ArchitectureTest` cấm vòng giữa các module: `identity` đã phụ thuộc `workspace` |
+| `WorkspaceRole` | Lồng trong `WorkspaceRepository` | Enum riêng ở `security/WorkspaceRole` | `security` phụ thuộc `workspace` làm `workspace` không dùng được `AuthPrincipal` (vòng) |
+| Thu hồi refresh khi tạm khóa, xóa, rời | §5.3 chỉ nêu tạm khóa | Cả tạm khóa, xóa thành viên và rời workspace đều thu hồi chuỗi của user trong workspace đó | Khóa/xóa có hiệu lực ngay ở lần refresh kế tiếp, không chờ đọc lại membership |
+| `POST /auth/refresh` | Trả access token mới | Trả cùng body với đăng nhập (`accessToken`, `user`, `workspace`) | Frontend khôi phục phiên sau khi tải lại trang chỉ bằng cookie |
+| Khóa ký trước đó (§5.1) | Công bố trong JWKS | Biến `SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH` (PEM public key); core-api cũng chấp nhận token ký bằng khóa này | Xoay khóa không làm rớt phiên; bỏ biến sau khi access token cũ hết hạn (15 phút) |
+| Domain join (§5.2, FR-05) | `PUT/DELETE /workspaces/current/domains/{domain}` | Chưa làm | P1, ngoài tiêu chí V2-29 |
+| Cột `refresh_tokens.workspace_id` (§3.1) | `workspace_id` | `target_workspace_id` | Bộ test cách ly tenant coi mọi bảng có cột `workspace_id` là bảng tenant và đòi RLS; bảng này là bảng toàn cục (tra theo `token_hash` trước khi biết workspace). Đổi tên để không phải nới kiểm tra; bảng được thêm vào `GLOBAL_TABLES` (danh sách đã duyệt) trong `tests/tenant-isolation/isolation.py` |

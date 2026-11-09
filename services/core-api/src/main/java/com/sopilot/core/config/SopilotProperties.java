@@ -32,8 +32,11 @@ public record SopilotProperties(@Valid @NotNull Google google,
      * @param kid               key id published in JWKS; derived from the key thumbprint when blank
      * @param accessTtl         access-token lifetime, at most 15 minutes
      * @param generateIfMissing local/test only: create an in-memory key when no path is set
+     * @param previousPublicKeyPath optional X.509 PEM public key of the key that was replaced; published in
+     *                          JWKS and accepted for verification so rotating the signing key keeps sessions alive
      */
-    public record Jwt(String privateKeyPath, String kid, @NotNull Duration accessTtl, boolean generateIfMissing) {
+    public record Jwt(String privateKeyPath, String kid, @NotNull Duration accessTtl, boolean generateIfMissing,
+                      String previousPublicKeyPath) {
     }
 
     /**
@@ -41,8 +44,10 @@ public record SopilotProperties(@Valid @NotNull Google google,
      * @param nonceTtl              nonce lifetime
      * @param allowEphemeralNonceKey local/test only: generate a random key when none is set
      * @param cookieSecure          set the Secure attribute on auth cookies
+     * @param refreshTtl            refresh-token lifetime (TECH §5.1, 14 days)
+     * @param frontendOrigin        the only {@code Origin} accepted by refresh and logout (CSRF second layer)
      */
     public record Auth(String nonceHmacKey, @NotNull Duration nonceTtl, boolean allowEphemeralNonceKey,
-                       boolean cookieSecure) {
+                       boolean cookieSecure, @NotNull Duration refreshTtl, @NotNull String frontendOrigin) {
     }
 }

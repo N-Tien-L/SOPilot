@@ -2,6 +2,7 @@ package com.sopilot.core.member;
 
 import com.sopilot.core.audit.AuditService;
 import com.sopilot.core.common.ApiException;
+import com.sopilot.core.identity.RefreshTokenService;
 import com.sopilot.core.department.DepartmentRepository;
 import com.sopilot.core.department.DepartmentRepository.Department;
 import com.sopilot.core.department.DepartmentRepository.DepartmentStatus;
@@ -9,7 +10,7 @@ import com.sopilot.core.member.MemberRepository.Member;
 import com.sopilot.core.security.AuthPrincipal;
 import com.sopilot.core.tenancy.TenantTx;
 import com.sopilot.core.workspace.WorkspaceRepository.MembershipStatus;
-import com.sopilot.core.workspace.WorkspaceRepository.WorkspaceRole;
+import com.sopilot.core.security.WorkspaceRole;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,13 +37,15 @@ public class MemberService {
     private final DepartmentRepository departments;
     private final AuditService audit;
     private final TenantTx tenant;
+    private final RefreshTokenService refreshTokens;
 
     public MemberService(MemberRepository members, DepartmentRepository departments, AuditService audit,
-                         TenantTx tenant) {
+                         TenantTx tenant, RefreshTokenService refreshTokens) {
         this.members = members;
         this.departments = departments;
         this.audit = audit;
         this.tenant = tenant;
+        this.refreshTokens = refreshTokens;
     }
 
     public List<Member> list(AuthPrincipal principal, MembershipStatus status, UUID departmentId, String query) {
@@ -110,6 +113,7 @@ public class MemberService {
             }
             guardLastOwner(principal.workspaceId(), target);
             members.setSuspended(principal.workspaceId(), userId, true);
+            refreshTokens.revokeForMembership(userId, principal.workspaceId(), "SUSPENDED");
             audit.record(principal, "MEMBER_SUSPENDED", "MEMBER", userId, Map.of());
         });
     }
@@ -134,6 +138,7 @@ public class MemberService {
             requireCanActOn(principal, target);
             guardLastOwner(principal.workspaceId(), target);
             members.delete(principal.workspaceId(), userId);
+            refreshTokens.revokeForMembership(userId, principal.workspaceId(), "MEMBERSHIP_LOST");
             audit.record(principal, "MEMBER_REMOVED", "MEMBER", userId, Map.of());
         });
     }
@@ -148,6 +153,7 @@ public class MemberService {
                     .orElseThrow(MemberService::notFound);
             guardLastOwner(principal.workspaceId(), self);
             members.delete(principal.workspaceId(), principal.userId());
+            refreshTokens.revokeForMembership(principal.userId(), principal.workspaceId(), "MEMBERSHIP_LOST");
             audit.record(principal, "MEMBER_REMOVED", "MEMBER", principal.userId(), Map.of("self", true));
         });
     }

@@ -40,11 +40,16 @@ sopilot:
     kid: ${SOPILOT_JWT_KID:}
     access-ttl: ${SOPILOT_ACCESS_TTL:PT15M}
     generate-if-missing: false
+    # Public key of the previous signing key during a rotation (optional).
+    previous-public-key-path: ${SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH:}
   auth:
     nonce-hmac-key: ${SOPILOT_NONCE_HMAC_KEY:}
     nonce-ttl: PT5M
     allow-ephemeral-nonce-key: false
     cookie-secure: true
+    refresh-ttl: ${SOPILOT_REFRESH_TTL:P14D}
+    # The only Origin accepted by /auth/refresh and /auth/logout.
+    frontend-origin: ${SOPILOT_FRONTEND_ORIGIN:http://localhost:3000}
 
   internal:
     # One token for both directions between core-api and ai-service. Blank rejects every /internal call.

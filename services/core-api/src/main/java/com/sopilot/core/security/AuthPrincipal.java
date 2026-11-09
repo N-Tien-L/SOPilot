@@ -1,7 +1,6 @@
 package com.sopilot.core.security;
 
 import com.sopilot.core.common.ApiException;
-import com.sopilot.core.workspace.WorkspaceRepository.WorkspaceRole;
 import org.springframework.http.HttpStatus;
 
 import java.util.UUID;

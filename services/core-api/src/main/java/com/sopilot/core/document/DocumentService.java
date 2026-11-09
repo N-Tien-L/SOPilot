@@ -188,6 +188,29 @@ public class DocumentService {
         });
     }
 
+    /**
+     * Soft-deletes every live document of the caller's workspace, one {@code DOCUMENT_DELETED} event each
+     * (workspace delete, TECH §5.2). Joins the caller's tenant transaction when there is one.
+     */
+    public int deleteAll(AuthPrincipal principal) {
+        principal.requireOwner();
+        UUID wid = principal.workspaceId();
+        return tenant.run(principal, () -> {
+            List<UUID> ids = docs.liveDocumentIds(wid);
+            for (UUID documentId : ids) {
+                DocumentHead head = docs.lockDocument(wid, documentId).orElse(null);
+                if (head == null) {
+                    continue;
+                }
+                docs.softDelete(documentId);
+                outbox.enqueue(wid, documentId, OutboxEvent.Type.DOCUMENT_DELETED,
+                        Map.of("workspaceId", wid, "documentId", documentId));
+                audit.record(principal, "DOCUMENT_DELETED", "DOCUMENT", documentId, Map.of("title", head.title()));
+            }
+            return ids.size();
+        });
+    }
+
     /** Title, description and language only; never talks to ai-service and never creates an outbox event. */
     public DocumentView update(AuthPrincipal principal, UUID documentId, Map<String, Object> patch) {
         principal.requireManager();

@@ -2,6 +2,7 @@ package com.sopilot.core.security;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -22,7 +23,10 @@ import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 /**
  * RS256 signing key for access tokens (TECH §5.1). Loaded from a PKCS#8 PEM file at
@@ -36,25 +40,70 @@ public class SigningKeyProvider {
     private static final int MIN_RSA_BITS = 2048;
 
     private final RSAKey signingKey;
+    /** Public half of the key that was replaced, kept only so tokens it signed stay valid; may be null. */
+    private final RSAKey previousKey;
 
     @Autowired
     public SigningKeyProvider(SopilotProperties properties) {
         SopilotProperties.Jwt jwt = properties.jwt();
         this.signingKey = load(jwt);
+        this.previousKey = loadPrevious(jwt.previousPublicKeyPath(), this.signingKey);
     }
 
     /** Package-private for tests. */
     SigningKeyProvider(RSAKey signingKey) {
+        this(signingKey, null);
+    }
+
+    /** Package-private for tests: {@code previousKey} is the public key that was replaced. */
+    SigningKeyProvider(RSAKey signingKey, RSAKey previousKey) {
         this.signingKey = signingKey;
+        this.previousKey = previousKey == null ? null : previousKey.toPublicJWK();
     }
 
     public RSAKey signingKey() {
         return signingKey;
     }
 
-    /** Public keys only; safe to publish at {@code /.well-known/jwks.json}. */
+    /** Public keys only (current, then previous); safe to publish at {@code /.well-known/jwks.json}. */
     public JWKSet publicJwkSet() {
-        return new JWKSet(signingKey.toPublicJWK());
+        List<JWK> keys = new ArrayList<>();
+        keys.add(signingKey.toPublicJWK());
+        if (previousKey != null) {
+            keys.add(previousKey);
+        }
+        return new JWKSet(keys);
+    }
+
+    /** Keys that may have signed a still-valid access token: the current one and, during rotation, the previous one. */
+    public List<RSAKey> verificationKeys() {
+        return previousKey == null ? List.of(signingKey.toPublicJWK()) : List.of(signingKey.toPublicJWK(), previousKey);
+    }
+
+    private static RSAKey loadPrevious(String path, RSAKey current) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+        try {
+            String pem = Files.readString(Path.of(path), StandardCharsets.US_ASCII);
+            if (!pem.contains("-----BEGIN PUBLIC KEY-----")) {
+                throw new GeneralSecurityException("Expected an X.509 PEM public key");
+            }
+            String base64 = pem.replace("-----BEGIN PUBLIC KEY-----", "").replace("-----END PUBLIC KEY-----", "")
+                    .replaceAll("\s", "");
+            var publicKey = (RSAPublicKey) KeyFactory.getInstance("RSA")
+                    .generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(base64)));
+            if (publicKey.getModulus().bitLength() < MIN_RSA_BITS) {
+                throw new GeneralSecurityException("RSA key must be at least " + MIN_RSA_BITS + " bits");
+            }
+            RSAKey key = new RSAKey.Builder(publicKey).keyUse(KeyUse.SIGNATURE).algorithm(JWSAlgorithm.RS256)
+                    .keyIDFromThumbprint().build();
+            // Rotating to the same key again would publish a duplicate kid.
+            return key.getKeyID().equals(current.getKeyID()) ? null : key;
+        } catch (IOException | GeneralSecurityException | JOSEException | IllegalArgumentException e) {
+            throw new IllegalStateException("Cannot load the previous access-token public key ("
+                    + e.getClass().getSimpleName() + ")");
+        }
     }
 
     private static RSAKey load(SopilotProperties.Jwt jwt) {
