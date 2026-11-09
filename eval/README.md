@@ -27,6 +27,21 @@ datasets/<name>/questions.jsonl         # one JSON per line:
 
 `pages` is optional (omit for document-level relevance). Unanswerable questions use `"answerable": false, "expected": []`.
 
+## Answer level (V2-10)
+
+`sopilot_eval/answers.py` measures what the QA pipeline does with the retrieved chunks. It imports the ai-service context assembly, prompt, citation and number-check code, so the harness and the service run the same functions (token counts are those of `index_text`, as the service stores them).
+
+```powershell
+# No LLM: how much gold evidence reaches the prompt, context.expand on vs off (bge-m3 from the HF cache)
+uv run --extra local python -m sopilot_eval.answers coverage --dataset datasets/sop-main --config configs/rq1-rq3-bge-m3.yaml --name hybrid --split test
+
+# Needs the answer endpoint (V2-34) and a judge: citation precision, refusal accuracy (gate vs the model's own refusal),
+# faithfulness on a fixed subset (temperature 0), expand on/off. Endpoint, model id and key come from the environment (SOPILOT_LLM_*).
+uv run --extra local python -m sopilot_eval.answers answers --dataset datasets/sop-main --config configs/rq1-rq3-bge-m3.yaml --name hybrid --split test --judge judge
+```
+
+Output: `results/answers-<command>-<config>-<split>/report.json` (+ `per_question.jsonl` for `answers`). `--judge generate` lets the answer model judge itself; `report.json` then says `judge_is_the_answer_model: true`. Not measured here: the access filter (one in-memory workspace), the output guard, and the `code`/`rev`/`effective` attributes of `<source>` (the frozen corpus keeps no extracted metadata).
+
 ## What it measures
 
 | RQ | Config knob |
