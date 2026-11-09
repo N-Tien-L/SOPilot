@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "Kế hoạch triển khai SOPilot V2: eval-first, chạy local, bàn giao nghiên cứu"
 status: approved
 created: 2026-10-17
-updated: 2026-11-07
+updated: 2026-11-09
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md
@@ -16,9 +16,9 @@ refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 33
-completed_tickets: 14
+completed_tickets: 15
 implemented_tickets: 18
-review_tickets: 4
+review_tickets: 3
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket. *Sửa 2026-10-21: TXT cũng bị bỏ, phạm vi còn PDF có lớp chữ và MD.*
@@ -228,7 +228,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
 | `V2-11` | core-api: khung service, Google identity, JIT và workspace cá nhân | user | L | `V2-03`, `V2-08` | done |
-| `V2-29` | core-api: workspace CRUD, chuyển workspace và refresh session | user | L | `V2-11` | review |
+| `V2-29` | core-api: workspace CRUD, chuyển workspace và refresh session | user | L | `V2-11` | done |
 | `V2-30` | core-api: lời mời, thành viên và quy tắc OWNER | user | M | `V2-29` | todo |
 | `V2-12` | core-api: tài liệu, upload, outbox, hạn mức tài liệu, thay bản an toàn, audit log | knowledge | L | `V2-09`, `V2-11` | review |
 | `V2-13` | Phản hồi câu trả lời và danh sách khoảng trống tri thức | ai-qa | M | `V2-10`, `V2-12` | todo |
@@ -303,3 +303,5 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Cập nhật 2026-11-06:** `V2-12`, `V2-14`, `V2-23` → `review` (đợt 1 core-api và cách ly tenant; còn mở các mục phụ thuộc `V2-29`, `V2-30`, `V2-10`, `V2-13`, run GitHub Actions và chạy thật hai service); `review_tickets` 0 → 3, `implemented_tickets` 14 → 17. Chờ owner nghiệm thu.
 
 > **Cập nhật 2026-11-08:** `V2-29` → `review` (refresh xoay vòng có phát hiện dùng lại, đăng xuất, đổi/tạo/sửa/xóa mềm workspace, JWKS giữ khóa trước đó; migration `V006`; xóa cứng workspace và domain join P1 chưa làm, xem TECH-V2-core-api §14); `review_tickets` 3 → 4, `implemented_tickets` 17 → 18. Chờ owner nghiệm thu.
+
+> **Owner chốt 2026-11-09:** `V2-29` → `done` (`mvnw verify` trên `develop` 78 unit + 101 integration xanh, CI `develop` xanh; chỗ lệch ở TECH-V2-core-api §14 được duyệt). Xóa cứng dòng workspace là **ngoài MVP**, không thêm ticket. Tiêu chí "V2-30 dùng lại dịch vụ phiên" chuyển sang `V2-30`; mở khóa `V2-30`. `completed_tickets` 14 → 15, `review_tickets` 4 → 3, `implemented_tickets` giữ 18.

@@ -3,7 +3,7 @@ id: TECH-V2-CORE-API
 title: "Thiết kế kỹ thuật core-api (V2): danh tính, workspace, thành viên, tài liệu, outbox"
 status: approved
 created: 2026-10-20
-updated: 2026-11-08
+updated: 2026-11-09
 refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -904,13 +904,13 @@ Các chỗ code khác với đặc tả ở trên. Chưa phải quyết định 
 | Ngày hiệu lực (§8.2) | `effectiveDate` ISO | Giá trị không phải ISO bị bỏ qua | ai-service trích từ văn bản tự do và dead-letter mọi `4xx` |
 | `PATCH /members/{userId}` (§5.3) | Có `role` | Chưa nhận `role` | Đổi role và quy tắc OWNER đầy đủ là V2-30 |
 
-## 14. Ghi chú triển khai V2-29 (2026-11-08, chờ owner duyệt)
+## 14. Ghi chú triển khai V2-29 (2026-11-08, owner duyệt 2026-11-09)
 
-Các chỗ code khác với đặc tả ở trên. Chưa phải quyết định đã duyệt; owner xem khi nghiệm thu V2-29.
+Các chỗ code khác với đặc tả ở trên. Owner duyệt khi nghiệm thu V2-29 (2026-11-09); bảng này thắng các mục tương ứng phía trên.
 
 | Mục | TECH | Code | Lý do |
 |---|---|---|---|
-| Xóa workspace (§5.2) | Xóa mềm, xóa cứng khi ai-service xác nhận hết | Chỉ xóa mềm (`workspaces.deleted_at`) và một sự kiện `DOCUMENT_DELETED` cho mỗi tài liệu; **chưa xóa cứng** dòng workspace | Xóa cứng trong hook outbox sẽ cascade xóa chính dòng outbox đang được dispatcher cập nhật. Cần job dọn riêng; chưa có ticket |
+| Xóa workspace (§5.2) | Xóa mềm, xóa cứng khi ai-service xác nhận hết | Chỉ xóa mềm (`workspaces.deleted_at`) và một sự kiện `DOCUMENT_DELETED` cho mỗi tài liệu; **chưa xóa cứng** dòng workspace | Xóa cứng trong hook outbox sẽ cascade xóa chính dòng outbox đang được dispatcher cập nhật. Cần job dọn riêng. **Owner chốt 2026-11-09: ngoài MVP**, không thêm ticket (chạy local, xóa mềm đã chặn truy cập và refresh) |
 | Thu hồi refresh khi xóa workspace | Không nêu | Không thu hồi từng dòng; `findMembership` bỏ qua workspace đã xóa nên lần refresh kế tiếp trả `401 MEMBERSHIP_LOST` và thu hồi chuỗi | Tránh module `workspace` phụ thuộc `identity` (vòng phụ thuộc). Access token đã cấp còn sống tối đa 15 phút |
 | Vị trí mã (§5.2) | Controller/service trong `workspace/` | `WorkspaceController/Service` (liệt kê, `/current`) ở `workspace/`; tạo workspace và đổi workspace (cấp token) ở `identity/WorkspaceSession*` | `ArchitectureTest` cấm vòng giữa các module: `identity` đã phụ thuộc `workspace` |
 | `WorkspaceRole` | Lồng trong `WorkspaceRepository` | Enum riêng ở `security/WorkspaceRole` | `security` phụ thuộc `workspace` làm `workspace` không dùng được `AuthPrincipal` (vòng) |
