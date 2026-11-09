@@ -1,9 +1,9 @@
-# Modal LLM Endpoint (vLLM on L4 GPU)
+# Modal LLM Endpoint (vLLM on A10 GPU)
 
 > **Ticket:** `V2-34` | **Phạm vi:** `infra` | **Kế hoạch cha:** `PLAN-V2-SOPILOT-MVP`  
 > **Quyết định kiến trúc:** [ADR-006 §4.4](../../docs/02-architecture/adr/ADR-006-free-tier-providers-and-environments.md) | **Thiết kế:** [TECH-V2-ai-service §4.2, §4.3](../../docs/02-architecture/designs/TECH-V2-ai-service.md)
 
-Thư mục này chứa script triển khai và kiểm thử endpoint OpenAI-compatible phục vụ model mã nguồn mở **Qwen3.5-9B** (FP8) chạy bằng **vLLM** trên nền tảng **Modal** (GPU NVIDIA L4 24GB).
+Thư mục này chứa script triển khai và kiểm thử endpoint OpenAI-compatible phục vụ model mã nguồn mở **Qwen3.5-9B** (FP8) chạy bằng **vLLM** trên nền tảng **Modal** (GPU NVIDIA A10 24GB).
 
 ---
 
@@ -13,14 +13,15 @@ Thư mục này chứa script triển khai và kiểm thử endpoint OpenAI-comp
 2. **Chuẩn giao tiếp:** Cung cấp API tương thích OpenAI chuẩn (`/v1/chat/completions`, `/v1/models`), được `services/ai-service/src/sopilot_ai/providers/llm.py` tiêu thụ trực tiếp qua HTTP.
 3. **Kiểm soát chi phí:**
    - Dùng gói **Modal Starter** ($30 compute credits miễn phí mỗi tháng).
-   - GPU **NVIDIA L4** ($0.80/giờ).
+   - GPU **NVIDIA A10** (khoảng $1.10/giờ; đối chiếu trang Pricing của Modal). Đổi từ L4 ($0.80/giờ) vì L4 chỉ đạt 24,3 token/giây (V2-34 mục 5); A10 có băng thông bộ nhớ gấp đôi, mà tốc độ sinh phụ thuộc chủ yếu vào băng thông. ADR-006 §4.4 cho phép A10. A10 (Ampere) không có FP8 phần cứng: vLLM chạy FP8 chỉ cho trọng số (Marlin W8A16), chất lượng tương đương, TTFT có thể khác L4.
    - Tự động thu về 0 (**scale-to-zero**) sau 60 giây rảnh (`scaledown_window=60`).
+   - Tối đa một container (`max_containers=1`): quá 32 request đồng thời thì request xếp hàng, không bật container GPU thứ hai.
    - Không ghim region (tránh hệ số phụ phí ×1.15–1.75), không non-preemptible.
    - Cache trọng số mô hình trong `modal.Volume` (`sopilot-hf-cache` và `sopilot-vllm-cache`) để giảm thời gian khởi động lạnh.
 4. **An toàn dữ liệu & Bí mật:**
    - Không bao giờ commit URL thật hoặc API key thật vào Git.
    - Mọi prompt gửi lên Modal rời khỏi máy local, chỉ dùng dữ liệu mẫu / `sop-main`, tuyệt đối không dùng tài liệu nội bộ thật.
-   - **Lưu ý điều khoản (ToS):** Điều khoản dịch vụ của Modal nghiêm cấm tạo nhiều tài khoản Starter để trục lợi miễn phí (credit farming). Dự án vận hành trên **1 tài khoản Starter duy nhất** và quản lý thời gian bật/tắt hợp lý.
+   - **Tài khoản:** dự án dùng hai tài khoản Starter, mỗi tài khoản một thẻ thanh toán riêng (owner chốt 2026-11-09, V2-10). Mỗi tài khoản deploy và giữ secret riêng; URL đổi theo tên workspace.
 
 ---
 
@@ -102,7 +103,7 @@ curl -X POST "https://<workspace-name>--sopilot-vllm-serve.modal.run/v1/chat/com
 
 ## 4. Cấu hình cho SOPilot V2 (`services/ai-service`)
 
-Sau khi endpoint hoạt động, cập nhật file `.env` tại thư mục gốc của repo:
+Sau khi endpoint hoạt động, cập nhật file `services/ai-service/.env` (sao từ `services/ai-service/.env.example`):
 
 ```dotenv
 # --- ai-service answer LLM (V2-10, ADR-006 §4.4) ---

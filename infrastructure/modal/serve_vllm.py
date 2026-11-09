@@ -1,6 +1,6 @@
 """Modal deployment script for SOPilot V2 LLM endpoint.
 
-Hosts Qwen/Qwen3.5-9B with vLLM on an NVIDIA L4 GPU (FP8 online quantization),
+Hosts Qwen/Qwen3.5-9B with vLLM on an NVIDIA A10 GPU (FP8 online quantization),
 exposing OpenAI-compatible /v1/chat/completions and /v1/models endpoints.
 
 References:
@@ -30,6 +30,10 @@ MODEL_REVISION = "c202236235762e1c871ad0ccb60c8ee5ba337b9a"
 # CUDA 13 base image; flashinfer is pinned transitively by vLLM.
 VLLM_VERSION = "0.33.0"
 CUDA_IMAGE = "nvidia/cuda:13.0.2-devel-ubuntu22.04"
+
+# GPU type. A10 (24 GB, ~600 GB/s) replaces L4 (24 GB, ~300 GB/s): decode is
+# memory-bound and L4 measured 24.3 tokens/s (V2-34 §5). ADR-006 §4.4 allows A10.
+GPU = "A10"
 
 # Port exposed by vLLM web server.
 PORT = 8000
@@ -91,8 +95,11 @@ def download_model():
 
 @app.function(
     image=vllm_image,
-    gpu="L4",
+    gpu=GPU,
     scaledown_window=60,  # Scale-to-zero: idle for 60s -> terminate GPU container
+    # One GPU at most: past 32 concurrent inputs requests queue instead of booting
+    # (and billing) a second container with its own cold start.
+    max_containers=1,
     timeout=15 * 60,
     volumes={
         "/root/.cache/huggingface": hf_cache_vol,
@@ -122,7 +129,8 @@ def serve():
         "0.0.0.0",
         "--port",
         str(PORT),
-        # BF16 weights are ~19.3 GB; FP8 (native on L4/Ada) leaves room for KV cache.
+        # BF16 weights are ~19.3 GB; FP8 leaves room for KV cache. A10 (Ampere)
+        # has no FP8 tensor cores, so vLLM runs weight-only FP8 (Marlin, W8A16).
         "--quantization",
         "fp8",
         # Text-only RAG: skip the vision encoder to save VRAM.
