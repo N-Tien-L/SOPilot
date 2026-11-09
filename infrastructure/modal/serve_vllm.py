@@ -15,6 +15,9 @@ import os
 import subprocess
 import sys
 import threading
+import time
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import modal
@@ -80,6 +83,9 @@ vllm_image = (
 # Persistent volumes for caching model weights and compilation artifacts.
 hf_cache_vol = modal.Volume.from_name("sopilot-hf-cache", create_if_missing=True)
 vllm_cache_vol = modal.Volume.from_name("sopilot-vllm-cache", create_if_missing=True)
+# FlashInfer builds its sampling kernels with a JIT compiler on first use (minutes on an A10).
+# Keeping ~/.cache/flashinfer on a volume lets later cold starts load the built module.
+flashinfer_cache_vol = modal.Volume.from_name("sopilot-flashinfer-cache", create_if_missing=True)
 
 # -----------------------------------------------------------------------------
 # Optional Helper: Pre-download model weights into Volume
@@ -172,6 +178,39 @@ def _make_rerank_handler(model, api_key: str, lock: threading.Lock):
     return Handler
 
 
+def _watch_startup(started: float, torch_module) -> None:
+    """Logs when vLLM answers /health, the GPU memory in use, and persists the FlashInfer cache."""
+    deadline = started + 15 * 60
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/health", timeout=5) as resp:
+                if resp.status == 200:
+                    break
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(2)
+    else:
+        out("startup: vLLM did not become healthy within 15 minutes")
+        return
+    out(f"startup: vLLM healthy {time.monotonic() - started:.0f} s after the container hook began")
+    # Total in use (reranker + vLLM + CUDA contexts), then what this process (the reranker) holds.
+    smi = subprocess.run(
+        ["nvidia-smi", "--query-gpu=memory.used,memory.total", "--format=csv,noheader"],
+        capture_output=True, text=True, check=False,
+    )
+    out(f"startup: GPU memory used/total (nvidia-smi): {smi.stdout.strip() or smi.stderr.strip()}")
+    out(
+        "startup: reranker process torch allocated/reserved: "
+        f"{torch_module.cuda.memory_allocated() / 2**30:.2f} / "
+        f"{torch_module.cuda.memory_reserved() / 2**30:.2f} GiB"
+    )
+    try:
+        flashinfer_cache_vol.commit()
+        out("startup: FlashInfer cache volume committed")
+    except Exception as exc:  # noqa: BLE001 - a failed commit only costs the next cold start
+        out(f"startup: FlashInfer cache commit failed: {type(exc).__name__}")
+
+
 def _launch_vllm(api_key: str) -> subprocess.Popen:
     """Launches the vLLM OpenAI-compatible server as a subprocess."""
     cmd = [
@@ -217,6 +256,7 @@ def _launch_vllm(api_key: str) -> subprocess.Popen:
     volumes={
         "/root/.cache/huggingface": hf_cache_vol,
         "/root/.cache/vllm": vllm_cache_vol,
+        "/root/.cache/flashinfer": flashinfer_cache_vol,
     },
     # Fail closed: deploy is rejected when the secret or its key is missing, so
     # the public modal.run URL is never served without authentication.
@@ -235,6 +275,11 @@ class Serve:
         import torch
         from sentence_transformers import CrossEncoder
 
+        started = time.monotonic()
+        flashinfer_dir = "/root/.cache/flashinfer"
+        cached = sum(len(files) for _, _, files in os.walk(flashinfer_dir))
+        out(f"startup: FlashInfer cache volume holds {cached} files before launch")
+
         # Reranker first: vLLM sizes its KV cache from the memory that is still free.
         model = CrossEncoder(
             RERANK_MODEL, revision=RERANK_REVISION, device="cuda", max_length=RERANK_MAX_LENGTH
@@ -246,6 +291,7 @@ class Serve:
         threading.Thread(target=server.serve_forever, daemon=True).start()
 
         self.vllm = _launch_vllm(api_key)
+        threading.Thread(target=_watch_startup, args=(started, torch), daemon=True).start()
 
     @modal.exit()
     def stop(self):
