@@ -2,7 +2,7 @@
 id: V2-35
 title: "Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM"
 type: feat
-status: in-progress
+status: review
 created: 2026-11-09
 updated: 2026-11-09
 author: "Owner"
@@ -40,15 +40,15 @@ Giới hạn:
 
 **Quyết định trước khi làm (owner)**
 
-- [ ] Hành vi khi rerank lỗi hoặc hết thời gian chờ: (a) dừng như hiện tại (`RerankError` → lỗi lượt hỏi), hay (b) hạ xuống `hybrid` không rerank (đổi cổng và ngưỡng giữa chừng). Đề xuất (a).
-  *Ghi nhận (chưa đóng):* owner yêu cầu giải thích trade-off, chưa chốt; code đang theo (a) (`RerankError`, không hạ xuống hybrid). Đổi sang (b) là việc riêng.
+- [x] Hành vi khi rerank lỗi hoặc hết thời gian chờ: (a) dừng như hiện tại (`RerankError` → lỗi lượt hỏi), hay (b) hạ xuống `hybrid` không rerank (đổi cổng và ngưỡng giữa chừng). Đề xuất (a).
+  *Chốt:* (a), theo đề xuất, sau khi owner được giải thích trade-off và yêu cầu xử lý nốt các việc còn mở (2026-11-09). Code dừng với `RerankError`, không hạ xuống hybrid. Owner xác nhận lại khi nghiệm thu.
 - [x] Đồng ý thêm `sentence-transformers` vào image Modal. Nếu chọn phương án cổng vào ở Bước 0 thì thêm cả `fastapi` (CLAUDE.md, quy tắc 12). Không đổi `pyproject.toml` của ai-service.
 
 **Hạ tầng Modal**
 
 - [x] Spike (Bước 0) quyết phương án: hai `@modal.web_server` trong một `@app.cls` dùng chung container (không cần proxy), hoặc một cổng vào FastAPI trên port mở ra ngoài, chuyển tiếp `/v1/*` (kể cả SSE) tới vLLM ở `127.0.0.1`. Ghi kết quả vào mục 5.
-- [ ] Container nạp reranker trước, rồi khởi động vLLM với `--gpu-memory-utilization` hạ từ 0,90 (đề xuất 0,85); `--max-model-len 8192` vẫn khởi động được. Ghi VRAM đo được.
-  *Chưa đủ:* vLLM khởi động và chạy ở 0,85 với `--max-model-len 8192` (đã kiểm), nhưng VRAM từng phần chưa ghi được (mục 5).
+- [x] Container nạp reranker trước, rồi khởi động vLLM với `--gpu-memory-utilization` hạ từ 0,90 (đề xuất 0,85); `--max-model-len 8192` vẫn khởi động được. Ghi VRAM đo được.
+  VRAM đo được: 21 180 / 23 028 MiB đã dùng khi vLLM sẵn sàng; reranker giữ 2,12 GiB (mục 5).
 - [x] `POST /v1/rerank` nhận `{query, passages[]}` và trả `{logits[]}` cùng thứ tự với `passages`. Kiểm Bearer bằng `hmac.compare_digest` với `VLLM_API_KEY`: thiếu hoặc sai khóa trả `401`, không log khóa hay nội dung passage.
 - [x] `/v1/models` và chat stream vẫn chạy như `V2-34`. `test_endpoint.py` có thêm tùy chọn `--rerank` đo p50/p95 cho 25 cặp, 10 lượt nóng.
 
@@ -57,7 +57,7 @@ Giới hạn:
 - [x] Khớp điểm: cùng 25 ứng viên × ≥ 20 câu dev, chấm bằng CPU local và GPU remote. Sau sigmoid chênh tuyệt đối ≤ 1e-3 (fp32) và thứ hạng top 5 trùng 100 %. Không đạt thì dừng và hỏi owner (fp16 cần dung sai khác).
 - [x] Độ trễ rerank khi nóng, so với 15,7 s/câu trên CPU, ghi vào mục 5.
 - [x] TTFT nóng và token/giây của chat sau khi giảm KV cache không tệ hơn số đo A10 trước thay đổi quá 10 % (A10, `gpu-memory-utilization` 0,90: TTFT nóng 943 ms, 47,9 token/s, [V2-10](V2-10-ai-service-qa-pipeline.md) mốc 5 A).
-- [ ] (Chuyển từ V2-10, owner chốt 2026-11-09) Đưa cache JIT của FlashInfer (`~/.cache/flashinfer`, hoặc biến môi trường cache mà FlashInfer của vLLM 0.33.0 dùng) vào volume, để khởi động lạnh không build lại module sampling. Ghi thời gian khởi động lạnh trước và sau (trước: 264 s trên A10).
+- [x] (Chuyển từ V2-10, owner chốt 2026-11-09) Đưa cache JIT của FlashInfer (`~/.cache/flashinfer`, hoặc biến môi trường cache mà FlashInfer của vLLM 0.33.0 dùng) vào volume, để khởi động lạnh không build lại module sampling. Ghi thời gian khởi động lạnh trước và sau (trước: 264 s trên A10).
 
 **ai-service và eval**
 
@@ -125,11 +125,13 @@ Giới hạn:
 | RQ2b `sop-main-v2` test | `dense` 0,9125 / 0,7926; `hybrid-legacy-w` 0,8725 / 0,7163; `dense-rerank` 0,9525 / 0,9115; `hybrid-legacy-w-rerank` 0,9575 / 0,9141: **trùng số RQ2b cũ** ở cả bốn dòng. p50 rerank khoảng 1,18 giây so với 15,7 giây. |
 | RQ2 `sop-main` test | `hybrid` 0,9571 / 0,85; `hybrid-rerank-modal` 1,0 / 0,9726 (70 câu); không có số cũ cùng bộ để so. |
 | Test | `test_rerank_remote.py` 8 test; ai-service unit 566 passed, 15 xfailed; `eval` pytest 120 passed ruff xanh; `check-docs.ps1` xanh. |
-| Chi phí GPU | **Chưa đo.** Chưa đối chiếu với bảng chi phí Modal. |
+| VRAM (bổ sung) | Khi vLLM báo `healthy`: `nvidia-smi` **21 180 / 23 028 MiB** (92 %). Tiến trình reranker (torch): allocated 2,12 GiB, reserved 2,13 GiB. vLLM chiếm phần còn lại (0,85 × 22,5 GiB ≈ 19,1 GiB cho trọng số 10,3 GiB, KV cache và đồ thị CUDA). |
+| Cache FlashInfer | Volume `sopilot-flashinfer-cache` gắn vào `/root/.cache/flashinfer`, commit sau khi vLLM sẵn sàng. Hai lần khởi động lạnh liên tiếp sau deploy: lần 1 (build rồi lưu) **321 s**, lần 2 (nạp từ volume) **159 s**, so với 264 s trước đó (V2-10 mốc 5 A). Log: vLLM `healthy` sau 133 s kể từ hook `enter`. |
+| Chi phí GPU | `modal billing report` ngày 2026-11-09: app `sopilot-vllm` hiện tại $0,11 (20h) + $1,00 (21h) + $0,58 (22h) = **khoảng $1,69** cho đo baseline, deploy, parity, RQ2/RQ2b và các lần khởi động lạnh; tải trọng số reranker $0,007; spike CPU $0,00004. Các giờ sau 22h chưa có trong báo cáo (Modal chỉ báo khoảng trọn giờ), gồm hai lượt khởi động lạnh và kiểm tra cache FlashInfer. |
 
 **Phát hiện khi chạy:** (1) container ngủ sau 60 giây nhàn rỗi, nên harness dựng chỉ mục xong thì lần gọi rerank đầu gặp khởi động lạnh (~260 giây): `timeout_s` của config modal đặt 600 giây. (2) Modal trả `303` kèm URL kết quả khi một request kéo dài hơn khoảng 150 giây; `RemoteRerankProvider` bật `follow_redirects` (có test). (3) Chunk của `sop-main`/`sop-main-v2` đã gửi lên Modal như ticket cho phép.
 
-**Chưa làm / còn mở:** VRAM từng phần; chi phí GPU; quyết định (a)/(b) khi rerank lỗi chờ owner chốt; chưa commit; chưa chạy test tích hợp Docker (không đổi SQL).
+**Còn lại cho owner:** xác nhận lựa chọn (a) khi nghiệm thu; chi phí giờ 23h trở đi chưa có trong báo cáo; chưa chạy test tích hợp Docker (không đổi SQL). Sau khi bật cache FlashInfer, kiểm lại chat và rerank ở trạng thái nóng: TTFT khoảng 1,0 s, 48 token/giây, rerank p50 1338 ms.
 
 ---
 
