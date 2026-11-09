@@ -1,0 +1,28 @@
+# V2-35 RQ2b on the Modal GPU reranker (needs SOPILOT_RERANK_BASE_URL + SOPILOT_LLM_API_KEY; chunk text goes to Modal). V2-07 RQ2b: which candidate pool should the reranker see? (sop-main-v2, owner request 2026-11-05)
+# rq2-rerank-bge-m3.yaml reranks the hybrid 1/1 pool. Pool coverage full@25 on v2 test suggested
+# dense (0.960) and hybrid 0.7/0.3 (0.975) pools as alternatives; this config measures both.
+# Same models/revisions/chunking as rq1-rq3 and rq2. Needs: uv sync --extra local
+# Run: python -m sopilot_eval.run --dataset datasets/sop-main-v2 --config configs/rq2b-rerank-pools-modal.yaml --split dev|test --repeats 1
+chunking:
+  mode: docproc
+  target_tokens: 384
+  max_tokens: 512
+  structured_dir: results/extraction-clean/structured
+  pilot_dataset: datasets/sop-pilot
+configs:
+  # no-rerank baselines (cheap), so paired differences come from one run
+  - {name: dense, retriever: dense, k: 5, embedder: &e {provider: sentence-transformers, model: BAAI/bge-m3, revision: 5617a9f61b028005a4858fdac845db406aefb181}}
+  - {name: hybrid-legacy-w, retriever: hybrid, k: 5, embedder: *e, weights: [0.7, 0.3]}
+  # rerank the top-25 dense pool
+  - name: dense-rerank
+    retriever: dense
+    k: 5
+    embedder: *e
+    rerank: &r {provider: modal, timeout_s: 600, model: BAAI/bge-reranker-v2-m3, revision: 953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e}
+  # rerank the top-25 hybrid 0.7/0.3 pool
+  - name: hybrid-legacy-w-rerank
+    retriever: hybrid
+    k: 5
+    embedder: *e
+    weights: [0.7, 0.3]
+    rerank: *r

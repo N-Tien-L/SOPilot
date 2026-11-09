@@ -481,10 +481,11 @@ embedding:
       query_prefix: ""
 rerank:
   enabled: ${RERANK_ENABLED:false}
-  provider: local                     # local | none
+  provider: ${RERANK_PROVIDER:local}   # local | modal | none (V2-35)
   model: BAAI/bge-reranker-v2-m3
   revision: ${RERANK_REVISION}
   max_pairs: 25
+  timeout_s: ${RERANK_TIMEOUT_S:30}    # chỉ cho modal
 llm:
   # Sửa 2026-11-09 (V2-10 mốc 2, ADR-006 §4.4): một model tự host sau server kiểu OpenAI (vLLM trên
   # Modal). Chuỗi Gemini/Groq đã bỏ (owner 2026-11-01). Endpoint, model id và khóa lấy từ môi trường.
@@ -548,7 +549,7 @@ class LLMProvider(Protocol):
 ```
 
 - `EmbeddingProvider`: `local` (sentence-transformers, chạy trên threadpool), `cloudflare` (Workers AI `@cf/baai/bge-m3`, chỉ cho deploy, ngoài phạm vi V2), `openai_compatible` (TEI hoặc server nhúng khác).
-- `RerankProvider`: `local` (cross-encoder `bge-reranker-v2-m3`), `none`. Một reranker qua API miễn phí có thể thêm sau như một provider mới mà không đổi pipeline (xem câu hỏi mở Q3).
+- `RerankProvider`: `local` (cross-encoder `bge-reranker-v2-m3` trên CPU), `modal` (`RemoteRerankProvider`, V2-35: `POST {providers.modal.rerank_base_url}/rerank` tới `/v1/rerank` của container Modal chung GPU với vLLM; server trả logit thô theo thứ tự `passages`, client áp sigmoid như `LocalRerankProvider`; lỗi HTTP, hết thời gian hay JSON sai đều thành `RerankError`, không hạ xuống hybrid), `none`. Khóa là `SOPILOT_LLM_API_KEY`, URL là `SOPILOT_RERANK_BASE_URL`. Một reranker qua API miễn phí có thể thêm sau như một provider mới mà không đổi pipeline (xem câu hỏi mở Q3).
 - `LLMProvider`: một lớp duy nhất gọi API kiểu OpenAI `chat/completions` với `base_url` khác nhau. `ChainedLLM` thử lần lượt các model trong `chain`; chuyển sang model kế tiếp khi gặp `429`, `503`, timeout, hoặc khi bộ giới hạn cục bộ báo hết quota (§7.4), và **chỉ trước khi phát `delta` đầu tiên** (§7.4). Ghi model thực sự trả lời vào `messages.model`.
 
 ---

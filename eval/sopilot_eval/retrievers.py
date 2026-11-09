@@ -68,6 +68,43 @@ def _identity(x):
     return x
 
 
+class RemoteCrossEncoder:
+    """Same scores as ``CrossEncoder`` but computed on the Modal GPU (V2-35).
+
+    Delegates to ``sopilot_ai.providers.rerank.RemoteRerankProvider`` so harness and service share
+    one client. URL and key come from ``SOPILOT_RERANK_BASE_URL`` / ``SOPILOT_LLM_API_KEY``.
+    """
+
+    def __init__(self, model: str, revision: str | None = None, timeout_s: float = 600.0):
+        import os
+
+        from sopilot_ai.providers.registry import RerankSpec
+        from sopilot_ai.providers.rerank import RemoteRerankProvider
+
+        base_url = os.environ.get("SOPILOT_RERANK_BASE_URL", "")
+        if not base_url:
+            raise SystemExit("rerank provider modal needs SOPILOT_RERANK_BASE_URL (and SOPILOT_LLM_API_KEY)")
+        spec = RerankSpec(enabled=True, provider="modal", model=model, revision=revision or "",
+                          max_pairs=25, timeout_s=timeout_s)
+        self.model = model
+        self._provider = RemoteRerankProvider(
+            spec, base_url=base_url, api_key=os.environ.get("SOPILOT_LLM_API_KEY") or None,
+            timeout=timeout_s)
+
+    def score(self, query: str, texts: list[str]) -> np.ndarray:
+        return self._provider.score(query, texts)
+
+
+def build_reranker(conf: dict):
+    """``rerank`` config block -> reranker; ``provider`` is ``local`` (default) or ``modal``."""
+    provider = conf.get("provider", "local")
+    if provider == "modal":
+        return RemoteCrossEncoder(conf["model"], conf.get("revision"), float(conf.get("timeout_s", 600)))
+    if provider != "local":
+        raise ValueError(f"unknown rerank provider {provider!r}")
+    return CrossEncoder(conf["model"], conf.get("revision"))
+
+
 def retrieve_candidates(index: Index, query: str, cfg: dict, reranker: CrossEncoder | None,
                         pool: int = 25, query_lang: str | None = None) -> list[dict]:
     """Best-first candidates ``{idx, dense_score, bm25_score, fusion_score, rerank_score, gate}``.

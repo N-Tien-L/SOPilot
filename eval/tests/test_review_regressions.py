@@ -133,5 +133,5 @@ def test_v2_plan_all_frontmatter_counters_dag_and_handover_match():
     # Arrange / Act
     result = validate_plan(REPO)
     # Assert
-    assert result["tickets"] == 33
+    assert result["tickets"] == 35
     assert result["acyclic"] and result["handover_covers_all_tickets"]

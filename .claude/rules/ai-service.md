@@ -32,7 +32,7 @@ Enforced by `tests/unit/test_architecture.py`: `docproc` purity, no upward impor
 
 - Models, providers, thresholds and chunk sizes are declared **only** in `config/models.yaml` (`${VAR:default}` expansion). Never hard-code a model id in Python.
 - Settings: `config.py` (`pydantic-settings`, env aliases `SOPILOT_*`, secrets as `SecretStr`). New settings need an `.env.example` entry with a dummy value.
-- The LLM answer pipeline (V2-10) is not implemented yet. Check `PLAN-V2` (owner decision 2026-11-01: self-hosted models on Modal) before writing provider code. Do not rely on the gemini/groq entries currently in `models.yaml`.
+- The LLM answer pipeline (V2-10, `qa/`, `conversations/`, `providers/llm.py`) is done. The answer model is one OpenAI-compatible Modal endpoint (`providers.modal`, `SOPILOT_LLM_*` in `services/ai-service/.env`); the container is `infrastructure/modal/serve_vllm.py`. Warm it before a run: a cold start takes minutes and the client times out after 120 s.
 - Log with `structlog` (`log.info("event_name", key=value)`). `print()` fails ruff `T20`.
 
 ## Tests

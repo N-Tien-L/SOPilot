@@ -4,14 +4,14 @@ title: "ai-service: worker ingest, embedding, hybrid retrieval, RLS, 4 loại đ
 type: feat
 status: done
 created: 2026-10-17
-updated: 2026-11-05
+updated: 2026-11-09
 author: "Owner"
 scope: ai-qa
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-03, V2-06, V2-08, V2-20, V2-21, V2-22]
-blocks: [V2-10, V2-12, V2-14, V2-25]
+blocks: [V2-10, V2-12, V2-14, V2-25, V2-35]
 branch: "feat/ai-qa-v2-ingest-retrieval"
 assignee: pair
 ---

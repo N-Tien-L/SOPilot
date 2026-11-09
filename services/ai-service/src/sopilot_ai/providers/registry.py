@@ -46,10 +46,11 @@ class EmbeddingSpec:
 @dataclass(frozen=True)
 class RerankSpec:
     enabled: bool
-    provider: str  # local | none
+    provider: str  # local | modal | none
     model: str
     revision: str
     max_pairs: int
+    timeout_s: float = 30.0  # modal only: per-request httpx timeout
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,7 @@ class ModelsConfig:
             model=str(r.get("model") or ""),
             revision="" if r.get("revision") in (None, "") else str(r["revision"]),
             max_pairs=int(r.get("max_pairs", 25)),
+            timeout_s=float(r.get("timeout_s", 30.0)),
         )
 
     def retrieval(self) -> RetrievalConfig:
