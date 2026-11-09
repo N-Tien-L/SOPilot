@@ -2,7 +2,7 @@
 id: V2-35
 title: "Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM"
 type: feat
-status: review
+status: done
 created: 2026-11-09
 updated: 2026-11-09
 author: "Owner"
@@ -131,7 +131,7 @@ Giới hạn:
 
 **Phát hiện khi chạy:** (1) container ngủ sau 60 giây nhàn rỗi, nên harness dựng chỉ mục xong thì lần gọi rerank đầu gặp khởi động lạnh (~260 giây): `timeout_s` của config modal đặt 600 giây. (2) Modal trả `303` kèm URL kết quả khi một request kéo dài hơn khoảng 150 giây; `RemoteRerankProvider` bật `follow_redirects` (có test). (3) Chunk của `sop-main`/`sop-main-v2` đã gửi lên Modal như ticket cho phép.
 
-**Còn lại cho owner:** xác nhận lựa chọn (a) khi nghiệm thu; chi phí giờ 23h trở đi chưa có trong báo cáo; chưa chạy test tích hợp Docker (không đổi SQL). Sau khi bật cache FlashInfer, kiểm lại chat và rerank ở trạng thái nóng: TTFT khoảng 1,0 s, 48 token/giây, rerank p50 1338 ms.
+**Nghiệm thu (owner, 2026-11-09):** `done`. Rerank `bge-reranker-v2-m3` chạy trên GPU A10 chung container với vLLM: khớp điểm CPU–GPU (chênh tối đa 2,7e-6, top 5 trùng 24/24), RQ2 và RQ2b trên `sop-main-v2` trùng số cũ, rerank nóng p50 khoảng 1,0–1,4 s so với 15,7–18,1 s trên CPU, chat không tệ hơn, VRAM 21 180 / 23 028 MiB, khởi động lạnh 264 s → 159 s nhờ cache FlashInfer. Owner chấp nhận chính sách (a) khi rerank lỗi (dừng với `RerankError`, không hạ xuống hybrid). Chấp nhận còn thiếu: chi phí GPU từ giờ 23h chưa có trong báo cáo Modal (đã ghi khoảng $1,69 đến hết 22h); chưa chạy test tích hợp Docker vì không đổi SQL. Việc chọn chế độ truy xuất mặc định và hiệu chỉnh `thresholds.hybrid_rerank` vẫn thuộc `V2-10`/`V2-18`.
 
 ---
 
