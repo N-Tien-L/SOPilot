@@ -88,7 +88,7 @@ UI work also follows the global `frontend-delivery` skill. A green build is not 
 
 ## Known V2 doc/code drift (verify before relying on docs)
 
-- **Answer LLM**: PLAN-V2 records an owner decision (2026-11-01) to self-host small open models on Modal for generation and the judge, replacing Gemini and Groq `gpt-oss-120b`. ADR-006 §4.4 is rewritten; `models.yaml` still lists the old gemini/groq chains until V2-10. Older notes that say "Groq gpt-oss / Gemini -preview" are outdated for generation.
+- **Answer LLM**: PLAN-V2 records an owner decision (2026-11-01) to self-host small open models on Modal for generation and the judge, replacing Gemini and Groq `gpt-oss-120b`. ADR-006 §4.4 is rewritten; `models.yaml` uses one Modal endpoint (Qwen3.5-9B FP8 on A10, `infrastructure/modal/`, V2-10 done). Older notes that say "Groq gpt-oss / Gemini -preview" are outdated for generation.
 - **Frontend** is still V1-wired (`next.config.ts` rewrites to `api-gateway:3001`; `lib/api.ts` keeps Bearer tokens in `localStorage`) until V2-15.
 - `.agent/context/architecture/frontend.md` describes `frontend/web/middleware.ts`, which does not exist.
 - `.agent/context/` files with a "V1 LEGACY" banner describe V1. For V2, use `authorization/v2-core-identity.md`, `database/tables/core.md` (V2 section), `database/tables/rag.md`, and the V2 header of `service-boundaries/api-contracts.md`.

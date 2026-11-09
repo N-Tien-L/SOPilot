@@ -11,7 +11,7 @@ priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-02]
-blocks: [V2-10]
+blocks: [V2-10, V2-35]
 branch: "infra/modal-llm-endpoint"
 assignee: pair
 ---

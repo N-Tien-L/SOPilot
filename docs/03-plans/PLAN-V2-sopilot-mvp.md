@@ -16,9 +16,9 @@ refs:
   - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 34
-completed_tickets: 18
-implemented_tickets: 18
+total_tickets: 35
+completed_tickets: 19
+implemented_tickets: 19
 review_tickets: 0
 ---
 
@@ -111,6 +111,7 @@ flowchart TD
     V32["V2-32: Frontend: nội dung nhận diện và trình xem trích dẫn"]
     V33["V2-33: Frontend: thành viên, phòng ban và metadata tài liệu"]
     V34["V2-34: Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh"]
+    V35["V2-35: Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM"]
     V01 --> V03
     V01 --> V04
     V05 --> V07
@@ -157,6 +158,9 @@ flowchart TD
     V17 --> V18
     V27 --> V18
     V28 --> V18
+    V35 --> V18
+    V09 --> V35
+    V34 --> V35
     V03 --> V20
     V19 --> V20
     V20 --> V21
@@ -215,8 +219,9 @@ flowchart TD
 | `V2-08` | Khung Flyway và docker compose (Postgres/pgvector, object storage) | infra | M | `V2-01` | done |
 | `V2-09` | ai-service: worker ingest, embedding, hybrid retrieval, RLS, 4 loại điểm, provider interface | ai-qa | L | `V2-03`, `V2-06`, `V2-08`, `V2-20`, `V2-21`, `V2-22` | done |
 | `V2-34` | Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh | infra | M | `V2-02` | done |
-| `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | in-progress |
+| `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
 | `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | todo |
+| `V2-35` | Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM | infra | L | `V2-09`, `V2-34` | todo |
 
 ### Phase 2b: Ingestion SOP (AUDIT-ingestion-sop-data)
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
@@ -252,7 +257,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-33` | Frontend: thành viên, phòng ban và metadata tài liệu | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30` | todo |
 | `V2-16` | Dữ liệu demo và docker compose chạy bằng một lệnh | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24` | todo |
 | `V2-17` | Kiểm tra parity, gỡ 8 service cũ, cập nhật tài liệu hướng dẫn | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
-| `V2-18` | Báo cáo nghiên cứu và gói bàn giao | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28` | todo |
+| `V2-18` | Báo cáo nghiên cứu và gói bàn giao | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35` | todo |
 
 ---
 
@@ -278,7 +283,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | Phạm vi tăng thêm 4 ticket (khoảng 1 XL quy đổi) | Trung bình | `V2-24`/`V2-25` không nằm trên đường tới RQ1–RQ3; nếu thiếu thời gian, hoãn import CSV (P1) và phương án nâng cấp gợi ý metadata trước |
 
 ## 5. Definition of Done
-- [ ] 34/34 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
+- [ ] 35/35 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
 - [ ] `docker compose up` dựng toàn bộ hệ thống trên máy local; UC-01 đến UC-06 và UC-12 chạy được.
 - [ ] FR-19 và FR-29: 0 rò rỉ. Báo cáo RQ1–RQ3 trong `docs/04-reports/`.
 - [ ] `CLAUDE.md` (kiến trúc, mục drift), `.claude/` và `.agent/context/` phản ánh kiến trúc mới.
@@ -314,6 +319,10 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-09 (ẩn lịch sử khi mất quyền):** câu trả lời bị ẩn theo mọi source trong context LLM, không chỉ theo trích dẫn ([TECH-V2-ai-service §7.5](../02-architecture/designs/TECH-V2-ai-service.md)); PRD-V2 §8 mục 8 và ADR-007 §4.5 sửa cho khớp. Đổi `V2-10` (đã làm trong mốc 3); `V2-15` hiển thị `hidden` không đổi contract. Không đổi trạng thái hay bộ đếm.
 
 > **Owner chốt 2026-11-09:** `V2-34` → `done` (endpoint Modal Qwen3.5-9B FP8 trên L4, vLLM 0.33.0: `/v1/models` và chat stream chạy; `enable_thinking=false` ngừng sinh suy luận, 214 so với 1449 token; khởi động lạnh 494 giây, TTFT nóng 1145 ms đo phía client, 24,3 token/giây). Chi phí thật, cảnh báo ngân sách và điều khoản nhiều tài khoản Modal (kèm sửa ADR-006 §4.4) chuyển thành tiêu chí của `V2-10`. `completed_tickets` 17 → 18, `implemented_tickets` 17 → 18.
+
+> **Owner chốt 2026-11-09 (thêm V2-35, GPU A10):** endpoint của `V2-34` chuyển từ L4 sang A10 (ADR-006 §4.4 cho phép khi L4 chậm, L4 đo 24,3 token/giây) và đặt `max_containers=1`; giữ `scaledown_window=60` trong lúc dev. Ticket mới `V2-35` (P1) đưa rerank `bge-reranker-v2-m3` lên GPU trong cùng container A10 với vLLM, đo độ trễ và chạy lại RQ2/RQ2b; không bật rerank mặc định. `V2-35` phụ thuộc `V2-09`, `V2-34` và chặn `V2-18` (chế độ truy xuất mặc định quyết trên số đo này). `total_tickets` 34 → 35; các bộ đếm khác không đổi.
+
+> **Owner chốt 2026-11-09:** `V2-10` → `done` (mốc 5 chạy với endpoint thật trên A10: khởi động lạnh 264 s, TTFT nóng 943 ms, 47,9 token/s; harness `answers` trên `sop-main` test, `expand` bật: trả lời 94,3 % câu trả lời được, 11/11 câu không trả lời được bị từ chối, citation precision 84,2 % so với 64,4 % khi tắt, faithfulness 0,981 do chính model chấm; 0/8 câu `probe` lộ quy tắc; chi phí ngày $1,56). Bỏ tiêu chí điều khoản nhiều tài khoản Modal (owner dùng hai tài khoản), không sửa ADR-006 §4.4 theo hướng một tài khoản. Chuyển sang: danh sách chưa trả lời được → `V2-13`; `OUT_OF_SCOPE`, câu tấn công vượt cổng, câu trả lời mã hóa → `V2-27`; cache FlashInfer → `V2-35`; hỏi qua API và TTFT đầu-cuối → `V2-16`. Chi tiết ở [V2-10](tickets/V2-10-ai-service-qa-pipeline.md) mốc 5. `completed_tickets` 18 → 19, `implemented_tickets` 18 → 19.
 
 ---
 

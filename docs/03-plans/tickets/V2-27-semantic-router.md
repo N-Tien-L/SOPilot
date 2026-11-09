@@ -4,7 +4,7 @@ title: "ai-service: semantic router (luật + embedding) và đo so với chỉ 
 type: feat
 status: todo
 created: 2026-10-20
-updated: 2026-10-24
+updated: 2026-11-09
 author: "Owner"
 scope: ai-qa
 priority: P1
@@ -35,6 +35,7 @@ Semantic router không gọi LLM: so embedding câu hỏi với câu mẫu của
 - [ ] Nghiệm thu: (b) rẽ nhầm câu `sop_question` ≤ 2% trên `test` và không tăng sai đắt so với (a). Không đạt thì để `SOPILOT_SEMANTIC_ROUTER_ENABLED=false` mặc định và ghi lý do.
 - [ ] Báo cáo `docs/04-reports/AUDIT-routing-guard-eval-<ngày>.md`: model embedding và revision, ngưỡng đã chọn, số liệu (a) và (b), quyết định bật/tắt mặc định.
 - [ ] Cập nhật TECH-V2-ai-service §7.1 bước 3 (vị trí router, cấu hình, dùng lại vector).
+- [ ] (Chuyển từ V2-10, owner chốt 2026-11-09; [V2-10](V2-10-ai-service-qa-pipeline.md) mốc 5 C) Xét hai điểm thấy khi chạy nhóm `probe` với model thật: 4/8 câu tấn công diễn đạt lại vượt cổng ngưỡng lỏng (0,456–0,504 so với 0,45), và câu trả lời mã hóa (base64) không khớp câu mở đầu cố định nên ra `ANSWERED` không có trích dẫn. Chạy lại 8 câu `probe` qua router (b) và ghi kết quả.
 
 ## 3. Hướng dẫn
 - **File runtime:** `services/ai-service/src/qa/router.py` (thêm tầng embedding sau tầng luật), `qa/router_exemplars.yaml` (câu mẫu theo intent, gồm cả `sop_question` làm lớp đối chứng), `qa/router_thresholds.yaml`.

@@ -4,13 +4,13 @@ title: "Báo cáo nghiên cứu và gói bàn giao"
 type: docs
 status: todo
 created: 2026-10-17
-updated: 2026-10-24
+updated: 2026-11-09
 author: "Owner"
 scope: docs
 priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-04, V2-07, V2-14, V2-17, V2-27, V2-28]
+depends_on: [V2-04, V2-07, V2-14, V2-17, V2-27, V2-28, V2-35]
 blocks: []
 branch: "docs/docs-research-handover"
 assignee: owner
