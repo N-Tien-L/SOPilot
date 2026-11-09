@@ -30,6 +30,7 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 - [ ] Bộ giới hạn tốc độ theo provider (RPM/TPM) luôn bật, tự chuyển sang dự phòng khi 429 (ADR-006 §4.4). Hạn mức câu hỏi theo user và trần toàn hệ thống cấu hình được, **mặc định tắt** (owner chốt 2026-10-20, FR-09, TECH-V2-ai-service §7.4).
 - [ ] **fallback.** Chỉ chuyển model kế tiếp trước khi phát `delta` đầu tiên; lỗi sau đó → `error LLM_UNAVAILABLE`, `outcome = ERROR`, hoàn lượt hạn mức. `models.yaml` có `context_max_tokens` theo model (đặt cho Groq sau khi đo trên dev); chuyển sang model có trần thấp hơn thì ghép lại context với trần đó. Ước lượng token prompt cho ngân sách dùng tokenizer của chính model nếu khai báo, không dùng cho chunking. (Nguồn: P1-5.)
 - [ ] SSE stream; trả lời theo ngôn ngữ câu hỏi (VI/EN).
+- [ ] (Chuyển từ V2-34, owner chốt 2026-11-09) Chi phí Modal của lần kiểm nhanh khoảng 20 câu lấy từ trang Usage, so với ước tính $1–3 của ADR-006 §4.4, và xác nhận đã đặt cảnh báo ngân sách workspace. Trích dẫn nguyên văn điều khoản Modal về nhiều tài khoản Starter (kèm link, ngày đọc) và sửa ADR-006 §4.4 cùng phần ước tính ngân sách nếu chỉ dùng được một tài khoản ($30/tháng). Endpoint khởi động lạnh mất 494 giây, sát `startup_timeout` 600 giây (V2-34 mục 5): làm nóng trước khi chạy.
 
 **Đầu vào, PII, guard và router (không gọi LLM)**
 

@@ -17,8 +17,8 @@ refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 34
-completed_tickets: 17
-implemented_tickets: 17
+completed_tickets: 18
+implemented_tickets: 18
 review_tickets: 0
 ---
 
@@ -124,6 +124,7 @@ flowchart TD
     V21 --> V09
     V22 --> V09
     V02 --> V34
+    V02 --> V10
     V34 --> V10
     V09 --> V10
     V03 --> V11
@@ -213,7 +214,7 @@ flowchart TD
 |---|---|---|:---:|---|:---:|
 | `V2-08` | Khung Flyway và docker compose (Postgres/pgvector, object storage) | infra | M | `V2-01` | done |
 | `V2-09` | ai-service: worker ingest, embedding, hybrid retrieval, RLS, 4 loại điểm, provider interface | ai-qa | L | `V2-03`, `V2-06`, `V2-08`, `V2-20`, `V2-21`, `V2-22` | done |
-| `V2-34` | Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh | infra | M | `V2-02` | todo |
+| `V2-34` | Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh | infra | M | `V2-02` | done |
 | `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | in-progress |
 | `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | todo |
 
@@ -311,6 +312,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-09:** `V2-12`, `V2-14`, `V2-23` → `done` (kiểm lại: core-api `mvnw verify` 73 unit + 78 integration xanh, `tests/tenant-isolation` 31 xanh và negative control 23 fail, `tenant-isolation.yml` xanh trên PR #5 và `develop`; 8 chỗ lệch TECH duyệt ở TECH-V2-core-api §13; [AUDIT-v2-14](../04-reports/AUDIT-v2-14-tenant-isolation-rq4-2026-11-06.md) `final`). Mục còn mở chuyển thành tiêu chí: cách ly qua API hỏi đáp/hội thoại → `V2-10`, feedback → `V2-13`; refresh và thu hồi token khi tạm khóa đã có ở `V2-29`; lời mời kèm hồ sơ và import CSV (P1) → `V2-30`; lặp `workspace_id` trong các câu ghi của `DocumentRepository` → `V2-24`. `completed_tickets` 14 → 17, `review_tickets` 3 → 0, `implemented_tickets` giữ 17.
 
 > **Owner chốt 2026-11-09 (ẩn lịch sử khi mất quyền):** câu trả lời bị ẩn theo mọi source trong context LLM, không chỉ theo trích dẫn ([TECH-V2-ai-service §7.5](../02-architecture/designs/TECH-V2-ai-service.md)); PRD-V2 §8 mục 8 và ADR-007 §4.5 sửa cho khớp. Đổi `V2-10` (đã làm trong mốc 3); `V2-15` hiển thị `hidden` không đổi contract. Không đổi trạng thái hay bộ đếm.
+
+> **Owner chốt 2026-11-09:** `V2-34` → `done` (endpoint Modal Qwen3.5-9B FP8 trên L4, vLLM 0.33.0: `/v1/models` và chat stream chạy; `enable_thinking=false` ngừng sinh suy luận, 214 so với 1449 token; khởi động lạnh 494 giây, TTFT nóng 1145 ms đo phía client, 24,3 token/giây). Chi phí thật, cảnh báo ngân sách và điều khoản nhiều tài khoản Modal (kèm sửa ADR-006 §4.4) chuyển thành tiêu chí của `V2-10`. `completed_tickets` 17 → 18, `implemented_tickets` 17 → 18.
 
 ---
 
