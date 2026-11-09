@@ -82,14 +82,6 @@ foreach ($k in 'V2_POSTGRES_SUPERUSER_PASSWORD', 'V2_DB_MIGRATOR_PASSWORD', 'V2_
                'V2_MINIO_ROOT_PASSWORD', 'SOPILOT_S3_SECRET_KEY', 'SOPILOT_S3_AI_SECRET_KEY') { Test-Key 'root' $r $k 'secret' }
 foreach ($k in 'V2_POSTGRES_PORT', 'V2_MINIO_API_PORT', 'V2_MINIO_CONSOLE_PORT') { Test-Key 'root' $r $k 'port' }
 foreach ($k in 'V2_MINIO_ROOT_USER', 'SOPILOT_S3_BUCKET', 'SOPILOT_S3_ACCESS_KEY', 'SOPILOT_S3_AI_ACCESS_KEY') { Test-Key 'root' $r $k 'text' }
-# Answer-LLM block (V2-10): only needed once the pipeline runs, so warn instead of fail.
-foreach ($k in 'SOPILOT_LLM_BASE_URL', 'SOPILOT_LLM_MODEL', 'SOPILOT_LLM_API_KEY') {
-    if (-not $r.ContainsKey($k) -or $r[$k] -eq '') { Warn 'root' $k 'empty (needed for the V2-10 answer pipeline)' }
-    elseif ($r[$k] -match '<[^>]*>') { Warn 'root' $k 'still a <placeholder> (needed for the V2-10 answer pipeline)' }
-}
-if ($r.ContainsKey('SOPILOT_LLM_BASE_URL') -and $r['SOPILOT_LLM_BASE_URL'] -notmatch '<' -and $r['SOPILOT_LLM_BASE_URL'] -ne '' -and
-    $r['SOPILOT_LLM_BASE_URL'] -notmatch '^https?://') { Fail 'root' 'SOPILOT_LLM_BASE_URL' 'must be http(s)://...' }
-foreach ($k in 'SOPILOT_LLM_RPM', 'SOPILOT_LLM_TPM') { if ($r.ContainsKey($k) -and $r[$k] -ne '') { Test-Key 'root' $r $k 'int' } }
 # Distinct secrets: a reused password defeats role isolation.
 $pw = 'V2_POSTGRES_SUPERUSER_PASSWORD', 'V2_DB_MIGRATOR_PASSWORD', 'V2_DB_CORE_APP_PASSWORD', 'V2_DB_AI_APP_PASSWORD', 'V2_MINIO_ROOT_PASSWORD'
 $seen = @{}
@@ -136,6 +128,14 @@ Test-Key 'ai' $a 'SOPILOT_S3_ENDPOINT' 'hostport'
 Test-Key 'ai' $a 'SOPILOT_S3_BUCKET' 'text'
 Test-Key 'ai' $a 'SOPILOT_S3_AI_ACCESS_KEY' 'text'
 Test-Key 'ai' $a 'SOPILOT_S3_AI_SECRET_KEY' 'secret'
+# Answer-LLM block (V2-10): only needed once the pipeline runs, so warn instead of fail.
+foreach ($k in 'SOPILOT_LLM_BASE_URL', 'SOPILOT_LLM_MODEL', 'SOPILOT_LLM_API_KEY') {
+    if (-not $a.ContainsKey($k) -or $a[$k] -eq '') { Warn 'ai' $k 'empty (needed for the V2-10 answer pipeline)' }
+    elseif ($a[$k] -match '<[^>]*>') { Warn 'ai' $k 'still a <placeholder> (needed for the V2-10 answer pipeline)' }
+}
+if ($a.ContainsKey('SOPILOT_LLM_BASE_URL') -and $a['SOPILOT_LLM_BASE_URL'] -notmatch '<' -and $a['SOPILOT_LLM_BASE_URL'] -ne '' -and
+    $a['SOPILOT_LLM_BASE_URL'] -notmatch '^https?://') { Fail 'ai' 'SOPILOT_LLM_BASE_URL' 'must be http(s)://...' }
+foreach ($k in 'SOPILOT_LLM_RPM', 'SOPILOT_LLM_TPM') { if ($a.ContainsKey($k) -and $a[$k] -ne '') { Test-Key 'ai' $a $k 'int' } }
 # EMBEDDING_REVISION: 40 hex chars. Empty is allowed in profile local, an error in profile eval.
 $profile = if ($a.ContainsKey('SOPILOT_PROFILE') -and $a['SOPILOT_PROFILE'] -ne '') { $a['SOPILOT_PROFILE'] } else { 'local' }
 if (-not $a.ContainsKey('EMBEDDING_REVISION') -or $a['EMBEDDING_REVISION'] -eq '') {
