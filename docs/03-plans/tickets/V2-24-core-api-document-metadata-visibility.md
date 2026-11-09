@@ -4,7 +4,7 @@ title: "core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển 
 type: feat
 status: todo
 created: 2026-10-19
-updated: 2026-10-24
+updated: 2026-11-09
 author: "Owner"
 scope: knowledge
 priority: P0
@@ -29,6 +29,7 @@ PRD-V2 FR-25 (phần core-api), FR-26, FR-27; ADR-007 §4.1, §4.4, §4.5. Thay 
 - [ ] Danh sách, tìm kiếm, chi tiết, xem trước, tải xuống lọc theo quyền ADR-007 §4.4; MEMBER không thấy tên tài liệu ngoài quyền (404, không 403 kèm tên).
 - [ ] Tải xuống/xem trước qua URL ký sẵn hạn ≤ 5 phút, chỉ phát sau khi kiểm tra quyền.
 - [ ] Không re-embed khi sửa tiêu đề, mô tả, category, tags hay phạm vi.
+- [ ] (Chuyển từ V2-12, review 2026-11-09) Mọi câu lệnh ghi/đọc trong `DocumentRepository` lặp `workspace_id` trong `WHERE` (hiện `setStatus`, `markReady`, `markFailed`, `resetForRetry`, `activate`, `setLatestVersion`, `updateMetadata`, `metaSources`, `softDelete`, `maxVersionNo` chỉ lọc `id`), đúng quy tắc hai lớp RLS + lọc ứng dụng.
 
 ## 3. Hướng dẫn
 - **File:** module documents/metadata trong `services/core-api/`; migration trong `infrastructure/db/migrations/`.

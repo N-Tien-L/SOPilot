@@ -1,13 +1,13 @@
 ---
 id: AUDIT-v2-14-tenant-isolation-rq4-2026-11-06
 title: "V2-14: cách ly tenant trong CI và RQ4 (độ trễ RLS)"
-status: draft
+status: final
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-09
 author: "Owner"
 type: audit
 scope: tests
-verdict: pending-owner-review
+verdict: PASSED_WITH_WARNINGS
 milestone: "V2: SOPilot MVP"
 ---
 
@@ -33,8 +33,8 @@ Phát hiện khi viết test: `rag.processed_requests` là bảng không có `wo
 
 ### Chưa phủ
 
-- Hỏi đáp, hội thoại, feedback qua API: endpoint chưa tồn tại (V2-10, V2-13). Bảng `rag.conversations`, `messages`, `message_feedback`, `message_citations` đã được phủ ở lớp database.
-- Workflow `.github/workflows/tenant-isolation.yml` đã viết nhưng **chưa có run xanh trên GitHub**; các lệnh tương đương đã chạy cục bộ.
+- Hỏi đáp, hội thoại, feedback qua API: endpoint chưa tồn tại. Đã thành tiêu chí của V2-10 (hỏi đáp, hội thoại) và V2-13 (feedback). Bảng `rag.conversations`, `messages`, `message_feedback`, `message_citations` đã được phủ ở lớp database.
+- ~~Workflow chưa có run xanh trên GitHub~~: đã xanh 4/4 job trên PR #5 (2026-11-07) và trên `develop` (2026-11-08).
 
 ## 2. RQ4: chi phí RLS trên đường truy xuất
 
@@ -61,3 +61,7 @@ Top-10 của hai chế độ giống hệt nhau ở 300/300 truy vấn mỗi quy
 **Giới hạn:** dữ liệu tổng hợp; một máy, một lần chạy mỗi quy mô (p95 và p99 của BM25 có đuôi dài, chênh dưới nhiễu); `retrieval` chưa có reranker và chưa có LLM; số tuyệt đối phụ thuộc máy, chỉ so sánh hai chế độ. Không đo ở quy mô lớn hơn 30.000 chunk. Một lần chạy 30.000 chunk đầu tiên bị hủy vì có hai lần chạy chồng nhau làm nhiễu phép đo; số ở trên là lần chạy sau, chạy một mình.
 
 Chạy lại: `cd eval && uv run python rq4_rls_latency.py --workspaces 5 --chunks 6000 --queries 300`. Kết quả máy-đọc nằm ở `eval/results/rq4-*/` (thư mục này bị gitignore).
+
+## 3. Nghiệm thu (2026-11-09)
+
+Owner nghiệm thu, V2-14 chuyển `done`, verdict `PASSED_WITH_WARNINGS`. Kiểm lại: `tests/tenant-isolation` 31 xanh, `ISOLATION_MUTATION=disable-rls` 23 fail / 8 xanh; `./mvnw -B verify` ở core-api 73 unit + 78 integration xanh (`TenantIsolationApiIT` 8, `TenantIsolationIT` 9). Cảnh báo còn lại: (1) cách ly qua API hỏi đáp/hội thoại/feedback chờ V2-10/V2-13; (2) RQ4 chỉ trên dữ liệu tổng hợp ≤ 30.000 chunk; (3) một số câu lệnh ghi của `DocumentRepository` chỉ lọc `id` sau khi đã khóa dòng theo `workspace_id`, chưa rò nhưng thiếu lớp lọc ứng dụng lặp lại, chuyển thành tiêu chí V2-24.

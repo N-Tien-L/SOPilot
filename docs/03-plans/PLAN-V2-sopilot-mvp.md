@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "Kế hoạch triển khai SOPilot V2: eval-first, chạy local, bàn giao nghiên cứu"
 status: approved
 created: 2026-10-17
-updated: 2026-11-08
+updated: 2026-11-09
 author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -17,9 +17,9 @@ refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 34
-completed_tickets: 14
+completed_tickets: 17
 implemented_tickets: 17
-review_tickets: 3
+review_tickets: 0
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket. *Sửa 2026-10-21: TXT cũng bị bỏ, phạm vi còn PDF có lớp chữ và MD.*
@@ -234,10 +234,10 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-11` | core-api: khung service, Google identity, JIT và workspace cá nhân | user | L | `V2-03`, `V2-08` | done |
 | `V2-29` | core-api: workspace CRUD, chuyển workspace và refresh session | user | L | `V2-11` | todo |
 | `V2-30` | core-api: lời mời, thành viên và quy tắc OWNER | user | M | `V2-29` | todo |
-| `V2-12` | core-api: tài liệu, upload, outbox, hạn mức tài liệu, thay bản an toàn, audit log | knowledge | L | `V2-09`, `V2-11` | review |
+| `V2-12` | core-api: tài liệu, upload, outbox, hạn mức tài liệu, thay bản an toàn, audit log | knowledge | L | `V2-09`, `V2-11` | done |
 | `V2-13` | Phản hồi câu trả lời và danh sách khoảng trống tri thức | ai-qa | M | `V2-10`, `V2-12` | todo |
-| `V2-14` | Test cách ly tenant FR-19 trong CI và đo RQ4 | tests | M | `V2-09`, `V2-12` | review |
-| `V2-23` | core-api: hồ sơ thành viên, vòng đời tạm khóa và phòng ban phẳng | user | M | `V2-11` | review |
+| `V2-14` | Test cách ly tenant FR-19 trong CI và đo RQ4 | tests | M | `V2-09`, `V2-12` | done |
+| `V2-23` | core-api: hồ sơ thành viên, vòng đời tạm khóa và phòng ban phẳng | user | M | `V2-11` | done |
 | `V2-24` | core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển thị theo phòng ban | knowledge | L | `V2-12`, `V2-23` | todo |
 | `V2-25` | ai-service: gợi ý metadata chạy nền và đo độ trễ | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | todo |
 | `V2-26` | Test phân quyền tài liệu theo phòng ban (FR-29) trong CI | tests | M | `V2-10`, `V2-23`, `V2-24` | todo |
@@ -307,6 +307,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-07:** `V2-07` → `done` (báo cáo [AUDIT-eval-rq1-rq3-2026-11-04](../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) `final`; giữ bge-m3 và `cross_lingual_bm25_factor` 1,0, không ghi `retrieval.thresholds`, chế độ mặc định và ngưỡng chuyển sang `V2-10`); `completed_tickets` 13 → 14, `implemented_tickets` 13 → 14.
 
 > **Cập nhật 2026-11-06:** `V2-12`, `V2-14`, `V2-23` → `review` (đợt 1 core-api và cách ly tenant; còn mở các mục phụ thuộc `V2-29`, `V2-30`, `V2-10`, `V2-13`, run GitHub Actions và chạy thật hai service); `review_tickets` 0 → 3, `implemented_tickets` 14 → 17. Chờ owner nghiệm thu.
+
+> **Owner chốt 2026-11-09:** `V2-12`, `V2-14`, `V2-23` → `done` (kiểm lại: core-api `mvnw verify` 73 unit + 78 integration xanh, `tests/tenant-isolation` 31 xanh và negative control 23 fail, `tenant-isolation.yml` xanh trên PR #5 và `develop`; 8 chỗ lệch TECH duyệt ở TECH-V2-core-api §13; [AUDIT-v2-14](../04-reports/AUDIT-v2-14-tenant-isolation-rq4-2026-11-06.md) `final`). Mục còn mở chuyển thành tiêu chí: cách ly qua API hỏi đáp/hội thoại → `V2-10`, feedback → `V2-13`; refresh và thu hồi token khi tạm khóa → `V2-29`; lời mời kèm hồ sơ và import CSV (P1) → `V2-30`; lặp `workspace_id` trong các câu ghi của `DocumentRepository` → `V2-24`. `completed_tickets` 14 → 17, `review_tickets` 3 → 0, `implemented_tickets` giữ 17.
 
 ---
 

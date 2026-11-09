@@ -2,9 +2,9 @@
 id: V2-12
 title: "core-api: tài liệu, upload, outbox, hạn mức tài liệu, thay bản an toàn, audit log"
 type: feat
-status: review
+status: done
 created: 2026-10-17
-updated: 2026-11-06
+updated: 2026-11-09
 author: "Owner"
 scope: knowledge
 priority: P0
@@ -49,9 +49,12 @@ FR-06, 07, 09, 20, 30, 31 (phần core-api). Thay knowledge-service, RabbitMQ b�
 | Integration (đồng thời) | 10 upload song song chạm hạn mức; 2 upload cùng SHA-256 song song | `./mvnw verify` |
 | Integration | upload → outbox → ai-service (mock) → READY; xóa dọn chunk | `./mvnw verify` |
 
-## 5. Bằng chứng triển khai (2026-11-06, chờ owner nghiệm thu)
+## 5. Bằng chứng triển khai (2026-11-06, nghiệm thu 2026-11-09)
 
-Trạng thái `review`: code và test xanh trên máy dev; chưa commit; chưa chạy hai service thật với nhau.
+Owner nghiệm thu 2026-11-09, chuyển `done`. Code ở commit `4113f63` (sửa region S3 ở `e96599c`), merge vào `develop` qua [PR #5](https://github.com/N-Tien-L/SOPilot/pull/5). 5 chỗ lệch TECH dưới đây được duyệt, ghi ở TECH-V2-core-api §13. Các mục "Chưa làm / chưa kiểm" được chấp nhận còn mở và thuộc ticket ghi kèm.
+
+- **Kiểm lại khi nghiệm thu (2026-11-09):** `cd services/core-api && ./mvnw -B verify` -> 73 unit + 78 integration, 0 lỗi (gồm `DocumentLifecycleIT` 18, `DocumentConcurrencyIT` 7, `DocumentQuotaIT` 3, `DocumentQuotaDisabledIT` 1, `OutboxDispatcherIT` 10, `S3StorageClientIT` 5, `TenantIsolationApiIT` 8). Đọc lại `DocumentService`, `VersionStatusService`, `DocumentOutboxHooks`, `OutboxDispatcher`, `HttpAiServiceClient`: thứ tự khóa nhất quán (dòng tài liệu, SHA-256, hạn mức), callback cũ `attempt` bị bỏ qua, log chỉ ghi tên lớp lỗi và mã HTTP.
+- **Nhận xét review (không chặn):** vài câu lệnh ghi trong `DocumentRepository` (`setStatus`, `markReady`, `markFailed`, `resetForRetry`, `activate`, `setLatestVersion`, `updateMetadata`, `metaSources`, `softDelete`, `maxVersionNo`) chỉ lọc theo `id`, không lặp `workspace_id`. Hiện không rò được vì mọi lời gọi chạy sau `lockDocument(workspace_id, id)` trong cùng `TenantTx` và RLS vẫn bật; cần bổ sung `workspace_id` cho đúng quy tắc hai lớp (CLAUDE.md ràng buộc 4); đã thêm thành tiêu chí của V2-24 (ticket sửa repository này).
 
 - **Code:** `services/core-api/src/main/java/com/sopilot/core/{document,outbox,storage,audit,security,tenancy}/`; migration `infrastructure/db/migrations/core/V005__documents_outbox_audit.sql` (`categories`, `documents`, `document_versions`, `document_departments`, `outbox_events`, `audit_logs` append-only, `claim_outbox_batch`, `referenced_object_keys`). `JwtAuthFilter`/`InternalTokenFilter`/`TenantTx` là nền cho mọi endpoint (V2-11 chỉ phát token).
 - **Lệnh:** `cd services/core-api && ./mvnw verify` -> 66 unit + 70 integration, 0 lỗi (trước đó 41 + 14). Riêng V2-12: `UploadValidatorTest` (8), `AccessTokenVerifierTest` (7), `HttpAiServiceClientTest` (4, server HTTP thật), `DocumentLifecycleIT` (18), `DocumentConcurrencyIT` (7), `DocumentQuotaIT` (3), `DocumentQuotaDisabledIT` (1), `OutboxDispatcherIT` (10), `S3StorageClientIT` (5, MinIO `RELEASE.2024-05-10T01-41-38Z` thật, URL ký sẵn tải được, tên file UTF-8 trong `Content-Disposition`).

@@ -4,7 +4,7 @@ title: "core-api: workspace CRUD, chuyển workspace và refresh session"
 type: feat
 status: todo
 created: 2026-10-24
-updated: 2026-10-24
+updated: 2026-11-09
 author: "Owner"
 scope: user
 priority: P0
@@ -28,6 +28,7 @@ Tách phần FR-03 khỏi V2-11 XL. Theo TECH-V2-core-api §3.1–§3.2, §4, §
 - [ ] RLS context được đặt trong transaction, connection trả pool không giữ tenant cũ.
 - [ ] JWKS công bố khóa hiện hành và khóa trước đó (TECH §5.1) để xoay khóa ký không làm rớt phiên; V2-11 mới có khóa hiện hành.
 - [ ] Lời mời/OWNER policy của V2-30 dùng lại dịch vụ workspace/session này, không nhân đôi logic.
+- [ ] (Chuyển từ V2-23) Endpoint refresh dùng `SessionTokenService.reissue`: membership `SUSPENDED` → `403 MEMBERSHIP_SUSPENDED`, bị xóa → `401 MEMBERSHIP_LOST`; tạm khóa hoặc xóa thành viên thu hồi refresh token của workspace đó; token mới mang `wdept` hiện hành. Integration: tạm khóa → refresh bị từ chối; đổi phòng ban → refresh đổi `wdept`.
 
 ## 3. Hướng dẫn
 1. Port refresh rotation từ `services/auth-service` vào `services/core-api/src/main/java/com/sopilot/core/identity/`.

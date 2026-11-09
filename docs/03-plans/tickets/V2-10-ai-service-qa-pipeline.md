@@ -75,6 +75,7 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 **Hội thoại**
 
 - [ ] Hội thoại chỉ người tạo xem được (lọc theo user và workspace). Khi mở lại, câu trả lời có trích dẫn tới tài liệu không còn quyền bị ẩn kèm lý do (ADR-007 §4.5).
+- [ ] (Chuyển từ V2-14) Mở rộng bộ cách ly tenant: hỏi đáp và API hội thoại với ≥ 3 workspace có "chuỗi bí mật" riêng không bao giờ trả chuỗi, trích dẫn hay hội thoại của workspace khác (`404` cho id ngoài workspace); chạy trong `tenant-isolation.yml`.
 
 **Harness**
 

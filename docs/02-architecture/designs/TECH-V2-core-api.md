@@ -3,7 +3,7 @@ id: TECH-V2-CORE-API
 title: "Thiết kế kỹ thuật core-api (V2): danh tính, workspace, thành viên, tài liệu, outbox"
 status: approved
 created: 2026-10-20
-updated: 2026-11-05
+updated: 2026-11-09
 refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -889,9 +889,9 @@ Owner duyệt theo đề xuất cho Q1, Q3, Q4, Q5. Q2 được thay bằng quy�
 
 ---
 
-## 13. Ghi chú triển khai V2-12 và V2-23 (2026-11-06, chờ owner duyệt)
+## 13. Ghi chú triển khai V2-12 và V2-23 (2026-11-06, owner duyệt 2026-11-09)
 
-Các chỗ code khác với đặc tả ở trên. Chưa phải quyết định đã duyệt; owner xem khi nghiệm thu V2-12/V2-23.
+Các chỗ code khác với đặc tả ở trên. Owner duyệt khi nghiệm thu V2-12/V2-23 (2026-11-09); bảng này thắng các mục tương ứng phía trên.
 
 | Mục | TECH | Code | Lý do |
 |---|---|---|---|
