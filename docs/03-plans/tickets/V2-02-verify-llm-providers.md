@@ -4,13 +4,14 @@ title: "Xác nhận model LLM còn sống bằng key thật"
 type: chore
 status: done
 created: 2026-10-17
-updated: 2026-11-01
+updated: 2026-11-09
+author: "Owner"
 scope: ai-qa
 priority: P0
 size: S
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: []
-blocks: [V2-10]
+blocks: [V2-10, V2-34]
 branch: "chore/ai-qa-verify-providers"
 assignee: owner
 ---

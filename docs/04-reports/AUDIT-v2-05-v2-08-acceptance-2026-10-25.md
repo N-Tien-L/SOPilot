@@ -1,11 +1,11 @@
 ---
 id: AUDIT-V2-05-V2-08-ACCEPTANCE-2026-10-25
 title: "Nghiệm thu V2-05 công cụ eval và V2-08 hạ tầng local"
-type: quality-audit
+type: audit
 status: final
 created: 2026-10-25
 updated: 2026-10-25
-author: "Codex"
+author: "Owner"
 scope: [eval, infra]
 verdict: PASSED_WITH_WARNINGS
 refs:

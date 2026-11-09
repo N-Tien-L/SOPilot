@@ -27,6 +27,15 @@ version: 1.0
 > /documents/{id}`; `GET /api/v1/audit-logs` (OWNER). `PATCH /internal/documents/{id}/versions/{versionId}/status`
 > (header `X-Internal-Token`) is ai-service's callback (TECH-V2-core-api section 8.2). Lists use
 > `{"data": [...], "page": {"cursor", "hasMore"}, "traceId"}`.
+> **ai-service (V2-09, V2-10; `/ai/v1/**`, same Bearer token, ai-service verifies it through JWKS; another user's or
+> workspace's conversation is `404`):** `GET /documents/{id}/versions/{versionId}/content`;
+> `POST /conversations/{id|new}/messages` body `{content, lang?}` answers with `text/event-stream`
+> (events `meta`, `delta`, `replace`, `refusal`, `citations`, `done`, `error`; TECH-V2-ai-service §7.2; `error` codes
+> `QUOTA_EXCEEDED`, `LLM_UNAVAILABLE`, `INTERNAL_ERROR`, fixed text); `GET /conversations`, `GET /conversations/{id}`
+> (an answer whose cited document is no longer readable comes back as `{hidden: true, reason: ACCESS_REVOKED|
+> DOCUMENT_DELETED}`), `PATCH /conversations/{id}` (title), `DELETE /conversations/{id}` (soft). These routes use plain
+> JSON, not the core-api `{"data", "traceId"}` envelope. `503` when the LLM endpoint or embedding model is not
+> configured (the first question builds them).
 > The rest of this file describes frozen V1 (gateway, `ApiResponse` with `success`).
 
 ## Purpose
@@ -615,4 +624,4 @@ Internal routes (user-service `InternalRosterController`, `@PreAuthorize("hasRol
 
 ## Google admission update ? 2026-10-15
 
-Google authentication is owned exclusively by auth-service. The public POST /api/v1/auth/google/verify contract remains unchanged. Internal POST /internal/v1/roster/google-admission accepts {email,userId}; userId is resolved by auth-service from the verified issuer/subject link and is never supplied by the browser. X-Internal-Service authenticates the caller. Every Google login checks roster admission; 404 missing roster maps to public 403, deactivated roster returns 403, inconsistent claim or account mismatch returns 409, unavailable service fails closed with 503. See docs/02-architecture/designs/TECH-google-admission.md for exact JSON and status contracts. Legacy gateway code-exchange routes are unregistered.
+Google authentication is owned exclusively by auth-service. The public POST /api/v1/auth/google/verify contract remains unchanged. Internal POST /internal/v1/roster/google-admission accepts {email,userId}; userId is resolved by auth-service from the verified issuer/subject link and is never supplied by the browser. X-Internal-Service authenticates the caller. Every Google login checks roster admission; 404 missing roster maps to public 403, deactivated roster returns 403, inconsistent claim or account mismatch returns 409, unavailable service fails closed with 503. See docs/_archive/02-architecture/designs/TECH-google-admission.md for exact JSON and status contracts. Legacy gateway code-exchange routes are unregistered.

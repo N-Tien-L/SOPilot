@@ -5,6 +5,7 @@ type: chore
 status: done
 created: 2026-10-17
 updated: 2026-10-25
+author: "Owner"
 scope: infra
 priority: P0
 size: M

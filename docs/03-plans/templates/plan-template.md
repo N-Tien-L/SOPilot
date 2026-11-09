@@ -4,6 +4,7 @@ title: "[Tên kế hoạch triển khai Milestone / Feature]"
 status: draft # draft | approved | superseded
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+author: "Owner"
 refs: [docs/01-requirements/PRD-XXX.md, docs/02-architecture/designs/TECH-XXX.md]
 milestone: "[Milestone X]"
 total_tickets: 0

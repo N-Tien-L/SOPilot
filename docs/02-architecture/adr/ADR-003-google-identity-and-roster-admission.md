@@ -4,6 +4,7 @@ title: "Google subject binding and roster admission on every Google login"
 status: superseded
 created: 2026-10-15
 updated: 2026-10-20
+author: "Owner"
 amends: [ADR-001]
 superseded_by: "ADR-005"
 ---

@@ -4,6 +4,7 @@ title: "V2: nhà cung cấp AI/hạ tầng miễn phí; môi trường eval loca
 status: approved
 created: 2026-10-17
 updated: 2026-11-01
+author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md

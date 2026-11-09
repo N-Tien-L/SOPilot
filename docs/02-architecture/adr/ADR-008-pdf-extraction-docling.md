@@ -4,6 +4,7 @@ title: "V2: dùng Docling làm thư viện trích xuất PDF có lớp chữ"
 status: approved
 created: 2026-10-21
 updated: 2026-10-21
+author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md

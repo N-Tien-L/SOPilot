@@ -4,6 +4,7 @@ title: "[Tên quyết định kiến trúc]"
 status: draft # draft | approved | superseded
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+author: "Owner"
 refs: [docs/01-requirements/PRD-XXX.md]
 deciders: ["Principal Architect", "Tech Lead"]
 amends: [] # ADR bị điều chỉnh một phần, vẫn giữ approved

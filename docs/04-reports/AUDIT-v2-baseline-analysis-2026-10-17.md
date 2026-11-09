@@ -1,10 +1,10 @@
 ---
 id: AUDIT-V2-BASELINE-ANALYSIS
 title: "Phân tích nền cho V2: tính năng, auth, model AI, truy xuất và đánh đổi"
-type: quality-audit
-status: draft
+type: audit
+status: final
 created: 2026-10-17
-updated: 2026-10-17
+updated: 2026-11-08
 author: "Owner"
 milestone: "V2: SOPilot MVP"
 scope: [all]

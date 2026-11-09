@@ -24,7 +24,7 @@ hash only), `processed_requests` (idempotency keys), `system_usage` (daily count
 | `chunk_terms` | BM25 index: `(chunk_id, term) -> tf`, including `~` folded terms | worker |
 | `embedding_cache` | `(model, revision, content_sha256) -> vector` | worker |
 | `retrieval_results` | All `rerank_pool` candidates of a question with `dense_score`, `bm25_score`, `fusion_score`, `rerank_score` kept apart, `in_context` for the hit chunks | `sopilot_ai.db.repositories.retrieval_results.save` (called by the Q&A pipeline, V2-10) |
-| `conversations`, `messages`, `message_citations`, `guard_events`, `usage_counters`, `system_usage` | Q&A (V2-10); `messages` already has `refusal_reason`, `route`, `rewrite_status`, `checks`, `context_sources` | not yet used |
+| `conversations`, `messages`, `message_citations`, `guard_events`, `usage_counters`, `system_usage` | Q&A (V2-10); `messages` has `refusal_reason`, `route`, `rewrite_status`, `checks`, `context_sources`. One turn writes a USER and an ASSISTANT row in one transaction (`conversations/repository.py`); counters only when a quota is on (`quota/counters.py`) | used since V2-10 milestone 3 |
 | `message_feedback`, `knowledge_gap_status` | FR-16/17 (V2-13) | not yet used |
 | `suggestion_jobs`, `suggestion_cache` | Metadata suggestions (V2-25) | not yet used |
 | `outbox_events` | `VERSION_STATUS` / `SUGGESTIONS_READY` callbacks to core-api | worker; dispatcher marks `DELIVERED`/`DEAD` |

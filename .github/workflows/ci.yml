@@ -6,7 +6,25 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Secret scan over the full history of the pushed/PR range.
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # V2 Flyway chains: naming, no gaps, no destructive DDL, and no edits to migrations that exist on the base branch.
   migrations:
     runs-on: ubuntu-latest
@@ -19,6 +37,40 @@ jobs:
       shell: pwsh
       run: ./scripts/check-migrations.ps1 -BaseRef "origin/${{ github.base_ref || 'main' }}"
 
+  # V2 core-api: Java 21, unit tests only (Testcontainers suites run in tenant-isolation.yml).
+  core-api-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v5
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+    - name: Unit tests
+      run: |
+        cd services/core-api
+        chmod +x mvnw
+        ./mvnw -B test
+
+  # V2 ai-service: unit tests only (integration needs a database).
+  ai-service-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Lint and unit tests
+      run: |
+        cd services/ai-service
+        uv sync --extra dev
+        uv run ruff check
+        uv run pytest tests/unit
+
+  # V1 (frozen): kept green until V2-17 removes it.
   backend-java:
     runs-on: ubuntu-latest
     strategy:

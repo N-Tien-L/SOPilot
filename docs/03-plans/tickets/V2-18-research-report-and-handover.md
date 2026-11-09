@@ -5,6 +5,7 @@ type: docs
 status: todo
 created: 2026-10-17
 updated: 2026-10-24
+author: "Owner"
 scope: docs
 priority: P0
 size: M

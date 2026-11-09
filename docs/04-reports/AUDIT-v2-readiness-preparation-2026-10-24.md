@@ -1,11 +1,11 @@
 ---
 id: AUDIT-V2-READINESS-PREPARATION-2026-10-24
 title: "Chuẩn bị triển khai V2: review nền, tách XL và công cụ dữ liệu"
-type: quality-audit
+type: audit
 status: final
 created: 2026-10-24
 updated: 2026-10-24
-author: "Codex"
+author: "Owner"
 milestone: "V2: SOPilot MVP"
 scope: [docs, eval, infra]
 verdict: PASSED_WITH_WARNINGS

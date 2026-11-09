@@ -4,6 +4,7 @@ title: "V2: workspace là tenant; đăng nhập Google JIT, lời mời và gia 
 status: approved
 created: 2026-10-16
 updated: 2026-10-20
+author: "Owner"
 refs: [docs/01-requirements/PRD-V2-sopilot-mvp.md, docs/02-architecture/adr/ADR-004-two-service-architecture.md]
 deciders: ["Owner"]
 amends: []

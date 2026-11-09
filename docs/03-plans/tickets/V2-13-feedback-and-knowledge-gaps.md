@@ -4,7 +4,8 @@ title: "Phản hồi câu trả lời và danh sách khoảng trống tri thức
 type: feat
 status: todo
 created: 2026-10-17
-updated: 2026-10-24
+updated: 2026-11-09
+author: "Owner"
 scope: ai-qa
 priority: P1
 size: M
@@ -26,6 +27,7 @@ FR-16, FR-17. Thay feedback-service bằng phần tối giản trong ai-service,
 - [ ] Sửa 2026-10-21 (D8): câu hỏi trong danh sách là bản đã che PII (tính lại bằng `qa/pii.py` khi trả lời, không lưu bản thứ hai); test với câu chứa email và số điện thoại.
 - [ ] Lọc theo `workspace_id` + RLS; member không xem được danh sách của admin; danh sách không kèm tên người hỏi (FR-15).
 - [ ] Không có dashboard, export hay xu hướng (ngoài phạm vi PRD §5).
+- [ ] (Chuyển từ V2-14) Bộ cách ly tenant phủ API feedback và danh sách khoảng trống tri thức: ≥ 3 workspace có "chuỗi bí mật", không trả phiếu, bình luận hay câu hỏi của workspace khác; chạy trong `tenant-isolation.yml`.
 
 ## 3. Hướng dẫn
 - **File:** `services/ai-service/` (bảng `rag.message_feedback`, `rag.knowledge_gap_status`, API `/ai/v1/messages/{id}/feedback`, `/ai/v1/knowledge-gaps`); nguồn: `services/feedback-service`, `services/ai-qa-service/src/services/knowledge_gap.py` (chỉ tham khảo, ngưỡng cũ không dùng lại).

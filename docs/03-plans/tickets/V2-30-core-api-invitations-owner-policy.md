@@ -5,6 +5,7 @@ type: feat
 status: todo
 created: 2026-10-24
 updated: 2026-11-09
+author: "Owner"
 scope: user
 priority: P0
 size: M
@@ -27,6 +28,8 @@ Tách FR-04 và phần P1 FR-05 khỏi V2-11. Theo TECH-V2-core-api §3.2, §5.3
 - [ ] Luôn còn ≥ 1 OWNER; ADMIN không nâng/xóa OWNER; thao tác vượt workspace bị từ chối.
 - [ ] (P1, có thể hoãn có ghi nhận) Domain join qua claim `hd` (FR-05).
 - [ ] Không gửi email tự động nếu chưa được owner cho phép; API tạo link lời mời vẫn chạy được.
+- [ ] (Chuyển từ V2-23) Lời mời mang hồ sơ (`display_name`, `employee_code`, `job_title`, `department_id`; bảng `core.invitations` đã có ở `V004`) và áp vào membership khi chấp nhận; không mời vào phòng ban `ARCHIVED`; `employee_code` trùng trong workspace bị từ chối. Integration: mời kèm hồ sơ → chấp nhận → token có `wdept`.
+- [ ] (P1, có thể hoãn có ghi nhận; chuyển từ V2-23, FR-24) Import CSV tạo lời mời hàng loạt, báo lỗi theo dòng.
 
 ## 3. Hướng dẫn
 1. Thêm controller/service trong `services/core-api/src/main/java/com/sopilot/core/member/`.

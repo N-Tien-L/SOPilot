@@ -1,7 +1,7 @@
 ---
 id: AUDIT-EVAL-RQ1-RQ3-2026-11-04
 title: "V2-07: RQ1/RQ1b/RQ2/RQ3/RQ5 truy xuất đa ngôn ngữ trên sop-main"
-type: test-audit
+type: audit
 status: final
 created: 2026-11-04
 updated: 2026-11-07
@@ -12,7 +12,7 @@ verdict: PASSED_WITH_WARNINGS
 refs:
   - docs/03-plans/tickets/V2-07-run-rq1-rq3-rq5.md
   - docs/02-architecture/designs/TECH-V2-ai-service.md
-  - docs/04-reports/HANDOFF-research-04-experiment-tooling.md
+  - docs/04-reports/RESEARCH-04-experiment-tooling.md
   - eval/datasets/sop-main/README.md
 ---
 

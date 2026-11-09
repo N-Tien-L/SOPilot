@@ -1,4 +1,6 @@
 ﻿---
+> **V1 LEGACY (frozen):** describes the eight-service V1 stack (gateway, RabbitMQ, `init-db`). For V2 work, the V2 tickets and `docs/02-architecture/designs/TECH-V2-*` win over this file until V2-17 rewrites it. Use it to read and port V1 behaviour, not as the V2 contract.
+
 title: RBAC Matrix and Implementation
 description: Role-Based Access Control matrix and implementation guidance for guards and decorators
 type: authorization

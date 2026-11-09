@@ -47,6 +47,8 @@ S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/
 No profile is active by default. Outside `local`/`test` the service refuses to start without
 `SOPILOT_JWT_PRIVATE_KEY_PATH` and `SOPILOT_NONCE_HMAC_KEY`, and dev login does not exist.
 
+Copy `.env.example` in this directory to `.env`; it lists the variables below with local values and the PowerShell line that loads them into the shell (Spring does not read `.env` itself).
+
 | Env | Default | Notes |
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | none | `local` for development, `test` for automated tests/eval |

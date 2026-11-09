@@ -12,4 +12,4 @@ Read this when changing document bucket configuration or applying SQL migration 
 
 Before changing an existing bucket, inventory document row bucket references and object locations, propose a migration/rollback procedure, and verify on an isolated test database/storage. Never update old row references without moving and verifying their corresponding objects.
 
-Checkpoint verification is recorded in `docs/04-reports/HANDOFF-implementation-2026-10-15.md`; configuration validation is not proof that storage or ingestion ran successfully.
+Checkpoint verification is recorded in `docs/_archive/04-reports/HANDOFF-implementation-2026-10-15.md`; configuration validation is not proof that storage or ingestion ran successfully.

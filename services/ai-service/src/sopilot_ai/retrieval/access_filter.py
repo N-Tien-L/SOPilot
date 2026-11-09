@@ -28,22 +28,44 @@ class Principal:
             raise ValueError(f"unknown workspace role {self.role!r}")
 
 
-_ALLOWED = """allowed AS (
-    SELECT da.document_id, da.active_version_id, da.title
-      FROM rag.document_access da
-     WHERE da.workspace_id = :wid
-       AND da.deleted_at IS NULL
+# One predicate, used by both CTEs below, so "readable" has a single definition.
+_READABLE = """da.deleted_at IS NULL
        AND da.active_version_id IS NOT NULL
        AND ( CAST(:wrole AS text) IN ('OWNER', 'ADMIN')
              OR da.visibility = 'WORKSPACE'
              OR (CAST(:wdept AS uuid) IS NOT NULL
-                 AND CAST(:wdept AS uuid) = ANY (da.department_ids)) )
+                 AND CAST(:wdept AS uuid) = ANY (da.department_ids)) )"""
+
+_ALLOWED = f"""allowed AS (
+    SELECT da.document_id, da.active_version_id, da.title
+      FROM rag.document_access da
+     WHERE da.workspace_id = :wid
+       AND {_READABLE}
+)"""
+
+# Same predicate, but every document of the workspace with the reason a citation may be hidden
+# (TECH-V2-ai-service §7.5): used only to re-read a stored conversation, never to retrieve.
+_CITED_ACCESS = f"""cited_access AS (
+    SELECT da.document_id, da.active_version_id, da.title,
+           da.deleted_at IS NOT NULL AS deleted,
+           ({_READABLE}) AS readable
+      FROM rag.document_access da
+     WHERE da.workspace_id = :wid
 )"""
 
 
 def allowed_cte() -> str:
     """``allowed (document_id, active_version_id, title)`` CTE body, to follow ``WITH``."""
     return _ALLOWED
+
+
+def cited_access_cte() -> str:
+    """``cited_access (document_id, active_version_id, title, deleted, readable)`` CTE body.
+
+    ``readable`` is exactly the ``allowed`` predicate. A document that has no row at all is
+    absent from the CTE; callers treat that as deleted (fail closed).
+    """
+    return _CITED_ACCESS
 
 
 def access_params(principal: Principal) -> dict[str, Any]:

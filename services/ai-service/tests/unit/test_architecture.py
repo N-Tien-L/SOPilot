@@ -46,9 +46,16 @@ def test_docproc_is_pure() -> None:
     assert _violations(_modules("docproc"), banned) == []
 
 
-@pytest.mark.parametrize("subpackage", ["retrieval", "providers", "docproc"])
+@pytest.mark.parametrize("subpackage", ["retrieval", "providers", "docproc", "qa"])
 def test_lower_layers_do_not_import_http_or_worker(subpackage: str) -> None:
     assert _violations(_modules(subpackage), UPPER_LAYERS) == []
+
+
+def test_rule_based_qa_modules_and_context_assembly_do_no_io():
+    """V2-10 deterministic part: no storage or HTTP, so ``eval/`` can import it."""
+    paths = [PKG / "retrieval" / "context.py", *_modules("qa")]
+    banned = IO_LIBS + ("sopilot_ai.db",)
+    assert _violations(paths, banned) == []
 
 
 def _files_containing(pattern: str) -> set[str]:
@@ -64,3 +71,22 @@ def test_tenant_binding_lives_only_in_engine() -> None:
 def test_document_access_is_read_only_through_the_access_filter() -> None:
     readers = _files_containing(r"\bFROM\s+rag\.document_access\b|\bJOIN\s+rag\.document_access\b")
     assert readers <= {"retrieval/access_filter.py"}, readers
+
+
+def test_conversation_sql_is_always_scoped_to_the_workspace_and_the_owner() -> None:
+    """V2-10 milestone 3: every statement of the conversation repository names ``workspace_id``,
+    and the ones on conversations or messages also name ``user_id`` (a user's own turns only)."""
+    source = (PKG / "conversations" / "repository.py").read_text(encoding="utf-8")
+    statements = re.findall(r'text\(f?"""(.*?)"""\)', source, re.DOTALL)
+    assert len(statements) >= 10
+    for sql in statements:
+        assert "workspace_id" in sql or ":wid" in sql, sql[:80]
+        if re.search(r"rag\.(conversations|messages)\b", sql):
+            assert "user_id" in sql, sql[:80]
+
+
+def test_only_the_repository_writes_conversation_tables() -> None:
+    writers = _files_containing(
+        r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+rag\.(conversations|messages|message_citations"
+        r"|guard_events|usage_counters|system_usage)\b")
+    assert writers <= {"conversations/repository.py", "quota/counters.py"}, writers

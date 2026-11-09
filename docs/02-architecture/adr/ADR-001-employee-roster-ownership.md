@@ -4,7 +4,8 @@ title: "Quyền sở hữu bảng core.employee_roster thuộc user-service"
 status: superseded
 created: 2026-09-25
 updated: 2026-10-20
-refs: [docs/01-requirements/PRD-M1-jit-onboarding.md]
+author: "Owner"
+refs: [docs/_archive/01-requirements/PRD-M1-jit-onboarding.md]
 deciders: ["Principal Architect", "Tech Lead"]
 superseded_by: "ADR-005"
 ---

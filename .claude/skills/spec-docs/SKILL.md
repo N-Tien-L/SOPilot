@@ -1,6 +1,6 @@
 ---
 name: spec-docs
-description: Write or update SOPilot spec-chain documents in docs/ (PRD, ADR, TECH design, PLAN, ticket, AUDIT/HANDOFF report), in Vietnamese with the repo's frontmatter and status rules. Use when asked to draft requirements, record an architecture decision, design, plan or split tickets, or write an acceptance/audit report. Not for code changes.
+description: Write or update SOPilot spec-chain documents in docs/ (PRD, ADR, TECH design, PLAN, ticket, AUDIT/RESEARCH/HANDOFF report), in Vietnamese with the repo's frontmatter and status rules. Use when asked to draft requirements, record an architecture decision, design, plan or split tickets, or write an acceptance/audit report. Not for code changes.
 ---
 
 # SOPilot spec documents
@@ -15,14 +15,18 @@ The source of conventions is `docs/README.md` (frontmatter fields, status vocabu
 | Hard-to-reverse decision | ADR | `docs/02-architecture/adr/ADR-NNN-*.md` | `adr/templates/adr-template.md` |
 | DDL, API, sequence, config | TECH | `docs/02-architecture/designs/TECH-*.md` | `designs/templates/tech-design-template.md` |
 | Tickets, DAG, status table | PLAN + tickets | `docs/03-plans/` | `03-plans/templates/{plan,ticket}-template.md` |
-| Evidence of acceptance | AUDIT / HANDOFF | `docs/04-reports/AUDIT-<scope>-<name>-YYYY-MM-DD.md` | `04-reports/templates/audit-report-template.md` |
+| Evidence of acceptance, assessment with a verdict | AUDIT | `docs/04-reports/AUDIT-<scope>-<name>-YYYY-MM-DD.md` | `04-reports/templates/audit-report-template.md` |
+| Lookup, research design, source notes | RESEARCH | `docs/04-reports/RESEARCH-<name>-YYYY-MM-DD.md` | `04-reports/templates/research-template.md` |
+| Prompt for the next session to continue work | HANDOFF | `docs/04-reports/HANDOFF-<scope>-<name>-YYYY-MM-DD.md` | `04-reports/templates/handoff-template.md` |
 
 Chain: PRD `approved` → ADR/TECH → PLAN → tickets → code → AUDIT. No PLAN without an approved PRD.
 
 ## Rules
 
 - Prose in Vietnamese; identifiers, paths, commands and code in English. Concise: decisions, numbers, file paths.
-- `author: "Owner"`. Never name Claude or any AI as author or co-author.
+- `author: "Owner"` on every document (required field). Never name Claude, Codex or any AI or invented role as author or co-author. If a tool did the review, say so in the body as a method fact.
+- Report prefix, `id` prefix and `type` must match (`AUDIT`/`audit`, `RESEARCH`/`research`, `HANDOFF`/`handoff`). Closed V1 documents live in `docs/_archive/`; do not edit them or link new work to them except as history.
+- Record an owner decision once, in the ADR or TECH it belongs to. The PLAN note and the ticket point to it; do not paste the decision text into several places.
 - Status changes to `approved`/`done`/`final` are the owner's decision. You may propose them. Ticket `done` requires evidence (`docs/README.md`).
 - Changing a ticket's status updates the PLAN table **and** its counters in the same edit. Keep `depends_on` ↔ `blocks` ↔ the PLAN DAG consistent.
 - An owner decision recorded in PLAN goes in a dated note `> **Owner chốt YYYY-MM-DD (...):** ...` and names every ticket it changes.
@@ -32,6 +36,7 @@ Chain: PRD `approved` → ADR/TECH → PLAN → tickets → code → AUDIT. No P
 
 ## Verify before finishing
 
+- Run `./scripts/check-docs.ps1`. It checks frontmatter, status vocabulary, author, report type, PLAN counters, `depends_on` ↔ `blocks`, tickets left open under a superseded plan, and links. It must print `docs check passed`.
 - Frontmatter: required fields `id`, `title`, `status`, `created`, `updated`, plus the type-specific fields from `docs/README.md`.
 - Relative links resolve. Check every new link path exists.
 - For PLAN/ticket edits, recount: `completed_tickets` = number `done`, `review_tickets` = number `review`, `implemented_tickets` = their sum, all matching ticket frontmatter.

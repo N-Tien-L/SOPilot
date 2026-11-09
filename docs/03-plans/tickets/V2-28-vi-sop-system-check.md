@@ -5,6 +5,7 @@ type: test
 status: todo
 created: 2026-10-21
 updated: 2026-10-24
+author: "Owner"
 scope: tests
 priority: P1
 size: M

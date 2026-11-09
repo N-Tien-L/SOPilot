@@ -1,0 +1,55 @@
+# Rules behind `QueryFrame` (qa/query_frame.py, V2-10).
+# DRAFT for owner review.
+
+language:
+  # Share of letters that carry a Vietnamese diacritic at or above which a question is Vietnamese.
+  vi_diacritic_ratio: 0.04
+  # Unaccented Vietnamese words/phrases that show up in questions typed without diacritics.
+  vi_unaccented_markers:
+    - la gi
+    - nhu the nao
+    - bao nhieu
+    - bao lau
+    - quy trinh
+    - khong
+    - the nao
+    - co duoc
+    - cac buoc
+    - ai duyet
+    - nghi phep
+
+# Signals that a question compares things or holds several asks. Recorded in
+# `messages.route.signals.comparison` only; they never change the route.
+comparison:
+  keywords:
+    - so sánh
+    - khác nhau
+    - khác gì
+    - giống nhau
+    - khác biệt
+    - vs
+    - versus
+    - compare
+    - comparison
+    - difference
+    - differences
+    - different
+  min_doc_codes: 2
+
+# Amount units: multiplier applied to the number before it. Used by the query frame and by the
+# number check so "50 triệu" and "50.000.000" compare equal.
+amount_units:
+  nghìn: 1000
+  ngàn: 1000
+  k: 1000
+  triệu: 1000000
+  tr: 1000000
+  million: 1000000
+  tỷ: 1000000000
+  tỉ: 1000000000
+  billion: 1000000000
+  đồng: 1
+  vnd: 1
+  vnđ: 1
+  đ: 1
+  usd: 1

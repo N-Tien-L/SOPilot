@@ -4,6 +4,7 @@ title: "V2: hai backend service (core-api Spring Boot + ai-service FastAPI), bá»
 status: approved
 created: 2026-10-16
 updated: 2026-10-21
+author: "Owner"
 refs: [docs/01-requirements/PRD-V2-sopilot-mvp.md]
 deciders: ["Owner"]
 amends: []

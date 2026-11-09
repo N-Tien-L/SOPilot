@@ -9,8 +9,8 @@ milestone: "V2: SOPilot MVP"
 priority: P0
 refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
-  - docs/04-reports/AUDIT-project-progress-2026-10-14.md
-  - docs/04-reports/AUDIT-google-admission-2026-10-15.md
+  - docs/_archive/04-reports/AUDIT-project-progress-2026-10-14.md
+  - docs/_archive/04-reports/AUDIT-google-admission-2026-10-15.md
   - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
   - docs/02-architecture/adr/ADR-007-departments-member-profiles-document-access.md
@@ -213,7 +213,7 @@ Môi trường và thiết kế thí nghiệm: ADR-006 §4.2 (chạy trên máy 
 
 10. **Ưu tiên nghiên cứu khoa học:** tạm tắt các ràng buộc thương mại; hạn mức FR-09 mặc định tắt (không giới hạn), cơ chế cấu hình vẫn giữ để bật lại sau. Câu hỏi 20 hay 50 câu/ngày (TECH-V2-core-api Q2) không còn phải chốt. *Sửa 2026-10-21 (mục 14): hạn mức tài liệu/dung lượng mặc định bật lại 50/200 MB; hạn mức câu hỏi vẫn tắt.*
 11. **Phản hồi và khoảng trống tri thức (FR-16, FR-17)** đặt ở ai-service (schema `rag`), sửa ADR-004 §4.1.
-12. **Phạm vi ingestion:** duyệt [PRD-V2-ingestion-mvp-scope](PRD-V2-ingestion-mvp-scope.md); đưa vào PRD này FR-30 (chọn nhiều file) và no-op khi bản thay thế trùng SHA-256 (FR-07). Ngày 2026-10-21 toàn bộ nội dung còn lại của tài liệu đó được hợp nhất vào FR-06..FR-09, FR-30 và tài liệu đó chuyển `superseded`; PRD này là nguồn yêu cầu duy nhất.
+12. **Phạm vi ingestion:** duyệt [PRD-V2-ingestion-mvp-scope](../_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md); đưa vào PRD này FR-30 (chọn nhiều file) và no-op khi bản thay thế trùng SHA-256 (FR-07). Ngày 2026-10-21 toàn bộ nội dung còn lại của tài liệu đó được hợp nhất vào FR-06..FR-09, FR-30 và tài liệu đó chuyển `superseded`; PRD này là nguồn yêu cầu duy nhất.
 13. **Đăng nhập:** ai có tài khoản Google cũng đăng nhập được và có workspace cá nhân (UC-01), không cần lời mời.
 
 **Bổ sung owner chốt 2026-10-21 (chuẩn hóa Markdown và màn xem trích xuất, [AUDIT-markdown-normalization](../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):**

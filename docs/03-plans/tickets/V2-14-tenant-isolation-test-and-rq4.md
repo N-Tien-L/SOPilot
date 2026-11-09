@@ -2,9 +2,10 @@
 id: V2-14
 title: "Test cách ly tenant FR-19 trong CI và đo RQ4"
 type: test
-status: review
+status: done
 created: 2026-10-17
-updated: 2026-11-06
+updated: 2026-11-09
+author: "Owner"
 scope: tests
 priority: P0
 size: M
@@ -21,7 +22,7 @@ assignee: pair
 Rủi ro lớn nhất của hệ thống cũ (A1, A2). Cần bằng chứng 0 rò rỉ chạy tự động.
 
 ## 2. Tiêu chí Hoàn thành
-- [ ] Test tạo ≥ 3 workspace, mỗi workspace có tài liệu chứa "chuỗi bí mật" riêng; chứng minh không câu hỏi, API tài liệu, hội thoại, feedback hay audit nào trả dữ liệu workspace khác. **Còn mở một phần:** API tài liệu, thành viên, phòng ban, audit và bảng hội thoại/feedback (mức DB) đã phủ; hỏi đáp, hội thoại, feedback qua API chờ V2-10/V2-13.
+- [x] Test tạo ≥ 3 workspace, mỗi workspace có tài liệu chứa "chuỗi bí mật" riêng; chứng minh không câu hỏi, API tài liệu, hội thoại, feedback hay audit nào trả dữ liệu workspace khác. (API tài liệu, thành viên, phòng ban, audit và bảng hội thoại/feedback ở mức DB đã phủ; hỏi đáp và hội thoại qua API chuyển sang V2-10, feedback qua API chuyển sang V2-13, đều chạy trong `tenant-isolation.yml`)
 - [x] Test thiếu/giả `workspace_id` trong token và truy vấn trực tiếp DB bằng role ứng dụng bị RLS chặn.
 - [x] Workflow GitHub Actions chạy test này trên mỗi PR. (run xanh 4/4 job trên PR #5, 2026-11-07; phân quyền phòng ban trong cùng workspace là bộ riêng ở V2-26)
 - [x] RQ4: đo độ trễ truy xuất với lọc ứng dụng so với ứng dụng + RLS trên cùng dữ liệu, ghi p50/p95 vào báo cáo.
@@ -32,7 +33,9 @@ Rủi ro lớn nhất của hệ thống cũ (A1, A2). Cần bằng chứng 0 r�
 ## 4. Kiểm thử
 Chính ticket này là test. Bằng chứng: log CI xanh và một lần chạy cố ý bỏ lọc để xác nhận test **fail** khi có rò rỉ (kiểm chứng test không vô nghĩa).
 
-## 5. Bằng chứng triển khai (2026-11-06, chờ owner nghiệm thu)
+## 5. Bằng chứng triển khai (2026-11-06, nghiệm thu 2026-11-09)
+
+Owner nghiệm thu 2026-11-09, chuyển `done`; [AUDIT-v2-14](../../04-reports/AUDIT-v2-14-tenant-isolation-rq4-2026-11-06.md) chuyển `final`. Phần cách ly qua API hỏi đáp/hội thoại/feedback là tiêu chí của V2-10 và V2-13 vì các API đó chưa tồn tại. Kiểm lại khi nghiệm thu: `cd tests/tenant-isolation && uv run pytest -q` -> 31 xanh; `ISOLATION_MUTATION=disable-rls uv run pytest -q` -> 23 fail, 8 xanh (như số đã ghi); `TenantIsolationApiIT` 8 và `TenantIsolationIT` 9 xanh trong `./mvnw -B verify`; workflow `Tenant isolation (FR-19)` xanh trên PR #5 và trên `develop` (run 42506269294, 2026-11-08).
 
 Chi tiết và số đo: [AUDIT-v2-14](../../04-reports/AUDIT-v2-14-tenant-isolation-rq4-2026-11-06.md).
 

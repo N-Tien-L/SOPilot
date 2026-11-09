@@ -1,4 +1,6 @@
 ﻿---
+> **V1 LEGACY (frozen):** describes the eight-service V1 stack (gateway, RabbitMQ, `init-db`). For V2 work, the V2 tickets and `docs/02-architecture/designs/TECH-V2-*` win over this file until V2-17 rewrites it. Use it to read and port V1 behaviour, not as the V2 contract.
+
 title: RabbitMQ Event Contracts
 description: Complete catalog of RabbitMQ events, payload schemas, and queue configurations
 type: service-boundaries
@@ -273,7 +275,7 @@ except AlreadyIndexedError:
 { "eventId": "uuid", "userId": "uuid", "username": "string", "departmentId": "uuid", "departmentName": "string", "assignedBy": "uuid", "occurredAt": "ISO-8601" }
 ```
 
-**Delivery guarantee**: publishing happens after the roster row is saved and a publish failure is only logged, so the claim succeeds even if the events are lost. There is no outbox. The delivery design is tracked in ticket NEXT-04 (`docs/03-plans/tickets/NEXT-04-jit-audit-delivery-design.md`).
+**Delivery guarantee**: publishing happens after the roster row is saved and a publish failure is only logged, so the claim succeeds even if the events are lost. There is no outbox. The delivery design is tracked in ticket NEXT-04 (`docs/_archive/03-plans/tickets/NEXT-04-jit-audit-delivery-design.md`).
 
 ---
 

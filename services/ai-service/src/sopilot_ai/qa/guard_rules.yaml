@@ -1,0 +1,151 @@
+# Guard rules (FR-13 layer 1, TECH-V2-ai-service §7.1 step 2, V2-10).
+# Owner duyệt 2026-11-08 (bản hiện tại). Sẽ tinh chỉnh bằng bộ câu kiểm tra ở Mốc 4. Rules live here, not in code. The separate guard test set (80-100 cases,
+# not the cases in eval/provider_check/prompt_guard_cases.jsonl) tunes them; do not tune on that file.
+#
+# Matching:
+#   block / flag patterns run on the text lowercased, NFC, diacritics stripped, "đ" -> "d" and
+#   leetspeak undone (0->o 1->i 3->e 4->a 5->s 7->t), unless `raw: true`: those run on the
+#   lowercased NFC text with diacritics kept (needed where stripping creates a collision, e.g.
+#   "từ từ" vs "tự tử").
+#   abuse words are whole-word matches against tokens, never substrings ("ngu" does not fire on
+#   "nguồn"). Words that mean something else once diacritics are stripped ("cac" = "các",
+#   "buoi" = "buổi", "lon", "du") appear only in the accented list.
+
+min_meaningful_tokens: 1   # below this many meaningful tokens after stripping -> "not understood"
+standalone_max_tokens: 3   # `abuse.standalone_only` words count only in messages this short
+
+block:
+  - id: inject.reveal_prompt
+    template: guard_block
+    patterns:
+      - 'system\s*prompt|s\s*y\s*s\s*t\s*e\s*m\s*prompt|hidden rules|prompt he thong'
+      - '\b(reveal|print|dump|repeat|output|show|display|tell me|leak|give me)\b.{0,40}\b(your|hidden|secret)\b.{0,15}\b(prompt|instructions?|rules)\b'
+      - '\b(reveal|print|dump|show|leak|give me|tell me)\b.{0,20}\b(your|secret|hidden)\s+api keys?\b'
+      # Only the possessive forms: "quy tắc nội bộ" / "hướng dẫn hệ thống" are ordinary SOP words.
+      - '(tiet lo|in ra|lap lai|hien thi|cho (toi|minh|tao) (xem|biet)|noi cho).{0,40}(prompt|(chi dan|quy tac|huong dan) (cua ban|cua may|cua bot|ban dau cua ban)|khoa api cua ban)'
+  - id: inject.reveal_prompt
+    template: guard_block
+    raw: true   # "ẩn" (hidden) vs "an" (as in "an toàn", "an ninh") collide once diacritics are stripped
+    patterns:
+      - '(chỉ dẫn|quy tắc|luật|hướng dẫn) ẩn\b'
+  - id: inject.override_instructions
+    template: guard_block
+    patterns:
+      - '\b(ignore|disregard|forget|drop)\b.{0,30}\b(all|previous|prior|above|earlier|your)\b.{0,20}\b(instruction|rule|prompt|role)'
+      - 'bo qua (tat ca|moi|toan bo|het) ?(chi dan|huong dan|quy tac|gioi han)'
+      - 'bo qua (chi dan|huong dan|quy tac) (truoc|o tren|cu|he thong)'
+      - '(quen|huy bo|xoa) (moi|tat ca|het|toan bo) ?(quy tac|chi dan|huong dan|vai tro)'
+      - '(tat|bo) (che do tu choi|gioi han phong ban)|turn off (your )?refusal|disable (your )?(safety|content|refusal) (filter|check)s?'
+  - id: inject.fake_system_role
+    template: guard_block
+    raw: true
+    patterns:
+      - '(^|\n)\s*(system|assistant)\s*:'
+      - '\[/?inst\]|<<\s*/?sys\s*>>|<\|im_(start|end)\|>|###\s*system'
+  - id: harm.threat
+    template: harm_block
+    patterns:
+      - '\b(muon|dinh|se|giup toi|giup minh)\s+giet\b(?!\s+thoi gian)|\bdoa giet\b'
+      # A person as the object: "kill the process", "hurt the audit", "shoot you an email" are not threats.
+      - '\b(i want to|i will|i am going to|help me|going to)\s+(kill|murder|stab|shoot|hurt)\s+(him|her|them|someone|somebody|people|my (boss|manager|colleague|coworker|wife|husband)|you\b(?!\s+an?\s))'
+  - id: harm.harassment
+    template: harm_block
+    patterns:
+      - '\b(muon|dinh|giup toi|giup minh)\s+(quay roi|doa dam)\b'
+      - '\b(i want to|help me|going to)\s+(harass|stalk|threaten|intimidate|dox)\b'
+  - id: harm.self_harm
+    template: self_harm
+    raw: true
+    patterns:
+      - '\b(tôi|mình|em|tao)\s+(?:\w+\s+){0,2}(tự tử|tự sát|tự hại bản thân|không muốn sống|muốn chết)\b'
+      - '\bkết thúc cuộc sống\b'
+      - "\\b(i|i'm|im)\\s+(?:\\w+\\s+){0,3}(kill myself|end my life|hurt myself|want to die)"
+      - '\bkill myself\b|\bend my life\b|\b(want|going|plan(ning)?|thinking (of|about))\s+(to\s+)?(commit\s+)?suicide\b|\bcommit(ting)? suicide\b'
+
+flag:
+  - id: inject.roleplay
+    patterns:
+      - 'dong vai(?! tro)|gia vo (la|nhu)|\bpretend\b|\bact as\b|role\s*play|\byou are now\b|tu bay gio ban la|\bfrom now on you\b'
+  - id: inject.skip_steps
+    patterns:
+      - 'bo qua (buoc|cac buoc|quy trinh)|skip (the )?steps?'
+  - id: inject.other_workspace
+    patterns:
+      - 'workspace khac|other workspaces?|another workspace'
+  - id: inject.mode_switch
+    patterns:
+      - '\b(jailbreak|no restrictions|no limitations|developer mode|debug mode|admin mode|bypass)\b|khong (con )?gioi han|khong tuan theo|che do (quan tri|debug|admin)'
+  - id: inject.dan_persona
+    raw: true
+    patterns:
+      - '\bdan\b'
+
+abuse:
+  # Whole-word match on lowercase NFC tokens with diacritics kept.
+  accented:
+    - địt
+    - đụ
+    - đéo
+    - lồn
+    - cặc
+    - buồi
+    - đĩ
+    - ngu
+    - ngu ngốc
+    - đần
+    - óc chó
+    - mất dạy
+    - vô học
+    - khốn nạn
+    - đồ khốn
+    - vcl
+    - vkl
+    - dkm
+    - dcm
+    - dmm
+    - đmm
+    - đcm
+    - đkm
+    - clgt
+    - wtf
+    - stfu
+    - fuck
+    - fucking
+    - fuk
+    - shit
+    - bullshit
+    - bitch
+    - asshole
+    - bastard
+    - dickhead
+    - dumb
+    - stupid
+    - idiot
+    - moron
+  # Whole-word match on diacritics-stripped, leetspeak-undone tokens. Only teencode and
+  # unaccented spellings that have no other meaning.
+  folded:
+    - dit
+    - ditme
+    - dit me
+    - dcm
+    - dkm
+    - dmm
+    - dcmm
+    - vcl
+    - vkl
+    - clgt
+    - du ma
+    - dume
+    - ngu ngoc
+    - oc cho
+    - mat day
+    - khon nan
+  # Ambiguous short forms ("cc" ~ "chứng chỉ", "đm" ~ "định mức", "vl" ~ "vật liệu"): abuse only
+  # in a message of at most `standalone_max_tokens` tokens.
+  standalone_only:
+    - cc
+    - đm
+    - dm
+    - vl
+    - cl

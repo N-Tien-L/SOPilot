@@ -5,18 +5,18 @@ status: final
 created: 2026-10-21
 updated: 2026-10-21
 author: "Owner"
-type: research
+type: audit
 milestone: "V2: SOPilot MVP"
 scope: ingestion
 verdict: decided-pending-converter-spike
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
-  - docs/01-requirements/PRD-V2-ingestion-mvp-scope.md
+  - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/02-architecture/designs/TECH-V2-ai-service.md
   - docs/02-architecture/designs/TECH-V2-core-api.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
   - docs/04-reports/AUDIT-ingestion-business-cases-2026-10-20.md
-  - docs/04-reports/HANDOFF-V2-19-corpus-sources-2026-10-20.md
+  - docs/04-reports/RESEARCH-V2-19-corpus-sources-2026-10-20.md
 ---
 
 # Chuẩn hóa Markdown có cấu trúc và "Nội dung hệ thống nhận diện"
@@ -232,7 +232,7 @@ Quy tắc: cả hai đạt ràng buộc cứng thì chọn bên tốt hơn ở t
 
 ### 6.3 Timebox
 
-- **2 ngày làm việc** trong V2-20, trên tập con tối thiểu của V2-19: ít nhất 6 PDF tiếng Việt (ưu tiên 4 PDF ISO danh sách A của HANDOFF-V2-19 có bảng quy trình), 2 PDF tiếng Anh (EPA), 1 PDF scan. Nhãn heading/bảng của tập con này do owner duyệt trước.
+- **2 ngày làm việc** trong V2-20, trên tập con tối thiểu của V2-19: ít nhất 6 PDF tiếng Việt (ưu tiên 4 PDF ISO danh sách A của RESEARCH-V2-19 có bảng quy trình), 2 PDF tiếng Anh (EPA), 1 PDF scan. Nhãn heading/bảng của tập con này do owner duyệt trước.
 - Nếu corpus chưa đủ khi bắt đầu V2-20: dùng PDF tự tạo từ Word (tiếng Việt, có heading đánh số, bảng có ô gộp) gắn nhãn synthetic, chọn tạm theo ràng buộc cứng và tiêu chí 7–8, ghi ADR-008 là `draft` và chạy lại so sánh khi đủ corpus. Không chặn V2-21/V2-22 vì chúng làm việc trên `StructuredDocument`, không trên thư viện.
 
 ---

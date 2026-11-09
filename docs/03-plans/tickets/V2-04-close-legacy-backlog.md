@@ -5,6 +5,7 @@ type: docs
 status: done
 created: 2026-10-17
 updated: 2026-10-24
+author: "Owner"
 scope: docs
 priority: P1
 size: S
@@ -29,7 +30,7 @@ Tránh nhầm tiến độ giữa hai hướng. Chỉ làm sau khi V2-01 đượ
 - [x] Commit nốt nhánh `fix/auth-google-roster-admission` và PR qua `develop`: đã xong trước ticket này (PR #2 merge vào `origin/develop`, commit `2954aca`).
 
 ## 3. Hướng dẫn
-- **File:** `docs/03-plans/PLAN-M1-jit-onboarding.md`, `PLAN-NEXT-implementation-readiness.md`, các ticket nêu trên, `docs/README.md`.
+- **File:** `docs/_archive/03-plans/PLAN-M1-jit-onboarding.md`, `PLAN-NEXT-implementation-readiness.md`, các ticket nêu trên, `docs/README.md`.
 - **Action:** MODIFY. Giữ bộ đếm PLAN khớp frontmatter ticket.
 
 ## 4. Kiểm thử

@@ -5,6 +5,7 @@ type: feat # feat | fix | chore | refactor | docs | test
 status: todo # todo | in-progress | review | done (done = đã nghiệm thu, xem docs/README.md)
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+author: "Owner"
 scope: user # auth | user | knowledge | metadata | feedback | ai-qa | ingestion | gateway | web | infra | platform | tests | docs
 priority: P0 # P0 | P1 | P2 | P3
 size: M # S (<2h) | M (2-4h) | L (4-8h) | XL (>8h)

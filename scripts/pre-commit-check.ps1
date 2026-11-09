@@ -13,7 +13,7 @@ if (-not $repoRoot -or -not (Test-Path $repoRoot)) {
 Set-Location $repoRoot
 
 # 1. Identify Changed Files
-Write-Host "`n[1/6] Identifying changed files..." -ForegroundColor Cyan
+Write-Host "`n[1/7] Identifying changed files..." -ForegroundColor Cyan
 $ChangedFiles = git diff --cached --name-only
 if (-not $ChangedFiles) {
     $ChangedFiles = git diff --name-only HEAD
@@ -27,7 +27,7 @@ if (-not $ChangedFiles) {
 }
 
 # 2. Check for Debug Statements & Secrets in Diff
-Write-Host "`n[2/6] Checking for debug statements and secrets..." -ForegroundColor Cyan
+Write-Host "`n[2/7] Checking for debug statements and secrets..." -ForegroundColor Cyan
 $DiffContent = git diff --cached -- ':!scripts/*' ':!docs/*' ':!*.md'
 if (-not $DiffContent) {
     $DiffContent = git diff HEAD -- ':!scripts/*' ':!docs/*' ':!*.md'
@@ -64,7 +64,7 @@ if ($HasInvalidTodo) {
 } else { Write-Host "✅ All TODOs have ticket references" -ForegroundColor Green }
 
 # 3. Determine Affected Services & Build/Test
-Write-Host "`n[3/6] Determining affected services and running tests..." -ForegroundColor Cyan
+Write-Host "`n[3/7] Determining affected services and running tests..." -ForegroundColor Cyan
 $AffectedServices = @()
 
 foreach ($File in $ChangedFiles) {
@@ -103,9 +103,13 @@ if ($AffectedServices.Count -eq 0) {
     }
 }
 
-# 4. Validate Docker Compose Config (V2 first; V1 kept until V2-17)
-Write-Host "`n[4/6] Validating Docker Compose config..." -ForegroundColor Cyan
+# 4. Validate Docker Compose Config (V2 always; frozen V1 only when the change touches it, removed by V2-17)
+Write-Host "`n[4/7] Validating Docker Compose config..." -ForegroundColor Cyan
 foreach ($ComposeFile in @("docker-compose.v2.yml", "docker-compose.yml")) {
+    if ($ComposeFile -eq "docker-compose.yml" -and ($ChangedFiles -notcontains $ComposeFile)) {
+        Write-Host "⚠️ $ComposeFile (frozen V1) not changed, skipping." -ForegroundColor Yellow
+        continue
+    }
     if (Test-Path $ComposeFile) {
         # V2 requires its secrets (${VAR:?}); validate structure with the placeholder values, never with .env.
         if ($ComposeFile -eq "docker-compose.v2.yml") {
@@ -125,7 +129,7 @@ foreach ($ComposeFile in @("docker-compose.v2.yml", "docker-compose.yml")) {
 }
 
 # 5. V2 Flyway migrations: naming, numbering, immutability, no destructive DDL
-Write-Host "`n[5/6] Checking V2 migrations..." -ForegroundColor Cyan
+Write-Host "`n[5/7] Checking V2 migrations..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "check-migrations.ps1")
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Migration check failed" -ForegroundColor Red
@@ -134,7 +138,17 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "✅ Migration check passed" -ForegroundColor Green
 }
 
-# 6. Summary
+# 6. Docs: frontmatter, status vocabulary, PLAN counters, ticket relations, links
+Write-Host "`n[6/7] Checking docs..." -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "check-docs.ps1")
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Docs check failed" -ForegroundColor Red
+    $FailedChecks++
+} else {
+    Write-Host "✅ Docs check passed" -ForegroundColor Green
+}
+
+# 7. Summary
 Write-Host "`n========================================="
 if ($FailedChecks -gt 0) {
     Write-Host "❌ Pre-commit verification FAILED ($FailedChecks errors)" -ForegroundColor Red
