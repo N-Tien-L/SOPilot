@@ -45,6 +45,11 @@ class OutputGuard:
         return self._full
 
     @property
+    def released(self) -> str:
+        """The part of the output already handed out (not the held-back tail)."""
+        return self._full[:self._sent]
+
+    @property
     def tripped(self) -> bool:
         return self._tripped is not None
 

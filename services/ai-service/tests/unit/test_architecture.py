@@ -71,3 +71,22 @@ def test_tenant_binding_lives_only_in_engine() -> None:
 def test_document_access_is_read_only_through_the_access_filter() -> None:
     readers = _files_containing(r"\bFROM\s+rag\.document_access\b|\bJOIN\s+rag\.document_access\b")
     assert readers <= {"retrieval/access_filter.py"}, readers
+
+
+def test_conversation_sql_is_always_scoped_to_the_workspace_and_the_owner() -> None:
+    """V2-10 milestone 3: every statement of the conversation repository names ``workspace_id``,
+    and the ones on conversations or messages also name ``user_id`` (a user's own turns only)."""
+    source = (PKG / "conversations" / "repository.py").read_text(encoding="utf-8")
+    statements = re.findall(r'text\(f?"""(.*?)"""\)', source, re.DOTALL)
+    assert len(statements) >= 10
+    for sql in statements:
+        assert "workspace_id" in sql or ":wid" in sql, sql[:80]
+        if re.search(r"rag\.(conversations|messages)\b", sql):
+            assert "user_id" in sql, sql[:80]
+
+
+def test_only_the_repository_writes_conversation_tables() -> None:
+    writers = _files_containing(
+        r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+rag\.(conversations|messages|message_citations"
+        r"|guard_events|usage_counters|system_usage)\b")
+    assert writers <= {"conversations/repository.py", "quota/counters.py"}, writers

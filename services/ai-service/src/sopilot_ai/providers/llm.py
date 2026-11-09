@@ -206,6 +206,10 @@ class LLMChain:
         self._entries = list(entries)
 
     @property
+    def clients(self) -> list[OpenAICompatibleLLM]:
+        return [client for client, _ in self._entries]
+
+    @property
     def context_budget(self) -> int | None:
         """Smallest context ceiling in the chain: build the prompt for this, not the first model."""
         caps = [c.spec.context_max_tokens for c, _ in self._entries
@@ -222,7 +226,9 @@ class LLMChain:
             raise LLMError("LLM_UNAVAILABLE")
         return out
 
-    def stream(self, messages: Sequence[Message], *, tokens: int) -> Iterator[str]:
+    def stream(self, messages: Sequence[Message], *, tokens: int,
+               on_start: Callable[[str], None] | None = None) -> Iterator[str]:
+        """``on_start(model)`` runs once, when the first delta arrives: the model that answers."""
         last: LLMError | None = None
         for client, limiter in self._eligible(tokens):
             try:
@@ -234,6 +240,8 @@ class LLMChain:
             gen = client.stream(messages)
             try:
                 for delta in gen:
+                    if not started and on_start is not None:
+                        on_start(client.spec.model)
                     started = True
                     yield delta
                 return
@@ -246,12 +254,16 @@ class LLMChain:
         raise last or LLMError("LLM_UNAVAILABLE")
 
     def complete(self, messages: Sequence[Message], *, tokens: int,
-                 temperature: float | None = None) -> str:
+                 temperature: float | None = None,
+                 on_start: Callable[[str], None] | None = None) -> str:
         last: LLMError | None = None
         for client, limiter in self._eligible(tokens):
             try:
                 limiter.acquire(tokens)
-                return client.complete(messages, temperature=temperature)
+                out = client.complete(messages, temperature=temperature)
+                if on_start is not None:
+                    on_start(client.spec.model)
+                return out
             except LLMError as exc:
                 last = exc
         raise last or LLMError("LLM_UNAVAILABLE")

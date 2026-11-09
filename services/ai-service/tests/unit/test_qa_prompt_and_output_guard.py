@@ -210,3 +210,16 @@ def test_a_short_caller_canary_still_holds_a_full_echo_window():
     assert guard.hold >= ECHO_WINDOW + HOLD_EXTRA
     text = "y" * 100
     assert len(guard.feed(text).text) <= 100 - ECHO_WINDOW
+
+
+def test_the_fixed_not_found_opening_is_not_an_echo_of_the_rules():
+    """The model is told to open with this exact sentence; saying it must not trip the guard."""
+    for lang, opening in zip(("vi", "en"), not_found_openings(), strict=True):
+        bundle = build_prompt(question="q", sources=[], lang=lang, today=date(2026, 11, 9),
+                              canary="CANARY-x")
+        assert opening in bundle.messages[0]["content"]  # the model still sees it
+        for fixed in not_found_openings():
+            assert fixed not in bundle.protected
+        guard = OutputGuard(canary=bundle.canary, protected=bundle.protected)
+        verdicts = [guard.feed(opening), guard.finish()]
+        assert all(v.violation is None for v in verdicts)

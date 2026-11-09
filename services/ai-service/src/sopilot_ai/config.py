@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
@@ -39,6 +39,22 @@ class Settings(BaseSettings):
     ingest_lease_seconds: int = Field(600, ge=30, alias="SOPILOT_INGEST_LEASE_SECONDS")
     ingest_backoff_base_seconds: float = Field(30.0, ge=0, alias="SOPILOT_INGEST_BACKOFF_SECONDS")
     worker_poll_seconds: float = Field(5.0, gt=0, alias="SOPILOT_WORKER_POLL_SECONDS")
+
+    # Question answering (V2-10). Quotas are off by default: 0 means no limit and no counters are
+    # read or written (owner decision 2026-10-20, FR-09, TECH §7.4).
+    quota_questions_per_user_day: int = Field(0, ge=0, alias="SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY")
+    quota_questions_system_day: int = Field(0, ge=0, alias="SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY")
+    max_question_chars: int = Field(1000, ge=1, alias="SOPILOT_MAX_QUESTION_CHARS")
+    # None = the value in qa/followup_rules.yaml.
+    followup_max_tokens: int | None = Field(None, ge=1, alias="SOPILOT_FOLLOWUP_MAX_TOKENS")
+    support_contact: str = Field("", alias="SOPILOT_SUPPORT_CONTACT")
+    timezone: str = Field("Asia/Ho_Chi_Minh", alias="SOPILOT_TIMEZONE")
+
+    @field_validator("followup_max_tokens", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        """An empty variable (``SOPILOT_FOLLOWUP_MAX_TOKENS=``) means "use the YAML value"."""
+        return None if isinstance(value, str) and not value.strip() else value
 
     outbox_max_attempts: int = Field(20, ge=1, alias="SOPILOT_OUTBOX_MAX_ATTEMPTS")
     outbox_http_timeout_seconds: float = Field(10.0, gt=0, alias="SOPILOT_OUTBOX_HTTP_TIMEOUT")

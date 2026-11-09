@@ -10,6 +10,7 @@ from typing import Any
 import yaml
 
 from sopilot_ai.docproc import ChunkConfig
+from sopilot_ai.retrieval.context import ContextConfig
 
 _VAR = re.compile(r"\$\{([A-Z0-9_]+)(?::([^}]*))?\}")
 
@@ -137,4 +138,15 @@ class ModelsConfig:
                 r.get("cross_lingual_bm25_factor", defaults.cross_lingual_bm25_factor)),
             thresholds=({k: (None if v in (None, "") else float(v)) for k, v in thresholds.items()}
                         if thresholds else dict(defaults.thresholds)),
+        )
+
+    def context(self) -> ContextConfig:
+        """``retrieval.context`` (§6.4a): section expansion and the token cap of the prompt."""
+        c = (self.raw.get("retrieval") or {}).get("context") or {}
+        defaults = ContextConfig()
+        expand = c.get("expand", defaults.expand)
+        return ContextConfig(
+            expand=expand is True or str(expand).lower() == "true",
+            section_max_tokens=int(c.get("section_max_tokens", defaults.section_max_tokens)),
+            max_tokens=int(c.get("max_tokens", defaults.max_tokens)),
         )

@@ -68,3 +68,50 @@ class BowEmbedder(FakeEmbedder):
                 v[0] = 1.0
             rows.append(v / np.linalg.norm(v))
         return np.stack(rows) if rows else np.zeros((0, self.dim), dtype=np.float32)
+
+
+class ScriptedChain:
+    """Stands in for ``providers.llm.LLMChain``: records every call, never touches the network.
+
+    ``answer`` is a list of text pieces, or a function of the messages (a test that must echo
+    the canary of the prompt it was given). ``fail`` makes every call raise ``LLMError``.
+    """
+
+    def __init__(self, answer=("Câu trả lời.",), *, model: str = "fake-llm",  # noqa: ANN001
+                 rewrite: str = "", budget: int | None = None, fail: bool = False) -> None:
+        self._answer = answer
+        self.model = model
+        self.rewrite_output = rewrite
+        self._budget = budget
+        self.fail = fail
+        self.calls: list[dict] = []
+
+    @property
+    def context_budget(self) -> int | None:
+        return self._budget
+
+    def stream(self, messages, *, tokens: int, on_start=None):  # noqa: ANN001, ANN201
+        from sopilot_ai.providers.llm import LLMError
+
+        self.calls.append({"kind": "stream", "messages": [dict(m) for m in messages],
+                           "tokens": tokens})
+        if self.fail:
+            raise LLMError("LLM_UNAVAILABLE")
+        pieces = self._answer(messages) if callable(self._answer) else self._answer
+        started = False
+        for piece in pieces:
+            if not started and on_start is not None:
+                on_start(self.model)
+            started = True
+            yield piece
+
+    def complete(self, messages, *, tokens: int, temperature=None, on_start=None) -> str:  # noqa: ANN001
+        from sopilot_ai.providers.llm import LLMError
+
+        self.calls.append({"kind": "complete", "messages": [dict(m) for m in messages],
+                           "tokens": tokens, "temperature": temperature})
+        if self.fail:
+            raise LLMError("LLM_UNAVAILABLE")
+        if on_start is not None:
+            on_start(self.model)
+        return self.rewrite_output

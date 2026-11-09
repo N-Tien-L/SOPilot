@@ -9,14 +9,18 @@
 """
 from __future__ import annotations
 
+import re
 import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
 from sopilot_ai.qa import templates
+from sopilot_ai.qa.citations import clean_markers
 
 PROMPT_VERSION = "qa-v1"
+REWRITE_VERSION = "rewrite-v1"
+MAX_HISTORY_ANSWER_CHARS = 600
 
 # Protected text for the output guard's echo check: the rules, without the sources (a model may
 # legitimately quote a source, so source text must not count as a prompt echo).
@@ -87,6 +91,10 @@ def build_prompt(*, question: str, sources: Sequence[SourceText], lang: str, tod
     protected = _RULES.format(version=PROMPT_VERSION, today=today.isoformat(),
                               not_found=not_found, canary=canary)
     system = protected
+    # The fixed "not found" opening is an instruction the model must be able to say out loud
+    # (D2); it is not a leak, so it is left out of the text the echo check compares against.
+    for opening in templates.not_found_openings():
+        protected = protected.replace(opening, "")
     if sources:
         system += "\n\n" + "\n\n".join(render_source(s) for s in sources)
     user = f"Câu hỏi: {question}"
@@ -97,3 +105,36 @@ def build_prompt(*, question: str, sources: Sequence[SourceText], lang: str, tod
         protected=protected,
         canary=canary,
     )
+
+
+_REWRITE_SYSTEM = (
+    "Bạn viết lại câu hỏi cuối của người dùng thành MỘT câu hỏi độc lập, đầy đủ ngữ cảnh, "
+    "dựa vào các lượt trước. Giữ nguyên ngôn ngữ của câu hỏi cuối. Không trả lời câu hỏi. "
+    "Không thêm thông tin không có trong hội thoại. Chỉ in câu hỏi đã viết lại, không giải thích."
+)
+_QUOTES = "\"'“”‘’`"
+_PREFIX = re.compile(r"^(câu hỏi( độc lập| đã viết lại)?|question|rewritten question)\s*:\s*",
+                     re.IGNORECASE)
+
+
+def build_rewrite_prompt(history: Sequence[tuple[str, str]], question: str) -> list[dict[str, str]]:
+    """Messages for the rewrite call. ``history`` is ``(question, answer)`` pairs, oldest first,
+    already PII-masked; answers lose their ``[n]`` markers and are cut short. No source text."""
+    lines = []
+    for q, a in history:
+        answer, _ = clean_markers(a, set())
+        lines.append(f"Người dùng: {q}\nTrợ lý: {answer[:MAX_HISTORY_ANSWER_CHARS]}")
+    user = "Các lượt trước:\n" + "\n\n".join(lines) + f"\n\nCâu hỏi cuối: {question}"
+    return [{"role": "system", "content": _REWRITE_SYSTEM}, {"role": "user", "content": user}]
+
+
+def clean_rewrite(output: str, *, max_chars: int) -> str | None:
+    """The rewritten question from the model output, or ``None`` when it cannot be trusted
+    (empty, or longer than the question limit: the model answered instead of rewriting)."""
+    lines = [ln.strip() for ln in output.strip().splitlines() if ln.strip()]
+    if not lines:
+        return None
+    text = _PREFIX.sub("", lines[0]).strip().strip(_QUOTES).strip()
+    if not text or len(text) > max_chars:
+        return None
+    return text

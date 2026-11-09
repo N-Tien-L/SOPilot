@@ -366,3 +366,31 @@ def test_stopping_early_closes_the_inner_stream():
     assert next(gen) == "a"
     gen.close()
     assert closed == [True]
+
+
+# --- which model answered (messages.model) ---------------------------------------------------
+
+
+def test_on_start_reports_the_model_that_answers_after_a_fallback():
+    a = FakeLLM("a", fail_before="LLM_UNAVAILABLE")
+    b = FakeLLM("b", ["x", "y"])
+    started: list[str] = []
+    assert list(chain_of(a, b).stream(MSG, tokens=10, on_start=started.append)) == ["x", "y"]
+    assert started == ["qwen-test"]  # once, with the model of the provider that delivered
+    b2 = FakeLLM("b2", ["z"])
+    got: list[str] = []
+    assert chain_of(b2).complete(MSG, tokens=10, on_start=got.append) == "z"
+    assert got == ["qwen-test"]
+
+
+def test_on_start_is_not_called_when_every_provider_fails():
+    a = FakeLLM("a", fail_before="LLM_UNAVAILABLE")
+    started: list[str] = []
+    with pytest.raises(LLMError):
+        list(chain_of(a).stream(MSG, tokens=10, on_start=started.append))
+    assert started == []
+
+
+def test_chain_exposes_its_clients_for_the_startup_model_check():
+    a, b = FakeLLM("a"), FakeLLM("b")
+    assert chain_of(a, b).clients == [a, b]

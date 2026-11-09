@@ -110,3 +110,26 @@ self_harm_no_contact:
   text:
     vi: "Mình rất tiếc khi nghe điều đó. Bạn không phải một mình: hãy nói chuyện với người thân hoặc đồng nghiệp tin cậy. Nếu bạn đang gặp nguy hiểm, hãy gọi ngay số cấp cứu 115."
     en: "I am sorry you are going through this. You are not alone: please talk to someone you trust. If you are in danger, call your local emergency number now."
+
+# Added with the API (V2-10 milestone 3). Refusal when retrieval finds nothing above the gate
+# (TECH §7.1 step 8): the nearest documents are sent next to it, never inside the sentence.
+no_evidence:
+  text:
+    vi: "Mình không tìm thấy thông tin phù hợp trong các tài liệu bạn được phép xem."
+    en: "I could not find relevant information in the documents you are allowed to see."
+
+# Client-facing text of the SSE `error` event (stable codes, never an exception message).
+error_quota_exceeded:
+  text:
+    vi: "Bạn đã dùng hết số câu hỏi cho phép hôm nay. Vui lòng thử lại vào ngày mai."
+    en: "You have used all the questions allowed today. Please try again tomorrow."
+
+error_llm_unavailable:
+  text:
+    vi: "Dịch vụ trả lời đang không khả dụng. Vui lòng thử lại sau ít phút."
+    en: "The answering service is not available. Please try again in a few minutes."
+
+error_internal:
+  text:
+    vi: "Đã xảy ra lỗi khi xử lý câu hỏi. Vui lòng thử lại."
+    en: "Something went wrong while handling the question. Please try again."

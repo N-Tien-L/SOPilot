@@ -102,6 +102,21 @@ SELECT c.id, c.index_text
    AND c.id = ANY (CAST(:ids AS uuid[]))
 """)
 
+_KNOWN_TERMS = text(f"""
+WITH {allowed_cte()}
+SELECT DISTINCT t.term
+  FROM rag.chunk_terms t
+  JOIN rag.chunks c ON c.id = t.chunk_id
+  JOIN allowed a ON a.document_id = c.document_id AND a.active_version_id = c.version_id
+ WHERE t.workspace_id = :wid AND c.workspace_id = :wid
+   AND t.term = ANY (CAST(:terms AS text[]))
+""")
+
+_TITLES = text(f"""
+WITH {allowed_cte()}
+SELECT a.document_id, a.title FROM allowed a WHERE a.document_id = ANY (CAST(:ids AS uuid[]))
+""")
+
 
 def _hits(rows: Sequence[Any]) -> list[Hit]:
     return [Hit(r.id, r.document_id, r.version_id, r.lang, float(r.score)) for r in rows]
@@ -165,3 +180,27 @@ async def index_texts(conn: AsyncConnection, principal: Principal,
         **access_params(principal), "ids": [str(i) for i in ids],
     })).all()
     return {r.id: r.index_text for r in rows}
+
+
+async def known_terms(conn: AsyncConnection, principal: Principal,
+                      words: Sequence[str]) -> set[str]:
+    """The ``words`` that occur as a term in a chunk the asker may read (D4, meaningful tokens).
+
+    Goes through the same access filter as retrieval, so a word that only occurs in a document
+    the asker cannot read does not count and cannot be probed.
+    """
+    unique = list(dict.fromkeys(w for w in words if w))
+    if not unique:
+        return set()
+    rows = (await conn.execute(_KNOWN_TERMS, {**access_params(principal), "terms": unique})).all()
+    return {r.term for r in rows}
+
+
+async def document_titles(conn: AsyncConnection, principal: Principal,
+                          ids: Sequence[UUID]) -> dict[UUID, str]:
+    """Titles of the given documents the asker may read (the "nearest documents" of a refusal)."""
+    if not ids:
+        return {}
+    rows = (await conn.execute(_TITLES, {
+        **access_params(principal), "ids": [str(i) for i in ids]})).all()
+    return {r.document_id: r.title for r in rows}

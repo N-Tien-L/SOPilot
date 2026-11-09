@@ -1,6 +1,7 @@
 """FastAPI application (``uvicorn sopilot_ai.api.app:create_app --factory``)."""
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -11,10 +12,13 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from sopilot_ai.admin import active_embedding, stale_count
+from sopilot_ai.api.conversations import router as conversations_router
 from sopilot_ai.api.documents import router as documents_router
 from sopilot_ai.api.internal import router as internal_router
 from sopilot_ai.auth.jwt import TokenVerifier
 from sopilot_ai.config import Settings, get_settings
+from sopilot_ai.conversations.factory import build_service
+from sopilot_ai.conversations.service import QAService
 from sopilot_ai.db.engine import make_engine
 
 log = structlog.get_logger(__name__)
@@ -22,9 +26,11 @@ log = structlog.get_logger(__name__)
 
 def create_app(settings: Settings | None = None, engine: AsyncEngine | None = None, *,
                token_verifier: TokenVerifier | None = None,
-               embedding_identity: tuple[str, str] | None = None) -> FastAPI:
+               embedding_identity: tuple[str, str] | None = None,
+               qa_service: QAService | None = None) -> FastAPI:
     """``embedding_identity`` = active ``(model, revision)``; read from ``models.yaml`` when
-    omitted (the model itself is not loaded by the API)."""
+    omitted (the model itself is not loaded at startup). ``qa_service`` is injected by tests;
+    otherwise it is built on the first question (``conversations/factory.py``)."""
     settings = settings or get_settings()
 
     @asynccontextmanager
@@ -50,6 +56,18 @@ def create_app(settings: Settings | None = None, engine: AsyncEngine | None = No
     app.state.embedding_identity = embedding_identity or active_embedding(settings)
     app.include_router(internal_router)
     app.include_router(documents_router)
+    app.include_router(conversations_router)
+
+    build_lock = asyncio.Lock()
+    app.state.qa_service = qa_service
+
+    async def qa_service_factory() -> QAService:
+        async with build_lock:
+            if app.state.qa_service is None:
+                app.state.qa_service = await build_service(settings, app.state.engine)
+            return app.state.qa_service
+
+    app.state.qa_service_factory = qa_service_factory
 
     @app.get("/health")
     async def health() -> dict[str, Any]:
