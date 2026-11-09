@@ -31,7 +31,6 @@
       "Read(./**/.env.local)",
       "Read(./**/.env.*.local)",
       "Edit(./**/.env)",
-      "Write(./**/.env)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git push * --force*)",
@@ -77,9 +76,7 @@
       "Bash(*reset-and-bootstrap*)",
       "PowerShell(*reset-and-bootstrap*)",
       "Edit(./docker-compose.v2.yml)",
-      "Write(./docker-compose.v2.yml)",
       "Edit(./.github/workflows/**)",
-      "Write(./.github/workflows/**)",
       "Edit(./services/auth-service/**)",
       "Edit(./services/user-service/**)",
       "Edit(./services/knowledge-service/**)",
@@ -89,17 +86,7 @@
       "Edit(./services/ingestion-service/**)",
       "Edit(./services/api-gateway/**)",
       "Edit(./infrastructure/init-db/**)",
-      "Edit(./docker-compose.yml)",
-      "Write(./services/auth-service/**)",
-      "Write(./services/user-service/**)",
-      "Write(./services/knowledge-service/**)",
-      "Write(./services/metadata-service/**)",
-      "Write(./services/feedback-service/**)",
-      "Write(./services/ai-qa-service/**)",
-      "Write(./services/ingestion-service/**)",
-      "Write(./services/api-gateway/**)",
-      "Write(./infrastructure/init-db/**)",
-      "Write(./docker-compose.yml)"
+      "Edit(./docker-compose.yml)"
     ]
   },
   "hooks": {

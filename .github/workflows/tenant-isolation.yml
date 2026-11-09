@@ -68,7 +68,7 @@ jobs:
           ./mvnw -B verify -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false \
             -Dit.test='TenantIsolationIT,TenantIsolationApiIT'
 
-  # Retrieval: the access filter applies before LIMIT and never crosses workspaces; delete removes everything.
+  # Retrieval & QA: access filter, conversations, citations and delete never cross workspaces.
   ai-service:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -77,8 +77,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Retrieval isolation tests of ai-service
+      - name: Retrieval and QA isolation tests of ai-service
         working-directory: services/ai-service
         run: |
           uv sync --extra dev
-          uv run pytest tests/integration/test_retrieval.py -v
+          uv run pytest tests/integration/test_retrieval.py tests/integration/test_qa_isolation.py -v
