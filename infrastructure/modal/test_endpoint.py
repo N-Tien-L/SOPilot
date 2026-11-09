@@ -284,6 +284,29 @@ def run_benchmark(
         out(f"    Avg Throughput: {avg_tps:.1f} tokens/sec")
 
 
+def run_rerank_check(rerank_url: str, api_key: str, runs: int = 10, pairs: int = 25) -> None:
+    """V2-35: 401 without a key, then p50/p95 latency of ``pairs`` passages over ``runs`` hot calls."""
+    url = f"{rerank_url.rstrip('/')}/rerank"
+    out(f"\n[R] Checking POST {url} ({pairs} passages x {runs} hot calls)...")
+    body = {"query": SAMPLE_SOP_PROMPTS[0], "passages": [f"{p} Nội dung đoạn {i}." * 8 for i, p in enumerate(SAMPLE_SOP_PROMPTS[:5] * (pairs // 5))]}
+    try:
+        make_request(url, method="POST", headers={"Content-Type": "application/json"}, data=body)
+        out("    -> FAIL: request without key was accepted")
+    except urllib.error.HTTPError as e:
+        out(f"    No key -> {e.code} ({'OK' if e.code == 401 else 'FAIL'})")
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    status, resp, elapsed = make_request(url, method="POST", headers=headers, data=body)
+    out(f"    First call (may include cold start): {status} in {elapsed * 1000:.0f} ms; logits={len(resp['logits'])}")
+    times = []
+    for _ in range(runs):
+        _, resp, elapsed = make_request(url, method="POST", headers=headers, data=body)
+        times.append(elapsed * 1000)
+    times.sort()
+    p50 = times[len(times) // 2]
+    p95 = times[min(len(times) - 1, int(round(0.95 * (len(times) - 1))))]
+    out(f"    Hot latency client-side: p50 {p50:.0f} ms, p95 {p95:.0f} ms (min {times[0]:.0f}, max {times[-1]:.0f})")
+
+
 def main():
     global REQUEST_TIMEOUT
     # Sample prompts are Vietnamese; a cp1252 Windows console would raise UnicodeEncodeError.
@@ -310,6 +333,16 @@ def main():
         help="Run full benchmark over sample SOP queries",
     )
 
+    parser.add_argument(
+        "--rerank",
+        action="store_true",
+        help="Also check POST /v1/rerank (V2-35); needs --rerank-url or SOPILOT_RERANK_BASE_URL",
+    )
+    parser.add_argument(
+        "--rerank-url",
+        default=os.environ.get("SOPILOT_RERANK_BASE_URL", ""),
+        help="Base URL of the rerank endpoint (https://...sopilot-vllm-rerank.modal.run/v1)",
+    )
     parser.add_argument(
         "--timeout",
         type=float,
@@ -338,6 +371,12 @@ def main():
     # 3. Benchmark queries
     prompts = SAMPLE_SOP_PROMPTS if args.benchmark else SAMPLE_SOP_PROMPTS[:5]
     run_benchmark(args.base_url, args.api_key, args.model, prompts)
+
+    if args.rerank:
+        if not args.rerank_url:
+            out("\n[!] --rerank needs --rerank-url or SOPILOT_RERANK_BASE_URL")
+        else:
+            run_rerank_check(args.rerank_url, args.api_key)
 
     out("\nVerification complete.")
 

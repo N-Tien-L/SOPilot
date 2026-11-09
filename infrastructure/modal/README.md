@@ -61,6 +61,17 @@ Sau khi lệnh deploy hoàn thành, Modal sẽ cấp một URL công khai có d�
 https://<workspace-name>--sopilot-vllm-serve.modal.run
 ```
 
+### Rerank chung container (V2-35)
+
+`serve_vllm.py` là một `@app.cls` (`Serve`): `@modal.enter` nạp `bge-reranker-v2-m3` (CrossEncoder, CUDA, fp32, `max_length=512`, revision ghim) rồi khởi động vLLM với `--gpu-memory-utilization 0.85`. Hai `@modal.web_server` dùng chung một container và một GPU, nhưng có hai URL:
+
+```
+https://<workspace-name>--sopilot-vllm-serve.modal.run    # /v1/chat/completions, /v1/models
+https://<workspace-name>--sopilot-vllm-rerank.modal.run   # POST /v1/rerank
+```
+
+`POST /v1/rerank` nhận `{"query": str, "passages": [str]}` (tối đa 64 passage) và trả `{"logits": [float]}` cùng thứ tự; Bearer là `VLLM_API_KEY`, thiếu hoặc sai trả `401`. Lần đầu chạy `modal run infrastructure/modal/serve_vllm.py::download_model` để tải thêm trọng số reranker vào Volume. Kiểm tra: `python infrastructure/modal/test_endpoint.py --rerank` (cần `SOPILOT_RERANK_BASE_URL`). Container ngủ sau 60 giây nhàn rỗi, nên làm nóng trước khi chạy eval (khởi động lạnh khoảng 260 giây, lớn hơn timeout rerank 30/120 giây).
+
 ---
 
 ## 3. Kiểm thử & Đo đạc Endpoint
@@ -110,6 +121,8 @@ Sau khi endpoint hoạt động, cập nhật file `services/ai-service/.env` (s
 SOPILOT_LLM_BASE_URL=https://<workspace-name>--sopilot-vllm-serve.modal.run/v1
 SOPILOT_LLM_MODEL=Qwen/Qwen3.5-9B
 SOPILOT_LLM_API_KEY=<YOUR_RANDOM_SECRET_KEY>
+# Rerank trên GPU (V2-35); cùng khóa, URL khác. Bật bằng RERANK_ENABLED=true, RERANK_PROVIDER=modal
+SOPILOT_RERANK_BASE_URL=https://<workspace-name>--sopilot-vllm-rerank.modal.run/v1
 SOPILOT_LLM_RPM=60
 SOPILOT_LLM_TPM=200000
 SOPILOT_LLM_CONTEXT_MAX_TOKENS=8192
