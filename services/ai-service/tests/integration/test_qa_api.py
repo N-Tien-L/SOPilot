@@ -424,6 +424,36 @@ async def test_reopened_answer_is_hidden_when_a_cited_document_is_no_longer_read
     assert harness.rewrite.calls == []
 
 
+async def test_reopened_answer_without_citations_is_hidden_when_a_source_is_no_longer_readable(
+        harness: Harness, database, corpus: Corpus) -> None:  # noqa: ANN001
+    # The model used the source but wrote no [n]: there is no citation row, only context_sources.
+    harness.generate._answer = ("Trưởng phòng duyệt trong hai ngày làm việc.",)
+    member = corpus.principal("MEMBER", uuid4())
+    _, events = await harness.ask(member, QUESTION)
+    conv = data(events, "meta")["conversationId"]
+    mid = UUID(data(events, "meta")["messageId"])
+    purchase = corpus.docs["purchase"][0]
+    assert sql(database, "SELECT count(*) FROM rag.message_citations WHERE message_id = %s",
+               mid)[0][0] == 0
+    sources = sql(database, "SELECT context_sources FROM rag.messages WHERE id = %s", mid)[0][0]
+    assert str(purchase) in {s["documentId"] for s in sources}
+
+    shown = (await harness.get(member, f"/conversations/{conv}")).json()["messages"]
+    assert "hidden" not in shown[1] and shown[1]["citations"] == []
+
+    sql(database, "UPDATE rag.document_access SET visibility = 'DEPARTMENTS', "
+                  "department_ids = ARRAY[%s::uuid] WHERE document_id = %s", uuid4(), purchase)
+    hidden = (await harness.get(member, f"/conversations/{conv}")).json()["messages"]
+    assert hidden[0]["content"] == QUESTION
+    assert hidden[1]["hidden"] is True and hidden[1]["reason"] == "ACCESS_REVOKED"
+    assert "content" not in hidden[1]
+
+    # Not history for the rewrite either.
+    harness.rewrite.rewrite_output = "câu hỏi mới"
+    await harness.ask(member, "vậy ai duyệt?", conv)
+    assert harness.rewrite.calls == []
+
+
 async def test_citation_to_an_older_version_keeps_its_snippet_and_is_marked(
         harness: Harness, database, corpus: Corpus) -> None:  # noqa: ANN001
     owner = corpus.principal()

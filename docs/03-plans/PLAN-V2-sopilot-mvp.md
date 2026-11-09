@@ -314,6 +314,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 
 > **Owner chốt 2026-11-09:** `V2-29` → `done` (`mvnw verify` trên `develop` 78 unit + 101 integration xanh, CI `develop` xanh; chỗ lệch ở TECH-V2-core-api §14 được duyệt). Xóa cứng dòng workspace là **ngoài MVP**, không thêm ticket. Tiêu chí "V2-30 dùng lại dịch vụ phiên" chuyển sang `V2-30`; mở khóa `V2-30`. `completed_tickets` 17 → 18, `review_tickets` 1 → 0, `implemented_tickets` giữ 18 (tính sau khi gộp nhánh chốt `V2-12`/`V2-14`/`V2-23`).
 
+> **Owner chốt 2026-11-09 (ẩn lịch sử khi mất quyền):** câu trả lời bị ẩn theo mọi source trong context LLM, không chỉ theo trích dẫn ([TECH-V2-ai-service §7.5](../02-architecture/designs/TECH-V2-ai-service.md)); PRD-V2 §8 mục 8 và ADR-007 §4.5 sửa cho khớp. Đổi `V2-10` (đã làm trong mốc 3); `V2-15` hiển thị `hidden` không đổi contract. Không đổi trạng thái hay bộ đếm.
+
 ---
 
 ## 6. Nhật ký cập nhật

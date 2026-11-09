@@ -88,14 +88,26 @@ SELECT id, role, content, outcome, refusal_reason, created_at FROM rag.messages
  ORDER BY created_at, role DESC
 """)
 
+# Every document the answer was generated from: each source of the prompt (context_sources) and,
+# as a fail-closed backstop, each citation. Citations alone miss answers the model wrote from a
+# source without a valid [n] (TECH-V2-ai-service §7.5, owner decision 2026-11-09).
 _HIDDEN = text(f"""
-WITH {cited_access_cte()}
-SELECT mc.message_id,
+WITH {cited_access_cte()},
+used AS (
+    SELECT m.id AS message_id, CAST(s.value->>'documentId' AS uuid) AS document_id
+      FROM rag.messages m
+     CROSS JOIN LATERAL jsonb_array_elements(coalesce(m.context_sources, CAST('[]' AS jsonb))) s
+     WHERE m.workspace_id = :wid AND m.user_id = :uid AND m.id = ANY (CAST(:ids AS uuid[]))
+    UNION
+    SELECT mc.message_id, mc.document_id
+      FROM rag.message_citations mc
+     WHERE mc.workspace_id = :wid AND mc.message_id = ANY (CAST(:ids AS uuid[]))
+)
+SELECT u.message_id,
        bool_or(ca.document_id IS NULL OR ca.deleted) AS deleted
-  FROM rag.message_citations mc
-  LEFT JOIN cited_access ca ON ca.document_id = mc.document_id
- WHERE mc.workspace_id = :wid AND mc.message_id = ANY (CAST(:ids AS uuid[]))
- GROUP BY mc.message_id
+  FROM used u
+  LEFT JOIN cited_access ca ON ca.document_id = u.document_id
+ GROUP BY u.message_id
 HAVING bool_or(ca.document_id IS NULL OR NOT ca.readable)
 """)
 _CITATIONS = text(f"""
@@ -190,15 +202,17 @@ async def save_turn(conn: AsyncConnection, principal: Principal, rec: TurnRecord
 
 async def hidden_answers(conn: AsyncConnection, principal: Principal,
                          message_ids: Sequence[UUID]) -> dict[UUID, str]:
-    """``message_id -> reason`` for answers with a citation the asker can no longer read.
+    """``message_id -> reason`` for answers generated from a document the asker can no longer read.
 
-    One unreadable citation hides the whole answer (TECH §7.5). ``DOCUMENT_DELETED`` when a cited
-    document is gone, else ``ACCESS_REVOKED``.
+    "Generated from" is every source in the prompt (``context_sources``) plus every citation, so
+    an answer without a valid ``[n]`` is covered too. One unreadable document hides the whole
+    answer (TECH §7.5). ``DOCUMENT_DELETED`` when such a document is gone, else ``ACCESS_REVOKED``.
     """
     if not message_ids:
         return {}
     rows = (await conn.execute(_HIDDEN, {
-        **access_params(principal), "ids": [str(i) for i in message_ids]})).all()
+        **access_params(principal), "uid": principal.user_id,
+        "ids": [str(i) for i in message_ids]})).all()
     return {r.message_id: REASON_DELETED if r.deleted else REASON_REVOKED for r in rows}
 
 
@@ -235,7 +249,8 @@ async def conversation_detail(conn: AsyncConnection, principal: Principal,
                               conversation_id: UUID) -> dict[str, Any] | None:
     """The conversation with its messages and citations, or ``None`` if it is not the caller's.
 
-    An answer with an unreadable citation is replaced by ``{hidden: true, reason}``; the question
+    An answer generated from a document the caller can no longer read (``hidden_answers``) is
+    replaced by ``{hidden: true, reason}``; the question
     stays (PRD §8.8). A citation to an older version keeps its stored snippet and is marked
     ``isCurrentVersion: false`` (D10).
     """
