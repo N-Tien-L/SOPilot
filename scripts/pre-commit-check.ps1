@@ -103,9 +103,13 @@ if ($AffectedServices.Count -eq 0) {
     }
 }
 
-# 4. Validate Docker Compose Config (V2 first; V1 kept until V2-17)
+# 4. Validate Docker Compose Config (V2 always; frozen V1 only when the change touches it, removed by V2-17)
 Write-Host "`n[4/7] Validating Docker Compose config..." -ForegroundColor Cyan
 foreach ($ComposeFile in @("docker-compose.v2.yml", "docker-compose.yml")) {
+    if ($ComposeFile -eq "docker-compose.yml" -and ($ChangedFiles -notcontains $ComposeFile)) {
+        Write-Host "⚠️ $ComposeFile (frozen V1) not changed, skipping." -ForegroundColor Yellow
+        continue
+    }
     if (Test-Path $ComposeFile) {
         # V2 requires its secrets (${VAR:?}); validate structure with the placeholder values, never with .env.
         if ($ComposeFile -eq "docker-compose.v2.yml") {
