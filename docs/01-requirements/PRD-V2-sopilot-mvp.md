@@ -3,7 +3,7 @@ id: PRD-V2-SOPILOT-MVP
 title: "SOPilot V2 MVP: workspace hỏi đáp tài liệu có trích dẫn, đa tổ chức"
 status: approved
 created: 2026-10-16
-updated: 2026-10-21
+updated: 2026-11-09
 author: "Owner"
 milestone: "V2: SOPilot MVP"
 priority: P0
@@ -206,7 +206,7 @@ Môi trường và thiết kế thí nghiệm: ADR-006 §4.2 (chạy trên máy 
 5. **LLM (phân vai chốt 2026-10-19, ADR-006 §4.4):** sinh câu trả lời bằng Gemini 3.1 Flash Lite, dự phòng Groq `openai/gpt-oss-120b`; gợi ý metadata bằng Groq `openai/gpt-oss-20b`; guard injection bằng luật (Prompt Guard 2 86M bị loại sau bài test V2-02 ngày 2026-10-20); giám khảo eval bằng Groq `openai/gpt-oss-120b`. Mỗi câu hỏi tối đa 1 lần gọi LLM sinh. Groq đã gọi thử thành công ngày 2026-10-20; Gemini 3.1 Flash Lite trả 503 (quá tải) lúc thử, cần thử lại.
 6. **Workspace demo công khai:** không làm, vì không deploy công khai. Dữ liệu demo cục bộ theo FR-21 (V2-16). ADR-005 không cần bổ sung.
 7. **Phòng ban mỗi thành viên:** tối đa một phòng ban; tài liệu có thể giới hạn cho nhiều phòng ban. Nhiều phòng ban mỗi người để P1 nếu có nhu cầu thực tế.
-8. **Lịch sử hội thoại khi mất quyền:** ẩn câu trả lời và đoạn trích có trích dẫn tới tài liệu người đó không còn quyền đọc; giữ câu hỏi và ghi chú lý do ẩn.
+8. **Lịch sử hội thoại khi mất quyền:** ẩn câu trả lời và đoạn trích được sinh từ tài liệu người đó không còn quyền đọc (tài liệu có trong context LLM, không chỉ tài liệu được trích dẫn; sửa 2026-11-09, [TECH-V2-ai-service §7.5](../02-architecture/designs/TECH-V2-ai-service.md)); giữ câu hỏi và ghi chú lý do ẩn.
 9. **Trưởng phòng ban quản lý tài liệu của phòng ban:** P1. Trong V2 chỉ OWNER/ADMIN tải lên, sửa, xóa và đổi phạm vi tài liệu.
 
 **Bổ sung owner chốt 2026-10-20 (V2-03):**

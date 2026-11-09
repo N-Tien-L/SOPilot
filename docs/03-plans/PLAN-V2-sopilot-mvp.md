@@ -310,6 +310,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 
 > **Owner chốt 2026-11-09:** `V2-12`, `V2-14`, `V2-23` → `done` (kiểm lại: core-api `mvnw verify` 73 unit + 78 integration xanh, `tests/tenant-isolation` 31 xanh và negative control 23 fail, `tenant-isolation.yml` xanh trên PR #5 và `develop`; 8 chỗ lệch TECH duyệt ở TECH-V2-core-api §13; [AUDIT-v2-14](../04-reports/AUDIT-v2-14-tenant-isolation-rq4-2026-11-06.md) `final`). Mục còn mở chuyển thành tiêu chí: cách ly qua API hỏi đáp/hội thoại → `V2-10`, feedback → `V2-13`; refresh và thu hồi token khi tạm khóa đã có ở `V2-29`; lời mời kèm hồ sơ và import CSV (P1) → `V2-30`; lặp `workspace_id` trong các câu ghi của `DocumentRepository` → `V2-24`. `completed_tickets` 14 → 17, `review_tickets` 3 → 0, `implemented_tickets` giữ 17.
 
+> **Owner chốt 2026-11-09 (ẩn lịch sử khi mất quyền):** câu trả lời bị ẩn theo mọi source trong context LLM, không chỉ theo trích dẫn ([TECH-V2-ai-service §7.5](../02-architecture/designs/TECH-V2-ai-service.md)); PRD-V2 §8 mục 8 và ADR-007 §4.5 sửa cho khớp. Đổi `V2-10` (đã làm trong mốc 3); `V2-15` hiển thị `hidden` không đổi contract. Không đổi trạng thái hay bộ đếm.
+
 ---
 
 ## 6. Nhật ký cập nhật

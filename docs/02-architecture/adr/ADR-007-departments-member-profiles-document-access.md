@@ -3,7 +3,7 @@ id: ADR-007
 title: "V2: hồ sơ thành viên theo workspace, phòng ban phẳng và quyền đọc tài liệu theo phòng ban"
 status: approved
 created: 2026-10-19
-updated: 2026-10-20
+updated: 2026-11-09
 author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -96,7 +96,7 @@ superseded_by: ""
 - Đổi phạm vi tài liệu: core-api ghi DB, gọi ai-service đồng bộ để cập nhật `rag.document_access`, outbox thử lại nếu lỗi. Tài liệu mới chỉ vào truy xuất sau khi dòng quyền đã có (`READY` đòi hỏi dòng quyền tồn tại); thiếu dòng quyền nghĩa là không đọc được (fail closed).
 - Tải xuống/xem trước: core-api kiểm tra quyền rồi phát URL ký sẵn hạn ≤ 5 phút.
 - Cache: cache câu trả lời/kết quả truy xuất (nếu có) dùng khóa gồm `workspace_id`, `wrole`, `wdept`; cache embedding chỉ chứa vector theo nội dung chunk, không trả văn bản.
-- Lịch sử hội thoại: khi mở lại, trích dẫn được kiểm tra với quyền hiện tại; câu trả lời có trích dẫn tới tài liệu không còn quyền bị ẩn kèm lý do.
+- Lịch sử hội thoại: khi mở lại, mọi tài liệu câu trả lời được sinh ra từ đó (source trong context LLM và trích dẫn) được kiểm tra với quyền hiện tại; câu trả lời có tài liệu không còn quyền bị ẩn kèm lý do. (Sửa 2026-11-09 cho khớp §4.4: bản trước chỉ kiểm trích dẫn; chi tiết ở [TECH-V2-ai-service §7.5](../designs/TECH-V2-ai-service.md).)
 
 ## 5. Tác động & hệ quả
 - **Tích cực:** đủ dùng cho nhóm và doanh nghiệp nhỏ; người dùng cá nhân không bị ảnh hưởng; một điểm lọc duy nhất trong SQL truy xuất; đổi quyền không cần embed lại.
