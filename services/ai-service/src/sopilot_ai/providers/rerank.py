@@ -5,6 +5,7 @@ probabilities in ``[0, 1]`` so the ``hybrid_rerank`` threshold has one scale acr
 """
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from typing import Any, Protocol
 
@@ -69,11 +70,72 @@ def _identity(x: Any) -> Any:
     return x
 
 
-def build_rerank_provider(config: ModelsConfig, profile: str) -> RerankProvider | None:
+class RemoteRerankProvider:
+    """Cross-encoder on the Modal container next to vLLM (V2-35): ``POST {rerank_base_url}/rerank``.
+
+    The rerank web endpoint has its own host (a second ``web_server`` of the same container).
+
+    The server returns raw logits in passage order; the sigmoid is applied here so the scale
+    matches ``LocalRerankProvider``. Any transport, HTTP or payload problem is a ``RerankError``
+    carrying only a fixed code (no passage text, no key, no response body).
+    """
+
+    name = "modal"
+
+    def __init__(self, spec: RerankSpec, *, base_url: str, api_key: str | None,
+                 timeout: float, transport: Any = None) -> None:
+        import httpx
+
+        self.spec = spec
+        self.model = spec.model
+        self.revision = spec.revision or "server-pinned"
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        self._client = httpx.Client(base_url=base_url.rstrip("/"), headers=headers,
+                                    timeout=timeout, transport=transport,
+                                    # Modal answers 303 with a result URL after a long cold start.
+                                    follow_redirects=True)
+
+    def score(self, query: str, passages: Sequence[str]) -> np.ndarray:
+        if not passages:
+            return np.zeros(0, dtype=np.float32)
+        import httpx
+
+        try:
+            resp = self._client.post("/rerank", json={"query": query, "passages": list(passages)})
+            resp.raise_for_status()
+            logits = resp.json()["logits"]
+            if not isinstance(logits, list) or len(logits) != len(passages):
+                raise RerankError("RERANK_BAD_RESPONSE")
+            raw = np.asarray(logits, dtype=np.float32)
+        except RerankError:
+            raise
+        except httpx.TimeoutException as exc:
+            raise RerankError("RERANK_TIMEOUT") from exc
+        except httpx.HTTPStatusError as exc:
+            raise RerankError(f"RERANK_HTTP_{exc.response.status_code}") from exc
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise RerankError("RERANK_BAD_RESPONSE") from exc
+        if not np.all(np.isfinite(raw)):
+            raise RerankError("RERANK_BAD_RESPONSE")
+        return _sigmoid(raw)
+
+
+def build_rerank_provider(config: ModelsConfig, profile: str, *,
+                          transport: Any = None) -> RerankProvider | None:
     """``None`` when rerank is disabled or the provider is ``none`` (mode stays without suffix)."""
     spec = config.rerank()
     if not spec.enabled or spec.provider == "none":
         return None
+    if spec.provider == "modal":
+        endpoint = config.provider_endpoint("modal")
+        base_url = str(endpoint.get("rerank_base_url") or "")
+        if not base_url:
+            raise ValueError(
+                "providers.modal.rerank_base_url is empty (set SOPILOT_RERANK_BASE_URL)")
+        key_name = endpoint.get("api_key_env")
+        key = os.environ.get(str(key_name), "") if key_name else ""
+        return RemoteRerankProvider(spec, base_url=base_url, api_key=key or None,
+                                    timeout=spec.timeout_s, transport=transport)
     if spec.provider != "local":
         raise ValueError(f"unknown rerank provider {spec.provider!r}")
     if spec.revision:

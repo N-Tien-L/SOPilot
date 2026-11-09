@@ -13,10 +13,11 @@ embedding:
       batch_size: 16
 rerank:
   enabled: ${RERANK_ENABLED:false}
-  provider: local                      # local | none
+  provider: ${RERANK_PROVIDER:local}   # local | modal | none (modal: POST {providers.modal.rerank_base_url}/rerank, V2-35)
   model: BAAI/bge-reranker-v2-m3
   revision: ${RERANK_REVISION:}
   max_pairs: 25
+  timeout_s: ${RERANK_TIMEOUT_S:30}    # modal only; cold start of the GPU container can exceed this
 llm:
   # Owner chốt 2026-11-01 (ADR-006 §4.4) and 2026-11-04 (V2-10): one self-hosted model behind an
   # OpenAI-compatible server (vLLM on Modal). No fallback chain yet; a second endpoint is added here
@@ -43,7 +44,7 @@ llm:
     temperature: 0
     max_output_tokens: 200
 providers:
-  modal: {base_url: "${SOPILOT_LLM_BASE_URL:}", api_key_env: SOPILOT_LLM_API_KEY}
+  modal: {base_url: "${SOPILOT_LLM_BASE_URL:}", rerank_base_url: "${SOPILOT_RERANK_BASE_URL:}", api_key_env: SOPILOT_LLM_API_KEY}
   # Embedding endpoints for the non-local providers (unused while bge-m3 runs locally).
   openai_compatible: {base_url: "${EMBEDDING_BASE_URL:http://tei:80/v1}", api_key_env: EMBEDDING_API_KEY}
   cloudflare: {base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID:}/ai/run", api_key_env: CLOUDFLARE_API_TOKEN}

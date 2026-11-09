@@ -150,3 +150,16 @@ def test_disposable_infrastructure_uses_tmpfs_for_image_volumes(tmp_path):
         "ports" not in service and "container_name" not in service
         for service in config["services"].values()
     )
+
+
+def test_modal_rerank_config_builds_remote_reranker(monkeypatch):
+    # Arrange
+    from sopilot_eval.retrievers import RemoteCrossEncoder, build_reranker
+
+    monkeypatch.setenv("SOPILOT_RERANK_BASE_URL", "https://x.modal.run/v1")
+    monkeypatch.delenv("SOPILOT_LLM_API_KEY", raising=False)
+    # Act
+    reranker = build_reranker({"provider": "modal", "model": "m", "revision": "r"})
+    # Assert
+    assert isinstance(reranker, RemoteCrossEncoder)
+    assert reranker.score("q", []).shape == (0,)

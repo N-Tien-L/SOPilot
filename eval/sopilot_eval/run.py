@@ -11,6 +11,7 @@ Two dataset layouts:
   scored against the gold spans when chunks carry offsets (``chunking.mode: docproc``).
 """
 from __future__ import annotations
+from typing import Any
 
 import argparse
 import json
@@ -27,7 +28,7 @@ import yaml
 from .corpus import load_chunks
 from .embedders import build_embedder
 from .metrics import refusal_sweep, retrieval_metrics, span_metrics
-from .retrievers import TOKENIZER_VERSION, CrossEncoder, Index, retrieve_candidates
+from .retrievers import TOKENIZER_VERSION, CrossEncoder, Index, build_reranker, retrieve_candidates
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -173,7 +174,7 @@ def run(dataset: Path, config_path: Path, out_root: Path, split: str | None = No
     metrics: dict[str, dict] = {}
     per_q: list[dict] = []
     indexes: dict[str, tuple[Index, dict]] = {}
-    rerankers: dict[str, CrossEncoder] = {}
+    rerankers: dict[str, Any] = {}
     chunking_info: dict[str, dict] = {}
 
     for conf in cfg["configs"]:
@@ -195,7 +196,9 @@ def run(dataset: Path, config_path: Path, out_root: Path, split: str | None = No
         if conf.get("rerank"):
             rk = json.dumps(conf["rerank"], sort_keys=True)
             if rk not in rerankers:
-                rerankers[rk] = CrossEncoder(conf["rerank"]["model"], conf["rerank"].get("revision"))
+                rc = conf["rerank"]
+                rerankers[rk] = (build_reranker(rc) if rc.get("provider", "local") != "local"
+                                 else CrossEncoder(rc["model"], rc.get("revision")))
             reranker = rerankers[rk]
         k_prompt = conf.get("k", 5)
         if not isinstance(k_prompt, int) or k_prompt <= 0:
