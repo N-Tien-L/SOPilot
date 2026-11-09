@@ -16,7 +16,7 @@ refs:
   - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 33
+total_tickets: 34
 completed_tickets: 14
 implemented_tickets: 17
 review_tickets: 3
@@ -110,6 +110,7 @@ flowchart TD
     V31["V2-31: Frontend: nạp nhiều tài liệu và theo dõi xử lý"]
     V32["V2-32: Frontend: nội dung nhận diện và trình xem trích dẫn"]
     V33["V2-33: Frontend: thành viên, phòng ban và metadata tài liệu"]
+    V34["V2-34: Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh"]
     V01 --> V03
     V01 --> V04
     V05 --> V07
@@ -122,7 +123,8 @@ flowchart TD
     V20 --> V09
     V21 --> V09
     V22 --> V09
-    V02 --> V10
+    V02 --> V34
+    V34 --> V10
     V09 --> V10
     V03 --> V11
     V08 --> V11
@@ -211,7 +213,8 @@ flowchart TD
 |---|---|---|:---:|---|:---:|
 | `V2-08` | Khung Flyway và docker compose (Postgres/pgvector, object storage) | infra | M | `V2-01` | done |
 | `V2-09` | ai-service: worker ingest, embedding, hybrid retrieval, RLS, 4 loại điểm, provider interface | ai-qa | L | `V2-03`, `V2-06`, `V2-08`, `V2-20`, `V2-21`, `V2-22` | done |
-| `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09` | todo |
+| `V2-34` | Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh | infra | M | `V2-02` | todo |
+| `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | in-progress |
 | `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | todo |
 
 ### Phase 2b: Ingestion SOP (AUDIT-ingestion-sop-data)
@@ -274,7 +277,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | Phạm vi tăng thêm 4 ticket (khoảng 1 XL quy đổi) | Trung bình | `V2-24`/`V2-25` không nằm trên đường tới RQ1–RQ3; nếu thiếu thời gian, hoãn import CSV (P1) và phương án nâng cấp gợi ý metadata trước |
 
 ## 5. Definition of Done
-- [ ] 33/33 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
+- [ ] 34/34 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
 - [ ] `docker compose up` dựng toàn bộ hệ thống trên máy local; UC-01 đến UC-06 và UC-12 chạy được.
 - [ ] FR-19 và FR-29: 0 rò rỉ. Báo cáo RQ1–RQ3 trong `docs/04-reports/`.
 - [ ] `CLAUDE.md` (kiến trúc, mục drift), `.claude/` và `.agent/context/` phản ánh kiến trúc mới.
@@ -294,6 +297,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-04:** `V2-20`, `V2-21`, `V2-22` → `done` (docproc đã sửa 6 lỗi, ngưỡng khung lọt ≤ 10% và xóa nhầm ≤ 2%; `header_footer_ratio` 0,6 → 0,4 theo TECH §5.3); `completed_tickets` 9 → 11, `review_tickets` 2 → 0.
 
 > **Owner chốt 2026-11-04 (chọn model cho V2-10):** bỏ bake-off đầy đủ; model sinh là Qwen3.5-9B FP8 trên L4, có ứng viên thay thế ở ADR-006 §4.4. Không đổi trạng thái hay bộ đếm.
+
+> **Owner chốt 2026-11-09 (thêm V2-34):** ticket mới `V2-34` dựng và kiểm endpoint LLM Modal (ADR-006 §4.4); `V2-10` phụ thuộc thêm `V2-34` vì kiểm nhanh 20 câu và test thủ công cần endpoint thật. `total_tickets` 33 → 34; `completed_tickets`, `review_tickets`, `implemented_tickets` không đổi (`todo` không được đếm).
 
 > **Owner chốt 2026-11-05:** `V2-11` → `done` (41 unit + 14 integration test xanh, 3 chỗ lệch TECH đã duyệt và ghi vào TECH-V2-core-api; khóa trước đó trong JWKS chuyển `V2-29`); `completed_tickets` 11 → 12, `implemented_tickets` 11 → 12.
 

@@ -3,7 +3,7 @@ id: TECH-V2-AI-SERVICE
 title: "Thiết kế kỹ thuật ai-service (V2): ingest có cấu trúc, truy xuất hybrid có lọc quyền, hỏi đáp có trích dẫn"
 status: approved
 created: 2026-10-20
-updated: 2026-10-21
+updated: 2026-11-08
 refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -72,7 +72,7 @@ affected_schemas: [rag]
 | `infrastructure/db/migrations/rag/` | Flyway | Schema `rag` | Chuỗi migration mới (V2-08) |
 | Worker ingest và gợi ý metadata | Tiến trình con trong cùng container (`python -m sopilot_ai.worker`) | `rag.ingestion_jobs`, `rag.suggestion_jobs` | Hàng đợi Postgres `FOR UPDATE SKIP LOCKED` |
 | Model local | sentence-transformers / transformers trên CPU | — | `bge-m3`, `bge-reranker-v2-m3` (ADR-006 §4.2) |
-| LLM API | Gemini, Groq qua API kiểu OpenAI | — | ADR-006 §4.4 |
+| LLM API | Một endpoint tự host (vLLM trên Modal) qua API kiểu OpenAI | — | ADR-006 §4.4, [V2-10 mốc 2](../../03-plans/tickets/V2-10-ai-service-qa-pipeline.md) |
 
 API và worker là hai tiến trình dùng chung image và cấu hình. Tách tiến trình để bước embed nặng CPU không chặn event loop của API (lỗi cũ: OCR đồng bộ trong hàm `async`, AUDIT-ingestion §2.1). Truy vấn hỏi đáp vẫn embed câu hỏi trong tiến trình API, qua `run_in_threadpool` với một model đã nạp sẵn.
 
@@ -486,29 +486,24 @@ rerank:
   revision: ${RERANK_REVISION}
   max_pairs: 25
 llm:
+  # Sửa 2026-11-09 (V2-10 mốc 2, ADR-006 §4.4): một model tự host sau server kiểu OpenAI (vLLM trên
+  # Modal). Chuỗi Gemini/Groq đã bỏ (owner 2026-11-01). Endpoint, model id và khóa lấy từ môi trường.
   generate:
     chain:
-      - {provider: gemini, model: "${GEMINI_GENERATE_MODEL:gemini-3.1-flash-lite-preview}", rpm: 15, tpm: 250000, rpd: 500}
-      - {provider: groq,   model: openai/gpt-oss-120b, rpm: 30, tpm: 8000, rpd: 1000, context_max_tokens: null}   # trần context riêng (§7.4); null = dùng retrieval.context.max_tokens. Đặt giá trị đo trên dev khi TPM 8000 làm Groq không chạy nổi context 3000 token
+      - provider: modal
+        model: "${SOPILOT_LLM_MODEL:}"
+        rpm: "${SOPILOT_LLM_RPM:60}"        # giá trị giữ chỗ, đo trên endpoint thật
+        tpm: "${SOPILOT_LLM_TPM:200000}"
+        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:}"   # trống = chưa khai báo trần
+        extra_body: {chat_template_kwargs: {enable_thinking: false}}
     temperature: 0.2
     max_output_tokens: 800
-  rewrite:          # chỉ dùng khi có lịch sử hội thoại
-    chain:
-      - {provider: groq,   model: openai/gpt-oss-20b, rpm: 30, tpm: 8000, rpd: 1000}
-      - {provider: gemini, model: "${GEMINI_GENERATE_MODEL:gemini-3.1-flash-lite-preview}"}
+  rewrite:
+    chain: [same entry as generate]
     temperature: 0
-  small_task:       # gợi ý metadata (FR-28)
-    chain:
-      - {provider: groq, model: openai/gpt-oss-20b, rpm: 30, tpm: 8000, rpd: 1000}
-    temperature: 0
-  judge:            # chỉ eval (V2-10), không dùng trong request người dùng
-    chain:
-      - {provider: groq, model: openai/gpt-oss-120b}
-    temperature: 0
+    max_output_tokens: 200
 providers:
-  gemini: {base_url: "https://generativelanguage.googleapis.com/v1beta/openai", api_key_env: GEMINI_API_KEY}
-  groq:   {base_url: "https://api.groq.com/openai/v1", api_key_env: GROQ_API_KEY}
-  local_llm: {base_url: "${LOCAL_LLM_BASE_URL:http://ollama:11434/v1}", api_key_env: null}
+  modal: {base_url: "${SOPILOT_LLM_BASE_URL:}", api_key_env: SOPILOT_LLM_API_KEY}
 retrieval:
   candidate_pool: 50      # mỗi nhánh dense / lexical
   rerank_pool: 25
@@ -826,21 +821,30 @@ Lý do chọn BM25 tự viết thay cho `ts_rank` hay extension: (1) điểm kh�
 
 ### 7.1 Các bước
 
+**Sửa 2026-11-08 (owner chốt, [HANDOFF-V2-10](../../04-reports/HANDOFF-V2-10-qa-pipeline-2026-11-08.md)): pipeline là chuỗi bước, `QueryFrame`, cổng ngưỡng lỏng.** Kiến trúc QA không đổi; ba điều chỉnh dưới đây chỉ đổi cách tổ chức và cách hiệu chỉnh.
+
+- **Chuỗi bước và `Decision`.** `qa/pipeline.py` chạy một danh sách bước theo đúng thứ tự 1–12 bên dưới (hạn mức → kiểm đầu vào → PII → guard → router luật → token có nghĩa → viết lại/nối tiếp → truy xuất + cổng → ghép context → prompt → sinh/stream + canary → hậu xử lý trích dẫn → nhận diện tự từ chối → kiểm số/ngày). Mỗi bước nhận một context dùng chung và trả về `Decision` thuộc `continue | template | refuse | clarify`: `continue` chuyển sang bước kế; `template` trả câu mẫu (`outcome = TEMPLATE`); `refuse` là từ chối (guard: `outcome = REFUSED_GUARD`, không có `refusal_reason`; thiếu bằng chứng: `NO_EVIDENCE`; `OUT_OF_SCOPE` do `V2-27` thêm); `clarify` chỉ khai báo trong kiểu, **chưa bước nào phát ra** (dành cho ticket sau, không có nhánh hỏi lại ở V2-10). Điểm gắn `OUT_OF_SCOPE` của `V2-27` nằm ở bước từ chối sau cổng (bước 8). Số lần gọi LLM vẫn tối đa 2 (viết lại khi có lịch sử, và sinh).
+- **`QueryFrame`.** `qa/query_frame.py` là hàm thuần, dựng `QueryFrame` **một lần** sau bước PII (văn bản đã che, trước guard), gom: ngôn ngữ (tỉ lệ ký tự có dấu, ghi đè được bằng `lang` của request), mã tài liệu (dùng lại `qa/doc_code.py`), ngày và số tiền, dấu hiệu nối tiếp (`qa/followup_rules.yaml`), dấu hiệu so sánh/nhiều ý (từ khóa trong YAML như "so sánh", "khác nhau", "khác gì", "vs", "compare", "difference", hoặc ≥ 2 mã tài liệu) và số token có nghĩa (tính sau "bóc"). Router, truy xuất và prompt đọc từ `QueryFrame`, không tự phát hiện lại. Dấu hiệu so sánh **chỉ ghi** vào `messages.route` (`route.signals.comparison = true`), không rẽ nhánh và không đổi truy xuất (tách câu nhiều ý vẫn hoãn, D9).
+- **Cổng ngưỡng để lỏng, LLM tự từ chối.** Giữ ngưỡng giữ chỗ trong `config/models.yaml` (`hybrid: 0.45`); cổng chỉ chặn khi điểm rất thấp, không hạ thêm và không đặt giá trị mới từ số RQ3. Lý do: cosine là cổng yếu (khoảng điểm của câu trả lời được và câu ngoài kho chồng lấn, [AUDIT-eval-rq1-rq3](../../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) §6; V2-07 §6, chốt 2026-11-07), nên đặt ngưỡng chặt sẽ từ chối nhầm câu hợp lệ. Phần còn lại giao cho LLM sinh: câu qua cổng nhưng LLM mở đầu bằng câu cố định của bước 6 → `GENERATOR_NOT_FOUND` (D2, bước 10). Mọi câu có truy xuất đều ghi `gate_score`, `threshold` và loại từ chối (`NO_EVIDENCE` | `GENERATOR_NOT_FOUND` | không từ chối) vào `messages.route` để hiệu chỉnh sau.
+
 1. **Hạn mức** (§7.4), bỏ qua khi tắt (mặc định). Hết → SSE `error {code: QUOTA_EXCEEDED}`; không gọi gì thêm.
 2. **Kiểm đầu vào và guard** (lớp 1 FR-13):
    - **Hợp lệ (D4):** câu rỗng hoặc chỉ có khoảng trắng sau NFC, hoặc dài hơn `SOPILOT_MAX_QUESTION_CHARS=1000` ký tự (đếm code point sau NFC) thì **từ chối, không cắt bớt**: SSE `refusal {reason: "INPUT_INVALID"}` với câu mẫu nêu giới hạn (câu quá dài) hoặc đề nghị nhập câu hỏi (câu rỗng), `outcome = TEMPLATE`, `refusal_reason = INPUT_INVALID`, không gọi LLM, không tính hạn mức. Không có phần nào của câu quá dài lọt qua guard.
-   - **Che PII (D8):** `qa/pii.py` nhận diện bằng luật: email; số điện thoại VN (`+84` hoặc `0` kèm 9 chữ số, cho phép khoảng trắng, dấu chấm, gạch ngang); số CCCD/CMND (9 hoặc 12 chữ số) và số tài khoản (9–16 chữ số) **chỉ khi** đi sau một từ khóa trong 20 ký tự (`cccd`, `cmnd`, `căn cước`, `hộ chiếu`, `passport`, `stk`, `số tài khoản`, `account`), để số tiền như `500.000.000` không bị che nhầm. Thay bằng `[EMAIL]`, `[PHONE]`, `[ID]`, `[ACCOUNT]`, ghi `guard_events(INPUT_FLAG)` với `rule_id = pii.email|phone|id|account` và `messages.checks.pii`. Bản đã che là **văn bản làm việc** cho mọi bước sau (guard, router, viết lại, embed, prompt) và cho các lượt lịch sử gửi đi viết lại; `messages.content` lưu nguyên văn.
+   - **Che PII (D8):** `qa/pii.py` nhận diện bằng luật: email; số điện thoại VN (`+84` hoặc `0` kèm 9 chữ số, cho phép khoảng trắng, dấu chấm, gạch ngang); số CCCD/CMND (9–12 chữ số; owner chốt 2026-11-08, che cả độ dài 10–11 thường gặp) và số tài khoản (9–16 chữ số) **chỉ khi** đi sau một từ khóa trong 20 ký tự (`cccd`, `cmnd`, `căn cước`, `hộ chiếu`, `passport`, `stk`, `số tài khoản`, `account`), để số tiền như `500.000.000` không bị che nhầm. Thay bằng `[EMAIL]`, `[PHONE]`, `[ID]`, `[ACCOUNT]`, ghi `guard_events(INPUT_FLAG)` với `rule_id = pii.email|phone|id|account` và `messages.checks.pii`. Bản đã che là **văn bản làm việc** cho mọi bước sau (guard, router, viết lại, embed, prompt) và cho các lượt lịch sử gửi đi viết lại; `messages.content` lưu nguyên văn.
    - **Guard:** chuẩn hóa (NFC, bỏ dấu, leetspeak `0→o, 1→i, 3→e, 4→a, 5→s, 7→t`). Luật VI/EN hai mức, viết trong `qa/guard_rules.yaml` (không trong code):
    - **Chặn:** đòi lộ system prompt/quy tắc ẩn/khóa API; ghi đè chỉ dẫn nhắm vào chỉ dẫn/prompt; giả mạo vai trò hệ thống (`system:`, `[INST]`, `<|im_start|>`). Trả câu từ chối cố định, `outcome = REFUSED_GUARD`, ghi `guard_events(INPUT_BLOCK)`.
    - **Gắn cờ:** đóng vai, "bỏ qua bước", nhắc workspace khác. Vẫn trả lời, ghi `guard_events(INPUT_FLAG)`.
-   - Luật khởi đầu port từ `eval/provider_check/check_providers.py::RULE_PATTERNS`, sau đó điều chỉnh bằng **bộ câu kiểm tra riêng** của V2-10 (không trùng bộ dùng để viết luật).
+   - **Nhóm có hại thật (V2-10):** đe dọa, tự hại, quấy rối (`harm.threat|self_harm|harassment`) có luật chặn riêng, chỉ khớp khi có ý định rõ (ví dụ "muốn quấy rối đồng nghiệp", không khớp "quy trình xử lý quấy rối"). Trả câu cố định (`harm_block`); tự hại trả `self_harm` kèm đầu mối liên hệ cấu hình được (`PipelineContext.support_contact`, nguồn cấu hình thêm ở mốc API), chưa cấu hình thì dùng `self_harm_no_contact`. `guard_events(INPUT_BLOCK)` chỉ lưu `rule_id`.
+   - **Từ điển thô tục** trong `guard_rules.yaml` (mục `abuse`), so khớp theo ranh giới từ trên token, không theo chuỗi con: danh sách có dấu, danh sách bỏ dấu chỉ cho teencode không có nghĩa khác, và danh sách `standalone_only` ("cc", "đm", "vl"… có thể là "chứng chỉ", "định mức", "vật liệu") chỉ tính khi câu không quá `standalone_max_tokens` token và token không dính `-`/`/` (mã tài liệu như `QT-VL-02`). Từ thô tục không tự quyết định gì: router bóc chúng ra rồi xét phần còn lại, ghi `guard_events(INPUT_FLAG)` `abuse.profanity|abuse.standalone`.
+   - Luật khởi đầu port từ `eval/provider_check/check_providers.py::RULE_PATTERNS`, sau đó điều chỉnh bằng **bộ câu kiểm tra riêng** của V2-10 (không trùng bộ dùng để viết luật). Luật chặn viết hẹp có chủ đích để không chặn câu SOP thường gặp ("quy tắc ăn mặc", "quy tắc nội bộ", "tắt bộ lọc spam"): "ẩn" và "an" trùng khi bỏ dấu nên luật "quy tắc ẩn" so trên văn bản còn dấu.
 3. **Router luật:** chào hỏi/cảm ơn/hỏi về bot (VI/EN) → câu mẫu, `outcome = TEMPLATE`, không gọi LLM, không tính hạn mức. Câu luật chưa quyết đi qua **semantic router** (owner chốt 2026-10-20, chi tiết và ngưỡng ở `V2-27`): so embedding câu hỏi gốc với câu mẫu trong `qa/router_exemplars.yaml`, rẽ sang câu mẫu chỉ khi vượt ngưỡng của intent và `margin` so với câu SOP mẫu gần nhất; không gọi LLM, bật/tắt bằng `SOPILOT_SEMANTIC_ROUTER_ENABLED`. Vector của câu gốc chỉ được dùng lại cho dense retrieval khi chưa có lịch sử **và** văn bản làm việc (đã che PII, đã bóc token chào hỏi/thô tục theo V2-10) trùng câu gốc; ngược lại truy xuất embed lại đúng chuỗi dùng để tìm (D5). Quyết định của router ghi vào `messages.route`.
-   - **Token có nghĩa (D4):** sau "bóc rồi xét" (V2-10), token có nghĩa là token `\w+` (chữ thường, NFC) có trong `rag.chunk_terms` của tập tài liệu người hỏi được đọc (cùng CTE `scope` của §6.3, nên không lộ từ ngoài quyền) hoặc trong `qa/lexicon.yaml` (từ VI/EN thông dụng, owner duyệt). Số token có nghĩa dưới `min_meaningful_tokens` (mặc định 1, trong `qa/guard_rules.yaml`) → câu mẫu "chưa hiểu câu hỏi", `outcome = TEMPLATE`, `refusal_reason = INPUT_INVALID`, không truy xuất.
+   - **"Bóc rồi xét" (V2-10):** router bóc token chào hỏi, cảm ơn, hỏi về bot (từ khóa trong `qa/templates.yaml`, so sau khi bỏ dấu) và token thô tục khỏi câu. Hết token → câu mẫu theo loại đã bóc (thô tục > hỏi về bot > cảm ơn > chào); còn token nhưng dưới ngưỡng token có nghĩa → cùng quy tắc, và nếu không bóc được gì thì "chưa hiểu câu hỏi". Còn nội dung → RAG trên câu đã bóc. `refusal_reason = INPUT_INVALID` chỉ đi với câu mẫu "chưa hiểu câu hỏi".
+   - **Token có nghĩa (D4):** sau "bóc rồi xét" (V2-10), token có nghĩa là token `\w+` (chữ thường, NFC) có trong `rag.chunk_terms` của tập tài liệu người hỏi được đọc (cùng CTE `scope` của §6.3, nên không lộ từ ngoài quyền) hoặc trong `qa/lexicon.yaml` (từ VI/EN thông dụng, owner duyệt; khớp không dấu chỉ cho cụm nhiều từ vì một từ đơn bỏ dấu dễ trùng nghĩa, ví dụ "đúng"/"dùng"). Số token có nghĩa dưới `min_meaningful_tokens` (mặc định 1, trong `qa/guard_rules.yaml`) → câu mẫu "chưa hiểu câu hỏi", `outcome = TEMPLATE`, `refusal_reason = INPUT_INVALID`, không truy xuất.
    - **Router mở rộng (D1, V2-27):** `off_topic` **không** rẽ ở đây: nó chỉ có hiệu lực sau khi cổng từ chối (bước 8) vì router không biết kho chứa gì. `action_request`, `personal_data`, `legal_medical` chỉ gắn câu miễn trừ (bước 12), vẫn chạy RAG. `about_source` (cần có lịch sử) và `feedback_in_chat` (chỉ khi phần còn lại sau "bóc" rỗng) trả câu mẫu ngay, không gọi LLM: `about_source` liệt kê lại trích dẫn của lượt trước từ `message_citations`, `feedback_in_chat` hướng dẫn bấm 👎.
 4. **Viết lại câu hỏi** chỉ khi hội thoại có ≥ 1 lượt trước: gửi tối đa 3 lượt gần nhất (chỉ câu hỏi và câu trả lời đã làm sạch, không gửi chunk) cho `llm.rewrite`, nhận câu hỏi độc lập; các lượt lịch sử cũng dùng bản đã che PII (bước 2). Ghi `messages.rewrite_status` (`OK` | `FAILED`; `NONE` khi không có lịch sử). Lỗi → dùng câu hỏi gốc, **trừ khi** câu có dấu hiệu nối tiếp (luật `qa/followup_rules.yaml`: đại từ chỉ định như "đó", "này", "vậy còn", "thế còn", "it", "that", "what about", hoặc ít hơn `SOPILOT_FOLLOWUP_MAX_TOKENS` token) thì **không truy xuất**: trả câu mẫu đề nghị nêu đầy đủ câu hỏi, `outcome = TEMPLATE`, `refusal_reason = INPUT_INVALID`, `route.layer = 'followup_rule'` (D5). Câu không có dấu hiệu nối tiếp đi tiếp với câu gốc. Câu đã viết lại được đưa tiếp cho truy xuất và cho prompt sinh (bước 5, 6).
 5. **Truy xuất** (§6) trên văn bản làm việc (câu đã viết lại nếu có, ngược lại câu đã che và bóc). Dưới ngưỡng → bước 8. Đủ ngưỡng → ghép context (§6.4a).
 6. **Ghép prompt** (lớp 2): system prompt cố định theo `prompt_version`, chứa canary token ngẫu nhiên sinh mỗi request và quy tắc: chỉ dùng dữ liệu trong thẻ, trả lời theo ngôn ngữ câu hỏi, mỗi khẳng định gắn `[n]`, thiếu thông tin thì **bắt đầu câu trả lời bằng đúng câu mở đầu cố định** theo ngôn ngữ ("Không tìm thấy thông tin này trong các tài liệu hiện có." / "I could not find this in the available documents.", D2), giữ điều kiện áp dụng và ngoại lệ có trong source; với câu tình huống (có dữ kiện cụ thể của người hỏi) thì liệt kê điều kiện liên quan, nói điều kiện nào thỏa và điều kiện nào chưa đủ dữ kiện rồi trả lời dạng "nếu … thì …"; khi câu hỏi về mã tài liệu, lần ban hành hay ngày hiệu lực thì dùng `code`, `rev`, `effective` của source. System prompt có dòng "Hôm nay là {YYYY-MM-DD}" theo múi giờ `SOPILOT_TIMEZONE` (mặc định `Asia/Ho_Chi_Minh`) để hiểu "tuần trước", "hiện hành". Đổi prompt thì đổi `prompt_version`. Mỗi source của §6.4a bọc trong `<source n="1" title="…" page="3" code="QT-MH-01" rev="03" effective="2026-03-01">…</source>` (D3): `code`, `rev`, `effective` lấy từ `extracted_documents.extracted_meta` (`docCode`, `revisionLabel`, `effectiveDate`) của `version_id` của source, trong bảng `rag` (không đọc `core`); thuộc tính không có thì bỏ; giá trị được escape như nội dung. Các trường này chỉ vào prompt, **không** vào `index_text` (giữ cache embedding, §5.4). Escape `<`, `>`, `&` trong nội dung. Câu hỏi nằm ở message `user` riêng, không ghép vào system, và **không có lịch sử hội thoại** (D5): lịch sử chỉ được bước 4 dùng để làm rõ câu hỏi. Message `user` gồm `Câu hỏi:` là câu đã viết lại (khi bước 4 thành công) hoặc câu đã che PII, và thêm `Câu gốc:` khi hai câu khác nhau, để LLM đối chiếu nếu bước viết lại lệch ý.
-7. **Sinh và stream** (lớp 3): SSE `delta` phát văn bản nhưng **giữ lại** `len(canary) + 32` ký tự cuối chưa phát. Mỗi delta mới, kiểm tra buffer có chứa canary hoặc đoạn ≥ 40 ký tự liên tiếp của system prompt không. Có → dừng stream, phát `replace` với câu từ chối cố định, `outcome = REFUSED_GUARD`, `guard_events(OUTPUT_CANARY | OUTPUT_PROMPT_ECHO)`.
+7. **Sinh và stream** (lớp 3): SSE `delta` phát văn bản nhưng **giữ lại** `max(len(canary), 40) + 32` ký tự cuối chưa phát (40 là cửa sổ echo; canary 23 ký tự cho 72). Mỗi delta mới, kiểm tra buffer có chứa canary hoặc đoạn ≥ 40 ký tự liên tiếp của system prompt không. Có → dừng stream, phát `replace` với câu từ chối cố định, `outcome = REFUSED_GUARD`, `guard_events(OUTPUT_CANARY | OUTPUT_PROMPT_ECHO)`.
 8. **Từ chối thiếu bằng chứng** (FR-12): câu trả lời cố định theo ngôn ngữ câu hỏi + tối đa 3 "tài liệu gần nhất" (tiêu đề của tài liệu chứa ứng viên đầu, đã qua bộ lọc quyền nên không lộ tài liệu ngoài quyền), `outcome = REFUSED_NO_EVIDENCE`, `refusal_reason = NO_EVIDENCE`. Không gọi LLM sinh. Nếu router xếp câu `off_topic` vượt ngưỡng (V2-27, chỉ xét tại bước này, D1) thì `refusal_reason = OUT_OF_SCOPE`: cùng câu từ chối nhưng **không** kèm "tài liệu gần nhất". Router không bao giờ làm đổi một quyết định "cho qua" của cổng.
 9. **Hậu xử lý trích dẫn** (FR-11): tìm `[n]` trong văn bản cuối; `n` không ứng với source nào trong prompt → xóa khỏi văn bản. Mỗi `n` hợp lệ lưu `message_citations` theo quy tắc trích dẫn của §6.4a (đoạn trích là `content` của các chunk trúng trong source). Ghi `messages.checks.citationCount` = số `[n]` hợp lệ còn lại.
 10. **Nhận diện LLM tự từ chối (D2):** nếu văn bản cuối (đã `strip`, so không phân biệt hoa thường, bỏ dấu câu ở đầu) bắt đầu bằng câu mở đầu cố định của bước 6 thì `outcome = REFUSED_NO_EVIDENCE`, `refusal_reason = GENERATOR_NOT_FOUND`, không lưu trích dẫn. So khớp chuỗi tất định; unit test cho cả hai ngôn ngữ.
@@ -980,7 +984,8 @@ CREATE TABLE rag.knowledge_gap_status (
 | `GEMINI_API_KEY`, `GROQ_API_KEY` | — | Chỉ trong `.env` |
 | `SOPILOT_MODELS_CONFIG` | `config/models.yaml` | |
 | `EMBEDDING_REVISION`, `RERANK_REVISION`, `RERANK_ENABLED` | —, —, `false` | |
-| `GEMINI_GENERATE_MODEL` | `gemini-3.1-flash-lite-preview` | Đổi sang GA khi hết 503 |
+| `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_MODEL`, `SOPILOT_LLM_API_KEY` | —, —, — | Endpoint Modal (OpenAI-compatible); model id lấy từ `GET /models`. Thiếu thì lỗi khi khởi động (không có mặc định) |
+| `SOPILOT_LLM_RPM`, `SOPILOT_LLM_TPM`, `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | `60`, `200000`, trống | Giữ chỗ, đo trên endpoint; trống trần = chưa khai báo |
 | `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY`, `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY` | `0`, `0` | FR-09, `0` = tắt (giai đoạn nghiên cứu) |
 | `SOPILOT_INGEST_MAX_ATTEMPTS`, `SOPILOT_SUGGEST_TIMEOUT`, `SOPILOT_SUGGEST_MAX_INPUT_TOKENS` | `3`, `20s`, `1500` | |
 | `SOPILOT_MAX_QUESTION_CHARS` | `1000` | §7.1 bước 2: dài hơn thì từ chối, không cắt (D4); đếm code point sau NFC |

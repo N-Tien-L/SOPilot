@@ -2,17 +2,17 @@
 id: V2-10
 title: "ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối"
 type: feat
-status: todo
+status: in-progress
 created: 2026-10-17
-updated: 2026-11-08
+updated: 2026-11-09
 author: "Owner"
 scope: ai-qa
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-02, V2-09]
+depends_on: [V2-02, V2-09, V2-34]
 blocks: [V2-13, V2-15, V2-16, V2-26, V2-27, V2-28, V2-32]
-branch: "feat/ai-qa-v2-qa-pipeline"
+branch: "feat/ai-v2-qa-pipeline"
 assignee: pair
 ---
 
@@ -43,6 +43,12 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 - [ ] Câu đi nhánh `TEMPLATE` không tính hạn mức và không vào danh sách chưa trả lời được (V2-13). System prompt có quy tắc giữ giọng trung lập khi câu hỏi có lời lẽ thô tục.
 - [ ] Guard bốn lớp theo FR-13: chuẩn hóa + luật VI/EN hai mức (chặn / gắn cờ), chunk bọc thẻ dữ liệu có escape, canary token kiểm đầu ra, log cờ guard.
 - [ ] Bộ câu kiểm tra guard riêng (80–100 câu, owner duyệt, không trùng `eval/provider_check/prompt_guard_cases.jsonl`) gồm ≥ 10 câu đòi lộ system prompt, ≥ 15 câu thô tục VI/EN (có teencode, không dấu, kèm và không kèm câu hỏi) và ≥ 15 câu hợp lệ dễ chặn nhầm (các ca trùng khi bỏ dấu ở trên): chặn nhầm câu hợp lệ ≤ 2%, 0 lần lộ canary; báo cáo tỉ lệ chặn đúng ở lớp luật. Chạy trong CI.
+
+**Cấu trúc pipeline (Sửa 2026-11-08, owner chốt; [HANDOFF-V2-10](../../04-reports/HANDOFF-V2-10-qa-pipeline-2026-11-08.md), TECH-V2-ai-service §7.1)**
+
+- [ ] **Pipeline là chuỗi bước.** `qa/pipeline.py` chạy danh sách bước theo thứ tự TECH §7.1; mỗi bước nhận context dùng chung và trả `Decision` thuộc `continue | template | refuse | clarify`. `clarify` chỉ khai báo trong kiểu, chưa bước nào phát ra. Điểm gắn `OUT_OF_SCOPE` cho `V2-27` nằm ở bước từ chối sau cổng. Unit test: thứ tự bước, `Decision` dừng chuỗi đúng chỗ, số lần gọi LLM ≤ 2.
+- [ ] **`QueryFrame`.** `qa/query_frame.py` (hàm thuần) dựng một lần sau bước PII: ngôn ngữ, mã tài liệu (dùng `qa/doc_code.py`), ngày và số tiền, dấu hiệu nối tiếp, dấu hiệu so sánh/nhiều ý (từ khóa trong YAML hoặc ≥ 2 mã tài liệu), số token có nghĩa. Router, truy xuất và prompt đọc từ `QueryFrame`, không tự phát hiện lại. Dấu hiệu so sánh chỉ ghi `messages.route.signals.comparison`, không rẽ nhánh.
+- [ ] **Cổng ngưỡng lỏng, LLM tự từ chối.** Giữ ngưỡng giữ chỗ hiện có trong `config/models.yaml` (`hybrid: 0.45`), không hạ thêm, không đặt giá trị mới từ số RQ3. Câu qua cổng nhưng LLM mở đầu bằng câu cố định → `GENERATOR_NOT_FOUND`. Luôn ghi `gate_score`, `threshold` và loại từ chối vào `messages.route`; lý do ghi ở TECH §7.1.
 
 **Viết lại và nối tiếp**
 
@@ -79,7 +85,7 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 - Có thể tham khảo `services/ai-qa-service/src/services/generation/prompt_builder.py` nhưng không port intent classification.
 - Không port `layer1_toxic_filter.py`: nó gọi `llama-guard-3-8b`/`llama-3.1-8b-instant` (đã ngừng) và coi lỗi gọi là an toàn.
 - `rule_id` theo nhóm: `inject.*`, `abuse.*`, `harm.*`, `template.*`; không cần đổi CHECK của `rag.guard_events.layer`.
-- Cập nhật TECH-V2-ai-service §7.1 bước 2–3 (từ điển thô tục, "bóc rồi xét", nhóm có hại) trong cùng thay đổi.
+- Cập nhật TECH-V2-ai-service §7.1 (chuỗi bước + `Decision`, `QueryFrame`, lý do để cổng lỏng; đã làm 2026-11-08) và bước 2–3 (từ điển thô tục, "bóc rồi xét", nhóm có hại) trong cùng thay đổi.
 
 ## 4. Kiểm thử
 | Loại | Nội dung | Lệnh |
@@ -93,3 +99,8 @@ Thay pipeline 5–6 lần gọi LLM bằng guard + sinh câu trả lời. Sửa 
 
 ### Owner đơn giản hóa chọn model 2026-11-04
 Owner bỏ bake-off đầy đủ (4 tiêu chí so sánh Qwen 9B/4B trong ADR-006 §4.4). Chốt **Qwen3.5-9B FP8 trên L4** làm model sinh câu trả lời, chỉ chạy một lần kiểm nhanh khoảng 20 câu từ `sop-main` trước khi cam kết (đúng ngôn ngữ, `[n]` đúng nguồn, TTFT lạnh/nóng, kiểm `enable_thinking=false` có hiệu lực). Có bảng ứng viên thay thế theo triệu chứng (Qwen3-8B, Qwen3.5-4B, Gemma 4 E4B, Gemma 4 26B A4B) và ràng buộc đổi giám khảo nếu chuyển sang Gemma 4, ở ADR-006 §4.4. Giữ nguyên `LLMProvider` kiểu OpenAI-compatible để đổi model chỉ bằng cấu hình. Chưa có số đo tiếng Việt giữa các ứng viên; chưa kiểm điều khoản dùng hai tài khoản Modal.
+
+Sửa 2026-11-09 (owner chốt): tiêu chí kiểm nhanh và thủ công cần endpoint của V2-34.
+
+### Duyệt mốc theo handoff (2026-11-09)
+Owner duyệt **mốc 1** (phần tất định: PII, guard, router, `QueryFrame`, kiểm số/ngày, trích dẫn, ghép context, khung `pipeline.py`) và **mốc 2** (`providers/llm.py`, `qa/prompt.py`, output guard; chưa gọi endpoint thật vì `V2-34` còn `todo`). Bằng chứng: 391 unit test, 27 integration test (baseline), `validate-build.ps1 -Scope ai` xanh. Chưa đánh dấu `[x]` tiêu chí nào vì ticket chưa xong; mốc 3 bắt đầu.
