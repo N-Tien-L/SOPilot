@@ -60,6 +60,7 @@ environment_setup/
 !.claude/hooks/
 !.claude/rules/
 !.claude/skills/
+.claude/skills/impeccable/scripts/bin/
 !.claude/agents/
 .claude/hooks/__pycache__/
 .agents/
