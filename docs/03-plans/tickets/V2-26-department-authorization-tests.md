@@ -30,7 +30,7 @@ PRD-V2 FR-29, ADR-007 §4.4–4.5. Lớp kiểm thử thứ hai, độc lập v�
 - [x] Dòng ghi của ma trận chỉ kiểm MEMBER bị từ chối; quyền ghi theo phòng ban thuộc ADR-009/V2-36.
 - [x] Ca thay đổi, mỗi ca có kết quả mong đợi:
   - Chuyển A → B: sau refresh, token mới mang `wdept = B` và chỉ đọc được tài liệu của B; access token cũ giữ quyền cũ tới khi hết hạn (≤ 15 phút, ADR-007 §5).
-  - Tạm khóa: refresh trả `403 MEMBERSHIP_SUSPENDED` và chuỗi refresh bị thu hồi; access token đang giữ còn dùng được tới khi hết hạn (≤ 15 phút, ADR-007 §5). Test ghi lại khoảng hở này, không coi là lỗi.
+  - Tạm khóa: không cấp được token mới; tạm khóa qua API thu hồi chuỗi refresh ngay nên refresh trả `401 UNAUTHENTICATED`, trạng thái đổi mà chuỗi chưa bị thu hồi thì refresh trả `403 MEMBERSHIP_SUSPENDED` và thu hồi chuỗi; access token đang giữ còn dùng được tới khi hết hạn (≤ 15 phút, ADR-007 §5). Test ghi lại khoảng hở này, không coi là lỗi.
   - Archive phòng ban A: tài liệu giữ `visibility` và `department_ids`; thành viên còn thuộc A vẫn đọc được (ADR-007 §4.3).
   - Xóa phòng ban A còn tài liệu: `409 DEPARTMENT_IN_USE`.
   - Thu hẹp tài liệu từ `WORKSPACE` sang `DEPARTMENTS[A]`: sau khi ai-service nhận `ACCESS_UPDATED`, thành viên B và người chưa có phòng ban không còn thấy tài liệu ở mọi kênh.
@@ -94,7 +94,7 @@ Ngày 2026-11-10, nhánh `test/tests-department-authorization`. Chỉ thêm test
 | ai-service | `_READABLE`: bỏ nhánh phòng ban | 23 / 60 |
 
 **GAP và câu hỏi thiết kế**
-1. Tiêu chí tạm khóa nói "refresh trả `403 MEMBERSHIP_SUSPENDED`". Qua API (`MemberService.java:116`) chuỗi refresh bị thu hồi ngay lúc khóa nên refresh nhận `401` (`RefreshTokenService.java:76`); `403` chỉ xuất hiện khi trạng thái đổi mà chuỗi chưa bị thu hồi (`RefreshTokenService.java:89`, test `SessionWorkspaceIT` cũng làm vậy). An toàn hơn tài liệu mô tả; nên sửa lời trong ADR-007/ticket V2-23 hoặc chấp nhận hai mã.
+1. Tiêu chí tạm khóa nói "refresh trả `403 MEMBERSHIP_SUSPENDED`". Qua API (`MemberService.java:116`) chuỗi refresh bị thu hồi ngay lúc khóa nên refresh nhận `401` (`RefreshTokenService.java:76`); `403` chỉ xuất hiện khi trạng thái đổi mà chuỗi chưa bị thu hồi (`RefreshTokenService.java:89`, test `SessionWorkspaceIT` cũng làm vậy). An toàn hơn tài liệu mô tả. **Đã xử lý 2026-11-10:** owner chấp nhận hai mã, tài liệu sửa theo mã nguồn (TECH-V2-core-api §5.1 và bảng quyền, `services/core-api/README.md`, `.agent/context/authorization/v2-core-identity.md`); ADR-007 chỉ nói `SUSPENDED` chặn cấp token nên không đổi.
 2. `rag.suggestion_cache` (V2-25) khóa theo `workspace_id` và `cache_key`, không có `wdept`; kết quả sinh từ nội dung tài liệu. Khi V2-25 ghi bảng này cần quyết định ai được xem gợi ý của tài liệu giới hạn phòng ban.
 3. Hai khoảng hở đã biết, được test khẳng định chứ không phải lỗi: token cũ sau khi đổi phòng ban hoặc tạm khóa còn hiệu lực tới 15 phút; ai-service còn dùng phạm vi cũ tới khi nhận `ACCESS_UPDATED`.
 4. `?q=` của core-api tìm theo tiêu đề (`ILIKE`), không tìm trong nội dung; tìm theo nội dung nằm ở ai-service.

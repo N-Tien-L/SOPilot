@@ -26,7 +26,7 @@ S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/
 | `POST /api/v1/auth/google/nonce` | Public | `{data:{nonce}}` + HttpOnly cookie `sp_nonce` (5 min, HMAC-signed) |
 | `POST /api/v1/auth/google` | Public | `{idToken}` + cookie `sp_nonce`; `401 INVALID_GOOGLE_TOKEN` on any failure |
 | `POST /api/v1/auth/dev-login` | Public, **`local`/`test` profile only** | `{email, displayName?}`; issuer `sopilot-dev`; `404` in any other profile |
-| `POST /api/v1/auth/refresh` | Cookie `sp_refresh` + `Origin` = `SOPILOT_FRONTEND_ORIGIN` | Rotates the cookie, returns the same body as login; replay revokes the chain; `401 UNAUTHENTICATED\|MEMBERSHIP_LOST`, `403 MEMBERSHIP_SUSPENDED`; a rejection also clears the cookie |
+| `POST /api/v1/auth/refresh` | Cookie `sp_refresh` + `Origin` = `SOPILOT_FRONTEND_ORIGIN` | Rotates the cookie, returns the same body as login; replay revokes the chain; `401 UNAUTHENTICATED\|MEMBERSHIP_LOST`, `403 MEMBERSHIP_SUSPENDED` (only if the chain was not revoked; suspending through the API revokes it, so the next refresh is `401 UNAUTHENTICATED`); a rejection also clears the cookie |
 | `POST /api/v1/auth/logout` | Cookie + `Origin` | Always `204`; revokes the chain and clears the cookie |
 | `POST /api/v1/auth/switch-workspace` | Bearer | `{workspaceId}`; `404` if not a member (or deleted), `403 MEMBERSHIP_SUSPENDED`; ends the old chain, starts a new one |
 | `GET /api/v1/workspaces`, `GET\|PATCH\|DELETE /api/v1/workspaces/current` | Member; PATCH/DELETE OWNER | `/current` is the token's workspace, no id in the path; PERSONAL cannot be deleted (`409 PERSONAL_WORKSPACE`) |

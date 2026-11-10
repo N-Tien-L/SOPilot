@@ -44,7 +44,8 @@ The V1 notes in `google-admission.md` (roster admission, auth-service) do not ap
   SameSite=Strict, path `/api/v1/auth`, 14 days); only its SHA-256 is stored in `core.refresh_tokens` (global, no
   RLS). Each use exchanges it for the next token of the same family under a row lock; a token that was already
   exchanged or revoked revokes the whole family. The membership is re-read on every refresh (removed ->
-  `401 MEMBERSHIP_LOST`, suspended -> `403 MEMBERSHIP_SUSPENDED`, chain revoked), and the new access token carries
+  `401 MEMBERSHIP_LOST`, suspended -> `403 MEMBERSHIP_SUSPENDED`, chain revoked; suspend/remove/leave through the API already revoke the
+  chain, so the next refresh is `401 UNAUTHENTICATED` and the 403 is only a fallback), and the new access token carries
   `wrole`/`wdept` from the database. `/auth/refresh` and `/auth/logout` also require `Origin` =
   `SOPILOT_FRONTEND_ORIGIN`. Suspend, remove and leave revoke the member's chains for that workspace.
 - **Workspaces (V2-29):** `workspace/WorkspaceService` (list, current, rename, soft delete) and

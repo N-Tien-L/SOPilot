@@ -565,7 +565,7 @@ Biến chưa đặt thì hàm trả `NULL`, so sánh trả `NULL`, không có d�
 - Thành công: `{"data": ..., "traceId": "..."}`. Danh sách: `{"data": [...], "page": {"cursor": "...", "hasMore": true}}` (phân trang theo cursor).
 - Lỗi: `{"error": {"code": "DUPLICATE_DOCUMENT", "message": "<câu cho người dùng>", "details": {...}}, "traceId": "..."}`. Không bao giờ trả `e.getMessage()` của exception nội bộ (A8); lỗi không lường trước trả `500 INTERNAL_ERROR` với message cố định, chi tiết chỉ nằm trong log kèm `traceId`.
 - Mã HTTP: `400 VALIDATION_FAILED`, `401 UNAUTHENTICATED`, `403 FORBIDDEN` (thiếu role trên tài nguyên mình được thấy), `404 NOT_FOUND` (không tồn tại **hoặc** ngoài quyền đọc, để không lộ tên, ADR-007 / V2-24), `409` (xung đột nghiệp vụ), `413 FILE_TOO_LARGE`, `415 UNSUPPORTED_TYPE`, `422 QUOTA_EXCEEDED`, `429 RATE_LIMITED`.
-- Role trong cột "Quyền" đọc từ `wrole` của token; endpoint không đọc lại membership ở mỗi request (§5.6). Membership chỉ được kiểm khi cấp token: `SUSPENDED` không lấy được token mới, refresh trả `403 MEMBERSHIP_SUSPENDED` và thu hồi chuỗi (§5.1); access token đang giữ còn dùng được tới khi hết hạn (≤ 15 phút, ADR-007 §5).
+- Role trong cột "Quyền" đọc từ `wrole` của token; endpoint không đọc lại membership ở mỗi request (§5.6). Membership chỉ được kiểm khi cấp token: `SUSPENDED` không lấy được token mới; tạm khóa qua API thu hồi chuỗi refresh ngay nên lần refresh sau trả `401 UNAUTHENTICATED` (§5.1, bước 2), còn `403 MEMBERSHIP_SUSPENDED` trả ở đăng nhập, đổi workspace, cấp lại token và refresh của chuỗi chưa bị thu hồi (bước 3); access token đang giữ còn dùng được tới khi hết hạn (≤ 15 phút, ADR-007 §5).
 
 ### 5.1 Xác thực
 
@@ -618,7 +618,7 @@ Không đưa email hay tên vào token. Khóa ký đọc từ file PEM mount qua
 
 1. Tìm token theo hash, `FOR UPDATE`. Không có hoặc hết hạn → `401`.
 2. Token đã `used_at` hoặc `revoked_at` → **dùng lại**: thu hồi cả `family_id` (`REUSE_DETECTED`), trả `401`.
-3. Đọc lại membership của `(workspace_id, user_id)`: không còn → thu hồi chuỗi (`MEMBERSHIP_LOST`), `401 MEMBERSHIP_LOST`; `SUSPENDED` → thu hồi chuỗi (`SUSPENDED`), `403 MEMBERSHIP_SUSPENDED`. Frontend chuyển người dùng sang chọn workspace khác.
+3. Đọc lại membership của `(workspace_id, user_id)`: không còn → thu hồi chuỗi (`MEMBERSHIP_LOST`), `401 MEMBERSHIP_LOST`; `SUSPENDED` → thu hồi chuỗi (`SUSPENDED`), `403 MEMBERSHIP_SUSPENDED`. Frontend chuyển người dùng sang chọn workspace khác. Tạm khóa, xóa hay rời qua API đã thu hồi chuỗi lúc đổi trạng thái, nên refresh sau đó dừng ở bước 2 với `401 UNAUTHENTICATED`; bước 3 là lớp phòng khi trạng thái đổi mà chuỗi chưa bị thu hồi (V2-26).
 4. Đánh dấu token cũ `used_at`, phát token mới cùng `family_id`, access token mang `wrole`/`wdept` **đọc lại từ DB** (ADR-007 §4.5).
 
 Request refresh/logout phải có header `Origin` bằng origin của frontend; sai → `403`. Đây là lớp chống CSRF thứ hai cạnh `SameSite=Strict`.

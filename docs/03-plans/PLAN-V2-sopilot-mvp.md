@@ -349,6 +349,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 
 > **Owner chốt 2026-11-10:** `V2-26` → `done` (job `department-authorization` xanh trên PR #12: `DepartmentAuthorizationIT` 81/81, `test_department_authorization.py` 60 passed, các job FR-19 xanh). Ghi chú mở chuyển tiếp: mã `401` khi tạm khóa qua API so với `403 MEMBERSHIP_SUSPENDED` trong ADR-007/V2-23; `rag.suggestion_cache` chưa có khóa phòng ban → quyết khi làm `V2-25`. `completed_tickets` 22 → 23, `review_tickets` 1 → 0, `implemented_tickets` giữ 23.
 
+> **Owner chốt 2026-11-10:** chấp nhận hai mã khi tạm khóa: qua API chuỗi refresh bị thu hồi ngay nên refresh trả `401 UNAUTHENTICATED`; `403 MEMBERSHIP_SUSPENDED` ở đăng nhập, đổi workspace, cấp lại token và refresh của chuỗi chưa bị thu hồi. TECH-V2-core-api §5.1, README core-api và `.agent/context` sửa theo mã nguồn. Không đổi mã. Bộ đếm không đổi.
+
 ---
 
 ## 6. Nhật ký cập nhật
