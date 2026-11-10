@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-12, V2-23]
-blocks: [V2-16, V2-25, V2-26, V2-33]
+blocks: [V2-16, V2-25, V2-26, V2-33, V2-36]
 branch: "feat/knowledge-core-api-metadata-visibility"
 assignee: pair
 ---

@@ -3,8 +3,9 @@ id: TECH-V2-CORE-API
 title: "Thiết kế kỹ thuật core-api (V2): danh tính, workspace, thành viên, tài liệu, outbox"
 status: approved
 created: 2026-10-20
-updated: 2026-11-09
+updated: 2026-11-10
 refs:
+  - docs/02-architecture/adr/ADR-009-department-publishers.md
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
   - docs/02-architecture/adr/ADR-004-two-service-architecture.md
@@ -25,6 +26,8 @@ affected_schemas: [core]
 > Tài liệu đi cặp với [TECH-V2-ai-service](TECH-V2-ai-service.md). Phần contract giữa hai service (§8) là nguồn chung; TECH-V2-ai-service chỉ dẫn lại, không định nghĩa lại.
 >
 > **Sửa 2026-10-21 (owner, [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):** bỏ TXT (§3.3, §5.5); quy tắc bản thay thế khi đang xử lý (§3.3, §11 Q7); hạn mức tài liệu mặc định 50/200 MB (§3.3, §9, §11 Q6); `attempt` trong payload ingest và callback để thử lại chạy thật (§5.5, §8); `warningCodes` và `latestVersion` cho màn xem FR-31 (§5.5, §8.2).
+>
+> **Owner duyệt 2026-11-10 ([ADR-009](../adr/ADR-009-department-publishers.md), `approved`):** quyền ghi tài liệu chuyển sang publisher theo phòng ban và publisher toàn workspace; OWNER thu hồi và chuyển trách nhiệm; DDL, API và điểm kiểm tra ở §15. Code chưa triển khai (V2-36).
 
 ---
 
@@ -562,7 +565,7 @@ Biến chưa đặt thì hàm trả `NULL`, so sánh trả `NULL`, không có d�
 - Thành công: `{"data": ..., "traceId": "..."}`. Danh sách: `{"data": [...], "page": {"cursor": "...", "hasMore": true}}` (phân trang theo cursor).
 - Lỗi: `{"error": {"code": "DUPLICATE_DOCUMENT", "message": "<câu cho người dùng>", "details": {...}}, "traceId": "..."}`. Không bao giờ trả `e.getMessage()` của exception nội bộ (A8); lỗi không lường trước trả `500 INTERNAL_ERROR` với message cố định, chi tiết chỉ nằm trong log kèm `traceId`.
 - Mã HTTP: `400 VALIDATION_FAILED`, `401 UNAUTHENTICATED`, `403 FORBIDDEN` (thiếu role trên tài nguyên mình được thấy), `404 NOT_FOUND` (không tồn tại **hoặc** ngoài quyền đọc, để không lộ tên, ADR-007 / V2-24), `409` (xung đột nghiệp vụ), `413 FILE_TOO_LARGE`, `415 UNSUPPORTED_TYPE`, `422 QUOTA_EXCEEDED`, `429 RATE_LIMITED`.
-- Role trong cột "Quyền" đọc từ `wrole` của token; mọi endpoint (trừ auth) yêu cầu membership `ACTIVE`. `SUSPENDED` không lấy được token (§5.2).
+- Role trong cột "Quyền" đọc từ `wrole` của token; endpoint không đọc lại membership ở mỗi request (§5.6). Membership chỉ được kiểm khi cấp token: `SUSPENDED` không lấy được token mới, refresh trả `403 MEMBERSHIP_SUSPENDED` và thu hồi chuỗi (§5.1); access token đang giữ còn dùng được tới khi hết hạn (≤ 15 phút, ADR-007 §5).
 
 ### 5.1 Xác thực
 
@@ -919,3 +922,137 @@ Các chỗ code khác với đặc tả ở trên. Owner duyệt khi nghiệm th
 | Khóa ký trước đó (§5.1) | Công bố trong JWKS | Biến `SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH` (PEM public key); core-api cũng chấp nhận token ký bằng khóa này | Xoay khóa không làm rớt phiên; bỏ biến sau khi access token cũ hết hạn (15 phút) |
 | Domain join (§5.2, FR-05) | `PUT/DELETE /workspaces/current/domains/{domain}` | Chưa làm | P1, ngoài tiêu chí V2-29 |
 | Cột `refresh_tokens.workspace_id` (§3.1) | `workspace_id` | `target_workspace_id` | Bộ test cách ly tenant coi mọi bảng có cột `workspace_id` là bảng tenant và đòi RLS; bảng này là bảng toàn cục (tra theo `token_hash` trước khi biết workspace). Đổi tên để không phải nới kiểm tra; bảng được thêm vào `GLOBAL_TABLES` (danh sách đã duyệt) trong `tests/tenant-isolation/isolation.py` |
+
+## 15. Publisher theo phòng ban (ADR-009, đã duyệt, chưa triển khai)
+
+> **Trạng thái mục này:** đặc tả của [ADR-009](../adr/ADR-009-department-publishers.md) (`approved` 2026-11-10). Mục này **thắng** cột "Quyền" của các endpoint ghi tài liệu ở §5.5, §5.6 và bước kiểm tra `OWNER, ADMIN` ở sơ đồ §2.2, §2.3. Tới khi V2-36 xong, code vẫn chạy theo §5.5/§5.6. Các `Q#` trỏ tới câu hỏi đã chốt ở ADR-009 §6.
+
+### 15.1 Phạm vi
+
+- Chỉ core-api và schema `core`. ai-service, `rag.document_access`, claim token (`wid`, `wrole`, `wdept`) và bộ lọc đọc §5.6 **không đổi**.
+- Endpoint ghi tài liệu bị ảnh hưởng (các chỗ `principal.requireManager()` trong `DocumentService`): `POST /documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/retry`, `PATCH /documents/{id}`, `PUT /documents/{id}/visibility`, `POST /documents/{id}/suggestion/apply`, `DELETE /documents/{id}`; thêm endpoint mới `PUT /documents/{id}/ownership` chỉ cho OWNER (§15.4, ADR-009 quyết định 8). Đọc có trường quản trị: `GET /documents/{id}/versions` và các trường `departments`, `fieldSources`, `suggestion`, `latestVersion.failure*` của `Document` (§5.5).
+- Không đổi: `DocumentService.deleteAll` khi OWNER xóa workspace (§5.2); category, tag, phòng ban, thành viên (vẫn OWNER/ADMIN); callback `/internal/**` (hệ thống, không có người gọi).
+
+### 15.2 DDL logic (migration `core/V008`, viết bằng skill `flyway-migration` trong V2-36)
+
+Phác thảo để thống nhất cột và ràng buộc; không phải file migration.
+
+```sql
+-- Publisher của phòng ban: tối đa một người mỗi phòng.
+CREATE TABLE core.department_publishers (
+    workspace_id  uuid NOT NULL,
+    department_id uuid PRIMARY KEY,
+    user_id       uuid NOT NULL,
+    assigned_at   timestamptz NOT NULL DEFAULT now(),
+    FOREIGN KEY (workspace_id, department_id) REFERENCES core.departments(workspace_id, id) ON DELETE CASCADE,
+    FOREIGN KEY (workspace_id, user_id)       REFERENCES core.memberships(workspace_id, user_id) ON DELETE CASCADE
+);
+CREATE INDEX ix_department_publishers_user ON core.department_publishers(workspace_id, user_id);
+
+-- Publisher toàn workspace (tài liệu WORKSPACE): tối đa một người mỗi workspace. ADR-009 §6 Q0.
+CREATE TABLE core.workspace_publishers (
+    workspace_id uuid PRIMARY KEY,
+    user_id      uuid NOT NULL,
+    assigned_at  timestamptz NOT NULL DEFAULT now(),
+    FOREIGN KEY (workspace_id, user_id) REFERENCES core.memberships(workspace_id, user_id) ON DELETE CASCADE
+);
+
+-- Phòng chủ quản của tài liệu.
+ALTER TABLE core.documents ADD COLUMN owner_department_id uuid;
+ALTER TABLE core.documents
+    ADD CONSTRAINT fk_documents_owner_department
+        FOREIGN KEY (workspace_id, owner_department_id) REFERENCES core.departments(workspace_id, id) ON DELETE RESTRICT,
+    -- Phòng chủ quản phải nằm trong danh sách phòng được đọc; kiểm lúc commit vì
+    -- documents và document_departments được ghi trong cùng transaction.
+    ADD CONSTRAINT fk_documents_owner_in_scope
+        FOREIGN KEY (id, owner_department_id) REFERENCES core.document_departments(document_id, department_id)
+        DEFERRABLE INITIALLY DEFERRED,
+    ADD CONSTRAINT ck_documents_owner_matches_visibility
+        CHECK ((visibility = 'WORKSPACE') = (owner_department_id IS NULL));   -- ADR-009 §6 Q1
+CREATE INDEX ix_documents_owner_department ON core.documents(workspace_id, owner_department_id)
+    WHERE owner_department_id IS NOT NULL;
+```
+
+Ghi chú:
+- **FK hai cột** theo quy ước của schema (§3.2): phòng ban và membership phải cùng workspace với dòng publisher. `workspace_id` của `department_publishers` không cần FK riêng tới `workspaces` vì cả hai FK hai cột đã buộc nó; `workspace_publishers` buộc workspace qua FK tới `memberships`.
+- **`ON DELETE CASCADE` tới `memberships`**: thành viên rời hoặc bị xóa khỏi workspace thì mất vai trò publisher ngay (ADR-009 §4.1 mục 4). Phòng ban bị xóa (chỉ khi không còn tham chiếu, §5.4) kéo theo dòng publisher.
+- **`fk_documents_owner_in_scope`** dùng PK `(document_id, department_id)` có sẵn của `document_departments`; `MATCH SIMPLE` bỏ qua khi `owner_department_id IS NULL` (tài liệu `WORKSPACE`). Xóa dòng `document_departments` của phòng chủ quản (thu hẹp danh sách mà bỏ phòng chủ quản) bị chặn lúc commit. Xóa cứng tài liệu cascade cả hai phía nên không vướng FK. Migration cần kiểm thử thứ tự ghi `documents` → `document_departments` khi tạo tài liệu `DEPARTMENTS` (FK hoãn tới commit).
+- **Publisher phải thuộc phòng ban** không biểu diễn được bằng FK mà không chặn ADMIN chuyển phòng ban (ADR-009 §3, biến thể bị loại). Thay bằng hai lớp ở §15.3: xóa dòng publisher khi đổi phòng ban, và kiểm tra lại lúc ghi.
+- **Không thêm cột `uploaded_at`**: `document_versions.uploaded_by` và `created_at` (thời điểm đăng) đã có từ `core/V005` (ADR-009 §4.1 mục 5). API trả hai giá trị này ở `GET /documents/{id}/versions` dưới tên `uploadedBy`, `uploadedAt`.
+- **RLS và grant**: hai bảng mới có `workspace_id`, bật `ENABLE` + `FORCE ROW LEVEL SECURITY` với policy `tenant_isolation` mẫu §4.2, grant DML cho `sopilot_core_app`; bộ `tests/tenant-isolation` tự coi chúng là bảng tenant (có cột `workspace_id`).
+- **Backfill** (ADR-009 §4.4): `workspace_publishers` từ `workspaces.created_by` nếu còn là thành viên `ACTIVE`, nếu không thì OWNER `ACTIVE` có `joined_at` sớm nhất; bỏ qua workspace đã xóa mềm. `department_publishers` để trống. `owner_department_id` của tài liệu `DEPARTMENTS` hiện có theo ADR-009 §6 Q6; CHECK `ck_documents_owner_matches_visibility` thêm sau bước backfill trong cùng migration.
+- `core.create_personal_workspace(...)` (§4.2) và `POST /workspaces` chèn thêm dòng `workspace_publishers` cho người tạo trong cùng transaction. Đổi hàm `SECURITY DEFINER` bằng `CREATE OR REPLACE` trong migration mới, không sửa `V003`.
+
+### 15.3 Điểm kiểm tra quyền ghi trong core-api
+
+Một thành phần duy nhất `document/DocumentWritePolicy` thay cho `principal.requireManager()` ở mọi endpoint ghi tài liệu. Chạy **trong** transaction `TenantTx` của thao tác ghi, sau khi đã tải tài liệu bằng bộ lọc đọc:
+
+```text
+requireCanWrite(principal, doc):            -- doc đã qua bộ lọc đọc; không đọc được thì 404 trước bước này
+    m = membership(wid, principal.userId)   -- đọc lại DB, không dùng wrole/wdept của token
+    if m is null or m.status != ACTIVE: 403 NOT_PUBLISHER
+    if doc.owner_department_id is null:
+        p = SELECT user_id FROM core.workspace_publishers
+            WHERE workspace_id = :wid FOR SHARE
+    else:
+        p = SELECT user_id FROM core.department_publishers
+            WHERE workspace_id = :wid AND department_id = :owner FOR SHARE
+        if m.department_id != doc.owner_department_id: 403 NOT_PUBLISHER   -- lớp 2: publisher đã rời phòng
+    if p is null or p != principal.userId: 403 NOT_PUBLISHER
+
+requireCanCreate(principal, visibility, ownerDepartmentId, departmentIds):
+    WORKSPACE   -> như nhánh workspace ở trên
+    DEPARTMENTS -> ownerDepartmentId bắt buộc (mặc định = m.department_id), phòng phải ACTIVE,
+                   phải nằm trong departmentIds (400 OWNER_DEPARTMENT_NOT_IN_SCOPE), rồi như nhánh phòng ban
+
+requireCanDelete(principal, doc):           -- ADR-009 quyết định 8: OWNER thu hồi
+    m = membership(wid, principal.userId)
+    if m.role == OWNER and m.status == ACTIVE: allow (actingAs = OWNER)
+    else: requireCanWrite(principal, doc)
+
+requireCanTransfer(principal):              -- PUT /documents/{id}/ownership
+    m = membership(wid, principal.userId)
+    if m.role != OWNER or m.status != ACTIVE: 403 FORBIDDEN
+```
+
+- `FOR SHARE` trên dòng publisher chặn OWNER đổi publisher giữa lúc kiểm tra và commit; thao tác đổi publisher lấy `FOR UPDATE` trên cùng dòng. Không có dòng (phòng chưa có publisher) thì kết quả luôn là `403`.
+- Vai trò OWNER ở `requireCanDelete`/`requireCanTransfer` đọc lại từ `memberships` trong transaction, không dùng `wrole` của token, để OWNER vừa bị hạ vai trò không thu hồi được trong thời gian token còn hạn.
+- Thứ tự mã lỗi: tài liệu không tồn tại hoặc ngoài quyền đọc → `404 NOT_FOUND`; đọc được nhưng không phải publisher chịu trách nhiệm → `403 NOT_PUBLISHER`. ADMIN không phải publisher nhận `403` ở mọi endpoint ghi; OWNER không phải publisher nhận `403` ở mọi endpoint ghi trừ `DELETE` và `PUT /ownership` (ADR-009 §6 Q4, Q5).
+- `PUT /documents/{id}/visibility` (publisher): chỉ nhận `visibility` giữ nguyên loại, và với `DEPARTMENTS` thì `departmentIds` phải chứa phòng chủ quản; đổi loại hoặc bỏ phòng chủ quản → `409 OWNERSHIP_CHANGE_REQUIRES_OWNER`. Việc đó đi qua `PUT /ownership` (§15.4). Luồng đồng bộ quyền đọc sang ai-service giữ nguyên §2.3 cho cả hai endpoint.
+- `POST /documents` nhận thêm trường multipart `ownerDepartmentId` (tùy chọn). Upload `DEPARTMENTS` thiếu trường này lấy phòng ban của membership người gọi; người gọi không có phòng ban → `400 VALIDATION_FAILED`.
+- Trường quản trị của `Document` và `GET /documents/{id}/versions`: trả khi `isManager()` **hoặc** người gọi là publisher chịu trách nhiệm của tài liệu (cùng truy vấn của `DocumentWritePolicy`, không khóa).
+- Unit test (hoặc `ArchitectureTest`) kiểm tra không còn `requireManager()` trong `DocumentService` ngoài `deleteAll`.
+
+**Giữ quy tắc "publisher thuộc phòng ban" khi membership đổi** (cùng transaction với thay đổi membership):
+
+| Sự kiện | Xử lý dòng publisher |
+|---|---|
+| `PATCH /members/{userId}` đổi `departmentId` | Xóa dòng `department_publishers` của user với phòng khác phòng mới; audit `PUBLISHER_UNASSIGNED` (lý do `DEPARTMENT_CHANGED`) |
+| Xóa thành viên, rời workspace | FK `ON DELETE CASCADE` xóa cả hai loại; ghi audit trước khi xóa membership |
+| Tạm khóa | Giữ dòng; `requireCanWrite` từ chối vì `status != ACTIVE`, và người bị khóa không lấy được token |
+| Phòng ban `ARCHIVED` | Giữ dòng: publisher vẫn sửa, xóa tài liệu đang có; `requireCanCreate` từ chối phòng `ARCHIVED` |
+
+### 15.4 API gán publisher
+
+| Method & path | Quyền | Ghi chú |
+|---|---|---|
+| `GET /api/v1/publishers` | Thành viên | `{workspace: {userId, displayName} or null, departments: [{departmentId, name, publisher}]}`; chỉ phòng `ACTIVE` trừ khi OWNER/ADMIN gửi `?includeArchived=true`. Không trả email |
+| `PUT /api/v1/publishers/workspace` | OWNER | `{userId}`; `409 MEMBER_NOT_ACTIVE` nếu không phải thành viên `ACTIVE` |
+| `DELETE /api/v1/publishers/workspace` | OWNER | Workspace không còn publisher; tài liệu `WORKSPACE` không ghi được tới khi gán lại |
+| `PUT /api/v1/departments/{id}/publisher` | OWNER | `{userId}`; `409 PUBLISHER_NOT_IN_DEPARTMENT` (membership khác phòng), `409 MEMBER_NOT_ACTIVE`, `409 DEPARTMENT_ARCHIVED`; `404` nếu phòng ban không thuộc workspace |
+| `DELETE /api/v1/departments/{id}/publisher` | OWNER | Idempotent (`204` cả khi chưa có) |
+| `PUT /api/v1/documents/{id}/ownership` | OWNER | Chuyển trách nhiệm (ADR-009 quyết định 8). Body `{visibility, ownerDepartmentId, departmentIds}`: `WORKSPACE` → `ownerDepartmentId` và `departmentIds` rỗng; `DEPARTMENTS` → `ownerDepartmentId` là phòng `ACTIVE` nằm trong `departmentIds` (`400 OWNER_DEPARTMENT_NOT_IN_SCOPE`, `409 DEPARTMENT_ARCHIVED`). Ghi `documents.visibility`, `owner_department_id` và `document_departments` trong một transaction (FK hoãn kiểm lúc commit), rồi `ACCESS_UPDATED` như `PUT /visibility` (§2.3). Không đổi phiên bản, trạng thái hay chunk. Phạm vi đích chưa có publisher vẫn chuyển được; response có `publisherAssigned: bool` để frontend nhắc OWNER gán |
+
+`GET /api/v1/members/me` thêm `publisherOf: {workspace: bool, departmentId: uuid or null}` để frontend ẩn hoặc hiện nút ghi. Frontend chỉ dùng để hiển thị; core-api vẫn kiểm tra ở mọi request.
+
+### 15.5 Audit
+
+Thêm action `PUBLISHER_ASSIGNED`, `PUBLISHER_UNASSIGNED` (`target_type` `DEPARTMENT` hoặc `WORKSPACE`, `details: {userId, previousUserId, reason}` với `reason ∈ {OWNER_ACTION, DEPARTMENT_CHANGED, MEMBER_REMOVED}`). Các action `DOCUMENT_*` hiện có thêm `details.ownerDepartmentId` và `details.actingAs ∈ {WORKSPACE_PUBLISHER, DEPARTMENT_PUBLISHER, OWNER}` để biết người ghi đã ghi với tư cách nào (`OWNER` chỉ xuất hiện ở xóa). Thêm action `DOCUMENT_OWNERSHIP_CHANGED` với `details: {from: {visibility, ownerDepartmentId, departmentIds}, to: {...}}`.
+
+### 15.6 Kiểm thử
+
+| Lớp | Nội dung |
+|---|---|
+| Unit | Bảng quyền ghi: (OWNER, ADMIN, MEMBER) × (là / không là publisher đúng phạm vi) × 7 endpoint ghi + `PUT /ownership`; OWNER không là publisher chỉ qua `DELETE` và `PUT /ownership`; thứ tự `404` trước `403`; `requireCanCreate` với `ownerDepartmentId` thiếu, ngoài `departmentIds`, phòng `ARCHIVED` |
+| Integration (Testcontainers) | Publisher đúng ghi được; publisher phòng khác ghi tài liệu dùng chung (đọc được) → `403`, tài liệu không đọc được → `404`; ADMIN không là publisher → `403` ở mọi endpoint ghi nhưng vẫn quản lý phòng ban, category; OWNER gán lại → người cũ `403`, người mới ghi được ở request kế tiếp mà không cần refresh; ADMIN gọi API gán → `403`; chuyển phòng ban xóa dòng publisher; xóa thành viên cascade; `fk_documents_owner_in_scope` chặn bỏ phòng chủ quản; đổi publisher song song với upload không cho cả hai cùng qua; OWNER thu hồi tài liệu của phòng chưa có publisher; OWNER chuyển `DEPARTMENTS → WORKSPACE`, `WORKSPACE → DEPARTMENTS` và đổi phòng chủ quản: người ghi đổi ở request kế tiếp, `current_version_id` và chunk giữ nguyên, `rag.document_access` cập nhật; publisher gọi `PUT /visibility` đổi loại → `409`, gọi `PUT /ownership` → `403` |
+| Bảo mật (FR-29, đọc) | Chạy lại các test đọc §10: ma trận đọc ADR-007 §4.4 không đổi khi có publisher; publisher không đọc thêm tài liệu ngoài phòng; `owner_department_id` không xuất hiện trong payload `ACCESS_UPDATED`/`INGEST_REQUESTED`; hai bảng mới qua bộ `tests/tenant-isolation` (RLS FORCE, negative control) |

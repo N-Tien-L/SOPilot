@@ -40,7 +40,7 @@ Hệ thống SOPilot V2 vận hành theo kiến trúc 2-service độc lập:
 | Thành phần | Schema sở hữu | Vai trò trong luồng |
 |---|---|---|
 | `core-api` (`DocumentService`, `OutboxService`) | `core` | Lưu thay đổi tài liệu, ghi sự kiện vào `core.outbox_events` trong cùng transaction. |
-| `OutboxDispatcher` (trong `core-api`) | `core` | Hai đường gửi: đẩy ngay sau commit (`@TransactionalEventListener(phase = AFTER_COMMIT)` trên thread `outbox-wake`) và quét định kỳ `sopilot.outbox.poll` (mặc định `PT5S`) qua `core.claim_outbox_batch(20)`. Gửi bằng `HttpAiServiceClient`. |
+| `OutboxDispatcher` (trong `core-api`) | `core` | Ba đường gửi: `ACCESS_UPDATED` gửi thẳng trên thread của request ngay sau commit (`sendDirect`, timeout 2 s); các sự kiện khác được đẩy sau commit (`@TransactionalEventListener(phase = AFTER_COMMIT)` trên thread `outbox-wake`); quét định kỳ `sopilot.outbox.poll` (mặc định `PT5S`) qua `core.claim_outbox_batch(20)` cho mọi sự kiện đến hạn. Gửi bằng `HttpAiServiceClient`. |
 | `ai-service` | `rag` | Nhận `POST /internal/ingestions`, `PUT /internal/document-access/{id}`, `DELETE /internal/documents/{id}`; ghi `rag.document_access`. |
 
 ---
@@ -62,17 +62,17 @@ sequenceDiagram
     Note over Admin,AIDB: Kịch bản 1: Đổi phạm vi (PUT /api/v1/documents/{id}/visibility)
     Admin->>CoreAPI: Cập nhật phạm vi tài liệu (VD: giới hạn phòng ban)
     activate CoreAPI
-    CoreAPI->>CoreDB: 1 transaction:<br/>1. UPDATE core.documents (visibility, access_revision + 1)<br/>2. Ghi lại core.document_departments<br/>3. INSERT core.outbox_events (ACCESS_UPDATED, PENDING)<br/>4. INSERT core.audit_logs
+    CoreAPI->>CoreDB: 1 transaction:<br/>1. UPDATE core.documents (visibility, access_revision + 1)<br/>2. Ghi lại core.document_departments<br/>3. UPDATE payload access của INGEST_REQUESTED còn PENDING (§7.1)<br/>4. INSERT core.outbox_events (ACCESS_UPDATED, PENDING, lease 60 s)<br/>5. INSERT core.audit_logs
     CoreDB-->>CoreAPI: Commit
-    Worker->>AIService: AFTER_COMMIT: PUT /internal/document-access/{documentId}<br/>X-Internal-Token, Idempotency-Key = event id<br/>{ workspaceId, visibility, departmentIds, accessRevision }
+    CoreAPI->>AIService: sendDirect (thread request, timeout 2 s): PUT /internal/document-access/{documentId}<br/>X-Internal-Token, Idempotency-Key = event id<br/>{ workspaceId, visibility, departmentIds, accessRevision }
     activate AIService
     AIService->>AIDB: UPDATE rag.document_access ... WHERE access_revision < :rev AND deleted_at IS NULL
-    AIService-->>Worker: 200 { "applied": true | false }
+    AIService-->>CoreAPI: 200 { "applied": true | false }
     deactivate AIService
-    Worker->>CoreDB: UPDATE core.outbox_events SET status = 'DELIVERED', delivered_at = now()
-    CoreAPI-->>Admin: 200 { accessSync: APPLIED | PENDING }
+    CoreAPI->>CoreDB: UPDATE core.outbox_events SET status = 'DELIVERED', delivered_at = now()
+    CoreAPI-->>Admin: 200 { accessSync: APPLIED } (lỗi hoặc timeout: markRetry, trả PENDING)
     deactivate CoreAPI
-    Note over Worker,AIService: Lỗi mạng/5xx/408/429: backoff 2^attempts s (trần 10 phút, jitter), tối đa SOPILOT_OUTBOX_MAX_ATTEMPTS rồi DEAD.<br/>4xx khác: DEAD ngay (lỗi contract).
+    Note over Worker,AIService: Gửi thẳng thất bại thì Worker gửi lại khi tới next_attempt_at (hoặc khi lease hết).<br/>Lỗi mạng/5xx/408/429: backoff 2^attempts s (trần 10 phút, jitter), tối đa SOPILOT_OUTBOX_MAX_ATTEMPTS rồi DEAD.<br/>4xx khác: DEAD ngay (lỗi contract).
     end
 
     %% Kịch bản 2: Xóa tài liệu
@@ -94,7 +94,7 @@ sequenceDiagram
     end
 ```
 
-> Cách tính `accessSync` (`APPLIED` khi lần gửi ngay sau commit thành công trong ~2 s, ngược lại `PENDING`) theo TECH-V2-core-api §2.3; V2-24 hiện thực. Đường đẩy ngay hiện chạy bất đồng bộ trên `outbox-wake`, nên V2-24 phải chọn cách chờ kết quả có giới hạn thời gian hoặc trả `PENDING` khi chưa biết, không được chặn request vô hạn.
+> Cách tính `accessSync` theo TECH-V2-core-api §2.3, V2-24 hiện thực (cập nhật 2026-11-10): sự kiện `ACCESS_UPDATED` được ghi kèm lease 60 s (`next_attempt_at = now() + 60 s`, `OutboxService.enqueueLeased`) và không phát `Enqueued`, nên `outbox-wake` và vòng quét không gửi trùng. Sau commit, `OutboxDispatcher.sendDirect` gửi trên thread của request với timeout 2 s: 2xx → `DELIVERED`, trả `APPLIED`; lỗi thử lại được hoặc timeout → `markRetry`, trả `PENDING`; 4xx khác → `DEAD`, trả `PENDING`. Request không bị chặn quá 2 s.
 
 ---
 
@@ -287,7 +287,7 @@ core-api dùng predicate tương đương trên `core.documents` + `core.documen
 
 ## 7. Rủi ro đã biết và ràng buộc cho V2-24
 
-1. **Race ingest–access (phải xử lý trong V2-24).** Payload `INGEST_REQUESTED` chụp `access` lúc enqueue. Nếu ingest còn `PENDING` (đang backoff vì ai-service lỗi) mà admin đổi phạm vi, `ACCESS_UPDATED` (rev mới) có thể tới trước, nhận `applied: false` vì chưa có dòng, rồi được đánh `DELIVERED`. Ingest tới sau sẽ tạo dòng với **rev cũ, phạm vi cũ** và không gì sửa lại: tài liệu đã thu hẹp về phòng ban có thể bị truy xuất toàn workspace. Hướng xử lý đề xuất (chỉ trong `core`): trong cùng transaction đổi phạm vi, cập nhật `payload->'access'` của các sự kiện `INGEST_REQUESTED` còn `PENDING` của tài liệu đó về phạm vi và revision mới. Dispatcher gửi tuần tự (`synchronized dispatchDue`) nên sự kiện đang gửi dở sẽ xong trước `ACCESS_UPDATED`. Bắt buộc có integration test cho kịch bản này.
+1. **Race ingest–access (đã xử lý trong V2-24, `OutboxRepository.updatePendingIngestAccess`).** Payload `INGEST_REQUESTED` chụp `access` lúc enqueue. Nếu ingest còn `PENDING` (đang backoff vì ai-service lỗi) mà admin đổi phạm vi, `ACCESS_UPDATED` (rev mới) có thể tới trước, nhận `applied: false` vì chưa có dòng, rồi được đánh `DELIVERED`. Ingest tới sau sẽ tạo dòng với **rev cũ, phạm vi cũ** và không gì sửa lại: tài liệu đã thu hẹp về phòng ban có thể bị truy xuất toàn workspace. Hướng xử lý đề xuất (chỉ trong `core`): trong cùng transaction đổi phạm vi, cập nhật `payload->'access'` của các sự kiện `INGEST_REQUESTED` còn `PENDING` của tài liệu đó về phạm vi và revision mới. Bắt buộc có integration test cho kịch bản này. **Còn hở:** `sendDirect` chạy trên thread request, ngoài `synchronized dispatchDue`. Nếu dispatcher đã claim và đang gửi `INGEST_REQUESTED` (payload cũ đã nằm trong bộ nhớ) đúng lúc admin đổi phạm vi, `ACCESS_UPDATED` có thể tới trước, nhận `applied: false` vì chưa có dòng và được đánh `DELIVERED`; ingest tới sau tạo dòng với phạm vi cũ. Cửa sổ chỉ dài bằng một request ingest đang gửi; cần ticket riêng nếu muốn đóng.
 2. **Tiêu đề trong `rag.document_access`** chỉ cập nhật khi insert và khi kích hoạt phiên bản. Sửa tiêu đề qua `PATCH /api/v1/documents/{id}` không gọi ai-service (TECH-V2-core-api §5.6), nên trích dẫn hiện tiêu đề cũ tới lần kích hoạt kế tiếp. Chấp nhận cho MVP; ghi vào báo cáo V2-24.
 3. **Trễ phòng ban của người dùng:** `wdept` đến từ token (≤ 15 phút); đổi phòng ban có hiệu lực ở lần refresh kế tiếp (ADR-007).
 

@@ -3,7 +3,7 @@ id: PRD-V2-SOPILOT-MVP
 title: "SOPilot V2 MVP: workspace hỏi đáp tài liệu có trích dẫn, đa tổ chức"
 status: approved
 created: 2026-10-16
-updated: 2026-11-09
+updated: 2026-11-10
 author: "Owner"
 milestone: "V2: SOPilot MVP"
 priority: P0
@@ -14,6 +14,7 @@ refs:
   - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
   - docs/02-architecture/adr/ADR-007-departments-member-profiles-document-access.md
+  - docs/02-architecture/adr/ADR-009-department-publishers.md
 ---
 
 # YÊU CẦU NGHIỆP VỤ & ĐẶC TẢ TÍNH NĂNG (PRD)
@@ -97,7 +98,7 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 - [ ] **FR-24 (P1): Import thành viên từ CSV.** Tạo hàng loạt lời mời kèm hồ sơ; báo lỗi theo dòng.
 
 ### Tài liệu
-- [ ] **FR-06: Tải tài liệu.** Chỉ PDF có lớp chữ và Markdown (`.md`, UTF-8); tối đa 20 MB/file. Chặn trùng theo SHA-256 trong cùng workspace. Chỉ `OWNER`/`ADMIN` tải lên và xóa; mọi member xem và tải xuống file gốc. Owner chốt 2026-10-20: hoãn DOCX sau MVP V2; upload DOCX bị từ chối bằng `415`, không tạo job, hướng dẫn xuất sang PDF có lớp chữ. Owner chốt 2026-10-21: bỏ TXT khỏi MVP; `.txt` bị từ chối bằng `415`, hướng dẫn đổi sang `.md`. Không tự chuyển đổi định dạng trên server, không OCR. Người quản lý chịu trách nhiệm chỉ đưa vào nội dung đã được phép sử dụng; không có workflow phê duyệt hay ngày hiệu lực hẹn trước trong MVP.
+- [ ] **FR-06: Tải tài liệu.** Chỉ PDF có lớp chữ và Markdown (`.md`, UTF-8); tối đa 20 MB/file. Chặn trùng theo SHA-256 trong cùng workspace. Chỉ **publisher** của phạm vi tài liệu tải lên và xóa: publisher toàn workspace cho tài liệu `WORKSPACE`, publisher của phòng chủ quản cho tài liệu `DEPARTMENTS`; OWNER thu hồi (xóa) được mọi tài liệu; ADMIN không ghi tài liệu (sửa 2026-11-10 theo [ADR-009](../02-architecture/adr/ADR-009-department-publishers.md)). Mọi member xem và tải xuống file gốc trong phạm vi đọc của mình. Owner chốt 2026-10-20: hoãn DOCX sau MVP V2; upload DOCX bị từ chối bằng `415`, không tạo job, hướng dẫn xuất sang PDF có lớp chữ. Owner chốt 2026-10-21: bỏ TXT khỏi MVP; `.txt` bị từ chối bằng `415`, hướng dẫn đổi sang `.md`. Không tự chuyển đổi định dạng trên server, không OCR. Người quản lý chịu trách nhiệm chỉ đưa vào nội dung đã được phép sử dụng; không có workflow phê duyệt hay ngày hiệu lực hẹn trước trong MVP.
 - [ ] **FR-07: Vòng đời tài liệu.** `UPLOADED → PROCESSING → READY | FAILED`; giao diện gọi chung `UPLOADED`/`PROCESSING` là "Đang xử lý". `READY` nghĩa là xử lý kỹ thuật thành công và hỏi đáp được, không có nghĩa nội dung đã được người dùng kiểm tra. Thử lại phiên bản `FAILED` chạy lại xử lý của đúng file đó. Tải bản thay thế do người quản lý chọn tài liệu đích; hệ thống không suy đoán quan hệ phiên bản theo tên hay ngữ nghĩa. File thay thế khác bytes được xử lý lại toàn file (không phân loại minor/major, không xử lý tăng dần theo đoạn, không dedup ngữ nghĩa); chunk cũ bị xóa sau khi bản mới `READY`; bản mới lỗi thì bản cũ vẫn phục vụ. Quy tắc trùng khi thay bản (owner chốt 2026-10-20 và 2026-10-21):
   - cùng SHA-256 với phiên bản hiện hành `READY` → no-op, báo "Nội dung file không thay đổi", không tạo phiên bản hay job;
   - cùng SHA-256 với phiên bản hiện hành của tài liệu khác trong workspace → báo trùng như khi tạo tài liệu mới;
@@ -118,8 +119,8 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
   - Nhận diện cấu trúc theo loại tài liệu (quy trình ISO, Chương/Điều/Khoản, Markdown, văn xuôi không chuẩn); bảng quy trình (Trách nhiệm/Bước/Mô tả/Biểu mẫu) được giữ theo từng bước.
   - Mỗi chunk mang đường dẫn tiêu đề; đếm token bằng tokenizer của model embedding.
   - PDF không có lớp chữ (scan) và file ảnh bị từ chối với thông báo rõ, trạng thái `FAILED` kèm lý do.
-- [ ] **FR-25: Phạm vi hiển thị tài liệu.** Mỗi tài liệu là `WORKSPACE` (mọi thành viên `ACTIVE`) hoặc `DEPARTMENTS` (một hoặc nhiều phòng ban). OWNER/ADMIN đọc và quản lý mọi tài liệu. MEMBER đọc tài liệu `WORKSPACE` và tài liệu `DEPARTMENTS` có phòng ban của mình; MEMBER chưa có phòng ban chỉ đọc tài liệu `WORKSPACE`. Quyền đọc áp dụng cho danh sách, tìm kiếm, chi tiết, xem trước, tải xuống (URL ký sẵn hạn ≤ 5 phút), dense, BM25, rerank, context gửi LLM, trích dẫn, cache và lịch sử hội thoại. Lọc xảy ra **trước** khi chọn top-k, nên không có dữ liệu ngoài quyền vào context LLM. Không có ACL theo từng người.
-- [ ] **FR-26: Metadata tài liệu.** Metadata hệ thống (tên file, loại, kích thước, SHA-256, số trang, trạng thái, phiên bản, người/ngày tải lên, ngôn ngữ phát hiện, nguồn gốc embedding, mã số/lần ban hành/ngày hiệu lực trích từ nội dung) chỉ hệ thống ghi. Metadata do Owner/Admin sửa: tiêu đề, mô tả ngắn, một category, nhiều tags, ngôn ngữ, phạm vi hiển thị. Sửa tiêu đề, mô tả, category, tags chỉ cập nhật thuộc tính. Sửa phạm vi hiển thị chỉ cập nhật bản sao quyền ở ai-service, không embed lại. Sửa ngôn ngữ chỉ làm lại chỉ mục BM25 nếu BM25 cấu hình theo ngôn ngữ. Không có custom field động.
+- [ ] **FR-25: Phạm vi hiển thị tài liệu.** Mỗi tài liệu là `WORKSPACE` (mọi thành viên `ACTIVE`) hoặc `DEPARTMENTS` (một hoặc nhiều phòng ban, trong đó đúng một phòng chủ quản). OWNER/ADMIN đọc mọi tài liệu. Quyền ghi theo publisher (FR-06); đổi `WORKSPACE ⇄ DEPARTMENTS` hoặc đổi phòng chủ quản chỉ OWNER làm; publisher của phòng chủ quản đổi được danh sách phòng được đọc (sửa 2026-11-10, ADR-009). MEMBER đọc tài liệu `WORKSPACE` và tài liệu `DEPARTMENTS` có phòng ban của mình; MEMBER chưa có phòng ban chỉ đọc tài liệu `WORKSPACE`. Quyền đọc áp dụng cho danh sách, tìm kiếm, chi tiết, xem trước, tải xuống (URL ký sẵn hạn ≤ 5 phút), dense, BM25, rerank, context gửi LLM, trích dẫn, cache và lịch sử hội thoại. Lọc xảy ra **trước** khi chọn top-k, nên không có dữ liệu ngoài quyền vào context LLM. Không có ACL theo từng người.
+- [ ] **FR-26: Metadata tài liệu.** Metadata hệ thống (tên file, loại, kích thước, SHA-256, số trang, trạng thái, phiên bản, người/ngày tải lên, ngôn ngữ phát hiện, nguồn gốc embedding, mã số/lần ban hành/ngày hiệu lực trích từ nội dung) chỉ hệ thống ghi. Metadata do publisher của tài liệu sửa (ADR-009; trước 2026-11-10 là Owner/Admin): tiêu đề, mô tả ngắn, một category, nhiều tags, ngôn ngữ, phạm vi hiển thị. Sửa tiêu đề, mô tả, category, tags chỉ cập nhật thuộc tính. Sửa phạm vi hiển thị chỉ cập nhật bản sao quyền ở ai-service, không embed lại. Sửa ngôn ngữ chỉ làm lại chỉ mục BM25 nếu BM25 cấu hình theo ngôn ngữ. Không có custom field động.
 - [ ] **FR-27: Category và tags phẳng.** Category thuộc workspace, không cây; mỗi tài liệu tối đa một category. Category dùng để phân loại và lọc, không phải cơ chế cấp quyền. Tags thuộc workspace, tạo khi gắn.
 - [ ] **FR-28: Gợi ý metadata chạy nền.** Không chặn upload và không chặn `READY`. Dùng lại văn bản đã trích xuất, không tải hay parse lại file. Luật trước (tiêu đề từ heading đầu hoặc tên file, ngôn ngữ, mã số/lần ban hành/ngày hiệu lực); sau đó một lần gọi LLM có structured output cho mô tả, category (chọn trong danh sách hiện có, hoặc để trống kèm đề xuất tên mới), tags (ưu tiên tags đã có). Đầu vào giới hạn ở tiêu đề, dàn ý heading và đoạn đại diện. Có timeout, tối đa một lần thử lại; lỗi thì chỉ dùng kết quả luật. Cache theo `(workspace_id, sha256 nội dung, phiên bản prompt/model, danh sách category)`. Gợi ý không ghi đè trường người dùng đã sửa và không bao giờ đổi phạm vi hiển thị.
 - [ ] **FR-09: Hạn mức.** Cấu hình được qua biến môi trường, `0` = không giới hạn.
@@ -207,7 +208,7 @@ Môi trường và thiết kế thí nghiệm: ADR-006 §4.2 (chạy trên máy 
 6. **Workspace demo công khai:** không làm, vì không deploy công khai. Dữ liệu demo cục bộ theo FR-21 (V2-16). ADR-005 không cần bổ sung.
 7. **Phòng ban mỗi thành viên:** tối đa một phòng ban; tài liệu có thể giới hạn cho nhiều phòng ban. Nhiều phòng ban mỗi người để P1 nếu có nhu cầu thực tế.
 8. **Lịch sử hội thoại khi mất quyền:** ẩn câu trả lời và đoạn trích được sinh từ tài liệu người đó không còn quyền đọc (tài liệu có trong context LLM, không chỉ tài liệu được trích dẫn; sửa 2026-11-09, [TECH-V2-ai-service §7.5](../02-architecture/designs/TECH-V2-ai-service.md)); giữ câu hỏi và ghi chú lý do ẩn.
-9. **Trưởng phòng ban quản lý tài liệu của phòng ban:** P1. Trong V2 chỉ OWNER/ADMIN tải lên, sửa, xóa và đổi phạm vi tài liệu.
+9. **Trưởng phòng ban quản lý tài liệu của phòng ban:** ~~P1. Trong V2 chỉ OWNER/ADMIN tải lên, sửa, xóa và đổi phạm vi tài liệu.~~ *Sửa 2026-11-10 ([ADR-009](../02-architecture/adr/ADR-009-department-publishers.md)):* vào MVP dưới dạng publisher. Mỗi phòng ban có một publisher là thành viên của phòng, mỗi workspace có một publisher cho tài liệu `WORKSPACE`; chỉ OWNER gán. OWNER thu hồi và chuyển trách nhiệm tài liệu, không viết nội dung khi không phải publisher; ADMIN không ghi tài liệu. Không có luồng duyệt trong hệ thống.
 
 **Bổ sung owner chốt 2026-10-20 (V2-03):**
 
