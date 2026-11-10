@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "Kế hoạch triển khai SOPilot V2: eval-first, chạy local, bàn giao nghiên cứu"
 status: approved
 created: 2026-10-17
-updated: 2026-11-09
+updated: 2026-11-10
 author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -17,8 +17,8 @@ refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 35
-completed_tickets: 21
-implemented_tickets: 21
+completed_tickets: 22
+implemented_tickets: 22
 review_tickets: 0
 ---
 
@@ -244,7 +244,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-13` | Phản hồi câu trả lời và danh sách khoảng trống tri thức | ai-qa | M | `V2-10`, `V2-12` | todo |
 | `V2-14` | Test cách ly tenant FR-19 trong CI và đo RQ4 | tests | M | `V2-09`, `V2-12` | done |
 | `V2-23` | core-api: hồ sơ thành viên, vòng đời tạm khóa và phòng ban phẳng | user | M | `V2-11` | done |
-| `V2-24` | core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển thị theo phòng ban | knowledge | L | `V2-12`, `V2-23` | todo |
+| `V2-24` | core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển thị theo phòng ban | knowledge | L | `V2-12`, `V2-23` | done |
 | `V2-25` | ai-service: gợi ý metadata chạy nền và đo độ trễ | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | todo |
 | `V2-26` | Test phân quyền tài liệu theo phòng ban (FR-29) trong CI | tests | M | `V2-10`, `V2-23`, `V2-24` | todo |
 
@@ -329,6 +329,10 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-09:** `V2-10` → `done` (mốc 5 chạy với endpoint thật trên A10: khởi động lạnh 264 s, TTFT nóng 943 ms, 47,9 token/s; harness `answers` trên `sop-main` test, `expand` bật: trả lời 94,3 % câu trả lời được, 11/11 câu không trả lời được bị từ chối, citation precision 84,2 % so với 64,4 % khi tắt, faithfulness 0,981 do chính model chấm; 0/8 câu `probe` lộ quy tắc; chi phí ngày $1,56). Bỏ tiêu chí điều khoản nhiều tài khoản Modal (owner dùng hai tài khoản), không sửa ADR-006 §4.4 theo hướng một tài khoản. Chuyển sang: danh sách chưa trả lời được → `V2-13`; `OUT_OF_SCOPE`, câu tấn công vượt cổng, câu trả lời mã hóa → `V2-27`; cache FlashInfer → `V2-35`; hỏi qua API và TTFT đầu-cuối → `V2-16`. Chi tiết ở [V2-10](tickets/V2-10-ai-service-qa-pipeline.md) mốc 5. `completed_tickets` 18 → 19, `implemented_tickets` 18 → 19.
 
 > **Owner chốt 2026-11-09:** `V2-35` → `done` (rerank `bge-reranker-v2-m3` chung container A10 với vLLM: khớp điểm CPU–GPU chênh tối đa 2,7e-6 và top 5 trùng 24/24; RQ2/RQ2b trên `sop-main-v2` trùng số cũ; rerank nóng p50 khoảng 1,0–1,4 s so với 15,7–18,1 s trên CPU; khởi động lạnh 264 s → 159 s nhờ cache FlashInfer; chính sách (a) khi rerank lỗi); `completed_tickets` 20 → 21, `review_tickets` 1 → 0, `implemented_tickets` không đổi.
+
+> **Cập nhật 2026-11-10:** `V2-24` → `review` (metadata tài liệu, category/tags phẳng, phạm vi DEPARTMENTS, PUT /visibility với outbox ACCESS_UPDATED và xử lý race §7.1, `mvnw verify` 102 unit + 113 integration test xanh); `review_tickets` 0 → 1, `implemented_tickets` 21 → 22. Chờ owner nghiệm thu.
+
+> **Owner chốt 2026-11-10:** `V2-24` → `done` (sau review đã sửa: gửi `ACCESS_UPDATED` trực tiếp trên luồng request với lease 60 s và timeout 2 s, không gửi trùng; loại phòng ban trùng; upload nhận `title`; thêm unit test ma trận quyền ADR-007 §4.4, nguồn trường metadata, category archived/xóa; `mvnw verify` 102 unit + 113 integration xanh). `completed_tickets` 21 → 22, `review_tickets` 1 → 0, `implemented_tickets` giữ 22.
 
 ---
 
