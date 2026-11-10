@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -48,6 +49,25 @@ public class OutboxDispatcher {
         this.tenant = tenant;
         this.properties = properties;
         this.listeners = listeners;
+    }
+
+    /**
+     * Sends an event the caller enqueued already leased ({@link OutboxService#enqueueLeased}), on the calling
+     * thread and with {@code timeout} (TECH §2.3). A 2xx marks it {@code DELIVERED} and returns true. A retryable
+     * failure or a timeout schedules the retry with backoff, a contract error goes {@code DEAD}; both return false.
+     * The background dispatcher cannot send it concurrently because of the lease, and never needs to when this
+     * returns true. Call it after the writing transaction committed.
+     */
+    public boolean sendDirect(OutboxEvent event, Duration timeout) {
+        AiServiceClient.Result result = client.send(event, timeout);
+        try {
+            return settle(event, result);
+        } catch (RuntimeException e) {
+            // The send happened but its outcome could not be stored: the lease expires and the dispatcher retries
+            // with the same Idempotency-Key.
+            log.warn("Outbox direct send could not be recorded: {}", e.getClass().getSimpleName());
+            return false;
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -89,11 +109,16 @@ public class OutboxDispatcher {
     }
 
     private void deliver(OutboxEvent event) {
-        AiServiceClient.Result result = client.send(event);
-        tenant.runVoid(event.workspaceId(), null, () -> {
+        settle(event, client.send(event));
+    }
+
+    /** Stores the outcome of one send attempt; returns true when the event was delivered. */
+    private boolean settle(OutboxEvent event, AiServiceClient.Result result) {
+        return tenant.run(event.workspaceId(), null, () -> {
             if (result.delivered()) {
                 outbox.markDelivered(event.id());
                 listeners.forEach(l -> l.onDelivered(event));
+                return true;
             } else if (result.retryable() && event.attempts() + 1 < properties.maxAttempts()) {
                 outbox.markRetry(event.id(), Instant.now().plusMillis(backoffMillis(event.attempts() + 1)),
                         result.error());
@@ -102,6 +127,7 @@ public class OutboxDispatcher {
                 log.error("Outbox event {} ({}) is dead: {}", event.id(), event.type(), result.error());
                 listeners.forEach(l -> l.onDead(event));
             }
+            return false;
         });
     }
 

@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OutboxDispatcherIT extends ApiIT {
 
     @Autowired OutboxRepository outbox;
+    @Autowired OutboxService outboxService;
 
     /** The database is shared by every IT class of the run: start from an empty queue. */
     @org.junit.jupiter.api.BeforeEach
@@ -72,6 +73,25 @@ class OutboxDispatcherIT extends ApiIT {
 
         assertThat(first).hasSize(1);
         assertThat(second).isEmpty();
+    }
+
+    @Test
+    void aLeasedEventIsNotClaimedUntilItsLeaseEndsAndIsNeverAnnounced() {
+        Actor owner = newTeamWorkspace("own");
+        UUID doc = UUID.randomUUID();
+
+        OutboxEvent leased = asTenant(owner, () -> outboxService.enqueueLeased(owner.workspaceId(), doc,
+                OutboxEvent.Type.ACCESS_UPDATED, java.util.Map.of("accessRevision", 2)));
+
+        assertThat(dispatcher.dispatchDue()).isZero();
+        assertThat(outbox.claim(20)).isEmpty();
+        assertThat(ai.sent()).isEmpty();
+        assertThat(row(owner, doc, OutboxEvent.Type.ACCESS_UPDATED).nextAttemptAt()).isAfter(Instant.now().plusSeconds(30));
+
+        makeDue(owner, doc);
+        assertThat(dispatcher.dispatchDue()).isEqualTo(1);
+        assertThat(ai.sent().get(0).id()).isEqualTo(leased.id());
+        assertThat(row(owner, doc, OutboxEvent.Type.ACCESS_UPDATED).status()).isEqualTo("DELIVERED");
     }
 
     @Test

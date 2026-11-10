@@ -1,6 +1,9 @@
 package com.sopilot.core.document;
 
+import com.sopilot.core.document.DocumentRepository.CategoryRef;
+import com.sopilot.core.document.DocumentRepository.DepartmentRef;
 import com.sopilot.core.document.DocumentRepository.DocumentDetail;
+import com.sopilot.core.document.DocumentRepository.FieldSources;
 import com.sopilot.core.document.DocumentRepository.VersionRow;
 import com.sopilot.core.security.AuthPrincipal;
 
@@ -10,12 +13,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The {@code Document} object of TECH §5.5. {@code latestVersion.failure*} is for OWNER/ADMIN only.
- * Category, tags, departments, field sources and suggestions arrive with V2-24/V2-25.
+ * The {@code Document} object of TECH §5.5.
+ * {@code departments}, {@code fieldSources}, and {@code latestVersion.failure*} are for OWNER/ADMIN only.
  */
-public record DocumentView(UUID id, String title, String description, String language, String visibility,
-                           String status, boolean answerable, LatestVersion latestVersion,
-                           CurrentVersion currentVersion, Creator createdBy, OffsetDateTime createdAt,
+public record DocumentView(UUID id, String title, String description,
+                           CategoryRef category, List<String> tags,
+                           String language, String visibility,
+                           List<DepartmentRef> departments,
+                           String status, boolean answerable,
+                           LatestVersion latestVersion,
+                           CurrentVersion currentVersion,
+                           FieldSources fieldSources,
+                           Creator createdBy, OffsetDateTime createdAt,
                            OffsetDateTime updatedAt) {
 
     public record LatestVersion(UUID id, int versionNo, String status, String failureCode, String failureMessage) {
@@ -32,11 +41,15 @@ public record DocumentView(UUID id, String title, String description, String lan
     static DocumentView of(DocumentDetail d, AuthPrincipal viewer) {
         VersionRow latest = d.latest();
         boolean manager = viewer.isManager();
-        return new DocumentView(d.id(), d.title(), d.description(), d.language(), d.visibility(),
+        return new DocumentView(d.id(), d.title(), d.description(),
+                d.category(), d.tags() == null ? List.of() : d.tags(),
+                d.language(), d.visibility(),
+                manager ? d.departments() : null,
                 latest.status(), d.current() != null,
                 new LatestVersion(latest.id(), latest.versionNo(), latest.status(),
                         manager ? latest.failureCode() : null, manager ? latest.failureMessage() : null),
                 d.current() == null ? null : currentOf(d.current()),
+                manager ? d.fieldSources() : null,
                 new Creator(d.createdBy(), d.creatorName()), d.createdAt(), d.updatedAt());
     }
 

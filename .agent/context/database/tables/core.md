@@ -39,6 +39,13 @@ Added by `V006` (V2-29):
 | `core.refresh_tokens` | no (global, TECH §3.1) | `user_id` FK, `target_workspace_id` (no FK; not named `workspace_id` so the isolation suite lists the table as global), `family_id`, `token_hash` bytea unique (SHA-256), `expires_at`, `used_at`, `revoked_at`, `revoked_reason` (`LOGOUT`/`REUSE_DETECTED`/`MEMBERSHIP_LOST`/`SUSPENDED`/`EXPIRED_FAMILY`); indexes on `family_id` and `(user_id, target_workspace_id)` |
 | `core.workspaces` (extended) | FORCE | + `deleted_at` (soft delete; hidden from `findVisible`, `findMembership` and the workspace list) |
 
+Added by `V007` (V2-24):
+
+| Table | RLS | Key columns / constraints |
+|---|---|---|
+| `core.tags` | FORCE | `name` 1–50 chars (case kept as typed); unique on `(workspace_id, lower(name))`; `UNIQUE (workspace_id, id)` for the composite FK |
+| `core.document_tags` | FORCE | PK `(document_id, tag_id)`; composite FKs `(workspace_id, document_id)` → `documents` and `(workspace_id, tag_id)` → `tags`, both `ON DELETE CASCADE`; index `ix_document_tags_tag (workspace_id, tag_id)` |
+
 Functions: `core.claim_outbox_batch(int)` leases due events of every workspace for 60 s (`FOR UPDATE SKIP LOCKED`);
 `core.referenced_object_keys(text[])` tells the storage janitor which object keys a version still references.
 

@@ -36,8 +36,11 @@ S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/
 | `GET/POST /api/v1/departments`, `PATCH/DELETE /api/v1/departments/{id}` | Member read; OWNER/ADMIN write | `409 DEPARTMENT_NAME_TAKEN`, `409 DEPARTMENT_IN_USE` (counts) |
 | `GET /api/v1/members`, `PATCH /members/{userId}`, `POST /members/{userId}/suspend\|reactivate`, `DELETE /members/{userId}` | OWNER/ADMIN | ADMIN cannot touch an OWNER; `409 LAST_OWNER` |
 | `GET /api/v1/members/me`, `POST /api/v1/members/leave` | Member | A PERSONAL workspace cannot be left |
-| `POST /api/v1/documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/retry`, `PATCH`, `DELETE /documents/{id}` | OWNER/ADMIN | PDF/MD <= 20 MB; `415`, `413`, `409 DUPLICATE_DOCUMENT\|QUOTA_EXCEEDED\|VERSION_IN_PROGRESS\|DOCUMENT_UNCHANGED\|VERSION_NOT_FAILED` |
-| `GET /api/v1/documents`, `GET /documents/{id}`, `GET /documents/{id}/download-url` | Member (read scope) | Cursor paging; another workspace's id is `404` |
+| `GET/POST /api/v1/categories`, `PATCH/DELETE /api/v1/categories/{id}` | Member read; OWNER/ADMIN write | `409 CATEGORY_NAME_TAKEN`; deleting sets document category to null without altering access |
+| `GET /api/v1/tags` | Member | List tags in current workspace |
+| `POST /api/v1/documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/retry`, `PATCH`, `DELETE /documents/{id}` | OWNER/ADMIN | PDF/MD <= 20 MB; `415`, `413`, `409 DUPLICATE_DOCUMENT\|QUOTA_EXCEEDED\|VERSION_IN_PROGRESS\|DOCUMENT_UNCHANGED\|VERSION_NOT_FAILED`; upload takes `file` plus optional `visibility=DEPARTMENTS`, `departmentIds` (duplicates ignored), `title` (1-200 chars, becomes a `USER` title), `categoryId`, `tags`; PATCH updates metadata + `categoryId`, `tags` (sets field sources to `USER`) |
+| `PUT /api/v1/documents/{id}/visibility` | OWNER/ADMIN | `{visibility, departmentIds[]}`; bumps `access_revision`, writes `ACCESS_UPDATED`, after commit it is sent to ai-service on the request thread with a 2 s timeout: `APPLIED` when delivered, `PENDING` when the dispatcher will retry; returns `{accessSync: APPLIED\|PENDING}` |
+| `GET /api/v1/documents`, `GET /documents/{id}`, `GET /documents/{id}/download-url` | Member (read scope) | Cursor paging, filters `categoryId`, `tag`; another workspace's id or unpermitted department doc is `404`; members see masked `departments`/`fieldSources` |
 | `GET /api/v1/documents/{id}/versions` | OWNER/ADMIN | History and failure reasons |
 | `GET /api/v1/audit-logs` | OWNER | Filters `action`, `actorId`, `from`, `to`, `cursor` |
 | `PATCH /internal/documents/{id}/versions/{versionId}/status` | `X-Internal-Token` | ai-service callback; stale `attempt` is ignored with `200 {applied:false}` |
