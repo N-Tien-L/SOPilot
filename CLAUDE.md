@@ -100,3 +100,8 @@ UI work also follows the global `frontend-delivery` skill. A green build is not 
 - Spec conventions, statuses, counters: `docs/README.md`. Plan: `docs/03-plans/PLAN-V2-sopilot-mvp.md`.
 - Service READMEs (endpoints, env vars): `services/core-api/README.md`, `infrastructure/db/README.md`, `eval/README.md`.
 - Technical context index: `.agent/context/README.md` (V2 rows in its task table).
+
+<!-- claude-reflect: learned rules (saved from the band; edit freely) -->
+## Learned rules
+- In this repo's docs, set the author field to the owner only; never write the agent as author.
+<!-- end claude-reflect -->

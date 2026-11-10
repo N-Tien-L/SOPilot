@@ -16,9 +16,9 @@ refs:
   - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 35
-completed_tickets: 22
-implemented_tickets: 22
+total_tickets: 36
+completed_tickets: 23
+implemented_tickets: 23
 review_tickets: 0
 ---
 
@@ -68,7 +68,7 @@ review_tickets: 0
 | **Trim** | Còn 2 service; bỏ roster tạo trước, ACL tổng quát, cây phòng ban/category, OTP/mật khẩu, OnlyOffice, analytics, gateway, RabbitMQ, Redis | V2-08, V2-17 (gỡ code cũ) |
 | **Thêm tính năng quan trọng** | Workspace + tenant + RLS, lời mời, trích dẫn có kiểm chứng, từ chối có căn cứ, hạn mức (tài liệu 50/200 MB mặc định, câu hỏi tắt), nạp ≤ 10 file/lượt, màn "Nội dung hệ thống nhận diện", audit, khoảng trống tri thức, demo data | V2-09 đến V2-16 |
 | **Ingestion SOP** | Corpus trích xuất thật, Docling (ADR-008) + Markdown chuẩn có offset, tách khung + metadata + cảnh báo, chunk theo cấu trúc; bộ kiểm hệ thống SOP tiếng Việt | V2-19 đến V2-22, V2-28 |
-| **Nhân sự, phòng ban, metadata (ADR-007)** | Hồ sơ thành viên, tạm khóa, phòng ban phẳng, category/tags, phạm vi hiển thị theo phòng ban, gợi ý metadata chạy nền, test phân quyền phòng ban | V2-23 đến V2-26 |
+| **Nhân sự, phòng ban, metadata (ADR-007)** | Hồ sơ thành viên, tạm khóa, phòng ban phẳng, category/tags, phạm vi hiển thị theo phòng ban, gợi ý metadata chạy nền, test phân quyền phòng ban; publisher theo phòng ban (ADR-009) | V2-23 đến V2-26, V2-36 |
 | **Nghiệm thu** | FR-19 trong CI, RQ4, parity, báo cáo bàn giao | V2-14, V2-17, V2-18 |
 
 ---
@@ -112,6 +112,7 @@ flowchart TD
     V33["V2-33: Frontend: thành viên, phòng ban và metadata tài liệu"]
     V34["V2-34: Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh"]
     V35["V2-35: Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM"]
+    V36["V2-36: core-api: quyền ghi tài liệu theo publisher phòng ban và publisher workspace"]
     V01 --> V03
     V01 --> V04
     V05 --> V07
@@ -192,6 +193,11 @@ flowchart TD
     V24 --> V33
     V25 --> V33
     V30 --> V33
+    V23 --> V36
+    V24 --> V36
+    V36 --> V16
+    V36 --> V31
+    V36 --> V33
 ```
 
 ---
@@ -246,16 +252,17 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-23` | core-api: hồ sơ thành viên, vòng đời tạm khóa và phòng ban phẳng | user | M | `V2-11` | done |
 | `V2-24` | core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển thị theo phòng ban | knowledge | L | `V2-12`, `V2-23` | done |
 | `V2-25` | ai-service: gợi ý metadata chạy nền và đo độ trễ | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | todo |
-| `V2-26` | Test phân quyền tài liệu theo phòng ban (FR-29) trong CI | tests | M | `V2-10`, `V2-23`, `V2-24` | todo |
+| `V2-26` | Test phân quyền tài liệu theo phòng ban (FR-29) trong CI | tests | M | `V2-10`, `V2-23`, `V2-24` | done |
+| `V2-36` | core-api: quyền ghi tài liệu theo publisher phòng ban và publisher workspace | knowledge | L | `V2-23`, `V2-24` | todo |
 
 ### Phase 4: Frontend, tích hợp, bàn giao
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|---|:---:|
 | `V2-15` | Frontend: khung V2, đăng nhập/workspace, chat và khoảng trống | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30` | todo |
-| `V2-31` | Frontend: nạp nhiều tài liệu và theo dõi xử lý | web | L | `V2-12`, `V2-15` | todo |
+| `V2-31` | Frontend: nạp nhiều tài liệu và theo dõi xử lý | web | L | `V2-12`, `V2-15`, `V2-36` | todo |
 | `V2-32` | Frontend: nội dung nhận diện và trình xem trích dẫn | web | L | `V2-10`, `V2-12`, `V2-15` | todo |
-| `V2-33` | Frontend: thành viên, phòng ban và metadata tài liệu | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30` | todo |
-| `V2-16` | Dữ liệu demo và docker compose chạy bằng một lệnh | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24` | todo |
+| `V2-33` | Frontend: thành viên, phòng ban và metadata tài liệu | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
+| `V2-16` | Dữ liệu demo và docker compose chạy bằng một lệnh | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | todo |
 | `V2-17` | Kiểm tra parity, gỡ 8 service cũ, cập nhật tài liệu hướng dẫn | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
 | `V2-18` | Báo cáo nghiên cứu và gói bàn giao | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35` | todo |
 
@@ -283,7 +290,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | Phạm vi tăng thêm 4 ticket (khoảng 1 XL quy đổi) | Trung bình | `V2-24`/`V2-25` không nằm trên đường tới RQ1–RQ3; nếu thiếu thời gian, hoãn import CSV (P1) và phương án nâng cấp gợi ý metadata trước |
 
 ## 5. Definition of Done
-- [ ] 35/35 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
+- [ ] 36/36 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
 - [ ] `docker compose up` dựng toàn bộ hệ thống trên máy local; UC-01 đến UC-06 và UC-12 chạy được.
 - [ ] FR-19 và FR-29: 0 rò rỉ. Báo cáo RQ1–RQ3 trong `docs/04-reports/`.
 - [ ] `CLAUDE.md` (kiến trúc, mục drift), `.claude/` và `.agent/context/` phản ánh kiến trúc mới.
@@ -333,6 +340,16 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Cập nhật 2026-11-10:** `V2-24` → `review` (metadata tài liệu, category/tags phẳng, phạm vi DEPARTMENTS, PUT /visibility với outbox ACCESS_UPDATED và xử lý race §7.1, `mvnw verify` 102 unit + 113 integration test xanh); `review_tickets` 0 → 1, `implemented_tickets` 21 → 22. Chờ owner nghiệm thu.
 
 > **Owner chốt 2026-11-10:** `V2-24` → `done` (sau review đã sửa: gửi `ACCESS_UPDATED` trực tiếp trên luồng request với lease 60 s và timeout 2 s, không gửi trùng; loại phòng ban trùng; upload nhận `title`; thêm unit test ma trận quyền ADR-007 §4.4, nguồn trường metadata, category archived/xóa; `mvnw verify` 102 unit + 113 integration xanh). `completed_tickets` 21 → 22, `review_tickets` 1 → 0, `implemented_tickets` giữ 22.
+
+> **Đề xuất 2026-11-10 (publisher theo phòng ban, chờ owner duyệt [ADR-009](../02-architecture/adr/ADR-009-department-publishers.md)):** thêm `V2-36` (P0, core-api) chuyển quyền ghi tài liệu từ OWNER/ADMIN sang publisher phòng chủ quản và publisher toàn workspace (TECH-V2-core-api §15). `V2-36` phụ thuộc `V2-23`, `V2-24` và chặn `V2-16` (demo cần publisher), `V2-31` (nút tải lên theo quyền publisher), `V2-33` (màn gán publisher của OWNER). `total_tickets` 35 → 36; các bộ đếm khác không đổi (`todo` không được đếm). Nếu owner không duyệt ADR-009 thì gỡ `V2-36` và các cạnh này.
+
+> **Cập nhật 2026-11-10:** `V2-26` → `review` (bộ test FR-29 hai nửa: `DepartmentAuthorizationIT` 81 lượt và `test_department_authorization.py` 60 lượt, ma trận đọc ADR-007 §4.4 × mọi kênh, ca chuyển phòng ban, tạm khóa, archive, xóa bị chặn, thu hẹp, fail-closed, lọc trước `LIMIT`; kiểm chứng âm đỏ 8–18/81 và 23–27/60; job `department-authorization` trong `tenant-isolation.yml` chưa chạy trên GitHub). `review_tickets` 0 → 1, `implemented_tickets` 22 → 23. Chờ owner nghiệm thu.
+
+> **Owner chốt 2026-11-10:** duyệt [ADR-009](../02-architecture/adr/ADR-009-department-publishers.md) (`approved`), chốt §6 Q0–Q7; PRD-V2 FR-06, FR-25, FR-26, §8 mục 9 sửa theo. `V2-36` giữ `todo`, đủ điều kiện bắt đầu; `V2-16`, `V2-31`, `V2-33` giữ phụ thuộc `V2-36`. Bộ đếm không đổi.
+
+> **Owner chốt 2026-11-10:** `V2-26` → `done` (job `department-authorization` xanh trên PR #12: `DepartmentAuthorizationIT` 81/81, `test_department_authorization.py` 60 passed, các job FR-19 xanh). Ghi chú mở chuyển tiếp: mã `401` khi tạm khóa qua API so với `403 MEMBERSHIP_SUSPENDED` trong ADR-007/V2-23; `rag.suggestion_cache` chưa có khóa phòng ban → quyết khi làm `V2-25`. `completed_tickets` 22 → 23, `review_tickets` 1 → 0, `implemented_tickets` giữ 23.
+
+> **Owner chốt 2026-11-10:** chấp nhận hai mã khi tạm khóa: qua API chuỗi refresh bị thu hồi ngay nên refresh trả `401 UNAUTHENTICATED`; `403 MEMBERSHIP_SUSPENDED` ở đăng nhập, đổi workspace, cấp lại token và refresh của chuỗi chưa bị thu hồi. TECH-V2-core-api §5.1, README core-api và `.agent/context` sửa theo mã nguồn. Không đổi mã. Bộ đếm không đổi.
 
 ---
 

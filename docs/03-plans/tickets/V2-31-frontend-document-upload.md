@@ -4,13 +4,13 @@ title: "Frontend: nạp nhiều tài liệu và theo dõi xử lý"
 type: feat
 status: todo
 created: 2026-10-24
-updated: 2026-10-24
+updated: 2026-11-10
 author: "Owner"
 scope: web
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-12, V2-15]
+depends_on: [V2-12, V2-15, V2-36]
 blocks: [V2-17]
 branch: "feat/web-v2-31"
 assignee: pair

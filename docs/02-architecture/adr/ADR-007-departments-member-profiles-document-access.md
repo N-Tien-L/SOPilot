@@ -20,6 +20,8 @@ superseded_by: ""
 > **Trạng thái:** `approved` (2026-10-20) | **Ngày đề xuất:** `2026-10-19` | **Người quyết định:** `Owner`
 >
 > ADR này điều chỉnh ADR-005: thay đánh đổi "mất phòng ban và phân quyền theo phòng ban trong V2" bằng mô hình phòng ban phẳng trong workspace. Workspace, membership, RLS và token theo workspace của ADR-005 giữ nguyên.
+>
+> **Được điều chỉnh bởi:** [ADR-009](ADR-009-department-publishers.md) (`approved`, 2026-11-10) chuyển quyền ghi tài liệu của §4.4 từ OWNER/ADMIN sang publisher theo phòng ban và publisher toàn workspace; quyền đọc không đổi.
 
 ---
 
@@ -88,7 +90,7 @@ superseded_by: ""
 | Quản lý phòng ban, category, mời, sửa hồ sơ, tạm khóa thành viên (trừ OWNER) | ✓ | ✓ | | |
 | Tạm khóa/xóa OWNER, xem audit | ✓ | | | |
 
-"Đọc" gồm danh sách, tìm kiếm, chi tiết, xem trước, tải xuống, xuất hiện trong kết quả truy xuất, context LLM và trích dẫn. Thành viên `SUSPENDED` không có quyền nào. Quyền quản lý tài liệu cho trưởng phòng ban là P1.
+"Đọc" gồm danh sách, tìm kiếm, chi tiết, xem trước, tải xuống, xuất hiện trong kết quả truy xuất, context LLM và trích dẫn. Thành viên `SUSPENDED` không có quyền nào; access token cấp trước khi tạm khóa còn hiệu lực tới khi hết hạn (§5). Quyền quản lý tài liệu cho trưởng phòng ban là P1.
 
 ### 4.5 Thực thi quyền
 - Access token thêm claim `wdept` (phòng ban của membership hoặc rỗng) cạnh `wid`, `wrole`. Refresh kiểm tra lại membership, `status` và `department_id`.

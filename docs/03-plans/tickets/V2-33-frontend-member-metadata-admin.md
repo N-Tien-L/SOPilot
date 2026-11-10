@@ -4,13 +4,13 @@ title: "Frontend: thành viên, phòng ban và metadata tài liệu"
 type: feat
 status: todo
 created: 2026-10-24
-updated: 2026-10-24
+updated: 2026-11-10
 author: "Owner"
 scope: web
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-15, V2-23, V2-24, V2-25, V2-30]
+depends_on: [V2-15, V2-23, V2-24, V2-25, V2-30, V2-36]
 blocks: [V2-17]
 branch: "feat/web-v2-33"
 assignee: pair

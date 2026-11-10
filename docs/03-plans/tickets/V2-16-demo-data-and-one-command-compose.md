@@ -4,13 +4,13 @@ title: "Dữ liệu demo và docker compose chạy bằng một lệnh"
 type: feat
 status: todo
 created: 2026-10-17
-updated: 2026-10-21
+updated: 2026-11-10
 author: "Owner"
 scope: platform
 priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-10, V2-12, V2-21, V2-24]
+depends_on: [V2-10, V2-12, V2-21, V2-24, V2-36]
 blocks: [V2-17]
 branch: "feat/platform-demo-compose"
 assignee: pair

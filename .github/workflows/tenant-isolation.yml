@@ -86,3 +86,31 @@ jobs:
             "tests/integration/test_qa_api.py::test_reopened_answer_is_hidden_when_a_cited_document_is_no_longer_readable" \
             "tests/integration/test_qa_api.py::test_reopened_answer_without_citations_is_hidden_when_a_source_is_no_longer_readable" \
             "tests/integration/test_qa_api.py::test_citation_to_an_older_version_keeps_its_snippet_and_is_marked" -v
+
+  # V2-26 / FR-29: inside ONE workspace, a document limited to departments never reaches someone
+  # outside them. Separate from the FR-19 jobs above so a failure names the layer that broke
+  # (ADR-007 §4.4-§4.5). Each half starts its own disposable Postgres; no service runs the other.
+  department-authorization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Department authorization tests of core-api
+        working-directory: services/core-api
+        run: |
+          chmod +x mvnw
+          ./mvnw -B verify -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false \
+            -Dit.test='DepartmentAuthorizationIT'
+      - name: Department authorization tests of ai-service
+        working-directory: services/ai-service
+        run: |
+          uv sync --extra dev
+          uv run pytest tests/integration/test_department_authorization.py -v
