@@ -2,7 +2,7 @@
 id: V2-26
 title: "Test phân quyền tài liệu theo phòng ban (FR-29) trong CI"
 type: test
-status: review
+status: done
 created: 2026-10-19
 updated: 2026-11-10
 author: "Owner"
@@ -38,7 +38,7 @@ PRD-V2 FR-29, ADR-007 §4.4–4.5. Lớp kiểm thử thứ hai, độc lập v�
   - Fail-closed: tài liệu chưa có dòng `rag.document_access`, đã xóa hoặc chưa kích hoạt phiên bản thì không ai đọc được, kể cả OWNER.
 - [x] Không câu trả lời nào trả về tên hay nội dung tài liệu ngoài quyền; số chunk vào context không giảm vì lọc sau top-k (lọc trước `LIMIT`).
 - [x] Có kiểm chứng âm: tắt điều kiện phòng ban trong bộ lọc thì bộ test phải đỏ.
-- [ ] Chạy trong GitHub Actions cùng FR-19 trên mỗi PR.
+- [x] Chạy trong GitHub Actions cùng FR-19 trên mỗi PR.
 
 ## 3. Hướng dẫn
 - Dùng chung khung test của V2-14; giữ bộ FR-29 tách khỏi bộ FR-19 để lỗi chỉ ra đúng lớp bị hỏng.
@@ -99,4 +99,6 @@ Ngày 2026-11-10, nhánh `test/tests-department-authorization`. Chỉ thêm test
 3. Hai khoảng hở đã biết, được test khẳng định chứ không phải lỗi: token cũ sau khi đổi phòng ban hoặc tạm khóa còn hiệu lực tới 15 phút; ai-service còn dùng phạm vi cũ tới khi nhận `ACCESS_UPDATED`.
 4. `?q=` của core-api tìm theo tiêu đề (`ILIKE`), không tìm trong nội dung; tìm theo nội dung nằm ở ai-service.
 
-**Chưa kiểm:** job `department-authorization` chưa chạy trên GitHub Actions (chỉ kiểm cú pháp YAML); kiểm chứng âm chưa tự động hóa trong CI (như job `negative-control` của FR-19 làm cho RLS); chưa chạy core-api và ai-service cùng lúc.
+**GitHub Actions:** job `department-authorization` xanh trên PR #12 ([run](https://github.com/N-Tien-L/SOPilot/actions/runs/42851584792/job/129953412037)): `DepartmentAuthorizationIT` 81/81, `test_department_authorization.py` 60 passed; các job FR-19 (`database`, `negative-control`, `core-api`, `ai-service`) cũng xanh.
+
+**Chưa kiểm:** kiểm chứng âm chưa tự động hóa trong CI (như job `negative-control` của FR-19 làm cho RLS); chưa chạy core-api và ai-service cùng lúc.

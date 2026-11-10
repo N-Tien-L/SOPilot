@@ -17,9 +17,9 @@ refs:
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 36
-completed_tickets: 22
+completed_tickets: 23
 implemented_tickets: 23
-review_tickets: 1
+review_tickets: 0
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket. *Sửa 2026-10-21: TXT cũng bị bỏ, phạm vi còn PDF có lớp chữ và MD.*
@@ -252,7 +252,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-23` | core-api: hồ sơ thành viên, vòng đời tạm khóa và phòng ban phẳng | user | M | `V2-11` | done |
 | `V2-24` | core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển thị theo phòng ban | knowledge | L | `V2-12`, `V2-23` | done |
 | `V2-25` | ai-service: gợi ý metadata chạy nền và đo độ trễ | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | todo |
-| `V2-26` | Test phân quyền tài liệu theo phòng ban (FR-29) trong CI | tests | M | `V2-10`, `V2-23`, `V2-24` | review |
+| `V2-26` | Test phân quyền tài liệu theo phòng ban (FR-29) trong CI | tests | M | `V2-10`, `V2-23`, `V2-24` | done |
 | `V2-36` | core-api: quyền ghi tài liệu theo publisher phòng ban và publisher workspace | knowledge | L | `V2-23`, `V2-24` | todo |
 
 ### Phase 4: Frontend, tích hợp, bàn giao
@@ -346,6 +346,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Cập nhật 2026-11-10:** `V2-26` → `review` (bộ test FR-29 hai nửa: `DepartmentAuthorizationIT` 81 lượt và `test_department_authorization.py` 60 lượt, ma trận đọc ADR-007 §4.4 × mọi kênh, ca chuyển phòng ban, tạm khóa, archive, xóa bị chặn, thu hẹp, fail-closed, lọc trước `LIMIT`; kiểm chứng âm đỏ 8–18/81 và 23–27/60; job `department-authorization` trong `tenant-isolation.yml` chưa chạy trên GitHub). `review_tickets` 0 → 1, `implemented_tickets` 22 → 23. Chờ owner nghiệm thu.
 
 > **Owner chốt 2026-11-10:** duyệt [ADR-009](../02-architecture/adr/ADR-009-department-publishers.md) (`approved`), chốt §6 Q0–Q7; PRD-V2 FR-06, FR-25, FR-26, §8 mục 9 sửa theo. `V2-36` giữ `todo`, đủ điều kiện bắt đầu; `V2-16`, `V2-31`, `V2-33` giữ phụ thuộc `V2-36`. Bộ đếm không đổi.
+
+> **Owner chốt 2026-11-10:** `V2-26` → `done` (job `department-authorization` xanh trên PR #12: `DepartmentAuthorizationIT` 81/81, `test_department_authorization.py` 60 passed, các job FR-19 xanh). Ghi chú mở chuyển tiếp: mã `401` khi tạm khóa qua API so với `403 MEMBERSHIP_SUSPENDED` trong ADR-007/V2-23; `rag.suggestion_cache` chưa có khóa phòng ban → quyết khi làm `V2-25`. `completed_tickets` 22 → 23, `review_tickets` 1 → 0, `implemented_tickets` giữ 23.
 
 ---
 
