@@ -71,18 +71,18 @@ public class VersionStatusService {
                 return false;
             }
             switch (update.status()) {
-                case "PROCESSING" -> processing(version);
+                case "PROCESSING" -> processing(wid, version);
                 case "READY" -> ready(wid, head, version, update);
-                case "FAILED" -> failed(version, update);
+                case "FAILED" -> failed(wid, version, update);
                 default -> throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Request is invalid.");
             }
             return true;
         });
     }
 
-    private void processing(VersionRow version) {
+    private void processing(UUID wid, VersionRow version) {
         if (CAN_START.contains(version.status())) {
-            docs.setStatus(version.id(), "PROCESSING");
+            docs.setStatus(wid, version.id(), "PROCESSING");
         } else if (!"PROCESSING".equals(version.status())) {
             throw invalid();
         }
@@ -103,18 +103,18 @@ public class VersionStatusService {
         }
         Embedding embedding = u.embedding();
         Extracted extracted = u.extracted();
-        docs.markReady(version.id(), u.pageCount(), u.detectedLanguage(), u.chunkCount(),
+        docs.markReady(wid, version.id(), u.pageCount(), u.detectedLanguage(), u.chunkCount(),
                 embedding == null ? null : embedding.model(), embedding == null ? null : embedding.revision(),
                 extracted == null ? null : extracted.docCode(), extracted == null ? null : extracted.revisionLabel(),
                 extracted == null ? null : parseDate(extracted.effectiveDate()),
                 u.warningCodes() == null ? new String[0] : u.warningCodes().toArray(String[]::new));
-        List<String> supersededKeys = docs.activate(version.documentId(), version.id(), version.versionNo(),
+        List<String> supersededKeys = docs.activate(wid, version.documentId(), version.id(), version.versionNo(),
                 u.detectedLanguage());
         // The previous version's file is not needed any more (TECH §11 Q4); a failed delete is best-effort.
         AfterCommit.run("delete superseded objects", () -> supersededKeys.forEach(storage::delete));
     }
 
-    private void failed(VersionRow version, Update u) {
+    private void failed(UUID wid, VersionRow version, Update u) {
         if ("FAILED".equals(version.status())) {
             return;
         }
@@ -122,7 +122,7 @@ public class VersionStatusService {
             throw invalid();
         }
         String code = FailureMessages.normalize(u.failureCode());
-        docs.markFailed(version.id(), code, FailureMessages.forCode(code));
+        docs.markFailed(wid, version.id(), code, FailureMessages.forCode(code));
     }
 
     private static ApiException invalid() {

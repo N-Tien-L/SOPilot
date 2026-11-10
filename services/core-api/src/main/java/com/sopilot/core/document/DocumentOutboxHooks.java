@@ -55,7 +55,8 @@ public class DocumentOutboxHooks implements OutboxEventListener {
             docs.findVersionForUpdate(event.workspaceId(), event.aggregateId(), versionId)
                     .filter(v -> "UPLOADED".equals(v.status()) && v.attempt() == attempt)
                     .map(VersionRow::id)
-                    .ifPresent(id -> docs.markFailed(id, "DISPATCH_FAILED", FailureMessages.forCode("DISPATCH_FAILED")));
+                    .ifPresent(id -> docs.markFailed(event.workspaceId(), id, "DISPATCH_FAILED",
+                            FailureMessages.forCode("DISPATCH_FAILED")));
         } catch (java.io.IOException | RuntimeException e) {
             throw new IllegalStateException("Outbox payload could not be read");
         }

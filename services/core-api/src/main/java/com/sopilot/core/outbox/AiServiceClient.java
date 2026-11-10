@@ -1,5 +1,7 @@
 package com.sopilot.core.outbox;
 
+import java.time.Duration;
+
 /** Delivers an outbox event to ai-service (TECH-V2-core-api §8.1). */
 public interface AiServiceClient {
 
@@ -18,5 +20,13 @@ public interface AiServiceClient {
         }
     }
 
-    Result send(OutboxEvent event);
+    /** Request timeout of the background dispatcher. */
+    Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);
+
+    default Result send(OutboxEvent event) {
+        return send(event, DEFAULT_TIMEOUT);
+    }
+
+    /** Same as {@link #send(OutboxEvent)} with a caller-chosen request timeout (the 2 s direct send of TECH §2.3). */
+    Result send(OutboxEvent event, Duration timeout);
 }

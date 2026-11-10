@@ -29,7 +29,7 @@ public class HttpAiServiceClient implements AiServiceClient {
     }
 
     @Override
-    public Result send(OutboxEvent event) {
+    public Result send(OutboxEvent event, Duration timeout) {
         HttpRequest.Builder request = switch (event.type()) {
             case INGEST_REQUESTED -> base("/internal/ingestions")
                     .POST(HttpRequest.BodyPublishers.ofString(event.payload()));
@@ -43,7 +43,7 @@ public class HttpAiServiceClient implements AiServiceClient {
                     .header("X-Internal-Token", token)
                     .header("Idempotency-Key", event.id().toString())
                     .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(10)).build(), HttpResponse.BodyHandlers.discarding());
+                    .timeout(timeout).build(), HttpResponse.BodyHandlers.discarding());
             return new Result(response.statusCode(), "HTTP " + response.statusCode());
         } catch (IOException e) {
             return new Result(-1, e.getClass().getSimpleName());

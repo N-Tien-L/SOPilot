@@ -168,11 +168,20 @@ public abstract class ApiIT {
         return call(HttpMethod.PATCH, path, actor, body);
     }
 
+    protected ResponseEntity<JsonNode> put(String path, Actor actor, Object body) {
+        return call(HttpMethod.PUT, path, actor, body);
+    }
+
     protected ResponseEntity<JsonNode> delete(String path, Actor actor) {
         return call(HttpMethod.DELETE, path, actor, null);
     }
 
     protected ResponseEntity<JsonNode> upload(String path, Actor actor, String filename, byte[] content) {
+        return upload(path, actor, filename, content, null);
+    }
+
+    protected ResponseEntity<JsonNode> upload(String path, Actor actor, String filename, byte[] content,
+                                              MultiValueMap<String, String> extraParams) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(actor.token());
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
@@ -183,12 +192,16 @@ public abstract class ApiIT {
                 return filename;
             }
         });
+        if (extraParams != null) {
+            extraParams.forEach((k, v) -> v.forEach(val -> form.add(k, val)));
+        }
         return http.exchange(path, HttpMethod.POST, new HttpEntity<>(form, headers), JsonNode.class);
     }
 
     protected ResponseEntity<JsonNode> uploadDocument(Actor actor, String filename, byte[] content) {
         return upload("/api/v1/documents", actor, filename, content);
     }
+
 
     /** Distinct Markdown content, so each call yields a different SHA-256. */
     protected static byte[] markdown(String text) {

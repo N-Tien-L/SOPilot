@@ -1,5 +1,8 @@
 package com.sopilot.core.document;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sopilot.core.common.Cursor;
 import com.sopilot.core.security.AuthPrincipal;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -34,24 +37,56 @@ public class DocumentRepository {
 
     private static final String DETAIL_SELECT = "SELECT d.id, d.title, d.description, d.language, d.visibility, "
             + "d.access_revision, d.current_version_id, d.latest_version_id, d.created_by, u.display_name AS creator_name, "
-            + "d.created_at, d.updated_at, "
+            + "d.created_at, d.updated_at, d.category_id, c.name AS category_name, "
+            + "d.title_source, d.description_source, d.category_source, d.tags_source, d.language_source, "
+            + "COALESCE((SELECT array_agg(t.name ORDER BY lower(t.name) ASC) FROM core.document_tags dt "
+            + " JOIN core.tags t ON t.workspace_id = dt.workspace_id AND t.id = dt.tag_id "
+            + " WHERE dt.workspace_id = d.workspace_id AND dt.document_id = d.id), ARRAY[]::text[]) AS doc_tags, "
+            + "COALESCE((SELECT jsonb_agg(jsonb_build_object('id', dep.id, 'name', dep.name) ORDER BY lower(dep.name) ASC) "
+            + " FROM core.document_departments dd JOIN core.departments dep ON dep.workspace_id = dd.workspace_id AND dep.id = dd.department_id "
+            + " WHERE dd.workspace_id = d.workspace_id AND dd.document_id = d.id), '[]'::jsonb)::text AS doc_departments, "
             + VERSION_COLUMNS.formatted("lv", "lv_") + ", " + VERSION_COLUMNS.formatted("cv", "cv_")
-            + " FROM core.documents d"
-            + " JOIN core.document_versions lv ON lv.id = d.latest_version_id"
-            + " LEFT JOIN core.document_versions cv ON cv.id = d.current_version_id"
-            + " LEFT JOIN core.users u ON u.id = d.created_by";
-
-    private static final RowMapper<DocumentDetail> DETAIL = (rs, i) -> new DocumentDetail(
-            rs.getObject("id", UUID.class), rs.getString("title"), rs.getString("description"),
-            rs.getString("language"), rs.getString("visibility"), rs.getLong("access_revision"),
-            rs.getObject("created_by", UUID.class), rs.getString("creator_name"),
-            rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
-            version(rs, "lv_"), version(rs, "cv_"));
+            + " FROM core.documents d "
+            + "LEFT JOIN core.categories c ON c.workspace_id = d.workspace_id AND c.id = d.category_id "
+            + "JOIN core.document_versions lv ON lv.id = d.latest_version_id "
+            + "LEFT JOIN core.document_versions cv ON cv.id = d.current_version_id "
+            + "LEFT JOIN core.users u ON u.id = d.created_by";
 
     private final JdbcTemplate jdbc;
+    private final ObjectMapper mapper;
+    private final RowMapper<DocumentDetail> detailMapper;
 
-    public DocumentRepository(JdbcTemplate jdbc) {
+    public DocumentRepository(JdbcTemplate jdbc, ObjectMapper mapper) {
         this.jdbc = jdbc;
+        this.mapper = mapper;
+        this.detailMapper = (rs, i) -> {
+            UUID categoryId = rs.getObject("category_id", UUID.class);
+            CategoryRef category = categoryId == null ? null : new CategoryRef(categoryId, rs.getString("category_name"));
+            java.sql.Array tagsArr = rs.getArray("doc_tags");
+            List<String> tags = tagsArr == null ? List.of() : List.of((String[]) tagsArr.getArray());
+            List<DepartmentRef> departments = parseDepartments(rs.getString("doc_departments"));
+            FieldSources fieldSources = new FieldSources(
+                    rs.getString("title_source"), rs.getString("description_source"),
+                    rs.getString("category_source"), rs.getString("tags_source"),
+                    rs.getString("language_source"));
+            return new DocumentDetail(
+                    rs.getObject("id", UUID.class), rs.getString("title"), rs.getString("description"),
+                    rs.getString("language"), rs.getString("visibility"), rs.getLong("access_revision"),
+                    rs.getObject("created_by", UUID.class), rs.getString("creator_name"),
+                    rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
+                    version(rs, "lv_"), version(rs, "cv_"), category, tags, departments, fieldSources);
+        };
+    }
+
+    private List<DepartmentRef> parseDepartments(String jsonStr) {
+        if (jsonStr == null || jsonStr.isBlank() || "[]".equals(jsonStr)) {
+            return List.of();
+        }
+        try {
+            return mapper.readValue(jsonStr, new TypeReference<List<DepartmentRef>>() {});
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Document departments could not be read");
+        }
     }
 
     // ---- reads ----------------------------------------------------------------------------------
@@ -68,18 +103,18 @@ public class DocumentRepository {
 
     public Optional<DocumentDetail> findDetail(UUID workspaceId, UUID documentId) {
         return jdbc.query(DETAIL_SELECT + " WHERE d.workspace_id = ? AND d.id = ? AND d.deleted_at IS NULL",
-                DETAIL, workspaceId, documentId).stream().findFirst();
+                detailMapper, workspaceId, documentId).stream().findFirst();
     }
 
     /** Applies the read filter of TECH §5.6: managers see everything, others WORKSPACE or their department. */
     public Optional<DocumentDetail> findVisible(AuthPrincipal principal, UUID documentId) {
         return jdbc.query(DETAIL_SELECT + " WHERE d.workspace_id = ? AND d.id = ? AND d.deleted_at IS NULL AND "
-                        + VISIBLE, DETAIL, principal.workspaceId(), documentId,
+                        + VISIBLE, detailMapper, principal.workspaceId(), documentId,
                 principal.isManager(), principal.departmentId(), principal.departmentId()).stream().findFirst();
     }
 
-    public List<DocumentDetail> listVisible(AuthPrincipal principal, String status, String titleQuery,
-                                            Cursor cursor, int limitPlusOne) {
+    public List<DocumentDetail> listVisible(AuthPrincipal principal, String status, UUID categoryId, String tag,
+                                            String titleQuery, Cursor cursor, int limitPlusOne) {
         StringBuilder sql = new StringBuilder(DETAIL_SELECT
                 + " WHERE d.workspace_id = ? AND d.deleted_at IS NULL AND " + VISIBLE);
         List<Object> args = new ArrayList<>(List.of(principal.workspaceId()));
@@ -89,6 +124,16 @@ public class DocumentRepository {
         if (status != null) {
             sql.append(" AND lv.status = ?");
             args.add(status);
+        }
+        if (categoryId != null) {
+            sql.append(" AND d.category_id = ?");
+            args.add(categoryId);
+        }
+        if (tag != null && !tag.isBlank()) {
+            sql.append(" AND EXISTS (SELECT 1 FROM core.document_tags dt "
+                    + "JOIN core.tags t ON t.workspace_id = dt.workspace_id AND t.id = dt.tag_id "
+                    + "WHERE dt.workspace_id = d.workspace_id AND dt.document_id = d.id AND lower(t.name) = lower(?))");
+            args.add(tag.trim());
         }
         if (titleQuery != null && !titleQuery.isBlank()) {
             sql.append(" AND d.title ILIKE ? ESCAPE '\\'");
@@ -101,7 +146,7 @@ public class DocumentRepository {
         }
         sql.append(" ORDER BY d.created_at DESC, d.id DESC LIMIT ?");
         args.add(limitPlusOne);
-        return jdbc.query(sql.toString(), DETAIL, args.toArray());
+        return jdbc.query(sql.toString(), detailMapper, args.toArray());
     }
 
     public Optional<VersionRow> findVersion(UUID workspaceId, UUID documentId, UUID versionId) {
@@ -122,9 +167,9 @@ public class DocumentRepository {
                 (rs, i) -> version(rs, "v_"), workspaceId, documentId);
     }
 
-    public int maxVersionNo(UUID documentId) {
+    public int maxVersionNo(UUID workspaceId, UUID documentId) {
         Integer max = jdbc.queryForObject("SELECT coalesce(max(version_no), 0) FROM core.document_versions "
-                + "WHERE document_id = ?", Integer.class, documentId);
+                + "WHERE workspace_id = ? AND document_id = ?", Integer.class, workspaceId, documentId);
         return max == null ? 0 : max;
     }
 
@@ -164,9 +209,14 @@ public class DocumentRepository {
 
     // ---- writes ---------------------------------------------------------------------------------
 
-    public void insertDocument(UUID id, UUID workspaceId, String title, UUID versionId, UUID createdBy) {
-        jdbc.update("INSERT INTO core.documents (id, workspace_id, title, latest_version_id, created_by) "
-                + "VALUES (?, ?, ?, ?, ?)", id, workspaceId, title, versionId, createdBy);
+    public void insertDocument(UUID id, UUID workspaceId, String title, String titleSource, UUID versionId,
+                               UUID createdBy, String visibility, UUID categoryId, String categorySource,
+                               String tagsSource) {
+        jdbc.update("INSERT INTO core.documents (id, workspace_id, title, title_source, latest_version_id, "
+                        + "created_by, visibility, category_id, category_source, tags_source) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                id, workspaceId, title, titleSource, versionId, createdBy, visibility, categoryId, categorySource,
+                tagsSource);
     }
 
     public void insertVersion(UUID id, UUID workspaceId, UUID documentId, int versionNo, String originalName,
@@ -179,60 +229,83 @@ public class DocumentRepository {
                 uploadedBy);
     }
 
-    public void setLatestVersion(UUID documentId, UUID versionId) {
-        jdbc.update("UPDATE core.documents SET latest_version_id = ? WHERE id = ?", versionId, documentId);
+    public void setLatestVersion(UUID workspaceId, UUID documentId, UUID versionId) {
+        jdbc.update("UPDATE core.documents SET latest_version_id = ? WHERE workspace_id = ? AND id = ?",
+                versionId, workspaceId, documentId);
     }
 
     /** UPLOADED again with a higher attempt, failure cleared (the retry path). */
-    public void resetForRetry(UUID versionId, int attempt) {
+    public void resetForRetry(UUID workspaceId, UUID versionId, int attempt) {
         jdbc.update("UPDATE core.document_versions SET status = 'UPLOADED', attempt = ?, failure_code = NULL, "
-                + "failure_message = NULL, processed_at = NULL WHERE id = ?", attempt, versionId);
+                + "failure_message = NULL, processed_at = NULL WHERE workspace_id = ? AND id = ?",
+                attempt, workspaceId, versionId);
     }
 
-    public void setStatus(UUID versionId, String status) {
+    public void setStatus(UUID workspaceId, UUID versionId, String status) {
         jdbc.update("UPDATE core.document_versions SET status = ?, failure_code = NULL, failure_message = NULL "
-                + "WHERE id = ?", status, versionId);
+                + "WHERE workspace_id = ? AND id = ?", status, workspaceId, versionId);
     }
 
-    public void markFailed(UUID versionId, String code, String message) {
+    public void markFailed(UUID workspaceId, UUID versionId, String code, String message) {
         jdbc.update("UPDATE core.document_versions SET status = 'FAILED', failure_code = ?, failure_message = ?, "
-                + "processed_at = now() WHERE id = ?", code, message, versionId);
+                + "processed_at = now() WHERE workspace_id = ? AND id = ?", code, message, workspaceId, versionId);
     }
 
-    public void markReady(UUID versionId, Integer pageCount, String detectedLanguage, Integer chunkCount,
-                          String embeddingModel, String embeddingRevision, String docCode, String revisionLabel,
-                          LocalDate effectiveDate, String[] warningCodes) {
+    public void markReady(UUID workspaceId, UUID versionId, Integer pageCount, String detectedLanguage,
+                          Integer chunkCount, String embeddingModel, String embeddingRevision, String docCode,
+                          String revisionLabel, LocalDate effectiveDate, String[] warningCodes) {
         jdbc.update("UPDATE core.document_versions SET status = 'READY', failure_code = NULL, failure_message = NULL, "
                         + "page_count = ?, detected_language = ?, chunk_count = ?, embedding_model = ?, "
                         + "embedding_revision = ?, doc_code = ?, revision_label = ?, effective_date = ?, "
-                        + "warning_codes = ?, processed_at = now() WHERE id = ?",
+                        + "warning_codes = ?, processed_at = now() WHERE workspace_id = ? AND id = ?",
                 pageCount, detectedLanguage, chunkCount, embeddingModel, embeddingRevision, docCode, revisionLabel,
-                effectiveDate, warningCodes, versionId);
+                effectiveDate, warningCodes, workspaceId, versionId);
     }
 
     /** Makes {@code versionId} the Q&A version and supersedes every older version, FAILED ones included. */
-    public List<String> activate(UUID documentId, UUID versionId, int versionNo, String detectedLanguage) {
+    public List<String> activate(UUID workspaceId, UUID documentId, UUID versionId, int versionNo, String detectedLanguage) {
         List<String> superseded = jdbc.queryForList("UPDATE core.document_versions SET status = 'SUPERSEDED' "
-                + "WHERE document_id = ? AND version_no < ? AND status <> 'SUPERSEDED' RETURNING object_key",
-                String.class, documentId, versionNo);
+                + "WHERE workspace_id = ? AND document_id = ? AND version_no < ? AND status <> 'SUPERSEDED' RETURNING object_key",
+                String.class, workspaceId, documentId, versionNo);
         jdbc.update("UPDATE core.documents SET current_version_id = ?, "
                         + "language = CASE WHEN language_source = 'SYSTEM' AND ?::text IS NOT NULL THEN ? ELSE language END "
-                        + "WHERE id = ?", versionId, detectedLanguage, detectedLanguage, documentId);
+                        + "WHERE workspace_id = ? AND id = ?", versionId, detectedLanguage, detectedLanguage, workspaceId, documentId);
         return superseded;
     }
 
-    public void updateMetadata(UUID documentId, String title, String titleSource, String description,
-                               String descriptionSource, String language, String languageSource) {
+    public void updateMetadata(UUID workspaceId, UUID documentId, String title, String titleSource, String description,
+                               String descriptionSource, UUID categoryId, String categorySource, String language,
+                               String languageSource, String tagsSource) {
         jdbc.update("UPDATE core.documents SET title = ?, title_source = ?, description = ?, description_source = ?, "
-                        + "language = ?, language_source = ? WHERE id = ?",
-                title, titleSource, description, descriptionSource, language, languageSource, documentId);
+                        + "category_id = ?, category_source = ?, language = ?, language_source = ?, tags_source = ? "
+                        + "WHERE workspace_id = ? AND id = ?",
+            title, titleSource, description, descriptionSource, categoryId, categorySource, language,
+            languageSource, tagsSource, workspaceId, documentId);
     }
 
-    public MetaSources metaSources(UUID documentId) {
-        return jdbc.queryForObject("SELECT title, title_source, description, description_source, language, "
-                        + "language_source FROM core.documents WHERE id = ?",
+    public void updateVisibility(UUID workspaceId, UUID documentId, String visibility, long accessRevision) {
+        jdbc.update("UPDATE core.documents SET visibility = ?, access_revision = ? WHERE workspace_id = ? AND id = ?",
+                visibility, accessRevision, workspaceId, documentId);
+    }
+
+    public void setDocumentDepartments(UUID workspaceId, UUID documentId, List<UUID> departmentIds) {
+        jdbc.update("DELETE FROM core.document_departments WHERE workspace_id = ? AND document_id = ?",
+                workspaceId, documentId);
+        if (departmentIds != null) {
+            for (UUID deptId : departmentIds) {
+                jdbc.update("INSERT INTO core.document_departments (workspace_id, document_id, department_id) VALUES (?, ?, ?)",
+                        workspaceId, documentId, deptId);
+            }
+        }
+    }
+
+    public MetaSources metaSources(UUID workspaceId, UUID documentId) {
+        return jdbc.queryForObject("SELECT title, title_source, description, description_source, category_id, "
+                        + "category_source, language, language_source, tags_source FROM core.documents "
+                        + "WHERE workspace_id = ? AND id = ?",
                 (rs, i) -> new MetaSources(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
-                        rs.getString(5), rs.getString(6)), documentId);
+                        rs.getObject(5, UUID.class), rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9)),
+                workspaceId, documentId);
     }
 
     public List<UUID> liveDocumentIds(UUID workspaceId) {
@@ -240,8 +313,8 @@ public class DocumentRepository {
                 + "ORDER BY id", UUID.class, workspaceId);
     }
 
-    public void softDelete(UUID documentId) {
-        jdbc.update("UPDATE core.documents SET deleted_at = now() WHERE id = ?", documentId);
+    public void softDelete(UUID workspaceId, UUID documentId) {
+        jdbc.update("UPDATE core.documents SET deleted_at = now() WHERE workspace_id = ? AND id = ?", workspaceId, documentId);
     }
 
     /** Hard delete once ai-service confirmed its side is gone; versions cascade. */
@@ -279,13 +352,24 @@ public class DocumentRepository {
                 rs.getObject(p + "created_at", OffsetDateTime.class));
     }
 
+    public record CategoryRef(UUID id, String name) {
+    }
+
+    public record DepartmentRef(UUID id, String name) {
+    }
+
+    public record FieldSources(String title, String description, String category, String tags, String language) {
+    }
+
     public record DocumentHead(UUID id, String title, String visibility, long accessRevision, UUID currentVersionId,
                                UUID latestVersionId) {
     }
 
     public record DocumentDetail(UUID id, String title, String description, String language, String visibility,
                                  long accessRevision, UUID createdBy, String creatorName, OffsetDateTime createdAt,
-                                 OffsetDateTime updatedAt, VersionRow latest, VersionRow current) {
+                                 OffsetDateTime updatedAt, VersionRow latest, VersionRow current,
+                                 CategoryRef category, List<String> tags, List<DepartmentRef> departments,
+                                 FieldSources fieldSources) {
     }
 
     public record VersionRow(UUID id, UUID documentId, int versionNo, String status, String failureCode,
@@ -302,6 +386,7 @@ public class DocumentRepository {
     }
 
     public record MetaSources(String title, String titleSource, String description, String descriptionSource,
-                              String language, String languageSource) {
+                              UUID categoryId, String categorySource, String language, String languageSource,
+                              String tagsSource) {
     }
 }
