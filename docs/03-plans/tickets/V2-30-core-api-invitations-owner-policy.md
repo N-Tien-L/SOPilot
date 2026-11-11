@@ -2,7 +2,7 @@
 id: V2-30
 title: "core-api: lời mời, thành viên và quy tắc OWNER"
 type: feat
-status: review
+status: done
 created: 2026-10-24
 updated: 2026-11-11
 author: "Owner"

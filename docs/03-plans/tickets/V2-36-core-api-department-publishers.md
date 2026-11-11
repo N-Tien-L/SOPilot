@@ -2,7 +2,7 @@
 id: V2-36
 title: "core-api: quyền ghi tài liệu theo publisher phòng ban và publisher workspace"
 type: feat
-status: review
+status: done
 created: 2026-11-10
 updated: 2026-11-11
 author: "Owner"
