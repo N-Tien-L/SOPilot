@@ -4,14 +4,14 @@ title: "Phản hồi câu trả lời và danh sách khoảng trống tri thức
 type: feat
 status: todo
 created: 2026-10-17
-updated: 2026-11-09
+updated: 2026-11-11
 author: "Owner"
 scope: ai-qa
 priority: P1
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-10, V2-12]
-blocks: [V2-15]
+blocks: [V2-15, V2-37]
 branch: "feat/ai-qa-v2-feedback-gaps"
 assignee: pair
 ---

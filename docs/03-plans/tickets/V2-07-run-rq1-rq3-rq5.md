@@ -4,14 +4,14 @@ title: "Chạy RQ1–RQ3 và RQ5, viết báo cáo"
 type: docs
 status: done
 created: 2026-10-17
-updated: 2026-11-07
+updated: 2026-11-11
 author: "Owner"
 scope: tests
 priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-05, V2-06, V2-22]
-blocks: [V2-18]
+blocks: [V2-18, V2-37]
 branch: "docs/tests-eval-report"
 assignee: pair
 ---

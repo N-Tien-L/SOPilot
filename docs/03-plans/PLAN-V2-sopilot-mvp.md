@@ -16,7 +16,7 @@ refs:
   - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 36
+total_tickets: 37
 completed_tickets: 25
 implemented_tickets: 25
 review_tickets: 0
@@ -113,6 +113,7 @@ flowchart TD
     V34["V2-34: Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh"]
     V35["V2-35: Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM"]
     V36["V2-36: core-api: quyền ghi tài liệu theo publisher phòng ban và publisher workspace"]
+    V37["V2-37: Ma trận cấu hình truy xuất và eval mức câu trả lời với giám khảo độc lập"]
     V01 --> V03
     V01 --> V04
     V05 --> V07
@@ -198,6 +199,12 @@ flowchart TD
     V36 --> V16
     V36 --> V31
     V36 --> V33
+    V07 --> V37
+    V10 --> V37
+    V13 --> V37
+    V27 --> V37
+    V35 --> V37
+    V37 --> V18
 ```
 
 ---
@@ -218,6 +225,7 @@ flowchart TD
 | `V2-05` | Eval harness truy xuất (FR-18) | tests | M | None | done |
 | `V2-06` | Corpus và bộ câu hỏi đa ngôn ngữ (VI, EN) có người duyệt | tests | L | None | done |
 | `V2-07` | Chạy RQ1–RQ3 và RQ5, viết báo cáo | tests | M | `V2-05`, `V2-06`, `V2-22` | done |
+| `V2-37` | Ma trận cấu hình truy xuất và eval mức câu trả lời với giám khảo độc lập | tests | L | `V2-07`, `V2-10`, `V2-13`, `V2-27`, `V2-35` | todo |
 
 ### Phase 2: Nền tảng và ai-service
 | Ticket | Tiêu đề | Scope | Size | Phụ thuộc | Trạng thái |
@@ -264,7 +272,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-33` | Frontend: thành viên, phòng ban và metadata tài liệu | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
 | `V2-16` | Dữ liệu demo và docker compose chạy bằng một lệnh | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | todo |
 | `V2-17` | Kiểm tra parity, gỡ 8 service cũ, cập nhật tài liệu hướng dẫn | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
-| `V2-18` | Báo cáo nghiên cứu và gói bàn giao | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35` | todo |
+| `V2-18` | Báo cáo nghiên cứu và gói bàn giao | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37` | todo |
 
 ---
 
@@ -290,7 +298,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | Phạm vi tăng thêm 4 ticket (khoảng 1 XL quy đổi) | Trung bình | `V2-24`/`V2-25` không nằm trên đường tới RQ1–RQ3; nếu thiếu thời gian, hoãn import CSV (P1) và phương án nâng cấp gợi ý metadata trước |
 
 ## 5. Definition of Done
-- [ ] 36/36 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
+- [ ] 37/37 ticket `done` với bằng chứng; mọi phạm vi tách từ XL đều được nghiệm thu.
 - [ ] `docker compose up` dựng toàn bộ hệ thống trên máy local; UC-01 đến UC-06 và UC-12 chạy được.
 - [ ] FR-19 và FR-29: 0 rò rỉ. Báo cáo RQ1–RQ3 trong `docs/04-reports/`.
 - [ ] `CLAUDE.md` (kiến trúc, mục drift), `.claude/` và `.agent/context/` phản ánh kiến trúc mới.
@@ -354,6 +362,8 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Cập nhật 2026-11-11:** `V2-30` và `V2-36` chuyển `todo` → `review` (mã, migration `V008`/`V009`, test và tài liệu đã xong; chờ owner nghiệm thu). `review_tickets` 0 → 2, `implemented_tickets` 23 → 25. Migration của V2-36 là `V009` vì V2-30 dùng `V008`. Hoãn có ghi nhận: domain join (FR-05) và import CSV lời mời (FR-24), xem TECH-V2-core-api §16.
 
 > **Owner chốt 2026-11-11:** `V2-30` và `V2-36` → `done` (bằng chứng ở mục ghi chú cuối từng ticket: 126 unit + 238 integration test, tenant isolation 31, migration và docs check xanh; 3 chỗ lệch ghi ở TECH-V2-core-api §16, §17; hoãn FR-05 và FR-24). `completed_tickets` 23 → 25, `review_tickets` 2 → 0, `implemented_tickets` 25.
+
+> **Owner chốt 2026-11-11 (thêm V2-37, cấu hình đề xuất và thứ tự hoàn thành):** ticket mới [`V2-37`](tickets/V2-37-eval-config-matrix-answer-level.md) làm ma trận cấu hình truy xuất, độ nhạy RRF/pool, eval mức câu trả lời trên `sop-main-v2` với giám khảo độc lập (Gemma 4 26B A4B hoặc 31B trên L40S, tài khoản Modal thứ hai, chọn theo κ với owner trên 30 câu) và đối chiếu với API thật. Cấu hình đề xuất cho báo cáo là hybrid RRF 1/1 `k = 60` + rerank `bge-reranker-v2-m3`, pool 25. Hypothesis (non-inferiority δ = 0,02 và vai trò BM25) cùng luật quyết định ghi trong `V2-37` §1 trước khi chạy. Nhãn `sop-main-v2` giữ nguyên `review.jsonl`. `V2-37` phụ thuộc `V2-07`, `V2-10`, `V2-13`, `V2-27`, `V2-35`: phần ma trận truy xuất chạy được ngay; phần mức câu trả lời chạy trên commit QA đã ghim sau `V2-13`, `V2-27`. `V2-18` phụ thuộc thêm `V2-37`. Owner làm hết ticket còn lại theo thứ tự: `V2-37` truy xuất song song với `V2-27`, `V2-13` → `V2-37` câu trả lời song song với `V2-25` và phần dữ liệu `V2-28` → `V2-15` → `V2-31`, `V2-32`, `V2-33` → `V2-16` → `V2-17` → `V2-28` phần còn lại → `V2-18`. `total_tickets` 36 → 37; các bộ đếm khác không đổi.
 
 ---
 
