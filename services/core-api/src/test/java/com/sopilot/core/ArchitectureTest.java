@@ -61,6 +61,16 @@ class ArchitectureTest {
             .should().onlyHaveDependentClassesThat().belongToAnyOf(RlsContext.class, TenantTx.class, IdentityService.class)
             .because("the tenant must come from verified identity inside one transaction (TECH-V2-core-api §4.3)");
 
+    /**
+     * Who may write a document is {@code DocumentWritePolicy} (ADR-009), never the role. {@code deleteAll} (workspace
+     * delete) uses {@code requireOwner}; nothing in {@code DocumentService} may fall back to {@code requireManager}.
+     */
+    @ArchTest
+    static final ArchRule documentServiceDoesNotGateWritesOnTheRole = noClasses()
+            .that().belongToAnyOf(com.sopilot.core.document.DocumentService.class)
+            .should().callMethod(com.sopilot.core.security.AuthPrincipal.class, "requireManager")
+            .because("document writes belong to publishers (TECH-V2-core-api §15.3)");
+
     /** {@code common} is shared infrastructure and must not know feature modules. */
     @ArchTest
     static final ArchRule commonDoesNotDependOnFeatures = noClasses()

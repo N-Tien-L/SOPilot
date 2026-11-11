@@ -96,7 +96,53 @@ public abstract class ApiIT {
         migrator("INSERT INTO core.workspaces (id, name, kind, created_by) VALUES (?, ?, 'TEAM', ?)",
                 workspaceId, prefix + " team", userId);
         seedMembership(workspaceId, userId, "OWNER");
+        // POST /workspaces makes the creator the workspace publisher (ADR-009 section 4.4); the seed does the same.
+        migrator("INSERT INTO core.workspace_publishers (workspace_id, user_id) VALUES (?, ?)", workspaceId, userId);
         return actorFor(userId, workspaceId);
+    }
+
+    /** Makes an existing member the publisher of workspace-wide documents (seeded as the schema owner). */
+    protected void seedWorkspacePublisher(UUID workspaceId, UUID userId) {
+        migrator("INSERT INTO core.workspace_publishers (workspace_id, user_id) VALUES (?, ?) "
+                + "ON CONFLICT (workspace_id) DO UPDATE SET user_id = EXCLUDED.user_id", workspaceId, userId);
+    }
+
+    /** A new MEMBER in the department who is its publisher; the token is issued after the move (carries wdept). */
+    protected Actor addDepartmentPublisher(UUID workspaceId, UUID departmentId, String prefix) {
+        Actor member = addMember(workspaceId, "MEMBER", prefix);
+        seedDepartmentPublisher(workspaceId, departmentId, member.userId());
+        return actorFor(member.userId(), workspaceId);
+    }
+
+    /** Uploads a document limited to the departments; the owner department is the caller's own. */
+    protected ResponseEntity<JsonNode> uploadToDepartments(Actor actor, String filename, byte[] content,
+                                                           UUID... departmentIds) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("visibility", "DEPARTMENTS");
+        for (UUID d : departmentIds) {
+            params.add("departmentIds", d.toString());
+        }
+        return upload("/api/v1/documents", actor, filename, content, params);
+    }
+
+    /** Like {@link #uploadToDepartments} but names the owner department explicitly. */
+    protected ResponseEntity<JsonNode> uploadOwnedBy(Actor actor, String filename, byte[] content, UUID ownerDepartmentId,
+                                                     UUID... departmentIds) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("visibility", "DEPARTMENTS");
+        params.add("ownerDepartmentId", ownerDepartmentId.toString());
+        for (UUID d : departmentIds) {
+            params.add("departmentIds", d.toString());
+        }
+        return upload("/api/v1/documents", actor, filename, content, params);
+    }
+
+    /** Puts the member in the department and makes them its publisher (seeded as the schema owner). */
+    protected void seedDepartmentPublisher(UUID workspaceId, UUID departmentId, UUID userId) {
+        migrator("UPDATE core.memberships SET department_id = ? WHERE workspace_id = ? AND user_id = ?",
+                departmentId, workspaceId, userId);
+        migrator("INSERT INTO core.department_publishers (workspace_id, department_id, user_id) VALUES (?, ?, ?) "
+                + "ON CONFLICT (department_id) DO UPDATE SET user_id = EXCLUDED.user_id", workspaceId, departmentId, userId);
     }
 
     /** A new user with the given role in an existing workspace. */

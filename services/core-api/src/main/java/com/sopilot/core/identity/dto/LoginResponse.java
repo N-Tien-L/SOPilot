@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Login result (TECH-V2-core-api §5.1). {@code pendingInvitations} stays empty until V2-30.
+ * Login result (TECH-V2-core-api §5.1). {@code pendingInvitations} lists unexpired invitations addressed to the
+ * user's email (V2-30), redeemable by id.
  */
 public record LoginResponse(String accessToken,
                             long expiresIn,

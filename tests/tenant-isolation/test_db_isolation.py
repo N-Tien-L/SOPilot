@@ -23,7 +23,8 @@ RAG_KINDS = ("access_title", "chunk", "term", "conversation", "question", "feedb
 SEEDED = {
     "core.workspaces": 1, "core.memberships": 1, "core.departments": 1, "core.categories": 1,
     "core.documents": 1, "core.document_versions": 1, "core.outbox_events": 1, "core.audit_logs": 1,
-    "core.invitations": 1, "rag.document_access": 1, "rag.chunks": 1, "rag.chunk_terms": 1,
+    "core.invitations": 1, "core.department_publishers": 1, "core.workspace_publishers": 1,
+    "rag.document_access": 1, "rag.chunks": 1, "rag.chunk_terms": 1,
     "rag.conversations": 1, "rag.messages": 1, "rag.message_feedback": 1, "rag.message_citations": 1,
 }
 
@@ -194,6 +195,14 @@ def test_a_workspace_cannot_insert_rows_for_another(core_app, ai_app, tenants):
         with tenant(core_app, a.workspace_id, a.user_id):
             core_app.execute("INSERT INTO core.memberships (workspace_id, user_id, role, email) "
                              "VALUES (%s, %s, 'OWNER', 'x@example.test')", (b.workspace_id, a.user_id))
+    with pytest.raises(errors.InsufficientPrivilege):
+        with tenant(core_app, a.workspace_id, a.user_id):
+            core_app.execute("INSERT INTO core.department_publishers (workspace_id, department_id, user_id) "
+                             "VALUES (%s, %s, %s)", (b.workspace_id, str(uuid.uuid4()), b.user_id))
+    with pytest.raises(errors.InsufficientPrivilege):
+        with tenant(core_app, a.workspace_id, a.user_id):
+            core_app.execute("INSERT INTO core.workspace_publishers (workspace_id, user_id) VALUES (%s, %s)",
+                             (b.workspace_id, b.user_id))
 
 
 def test_a_workspace_cannot_move_its_row_into_another(core_app, tenants):
@@ -206,6 +215,11 @@ def test_a_workspace_cannot_move_its_row_into_another(core_app, tenants):
 def test_a_workspace_cannot_update_or_delete_another_workspaces_rows(core_app, ai_app, tenants, superuser):
     a, b = tenants[0], tenants[1]
     with tenant(core_app, a.workspace_id, a.user_id):
+        for table in ("core.department_publishers", "core.workspace_publishers"):
+            assert core_app.execute(f"DELETE FROM {table} WHERE workspace_id = %s",
+                                    (b.workspace_id,)).rowcount == 0, table
+            assert core_app.execute(f"UPDATE {table} SET user_id = %s WHERE workspace_id = %s",
+                                    (a.user_id, b.workspace_id)).rowcount == 0, table
         assert core_app.execute("UPDATE core.documents SET title = 'pwned' WHERE id = %s",
                                 (b.document_id,)).rowcount == 0
         assert core_app.execute("DELETE FROM core.documents WHERE id = %s", (b.document_id,)).rowcount == 0

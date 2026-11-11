@@ -133,6 +133,12 @@ def _seed_core(conn: psycopg.Connection, t: Tenant) -> None:
                      (dept, t.workspace_id, s["department"]))
         conn.execute("INSERT INTO core.categories (id, workspace_id, name) VALUES (%s, %s, %s)",
                      (category, t.workspace_id, s["category"]))
+        # Publishers (V009): ids only, no text to hide, so isolation is proven by row counts and by the
+        # foreign-insert checks. One department publisher and one workspace publisher per tenant.
+        conn.execute("INSERT INTO core.department_publishers (workspace_id, department_id, user_id) "
+                     "VALUES (%s, %s, %s)", (t.workspace_id, dept, t.user_id))
+        conn.execute("INSERT INTO core.workspace_publishers (workspace_id, user_id) VALUES (%s, %s)",
+                     (t.workspace_id, t.user_id))
         conn.execute("INSERT INTO core.documents (id, workspace_id, title, description, latest_version_id, "
                      "created_by) VALUES (%s, %s, %s, %s, %s, %s)",
                      (t.document_id, t.workspace_id, s["document_title"], s["document_description"], version,

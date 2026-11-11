@@ -4,14 +4,14 @@ title: "ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, t
 type: feat
 status: done
 created: 2026-10-17
-updated: 2026-11-09
+updated: 2026-11-11
 author: "Owner"
 scope: ai-qa
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-02, V2-09, V2-34]
-blocks: [V2-13, V2-15, V2-16, V2-26, V2-27, V2-28, V2-32]
+blocks: [V2-13, V2-15, V2-16, V2-26, V2-27, V2-28, V2-32, V2-37]
 branch: "feat/ai-v2-qa-pipeline"
 assignee: pair
 ---

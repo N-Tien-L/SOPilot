@@ -7,12 +7,18 @@ Package: `com.sopilot.core` (modules `common`, `config`, `security`, `tenancy`, 
 
 Implemented so far (V2-11): Google login with nonce, JIT user + PERSONAL workspace + OWNER
 membership, RS256 access token (≤ 15 min, claims `wid`/`wrole`/`wdept`), JWKS, dev login for
-`local`/`test`. Invitations are V2-30.
+`local`/`test`.
 
 Added by V2-29: rotating refresh tokens (`sp_refresh` cookie, replay detection, membership re-read on every refresh),
 logout, workspace switch, workspace CRUD (create TEAM, list, current, rename, soft delete), refresh revoked on
 suspend/remove/leave, and JWKS that also publishes the previous signing key during a rotation.
 
+Added by V2-36 (ADR-009): document writes belong to publishers, not roles: the publisher of the owning department or
+of the workspace (`DocumentWritePolicy`); OWNER recalls (delete) and transfers (`PUT /documents/{id}/ownership`);
+ADMIN has no document write access. OWNER assigns publishers; the creator of a workspace is its first workspace publisher.
+Added by V2-30: invitation links (7 days, single use, revocable, carry the member profile), accept with the same
+session switch as V2-29, `pendingInvitations` at login, role changes with the OWNER rules (acting role read from the
+database; every role change revokes the member's refresh chains). No email is sent.
 Added by V2-23: flat departments, member profiles, suspend/reactivate/remove/leave with the last-owner and
 admin-vs-owner rules, `wdept` from the database at token re-issue (`SessionTokenService`).
 Added by V2-12: documents (PDF with a text layer, Markdown), versions, quota, outbox to ai-service, status callbacks,
@@ -34,14 +40,19 @@ S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/
 | `GET /.well-known/jwks.json` | Public | Current and, during a rotation, previous public signing key for ai-service |
 | `GET /actuator/health` | Public | No details |
 | `GET/POST /api/v1/departments`, `PATCH/DELETE /api/v1/departments/{id}` | Member read; OWNER/ADMIN write | `409 DEPARTMENT_NAME_TAKEN`, `409 DEPARTMENT_IN_USE` (counts) |
-| `GET /api/v1/members`, `PATCH /members/{userId}`, `POST /members/{userId}/suspend\|reactivate`, `DELETE /members/{userId}` | OWNER/ADMIN | ADMIN cannot touch an OWNER; `409 LAST_OWNER` |
-| `GET /api/v1/members/me`, `POST /api/v1/members/leave` | Member | A PERSONAL workspace cannot be left |
+| `GET /api/v1/members`, `PATCH /members/{userId}`, `POST /members/{userId}/suspend\|reactivate`, `DELETE /members/{userId}` | OWNER/ADMIN | `PATCH` takes `role`; only an OWNER can make or change an OWNER (`403` for ADMIN); `409 LAST_OWNER` |
+| `GET/POST /api/v1/invitations`, `DELETE /invitations/{id}` | OWNER/ADMIN | `POST` returns `inviteUrl` once (`201`); `409 ALREADY_MEMBER\|INVITATION_PENDING\|EMPLOYEE_CODE_TAKEN\|DEPARTMENT_ARCHIVED`; `DELETE` is idempotent, `409 INVITATION_ALREADY_USED` once accepted |
+| `POST /api/v1/invitations/accept` | Bearer | `{invitationToken}` or `{invitationId}`; returns the login body for the joined workspace + `sp_refresh` cookie; `409 INVITATION_EMAIL_MISMATCH\|INVITATION_ALREADY_USED\|EMPLOYEE_CODE_TAKEN`, `410 INVITATION_EXPIRED\|INVITATION_REVOKED` |
+| `GET /api/v1/members/me`, `POST /api/v1/members/leave` | Member | `me` also returns `publisherOf {workspace, departmentId}`; a PERSONAL workspace cannot be left |
 | `GET/POST /api/v1/categories`, `PATCH/DELETE /api/v1/categories/{id}` | Member read; OWNER/ADMIN write | `409 CATEGORY_NAME_TAKEN`; deleting sets document category to null without altering access |
 | `GET /api/v1/tags` | Member | List tags in current workspace |
-| `POST /api/v1/documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/retry`, `PATCH`, `DELETE /documents/{id}` | OWNER/ADMIN | PDF/MD <= 20 MB; `415`, `413`, `409 DUPLICATE_DOCUMENT\|QUOTA_EXCEEDED\|VERSION_IN_PROGRESS\|DOCUMENT_UNCHANGED\|VERSION_NOT_FAILED`; upload takes `file` plus optional `visibility=DEPARTMENTS`, `departmentIds` (duplicates ignored), `title` (1-200 chars, becomes a `USER` title), `categoryId`, `tags`; PATCH updates metadata + `categoryId`, `tags` (sets field sources to `USER`) |
-| `PUT /api/v1/documents/{id}/visibility` | OWNER/ADMIN | `{visibility, departmentIds[]}`; bumps `access_revision`, writes `ACCESS_UPDATED`, after commit it is sent to ai-service on the request thread with a 2 s timeout: `APPLIED` when delivered, `PENDING` when the dispatcher will retry; returns `{accessSync: APPLIED\|PENDING}` |
+| `POST /api/v1/documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/retry`, `PATCH`, `DELETE /documents/{id}` | Publisher of the owning department / workspace; `DELETE` also OWNER (recall); others `403 NOT_PUBLISHER` (`404` if the document is not readable) | PDF/MD <= 20 MB; `415`, `413`, `409 DUPLICATE_DOCUMENT\|QUOTA_EXCEEDED\|VERSION_IN_PROGRESS\|DOCUMENT_UNCHANGED\|VERSION_NOT_FAILED`; upload takes `file` plus optional `visibility=DEPARTMENTS`, `ownerDepartmentId` (default: the caller's department), `departmentIds` (duplicates ignored), `title` (1-200 chars, becomes a `USER` title), `categoryId`, `tags`; PATCH updates metadata + `categoryId`, `tags` (sets field sources to `USER`) |
+| `PUT /api/v1/documents/{id}/ownership` | OWNER | `{visibility, ownerDepartmentId, departmentIds[]}`: moves responsibility (`WORKSPACE` <-> departments, or another owner department); `400 OWNER_DEPARTMENT_NOT_IN_SCOPE`, `409 DEPARTMENT_ARCHIVED`; returns `{accessSync, publisherAssigned}`; audit `DOCUMENT_OWNERSHIP_CHANGED` |
+| `GET /api/v1/publishers` | Member | Workspace publisher and each department's publisher (id and display name, no email) |
+| `PUT\|DELETE /api/v1/publishers/workspace`, `PUT\|DELETE /api/v1/departments/{id}/publisher` | OWNER | `{userId}`; `409 MEMBER_NOT_ACTIVE\|PUBLISHER_NOT_IN_DEPARTMENT\|DEPARTMENT_ARCHIVED`; `DELETE` is idempotent |
+| `PUT /api/v1/documents/{id}/visibility` | Responsible publisher | `{visibility, departmentIds[]}` within the same kind, keeping the owner department (`409 OWNERSHIP_CHANGE_REQUIRES_OWNER`); bumps `access_revision`, writes `ACCESS_UPDATED`, after commit it is sent to ai-service on the request thread with a 2 s timeout: `APPLIED` when delivered, `PENDING` when the dispatcher will retry; returns `{accessSync: APPLIED\|PENDING}` |
 | `GET /api/v1/documents`, `GET /documents/{id}`, `GET /documents/{id}/download-url` | Member (read scope) | Cursor paging, filters `categoryId`, `tag`; another workspace's id or unpermitted department doc is `404`; members see masked `departments`/`fieldSources` |
-| `GET /api/v1/documents/{id}/versions` | OWNER/ADMIN | History and failure reasons |
+| `GET /api/v1/documents/{id}/versions` | OWNER/ADMIN, responsible publisher | History, failure reasons, `uploadedBy`, `uploadedAt` |
 | `GET /api/v1/audit-logs` | OWNER | Filters `action`, `actorId`, `from`, `to`, `cursor` |
 | `PATCH /internal/documents/{id}/versions/{versionId}/status` | `X-Internal-Token` | ai-service callback; stale `attempt` is ignored with `200 {applied:false}` |
 

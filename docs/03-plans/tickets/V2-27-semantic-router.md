@@ -4,14 +4,14 @@ title: "ai-service: semantic router (luật + embedding) và đo so với chỉ 
 type: feat
 status: todo
 created: 2026-10-20
-updated: 2026-11-09
+updated: 2026-11-11
 author: "Owner"
 scope: ai-qa
 priority: P1
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-05, V2-10]
-blocks: [V2-18]
+blocks: [V2-18, V2-37]
 branch: "feat/ai-qa-semantic-router"
 assignee: pair
 ---

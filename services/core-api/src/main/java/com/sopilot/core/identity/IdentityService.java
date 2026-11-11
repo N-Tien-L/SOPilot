@@ -11,6 +11,7 @@ import com.sopilot.core.tenancy.RlsContext;
 import com.sopilot.core.tenancy.TenantTx;
 import com.sopilot.core.workspace.WorkspaceRepository;
 import com.sopilot.core.workspace.WorkspaceRepository.MembershipRecord;
+import com.sopilot.core.workspace.WorkspaceRepository.PendingInvitation;
 import com.sopilot.core.workspace.WorkspaceRepository.MembershipStatus;
 import com.sopilot.core.workspace.WorkspaceRepository.WorkspaceRecord;
 import org.springframework.http.HttpStatus;
@@ -27,7 +28,7 @@ import java.util.UUID;
  * Identity is {@code (issuer, subject)}. First login creates the user, the identity link, a
  * PERSONAL workspace and the OWNER membership in one transaction; repeated or concurrent logins
  * reuse them. The access token is bound to the PERSONAL workspace; workspace selection, refresh
- * cookies and invitations arrive in V2-29/V2-30.
+ * cookies and invitations are in V2-29/V2-30; the login payload lists the invitations addressed to the user.
  */
 @Service
 public class IdentityService {
@@ -90,7 +91,7 @@ public class IdentityService {
                     .orElseThrow(() -> new IllegalStateException("Workspace is not visible"));
             MembershipRecord membership = workspaces.findMembership(workspaceId, userId)
                     .orElseThrow(() -> new IllegalStateException("Membership is missing"));
-            return response(token, user, workspace, membership);
+            return response(token, user, workspace, membership, workspaces.listPendingInvitations(userId));
         });
     }
 
@@ -125,18 +126,20 @@ public class IdentityService {
         audit.record(workspaceId, userId, "LOGIN", "USER", userId, java.util.Map.of());
 
         IssuedToken token = tokens.issue(userId, workspaceId, membership.role().name(), membership.departmentId());
-        return new Authenticated(response(token, user, workspace, membership), userId, workspaceId);
+        return new Authenticated(response(token, user, workspace, membership, workspaces.listPendingInvitations(userId)),
+                userId, workspaceId);
     }
 
     private static LoginResponse response(IssuedToken token, UserRecord user, WorkspaceRecord workspace,
-                                          MembershipRecord membership) {
+                                          MembershipRecord membership, List<PendingInvitation> pending) {
         return new LoginResponse(
                 token.value(),
                 token.expiresInSeconds(),
                 new LoginResponse.UserView(user.id(), user.email(), user.displayName()),
                 new LoginResponse.WorkspaceView(workspace.id(), workspace.name(), workspace.kind().name(),
                         membership.role().name()),
-                List.of());
+                pending.stream().map(p -> new LoginResponse.PendingInvitationView(p.id(), p.workspaceName(), p.role()))
+                        .toList());
     }
 
     private UUID provisionUser(ExternalIdentityClaims identity) {

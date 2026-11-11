@@ -109,7 +109,7 @@ class DepartmentMemberIT extends ApiIT {
         assertThat(archived.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(archived.getBody().at("/error/code").asText()).isEqualTo("DEPARTMENT_ARCHIVED");
 
-        assertThat(patch("/api/v1/members/" + member.userId(), owner, Map.of("role", "OWNER")).getStatusCode())
+        assertThat(patch("/api/v1/members/" + member.userId(), owner, Map.of("role", "SUPERUSER")).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(patch("/api/v1/members/" + member.userId(), owner,
                 Map.of("departmentId", UUID.randomUUID().toString())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);

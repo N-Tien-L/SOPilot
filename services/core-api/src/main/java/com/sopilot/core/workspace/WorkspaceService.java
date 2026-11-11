@@ -59,6 +59,7 @@ public class WorkspaceService {
                     .orElseThrow(() -> new IllegalStateException("User row is missing"));
             workspaces.insertTeamWorkspace(workspaceId, name, userId);
             workspaces.insertOwnerMembership(workspaceId, userId, profile.email(), profile.displayName());
+            workspaces.insertWorkspacePublisher(workspaceId, userId);
             audit.record(workspaceId, userId, "WORKSPACE_CREATED", "WORKSPACE", workspaceId, Map.of("name", name));
         });
         return workspaceId;

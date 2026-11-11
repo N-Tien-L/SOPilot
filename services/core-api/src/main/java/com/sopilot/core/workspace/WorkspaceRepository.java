@@ -63,6 +63,17 @@ public class WorkspaceRepository {
                 userId);
     }
 
+    /**
+     * Invitations addressed to the user's email, for the login payload. Goes through a SECURITY DEFINER function
+     * because the invitations belong to workspaces the user has not joined; the address is read from the user row.
+     */
+    public List<PendingInvitation> listPendingInvitations(UUID userId) {
+        return jdbc.query("SELECT o_invitation_id, o_workspace_name, o_role FROM core.pending_invitations_for_user(?)",
+                (rs, i) -> new PendingInvitation(rs.getObject("o_invitation_id", UUID.class),
+                        rs.getString("o_workspace_name"), rs.getString("o_role")),
+                userId);
+    }
+
     /** Email and display name of a user, for the first membership row of a new workspace. */
     public Optional<UserProfile> findUserProfile(UUID userId) {
         return jdbc.query("SELECT email, display_name FROM core.users WHERE id = ?",
@@ -79,6 +90,12 @@ public class WorkspaceRepository {
     public void insertOwnerMembership(UUID workspaceId, UUID userId, String email, String displayName) {
         jdbc.update("INSERT INTO core.memberships (workspace_id, user_id, role, status, display_name, email) "
                 + "VALUES (?, ?, 'OWNER', 'ACTIVE', ?, lower(?))", workspaceId, userId, displayName, email);
+    }
+
+    /** The creator publishes workspace-wide documents until an OWNER hands the role on (ADR-009 §4.4). */
+    public void insertWorkspacePublisher(UUID workspaceId, UUID userId) {
+        jdbc.update("INSERT INTO core.workspace_publishers (workspace_id, user_id) VALUES (?, ?) "
+                + "ON CONFLICT (workspace_id) DO NOTHING", workspaceId, userId);
     }
 
     public int rename(UUID workspaceId, String name) {
@@ -100,6 +117,9 @@ public class WorkspaceRepository {
 
     public record WorkspaceSummary(UUID id, String name, WorkspaceKind kind, WorkspaceRole role,
                                    MembershipStatus status) {
+    }
+
+    public record PendingInvitation(UUID id, String workspaceName, String role) {
     }
 
     public record UserProfile(String email, String displayName) {

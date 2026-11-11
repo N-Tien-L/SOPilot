@@ -78,6 +78,11 @@ public class MemberRepository {
                 displayName, employeeCode, jobTitle, departmentId, workspaceId, userId);
     }
 
+    public void setRole(UUID workspaceId, UUID userId, WorkspaceRole role) {
+        jdbc.update("UPDATE core.memberships SET role = ? WHERE workspace_id = ? AND user_id = ?",
+                role.name(), workspaceId, userId);
+    }
+
     public void setSuspended(UUID workspaceId, UUID userId, boolean suspended) {
         jdbc.update("UPDATE core.memberships SET status = ?, suspended_at = "
                         + (suspended ? "now()" : "NULL") + " WHERE workspace_id = ? AND user_id = ?",

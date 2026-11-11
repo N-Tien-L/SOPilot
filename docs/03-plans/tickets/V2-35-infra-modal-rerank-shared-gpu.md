@@ -4,14 +4,14 @@ title: "Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung con
 type: feat
 status: done
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-11
 author: "Owner"
 scope: infra
 priority: P1
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-09, V2-34]
-blocks: [V2-18]
+blocks: [V2-18, V2-37]
 branch: "feat/infra-modal-rerank"
 assignee: pair
 ---

@@ -32,7 +32,7 @@ class DocumentMetadataVisibilityUnitTest {
     private VersionRow sampleVersion(UUID docId) {
         return new VersionRow(UUID.randomUUID(), docId, 1, "READY", null, null,
                 "test.pdf", "application/pdf", "PDF", 1024L, new byte[32], "key",
-                5, "vi", "DOC-01", "01", LocalDate.now(), new String[0], 0, OffsetDateTime.now());
+                5, "vi", "DOC-01", "01", LocalDate.now(), new String[0], 0, OffsetDateTime.now(), userId);
     }
 
     private DocumentDetail sampleDetail(UUID docId, String visibility, List<DepartmentRef> depts) {
@@ -42,7 +42,7 @@ class DocumentMetadataVisibilityUnitTest {
         FieldSources sources = new FieldSources("USER", "SYSTEM", "SUGGESTED", "USER", "SYSTEM");
         return new DocumentDetail(docId, "Title", "Desc", "vi", visibility, 2L,
                 userId, "Creator", OffsetDateTime.now(), OffsetDateTime.now(),
-                ver, ver, cat, tags, depts, sources);
+                ver, ver, cat, tags, depts, sources, null);
     }
 
     @Test
@@ -85,10 +85,10 @@ class DocumentMetadataVisibilityUnitTest {
         UUID docId = UUID.randomUUID();
         VersionRow failedVer = new VersionRow(UUID.randomUUID(), docId, 1, "FAILED",
                 "NO_TEXT_LAYER", "PDF lacks text layer", "scan.pdf", "application/pdf", "PDF", 1024L,
-                new byte[32], "key", 5, "vi", null, null, null, new String[0], 0, OffsetDateTime.now());
+                new byte[32], "key", 5, "vi", null, null, null, new String[0], 0, OffsetDateTime.now(), userId);
         DocumentDetail detail = new DocumentDetail(docId, "Scan", null, null, "WORKSPACE", 1L,
                 userId, "Creator", OffsetDateTime.now(), OffsetDateTime.now(),
-                failedVer, null, null, List.of(), List.of(), null);
+                failedVer, null, null, List.of(), List.of(), null, null);
 
         AuthPrincipal manager = new AuthPrincipal(userId, wid, WorkspaceRole.ADMIN, null);
         AuthPrincipal member = new AuthPrincipal(userId, wid, WorkspaceRole.MEMBER, null);

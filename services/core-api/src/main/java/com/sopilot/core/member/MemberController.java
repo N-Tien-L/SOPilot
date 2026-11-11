@@ -50,8 +50,10 @@ public class MemberController {
     }
 
     @GetMapping("/me")
-    public ApiResponse<MemberView> me(AuthPrincipal principal) {
-        return ApiResponse.of(MemberView.of(service.me(principal)));
+    public ApiResponse<MyMemberView> me(AuthPrincipal principal) {
+        MemberService.Me me = service.me(principal);
+        return ApiResponse.of(new MyMemberView(MemberView.of(me.member()),
+                new PublisherOf(me.workspacePublisher(), me.publisherDepartmentId())));
     }
 
     @PatchMapping("/{userId}")
@@ -82,6 +84,14 @@ public class MemberController {
     public ResponseEntity<Void> leave(AuthPrincipal principal) {
         service.leave(principal);
         return ResponseEntity.noContent().build();
+    }
+
+    /** The profile fields at the top level (as {@link MemberView}) plus {@code publisherOf} (TECH §15.4). */
+    public record MyMemberView(@com.fasterxml.jackson.annotation.JsonUnwrapped MemberView profile,
+                               PublisherOf publisherOf) {
+    }
+
+    public record PublisherOf(boolean workspace, UUID departmentId) {
     }
 
     public record MemberView(UUID userId, String email, String displayName, String employeeCode, String jobTitle,
