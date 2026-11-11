@@ -3,7 +3,7 @@ id: PRD-V2-SOPILOT-MVP
 title: "SOPilot V2 MVP: workspace hỏi đáp tài liệu có trích dẫn, đa tổ chức"
 status: approved
 created: 2026-10-16
-updated: 2026-11-10
+updated: 2026-11-11
 author: "Owner"
 milestone: "V2: SOPilot MVP"
 priority: P0
@@ -139,7 +139,7 @@ Vai trò trong workspace: `OWNER`, `ADMIN`, `MEMBER`. Không còn role toàn h�
 
 ### Phản hồi và chất lượng
 - [ ] **FR-16: Phản hồi câu trả lời.** Upvote/downvote + bình luận tùy chọn.
-- [ ] **FR-17: Danh sách khoảng trống tri thức.** Admin xem các câu bị từ chối và câu bị downvote, đánh dấu đã xử lý. Không có quy trình duyệt nhiều bước.
+- [ ] **FR-17: Danh sách khoảng trống tri thức.** Admin xem các câu bị từ chối và câu bị downvote, đánh dấu đã xử lý. Không có quy trình duyệt nhiều bước. **Giới hạn MVP (ADR-009 §5):** chỉ OWNER và ADMIN xem được; publisher thì không, và ADMIN không có quyền ghi tài liệu, nên việc bổ sung tài liệu thiếu do ADMIN báo publisher của phòng liên quan ngoài hệ thống. Không tự định tuyến khoảng trống tới publisher theo phòng ban.
 - [ ] **FR-18: Eval harness.** Định dạng bộ dữ liệu (câu hỏi, tài liệu/trang kỳ vọng, câu trả lời tham chiếu, cờ `answerable`). Lệnh CLI chạy nhiều cấu hình (dense, BM25, hybrid, hybrid + rerank) và xuất báo cáo Markdown/JSON có thể tái lập.
 - [ ] **FR-19: Bộ test cách ly tenant.** Test tự động tạo nhiều workspace có tài liệu chứa "chuỗi bí mật" riêng và chứng minh không câu hỏi/API nào trả về dữ liệu của workspace khác.
 - [ ] **FR-29: Bộ test phân quyền phòng ban.** Lớp riêng với FR-19, trong cùng workspace: tài liệu `DEPARTMENTS` chứa chuỗi bí mật không xuất hiện với thành viên ngoài phòng ban qua mọi đường của FR-25 (API, dense, BM25, rerank, context LLM, trích dẫn, lịch sử, cache, URL tải). Gồm các ca chuyển phòng ban, tạm khóa, ngừng phòng ban, xóa phòng ban bị chặn, và thu hẹp phạm vi tài liệu.
