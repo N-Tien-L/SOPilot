@@ -923,9 +923,9 @@ Các chỗ code khác với đặc tả ở trên. Owner duyệt khi nghiệm th
 | Domain join (§5.2, FR-05) | `PUT/DELETE /workspaces/current/domains/{domain}` | Chưa làm | P1, ngoài tiêu chí V2-29 |
 | Cột `refresh_tokens.workspace_id` (§3.1) | `workspace_id` | `target_workspace_id` | Bộ test cách ly tenant coi mọi bảng có cột `workspace_id` là bảng tenant và đòi RLS; bảng này là bảng toàn cục (tra theo `token_hash` trước khi biết workspace). Đổi tên để không phải nới kiểm tra; bảng được thêm vào `GLOBAL_TABLES` (danh sách đã duyệt) trong `tests/tenant-isolation/isolation.py` |
 
-## 15. Publisher theo phòng ban (ADR-009, đã duyệt, chưa triển khai)
+## 15. Publisher theo phòng ban (ADR-009, đã duyệt, triển khai ở V2-36)
 
-> **Trạng thái mục này:** đặc tả của [ADR-009](../adr/ADR-009-department-publishers.md) (`approved` 2026-11-10). Mục này **thắng** cột "Quyền" của các endpoint ghi tài liệu ở §5.5, §5.6 và bước kiểm tra `OWNER, ADMIN` ở sơ đồ §2.2, §2.3. Tới khi V2-36 xong, code vẫn chạy theo §5.5/§5.6. Các `Q#` trỏ tới câu hỏi đã chốt ở ADR-009 §6.
+> **Trạng thái mục này:** đặc tả của [ADR-009](../adr/ADR-009-department-publishers.md) (`approved` 2026-11-10). Mục này **thắng** cột "Quyền" của các endpoint ghi tài liệu ở §5.5, §5.6 và bước kiểm tra `OWNER, ADMIN` ở sơ đồ §2.2, §2.3. V2-36 đã triển khai mục này (2026-11-11); các chỗ lệch ở §17. Các `Q#` trỏ tới câu hỏi đã chốt ở ADR-009 §6.
 
 ### 15.1 Phạm vi
 
@@ -933,7 +933,7 @@ Các chỗ code khác với đặc tả ở trên. Owner duyệt khi nghiệm th
 - Endpoint ghi tài liệu bị ảnh hưởng (các chỗ `principal.requireManager()` trong `DocumentService`): `POST /documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/retry`, `PATCH /documents/{id}`, `PUT /documents/{id}/visibility`, `POST /documents/{id}/suggestion/apply`, `DELETE /documents/{id}`; thêm endpoint mới `PUT /documents/{id}/ownership` chỉ cho OWNER (§15.4, ADR-009 quyết định 8). Đọc có trường quản trị: `GET /documents/{id}/versions` và các trường `departments`, `fieldSources`, `suggestion`, `latestVersion.failure*` của `Document` (§5.5).
 - Không đổi: `DocumentService.deleteAll` khi OWNER xóa workspace (§5.2); category, tag, phòng ban, thành viên (vẫn OWNER/ADMIN); callback `/internal/**` (hệ thống, không có người gọi).
 
-### 15.2 DDL logic (migration `core/V008`, viết bằng skill `flyway-migration` trong V2-36)
+### 15.2 DDL logic (migration `core/V009`, viết bằng skill `flyway-migration` trong V2-36)
 
 Phác thảo để thống nhất cột và ràng buộc; không phải file migration.
 
@@ -1056,3 +1056,43 @@ Thêm action `PUBLISHER_ASSIGNED`, `PUBLISHER_UNASSIGNED` (`target_type` `DEPART
 | Unit | Bảng quyền ghi: (OWNER, ADMIN, MEMBER) × (là / không là publisher đúng phạm vi) × 7 endpoint ghi + `PUT /ownership`; OWNER không là publisher chỉ qua `DELETE` và `PUT /ownership`; thứ tự `404` trước `403`; `requireCanCreate` với `ownerDepartmentId` thiếu, ngoài `departmentIds`, phòng `ARCHIVED` |
 | Integration (Testcontainers) | Publisher đúng ghi được; publisher phòng khác ghi tài liệu dùng chung (đọc được) → `403`, tài liệu không đọc được → `404`; ADMIN không là publisher → `403` ở mọi endpoint ghi nhưng vẫn quản lý phòng ban, category; OWNER gán lại → người cũ `403`, người mới ghi được ở request kế tiếp mà không cần refresh; ADMIN gọi API gán → `403`; chuyển phòng ban xóa dòng publisher; xóa thành viên cascade; `fk_documents_owner_in_scope` chặn bỏ phòng chủ quản; đổi publisher song song với upload không cho cả hai cùng qua; OWNER thu hồi tài liệu của phòng chưa có publisher; OWNER chuyển `DEPARTMENTS → WORKSPACE`, `WORKSPACE → DEPARTMENTS` và đổi phòng chủ quản: người ghi đổi ở request kế tiếp, `current_version_id` và chunk giữ nguyên, `rag.document_access` cập nhật; publisher gọi `PUT /visibility` đổi loại → `409`, gọi `PUT /ownership` → `403` |
 | Bảo mật (FR-29, đọc) | Chạy lại các test đọc §10: ma trận đọc ADR-007 §4.4 không đổi khi có publisher; publisher không đọc thêm tài liệu ngoài phòng; `owner_department_id` không xuất hiện trong payload `ACCESS_UPDATED`/`INGEST_REQUESTED`; hai bảng mới qua bộ `tests/tenant-isolation` (RLS FORCE, negative control) |
+
+## 16. Ghi chú triển khai V2-30 (2026-11-11, chờ owner duyệt)
+
+Các chỗ code khác với đặc tả ở trên. Bảng này thắng các mục tương ứng phía trên sau khi owner duyệt nghiệm thu V2-30.
+
+| Mục | TECH | Code | Lý do |
+|---|---|---|---|
+| Số migration | V2-36 dự kiến `core/V008` (§15.2) | V2-30 dùng `V008__invitation_acceptance.sql`; V2-36 chuyển sang `V009` | V2-30 làm trước và cần hàm `SECURITY DEFINER` để nhận lời mời (người được mời chưa có workspace để gắn RLS) |
+| Nhận lời mời (§5.3) | Khóa dòng qua hàm definer | `core.accept_invitation(user, token_hash, invitation_id)` khóa `FOR UPDATE`, đọc email từ `core.users`, trả mã kết quả; `core.pending_invitations_for_user` cho `pendingInvitations` | Hai request đồng thời tuần tự hóa trên dòng lời mời; email không lấy từ request |
+| Nhận lại link đã dùng | `409 INVITATION_ALREADY_USED` | Cùng người dùng nhận lần nữa và vẫn là thành viên: `200` (idempotent, cấp lại token); người khác hoặc người đã bị xóa khỏi workspace: `409` | Nhận link hai lần không được báo lỗi cho chính người được mời |
+| Nhận theo `invitationId` | Không nêu mã lỗi | Lời mời của email khác trả `404`, không phân biệt với không tồn tại | Không lộ lời mời của người khác |
+| Phòng ban `ARCHIVED` sau khi mời | Không gán mới vào phòng `ARCHIVED` | Vẫn tạo membership nhưng bỏ `department_id`; audit `INVITATION_ACCEPTED` có `departmentDropped` | Không chặn người được mời vì thao tác của admin sau đó |
+| Lời mời hết hạn chưa thu hồi | Một lời mời chờ cho mỗi email | Tạo lời mời mới cho cùng email tự thu hồi (`revoked_at`) lời mời đã hết hạn | Chỉ mục duy nhất không xét hạn, nếu không link hết hạn chặn mời lại mãi |
+| Role đọc lúc ghi | `wrole` từ token (§5.0) | Các thao tác **ghi** của thành viên và lời mời (và danh sách lời mời) đọc role của người gọi từ DB trong transaction (`ACTIVE` và OWNER/ADMIN); `GET /members` và bộ lọc đọc tài liệu vẫn dùng `wrole`/`wdept` của token | Owner vừa bị hạ không được tiếp tục hành động như OWNER (cùng nguyên tắc ADR-009 quyết định 8) |
+| Thu hồi phiên khi đổi role | Chưa nêu | Đổi role gọi `RefreshTokenService.revokeForMembership(..., "MEMBERSHIP_LOST")`; refresh kế tiếp trả `401` và người dùng đăng nhập lại để nhận role mới | Ràng buộc `revoked_reason` không có giá trị riêng; không đổi ràng buộc trong V2-30 |
+| Domain join qua `hd` (FR-05) | P1 | **Hoãn** | P1 được phép hoãn có ghi nhận theo ticket; chưa có `workspace_domains` |
+| Import CSV lời mời (FR-24) | P1 | **Hoãn** | Như trên; `POST /invitations/import` chưa có |
+| Gửi email | Ngoài phạm vi | Không gửi; API tạo link luôn chạy | Theo ticket |
+| `PATCH /members/{userId}` nhận `role` | Hàng "Chưa nhận `role`" ở §13 | Nhận `role` (OWNER/ADMIN/MEMBER) theo quy tắc §3.2; hàng §13 không còn đúng | V2-30 làm phần còn lại của V2-23 |
+| Cửa sổ đọc sau khi đổi role | Chưa nêu | Đổi role thu hồi refresh nhưng không thu hồi access token đang giữ: người vừa bị hạ vẫn đọc theo `wrole` cũ tới 15 phút (cả tài liệu `DEPARTMENTS` và trường quản trị). Ghi/đổi quyền thì không bị ảnh hưởng vì đọc role từ DB | Cùng giới hạn với đổi phòng ban (ADR-007 §4.5) |
+| Email lúc nhận lời mời | `lower(google_email)` | So với `core.users.email`, đặt lúc đăng nhập đầu và không cập nhật | Chưa có luồng cập nhật email Google; tài khoản đổi địa chỉ phải mời lại bằng địa chỉ cũ hoặc đăng nhập lại bằng tài khoản mới |
+
+## 17. Ghi chú triển khai V2-36 (2026-11-11, chờ owner duyệt)
+
+Các chỗ code khác với §15. Bảng này thắng mục tương ứng sau khi owner duyệt nghiệm thu V2-36.
+
+| Mục | TECH §15 | Code | Lý do |
+|---|---|---|---|
+| Số migration | `V008` | `V009__department_publishers.sql` | V2-30 đã dùng `V008` |
+| Endpoint `suggestion/apply` | Một trong 7 endpoint ghi | Chưa có trong code (V2-24 chưa làm) | `DocumentWritePolicy.requireCanWrite` sẵn sàng; thêm khi endpoint được viết |
+| Người gọi không có phòng ban, không nêu `ownerDepartmentId` (§15.3) | `400 VALIDATION_FAILED` | `403 NOT_PUBLISHER` | Người không có phòng ban không thể là publisher phòng; ADMIN/OWNER không phải publisher phải nhận `403` ở mọi endpoint ghi (ticket) |
+| Tạo tài liệu `DEPARTMENTS` với phòng chủ quản `ARCHIVED` | Phòng phải `ACTIVE` | `400 VALIDATION_FAILED` ở upload (như phạm vi đọc `ARCHIVED`); `409 DEPARTMENT_ARCHIVED` ở `PUT /ownership` | Upload dùng chung kiểm tra danh sách phòng đọc của V2-24 |
+| Trường `Document` | Trường quản trị cho publisher | Thêm `ownerDepartment {id, name}` (chỉ khi xem quản trị) | Frontend cần biết phòng chủ quản để hiện nút |
+| `GET /documents/{id}/versions` | Thêm `uploadedBy`, `uploadedAt` | `uploadedBy {id, displayName}`, `uploadedAt`; **bỏ `createdAt`** (cùng giá trị) | Tránh hai tên cho một giá trị |
+| Quyền đọc `versions` | OWNER/ADMIN + publisher chịu trách nhiệm | Không đọc được tài liệu: `404`; đọc được nhưng không quản trị: `403 FORBIDDEN` | Giữ thứ tự `404` trước `403` |
+| `PATCH /members/{userId}` đổi phòng | Xóa dòng publisher khác phòng mới | Cùng transaction, kèm audit `PUBLISHER_UNASSIGNED` lý do `DEPARTMENT_CHANGED`; publisher workspace giữ nguyên | Theo §15.3 |
+| `GET /members/me` | `publisherOf` | `publisherOf: {workspace, departmentId}` ở cùng cấp với hồ sơ (`@JsonUnwrapped`) | Giữ tương thích phản hồi cũ |
+| Khóa khi gán publisher | Khóa dòng publisher | Gán publisher còn khóa `FOR SHARE` dòng membership của người được gán | Đổi phòng ban chạy song song không được để lại dòng publisher của phòng cũ (FK chỉ khóa khóa, không chờ cập nhật cột thường); có hai test song song |
+| Danh sách phòng đọc khi phòng chủ quản `ARCHIVED` | Publisher vẫn sửa, xóa | `PUT /visibility` bắt buộc giữ phòng chủ quản, mà phòng `ARCHIVED` bị từ chối trong danh sách, nên publisher không đổi được danh sách đọc của tài liệu đó. Trả `409 OWNER_DEPARTMENT_ARCHIVED` với câu nêu nguyên nhân và lối ra (OWNER chuyển tài liệu bằng `PUT /ownership` hoặc khôi phục phòng). Owner chốt 2026-11-11: giữ hành vi, chỉ làm rõ thông báo | An toàn (không ai được đọc thêm), hiếm gặp, có lối ra; không đáng thêm ngoại lệ cho phòng `ARCHIVED` trong danh sách |
+| Backfill `V009` | Gán `owner_department_id` | Dừng với thông báo rõ nếu có tài liệu `DEPARTMENTS` không có phòng nào; tạm tắt trigger `updated_at` khi backfill | Không để migration vỡ ở CHECK, không đổi `updated_at` của mọi tài liệu phòng ban |

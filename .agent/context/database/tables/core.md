@@ -24,7 +24,7 @@ Added by `V004` (V2-23) and `V005` (V2-12):
 |---|---|---|
 | `core.departments` | FORCE | `name` 1-100, `status` `ACTIVE`/`ARCHIVED`; `UNIQUE (workspace_id, lower(name))`; `UNIQUE (workspace_id, id)` is the FK target |
 | `core.memberships` (extended) | FORCE | + `employee_code` (unique per workspace when set), `job_title`; FK `(workspace_id, department_id)` -> departments `RESTRICT` |
-| `core.invitations` | FORCE | `email`, `role` `ADMIN`/`MEMBER`, profile fields, `token_hash` unique, `expires_at`, `accepted_at`/`revoked_at`; one pending per `(workspace_id, email)`; department FK `SET NULL`; logic is V2-30 |
+| `core.invitations` | FORCE | `email`, `role` `ADMIN`/`MEMBER`, profile fields, `token_hash` unique, `expires_at`, `accepted_at`/`revoked_at`; one pending per `(workspace_id, email)`; department FK `SET NULL`; logic in `member/InvitationService` (V2-30) |
 | `core.categories` | FORCE | `name`, `status`; `UNIQUE (workspace_id, lower(name))`; API is V2-24 |
 | `core.documents` | FORCE | `title`/`description`/`language` each with `*_source` (`SYSTEM`/`SUGGESTED`/`USER`), `visibility` `WORKSPACE`/`DEPARTMENTS`, `access_revision`, `current_version_id` (READY, serves Q&A), `latest_version_id`, `deleted_at` (soft delete until ai-service confirms) |
 | `core.document_versions` | FORCE | `version_no`, `status` `UPLOADED`/`PROCESSING`/`READY`/`FAILED`/`SUPERSEDED`, `failure_code`/`failure_message` (fixed sentence per code), `file_type` `PDF`/`MD`, `size_bytes` <= 20 MB, `sha256`, `object_key` unique, extraction metadata, `warning_codes`, `attempt` |
@@ -48,6 +48,26 @@ Added by `V007` (V2-24):
 
 Functions: `core.claim_outbox_batch(int)` leases due events of every workspace for 60 s (`FOR UPDATE SKIP LOCKED`);
 `core.referenced_object_keys(text[])` tells the storage janitor which object keys a version still references.
+
+Added by `V008` (V2-30): no table. `definer_access` policies `TO sopilot_migrator` on `core.invitations` and
+`core.departments` (FORCE RLS binds the owner), index `ix_invitations_email`, and two `SECURITY DEFINER` functions granted
+to `sopilot_core_app` only: `core.accept_invitation(p_user_id, p_token_hash, p_invitation_id)` (locks the invitation,
+returns an outcome code and creates the membership) and `core.pending_invitations_for_user(p_user_id)`. Both read the
+address from `core.users`, never from the caller.
+
+Added by `V009` (V2-36, ADR-009):
+
+| Table | RLS | Key columns / constraints |
+|---|---|---|
+| `core.department_publishers` | FORCE | PK `department_id` (one publisher per department), `workspace_id`, `user_id`, `assigned_at`; composite FKs `(workspace_id, department_id)` -> departments and `(workspace_id, user_id)` -> memberships, both `ON DELETE CASCADE` |
+| `core.workspace_publishers` | FORCE | PK `workspace_id` (one per workspace), `user_id`, `assigned_at`; composite FK to memberships `ON DELETE CASCADE` |
+| `core.documents` (extended) | FORCE | + `owner_department_id`; FK `(workspace_id, owner_department_id)` -> departments `RESTRICT`; `fk_documents_owner_in_scope` `(id, owner_department_id)` -> `document_departments` `DEFERRABLE INITIALLY DEFERRED`; `ck_documents_owner_matches_visibility`: `visibility = 'WORKSPACE'` iff `owner_department_id IS NULL` |
+
+`V009` also backfills `workspace_publishers` (creator while ACTIVE, else the earliest ACTIVE OWNER; deleted workspaces
+skipped) and `documents.owner_department_id` (ADR-009 Q6; documents in several departments are listed as `NOTICE` in
+the Flyway log), adds `definer_access` policies for `sopilot_migrator` on the two new tables, `documents` and
+`document_departments`, and replaces `core.create_personal_workspace` so a newly created PERSONAL workspace gets its
+creator as workspace publisher (only on creation, not on later logins).
 
 Function `core.create_personal_workspace(p_user_id, p_workspace_id, p_name, p_email)` returns the
 user's PERSONAL workspace id, creating it and the OWNER membership if absent. Later tables

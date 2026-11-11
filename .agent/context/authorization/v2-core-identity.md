@@ -34,8 +34,9 @@ The V1 notes in `google-admission.md` (roster admission, auth-service) do not ap
   not a transaction listener as TECH section 4.3 sketches). `role` and `wdept` are read from the token, so a change
   takes effect at the next token issue (<= 15 min, ADR-007 section 4.5). `/internal/**` is guarded by
   `InternalTokenFilter` (`X-Internal-Token`, constant-time compare, blank token = reject all).
-- **Roles:** OWNER/ADMIN upload, replace, retry, edit and delete documents, manage departments and members, and
-  read version history; every member lists, reads and downloads (`download-url`, <= 300 s). OWNER only: audit log.
+- **Roles:** OWNER/ADMIN manage departments, categories and members and read every document and its version
+  history; every member lists, reads and downloads readable documents (`download-url`, <= 300 s). OWNER only: audit
+  log. **Writing documents is not a role** (V2-36, ADR-009, see "Document publishers" below).
   An ADMIN cannot suspend or remove an OWNER; the workspace always keeps one ACTIVE OWNER (`LAST_OWNER`, checked
   under a row lock on the owners). A PERSONAL workspace cannot be left.
 - **Re-issue:** `identity/SessionTokenService.reissue(user, workspace)` re-reads the membership: removed ->
@@ -54,5 +55,39 @@ The V1 notes in `google-admission.md` (roster admission, auth-service) do not ap
   one `DOCUMENT_DELETED` outbox event per document; a deleted workspace has no usable membership, so refresh
   ends with `MEMBERSHIP_LOST` (access tokens already issued live <= 15 min). The row is not purged yet.
 - `WorkspaceRole` lives in `security` (moved from `WorkspaceRepository`) so `workspace` can use `AuthPrincipal`.
-- Not yet: invitation endpoints and acceptance, role changes, `pendingInvitations` (V2-30; returned as `[]`),
-  workspace domains (FR-05, P1).
+- **Invitations (V2-30, `member/InvitationService`):** OWNER/ADMIN create a link (`POST /invitations`, role `ADMIN` or
+  `MEMBER`, never `OWNER`); the 256-bit token is returned once in `inviteUrl` (`<frontend origin>/invite#token=...`),
+  stored only as SHA-256, valid 7 days, revocable; no email is sent. One pending invitation per email (an expired one is
+  revoked automatically when the same email is invited again). The invitation carries the profile (`displayName`,
+  `employeeCode`, `jobTitle`, `departmentId`), applied to the membership on accept; an `ARCHIVED` department or a taken
+  `employeeCode` is refused at creation (`409`), and a department archived after the invite is dropped at accept.
+- **Accept (`POST /invitations/accept`, `{invitationToken}` xor `{invitationId}`):** the invitee has no workspace yet,
+  so redeeming goes through `core.accept_invitation` (SECURITY DEFINER, `V008`) which locks the invitation row
+  (`FOR UPDATE`), reads the email from `core.users`, and creates the membership. Same user again (still a member) is
+  an idempotent `200`; another user `409 INVITATION_ALREADY_USED`; wrong email `409 INVITATION_EMAIL_MISMATCH` (link
+  stays usable); `410 INVITATION_EXPIRED|INVITATION_REVOKED`; by id for another email is `404`. The call then reuses
+  `WorkspaceSessionService.switchTo` in the same transaction (token + refresh cookie for the new workspace).
+  `pendingInvitations` in the login/refresh payload comes from `core.pending_invitations_for_user`.
+- **OWNER rules (V2-30, `member/MemberService`):** `PATCH /members/{id}` accepts `role`. Only an OWNER makes or
+  changes an OWNER; ADMIN gets `403`. The acting role is **read from the database** (not `wrole`), so an owner demoted
+  since signing in cannot keep acting as one. Demoting, suspending, removing or leaving as the last ACTIVE OWNER is
+  `409 LAST_OWNER` (owner rows locked `FOR UPDATE`, so two owners leaving at once leave one). A role change revokes the
+  member's refresh chains (`revoked_reason = MEMBERSHIP_LOST`), so the new role reaches the token at the next sign-in.
+- **Document publishers (V2-36, ADR-009, `document/DocumentWritePolicy`):** the single place that decides who writes a
+  document. Upload, replace, retry, PATCH, `PUT /visibility` and delete need the **publisher of the owning
+  department** (`documents.owner_department_id`, visibility `DEPARTMENTS`) or the **workspace publisher** (visibility
+  `WORKSPACE`); one publisher each, tables `core.department_publishers` / `core.workspace_publishers`. Everything is read
+  from the database inside the write transaction (never `wrole`/`wdept`), and the publisher row is locked `FOR SHARE`,
+  so a reassignment applies at the next request without a token refresh and waits for a write in flight. Order of
+  answers: not readable -> `404`; readable but not the responsible publisher -> `403 NOT_PUBLISHER`. ADMIN gets `403` on
+  every write; an OWNER who is not a publisher too, except **delete** (recall, `actingAs = OWNER`, role read from the
+  database) and **`PUT /documents/{id}/ownership`** (OWNER only: moves responsibility between `WORKSPACE` and
+  departments or between departments; versions, status and chunks are untouched; sends `ACCESS_UPDATED`). A publisher
+  may change `PUT /visibility` only within the same kind and keeping the owner department
+  (`409 OWNERSHIP_CHANGE_REQUIRES_OWNER`); the DB also enforces it (`fk_documents_owner_in_scope`, deferred).
+  OWNER assigns publishers (`PUT|DELETE /departments/{id}/publisher`, `/publishers/workspace`; `GET /publishers` for
+  every member, no email). A member who changes department loses the department-publisher row in the same
+  transaction; removing or leaving cascades it (audited as `PUBLISHER_UNASSIGNED`). New workspaces make the creator the
+  workspace publisher. `GET /members/me` returns `publisherOf`; document views show `departments`, `ownerDepartment`,
+  `fieldSources` and failure details to managers and to the responsible publisher. Payloads to ai-service are unchanged.
+- Not yet: workspace domains / `hd` join (FR-05, P1) and CSV invitation import (FR-24, P1): deferred, see TECH §13.

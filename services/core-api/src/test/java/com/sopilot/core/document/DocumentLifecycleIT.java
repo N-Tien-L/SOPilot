@@ -123,17 +123,23 @@ class DocumentLifecycleIT extends ApiIT {
     }
 
     @Test
-    void onlyOwnersAndAdminsMayUploadOrDeleteButEveryMemberCanReadAndDownload() {
+    void onlyThePublisherMayWriteButEveryMemberCanReadAndDownload() {
         Actor owner = newTeamWorkspace("own");
         Actor member = addMember(owner.workspaceId(), "MEMBER", "mem");
         Actor admin = addMember(owner.workspaceId(), "ADMIN", "adm");
-        UUID doc = id(uploadDocument(admin, "a.md", markdown("a")), "id");
+        UUID doc = id(uploadDocument(owner, "a.md", markdown("a")), "id");
 
-        assertThat(uploadDocument(member, "b.md", markdown("b")).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        // ADMIN is not the workspace publisher either (ADR-009); the full matrix is DocumentPublisherIT.
+        for (Actor refused : List.of(member, admin)) {
+            ResponseEntity<JsonNode> upload = uploadDocument(refused, "b.md", markdown("b"));
+            assertThat(upload.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(upload.getBody().at("/error/code").asText()).isEqualTo("NOT_PUBLISHER");
+            assertThat(post("/api/v1/documents/" + doc + "/retry", refused, null).getStatusCode())
+                    .isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(patch("/api/v1/documents/" + doc, refused, Map.of("title", "x")).getStatusCode())
+                    .isEqualTo(HttpStatus.FORBIDDEN);
+        }
         assertThat(delete("/api/v1/documents/" + doc, member).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(post("/api/v1/documents/" + doc + "/retry", member, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(patch("/api/v1/documents/" + doc, member, Map.of("title", "x")).getStatusCode())
-                .isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(get("/api/v1/documents/" + doc + "/versions", member).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         assertThat(get("/api/v1/documents/" + doc, member).getStatusCode()).isEqualTo(HttpStatus.OK);

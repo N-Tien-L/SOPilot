@@ -3,7 +3,7 @@ id: ADR-009
 title: "V2: quyền ghi tài liệu theo publisher của phòng ban và của workspace"
 status: approved
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-11
 author: "Owner"
 refs:
   - docs/02-architecture/adr/ADR-007-departments-member-profiles-document-access.md
@@ -142,10 +142,11 @@ Ghi chú:
   - Mỗi request ghi tài liệu thêm một truy vấn khóa dòng publisher.
   - OWNER chỉ thu hồi hoặc chuyển trách nhiệm được, không sửa nhanh nội dung sai nếu không phải publisher; ADMIN không có quyền nào trên tài liệu (§6 Q4).
   - Thêm một endpoint chỉ OWNER gọi được để chuyển trách nhiệm (TECH §15.4), kèm kiểm thử.
+  - Danh sách khoảng trống tri thức (FR-17, V2-13) vẫn chỉ cho OWNER và ADMIN xem, publisher không xem được. ADMIN thấy chỗ thiếu tài liệu nhưng không ghi được, nên phải báo publisher của phòng liên quan ngoài hệ thống (làm tay). Chấp nhận trong MVP vì: (1) câu `NO_EVIDENCE` và `GENERATOR_NOT_FOUND` không gắn được với tài liệu hay phòng nào (ai-service fail closed, TECH-V2-ai-service §3.4); (2) `rag.document_access` không có `owner_department_id`; (3) cho publisher xem cần đưa publisher vào token hoặc cho ai-service gọi core-api, trái "không đổi token, ai-service" ở trên; (4) publisher phòng A sẽ đọc câu hỏi (đã che PII) của nhân viên phòng B. Việc để publisher xem và xử lý danh sách này nằm ngoài ADR này; làm sau MVP thì cần ADR riêng.
   - PRD-V2 FR-06, FR-25 và §8 mục 9 phải sửa theo khi ADR này được duyệt.
   - Workspace một thành viên: người đó là OWNER và publisher toàn workspace; tài liệu `DEPARTMENTS` chỉ đăng được khi đã tạo phòng ban, tự xếp mình vào phòng và tự gán mình làm publisher.
 - **Hành động tiếp theo (khi duyệt):**
-  - TECH-V2-core-api §15 chuyển từ đề xuất sang đặc tả; migration `core/V008` qua skill `flyway-migration`.
+  - TECH-V2-core-api §15 chuyển từ đề xuất sang đặc tả; migration `core/V009` qua skill `flyway-migration`.
   - Ticket [V2-36](../../03-plans/tickets/V2-36-core-api-department-publishers.md) triển khai core-api và test phân quyền ghi; V2-31, V2-33 hiển thị nút ghi và màn gán publisher; V2-16 tạo publisher cho dữ liệu demo.
   - Sửa PRD-V2 FR-06, FR-25, §8 mục 9.
   - Cập nhật `.agent/context/authorization/v2-core-identity.md` và `.agent/context/database/tables/core.md` cùng lúc với triển khai (như ADR-007), không trước.

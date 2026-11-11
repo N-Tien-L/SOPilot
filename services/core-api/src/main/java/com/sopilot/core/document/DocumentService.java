@@ -18,6 +18,9 @@ import com.sopilot.core.document.DocumentRepository.Duplicate;
 import com.sopilot.core.document.DocumentRepository.MetaSources;
 import com.sopilot.core.document.DocumentRepository.Usage;
 import com.sopilot.core.document.DocumentRepository.VersionRow;
+import com.sopilot.core.document.DocumentWritePolicy.ActingAs;
+import com.sopilot.core.document.DocumentWritePolicy.Creation;
+import com.sopilot.core.document.DocumentWritePolicy.PublisherScope;
 import com.sopilot.core.document.UploadValidator.Validated;
 import com.sopilot.core.outbox.OutboxDispatcher;
 import com.sopilot.core.outbox.OutboxEvent;
@@ -50,7 +53,11 @@ import java.util.UUID;
  * <p>Order inside an upload: checks and rows first, the S3 {@code PUT} last, then commit. A conflict
  * (duplicate, quota, version in progress) therefore never touches storage, and the only way to leave an
  * orphan object is a commit that fails after the {@code PUT}, which {@code StorageJanitor} removes.
- * Locks are always taken in the order document row, then SHA-256, then workspace quota.
+ * Locks are always taken in the order document row, then publisher row ({@code FOR SHARE}, by
+ * {@link DocumentWritePolicy}), then SHA-256, then workspace quota.
+ *
+ * <p>Who may write is {@link DocumentWritePolicy} (ADR-009), not the role: the publisher of the owning
+ * department or of the workspace. A document the caller cannot read is {@code 404} before any {@code 403}.
  */
 @Service
 public class DocumentService {
@@ -70,12 +77,13 @@ public class DocumentService {
     private final AuditService audit;
     private final TenantTx tenant;
     private final QuotaProperties quota;
+    private final DocumentWritePolicy writePolicy;
 
     public DocumentService(DocumentRepository docs, CategoryRepository categories,
                            DepartmentRepository departments, TagService tagService,
                            StorageClient storage, OutboxService outbox,
                            OutboxDispatcher outboxDispatcher, AuditService audit,
-                           TenantTx tenant, QuotaProperties quota) {
+                           TenantTx tenant, QuotaProperties quota, DocumentWritePolicy writePolicy) {
         this.docs = docs;
         this.categories = categories;
         this.departments = departments;
@@ -86,6 +94,7 @@ public class DocumentService {
         this.audit = audit;
         this.tenant = tenant;
         this.quota = quota;
+        this.writePolicy = writePolicy;
     }
 
     /** {@code created} is false when a repeated send of the version already in progress was recognised. */
@@ -95,15 +104,25 @@ public class DocumentService {
     public record VisibilityResponse(String accessSync) {
     }
 
+    /** {@code publisherAssigned} tells the OWNER whether anyone can write to the document in its new scope. */
+    public record OwnershipResponse(String accessSync, boolean publisherAssigned) {
+    }
+
     // ---- upload ---------------------------------------------------------------------------------
 
     public UploadResult upload(AuthPrincipal principal, String filename, byte[] content, String visibility) {
-        return upload(principal, filename, content, visibility, null, null, null, null);
+        return upload(principal, filename, content, visibility, null, null, null, null, null);
     }
 
     public UploadResult upload(AuthPrincipal principal, String filename, byte[] content, String visibility,
                                List<UUID> departmentIds, UUID categoryId, List<String> tags, String requestedTitle) {
-        principal.requireManager();
+        return upload(principal, filename, content, visibility, departmentIds, categoryId, tags, requestedTitle, null);
+    }
+
+    /** {@code ownerDepartmentId} defaults to the caller's own department for {@code DEPARTMENTS} (TECH §15.3). */
+    public UploadResult upload(AuthPrincipal principal, String filename, byte[] content, String visibility,
+                               List<UUID> departmentIds, UUID categoryId, List<String> tags, String requestedTitle,
+                               UUID ownerDepartmentId) {
         String effectiveVisibility = (visibility == null || visibility.isBlank()) ? "WORKSPACE" : visibility.strip();
         if (!"WORKSPACE".equals(effectiveVisibility) && !"DEPARTMENTS".equals(effectiveVisibility)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Visibility must be WORKSPACE or DEPARTMENTS.");
@@ -114,6 +133,8 @@ public class DocumentService {
         UUID wid = principal.workspaceId();
         return tenant.run(principal, () -> {
             List<UUID> effectiveDepartmentIds = resolveDepartments(wid, effectiveVisibility, departmentIds);
+            Creation creation = writePolicy.requireCanCreate(principal, effectiveVisibility, ownerDepartmentId,
+                    effectiveDepartmentIds);
 
             if (categoryId != null) {
                 Category cat = categories.find(wid, categoryId).orElseThrow(CategoryService::notFound);
@@ -137,7 +158,7 @@ public class DocumentService {
             String tagsSource = (tags != null && !tags.isEmpty()) ? "USER" : "SYSTEM";
 
             docs.insertDocument(documentId, wid, title, titleSource, versionId, principal.userId(),
-                    effectiveVisibility, categoryId, categorySource, tagsSource);
+                    effectiveVisibility, creation.ownerDepartmentId(), categoryId, categorySource, tagsSource);
             docs.insertVersion(versionId, wid, documentId, 1, file.originalName(), file.type().mimeType(),
                     file.type().name(), file.size(), file.sha256(), objectKey, principal.userId());
 
@@ -152,7 +173,8 @@ public class DocumentService {
                     ingestPayload(wid, documentId, versionId, 1, objectKey, file, 0, title,
                             effectiveVisibility, effectiveDepartmentIds, 1));
             audit.record(principal, "DOCUMENT_UPLOADED", "DOCUMENT", documentId,
-                    Map.of("versionId", versionId, "fileType", file.type().name(), "sizeBytes", file.size()));
+                    details(creation.ownerDepartmentId(), creation.actingAs(), "versionId", versionId,
+                            "fileType", file.type().name(), "sizeBytes", file.size()));
             putObject(objectKey, content, file.type().mimeType());
             return new UploadResult(view(wid, documentId, principal), true);
         });
@@ -160,11 +182,11 @@ public class DocumentService {
 
     /** The five branches of TECH §3.3, checked in that order inside the document lock. */
     public UploadResult uploadVersion(AuthPrincipal principal, UUID documentId, String filename, byte[] content) {
-        principal.requireManager();
         Validated file = UploadValidator.validate(filename, content);
         UUID wid = principal.workspaceId();
         return tenant.run(principal, () -> {
-            DocumentHead head = docs.lockDocument(wid, documentId).orElseThrow(DocumentService::notFound);
+            Locked locked = lockForWrite(principal, wid, documentId);
+            DocumentHead head = locked.head();
             docs.advisoryLock("sha:" + wid + ":" + file.sha256Hex());
             docs.advisoryLock("quota:" + wid);
 
@@ -198,7 +220,8 @@ public class DocumentService {
                     ingestPayload(wid, documentId, versionId, versionNo, objectKey, file, 0, head.title(),
                             head.visibility(), docs.departmentIds(wid, documentId), head.accessRevision()));
             audit.record(principal, "DOCUMENT_VERSION_UPLOADED", "DOCUMENT", documentId,
-                    Map.of("versionId", versionId, "versionNo", versionNo, "sizeBytes", file.size()));
+                    details(head.ownerDepartmentId(), locked.acting(), "versionId", versionId,
+                            "versionNo", versionNo, "sizeBytes", file.size()));
             putObject(objectKey, content, file.type().mimeType());
             return new UploadResult(view(wid, documentId, principal), true);
         });
@@ -208,10 +231,10 @@ public class DocumentService {
 
     /** Only the newest version, only when {@code FAILED}; a second call finds it {@code UPLOADED} and gets 409. */
     public DocumentView retry(AuthPrincipal principal, UUID documentId) {
-        principal.requireManager();
         UUID wid = principal.workspaceId();
         return tenant.run(principal, () -> {
-            DocumentHead head = docs.lockDocument(wid, documentId).orElseThrow(DocumentService::notFound);
+            Locked locked = lockForWrite(principal, wid, documentId);
+            DocumentHead head = locked.head();
             VersionRow latest = docs.findVersion(wid, documentId, head.latestVersionId()).orElseThrow();
             if (!"FAILED".equals(latest.status())) {
                 throw new ApiException(HttpStatus.CONFLICT, "VERSION_NOT_FAILED",
@@ -226,21 +249,24 @@ public class DocumentService {
                             head.title(), head.visibility(), docs.departmentIds(wid, documentId),
                             head.accessRevision()));
             audit.record(principal, "DOCUMENT_RETRY_REQUESTED", "DOCUMENT", documentId,
-                    Map.of("versionId", latest.id(), "attempt", attempt));
+                    details(head.ownerDepartmentId(), locked.acting(), "versionId", latest.id(), "attempt", attempt));
             return view(wid, documentId, principal);
         });
     }
 
     /** Soft delete now; the file and rows go once ai-service confirms its cleanup (see {@link DocumentOutboxHooks}). */
     public void delete(AuthPrincipal principal, UUID documentId) {
-        principal.requireManager();
         UUID wid = principal.workspaceId();
         tenant.runVoid(wid, principal.userId(), () -> {
             DocumentHead head = docs.lockDocument(wid, documentId).orElseThrow(DocumentService::notFound);
+            requireReadable(principal, documentId);
+            // An ACTIVE OWNER can always recall a document, even when its department has no publisher.
+            ActingAs acting = writePolicy.requireCanDelete(principal, head.ownerDepartmentId());
             docs.softDelete(wid, documentId);
             outbox.enqueue(wid, documentId, OutboxEvent.Type.DOCUMENT_DELETED,
                     Map.of("workspaceId", wid, "documentId", documentId));
-            audit.record(principal, "DOCUMENT_DELETED", "DOCUMENT", documentId, Map.of("title", head.title()));
+            audit.record(principal, "DOCUMENT_DELETED", "DOCUMENT", documentId,
+                    details(head.ownerDepartmentId(), acting, "title", head.title()));
         });
     }
 
@@ -269,13 +295,12 @@ public class DocumentService {
 
     /** Title, description, language, categoryId, and tags; never talks to ai-service and never creates an outbox event. */
     public DocumentView update(AuthPrincipal principal, UUID documentId, Map<String, Object> patch) {
-        principal.requireManager();
         if (patch.isEmpty() || !PATCHABLE.containsAll(patch.keySet())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Request is invalid.");
         }
         UUID wid = principal.workspaceId();
         return tenant.run(principal, () -> {
-            docs.lockDocument(wid, documentId).orElseThrow(DocumentService::notFound);
+            Locked locked = lockForWrite(principal, wid, documentId);
             MetaSources now = docs.metaSources(wid, documentId);
             String title = now.title();
             String titleSource = now.titleSource();
@@ -343,7 +368,8 @@ public class DocumentService {
 
             docs.updateMetadata(wid, documentId, title, titleSource, description, descriptionSource,
                     categoryId, categorySource, language, languageSource, tagsSource);
-            audit.record(principal, "DOCUMENT_METADATA_UPDATED", "DOCUMENT", documentId, Map.of("fields", changed));
+            audit.record(principal, "DOCUMENT_METADATA_UPDATED", "DOCUMENT", documentId,
+                    details(locked.head().ownerDepartmentId(), locked.acting(), "fields", changed));
             return view(wid, documentId, principal);
         });
     }
@@ -355,16 +381,32 @@ public class DocumentService {
      */
     public VisibilityResponse updateVisibility(AuthPrincipal principal, UUID documentId,
                                                String rawVisibility, List<UUID> rawDepartmentIds) {
-        principal.requireManager();
         if (rawVisibility == null || (!"WORKSPACE".equals(rawVisibility) && !"DEPARTMENTS".equals(rawVisibility))) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Visibility must be WORKSPACE or DEPARTMENTS.");
         }
         UUID wid = principal.workspaceId();
 
         OutboxEvent event = tenant.run(principal, () -> {
+            Locked locked = lockForWrite(principal, wid, documentId);
+            DocumentHead head = locked.head();
+            // A document whose owner department is archived cannot have its readers changed by its publisher: the
+            // list must keep the owner, and an archived department cannot be in a list. Say so, instead of the
+            // generic "archived departments cannot be assigned" the list check would give.
+            if (head.ownerDepartmentId() != null && departments.find(wid, head.ownerDepartmentId())
+                    .filter(d -> d.status() == DepartmentStatus.ARCHIVED).isPresent()) {
+                throw new ApiException(HttpStatus.CONFLICT, "OWNER_DEPARTMENT_ARCHIVED",
+                        "The department that owns this document is archived, so its readers cannot be changed. "
+                                + "A workspace owner can transfer the document to another department or restore "
+                                + "the department.");
+            }
             List<UUID> effectiveDepartmentIds = resolveDepartments(wid, rawVisibility, rawDepartmentIds);
-
-            DocumentHead head = docs.lockDocument(wid, documentId).orElseThrow(DocumentService::notFound);
+            // The publisher narrows or widens who reads within the same kind of document; switching the kind or
+            // dropping the owner department hands the document to someone else, which only an OWNER does.
+            if (!rawVisibility.equals(head.visibility())
+                    || (head.ownerDepartmentId() != null && !effectiveDepartmentIds.contains(head.ownerDepartmentId()))) {
+                throw new ApiException(HttpStatus.CONFLICT, "OWNERSHIP_CHANGE_REQUIRES_OWNER",
+                        "Changing who is responsible for this document needs a workspace owner.");
+            }
 
             long newRev = head.accessRevision() + 1;
             docs.updateVisibility(wid, documentId, rawVisibility, newRev);
@@ -382,13 +424,85 @@ public class DocumentService {
             OutboxEvent enqueued = outbox.enqueueLeased(wid, documentId, OutboxEvent.Type.ACCESS_UPDATED, payload);
 
             audit.record(principal, "DOCUMENT_VISIBILITY_UPDATED", "DOCUMENT", documentId,
-                    Map.of("visibility", rawVisibility, "departmentIds", effectiveDepartmentIds, "accessRevision", newRev));
+                    details(head.ownerDepartmentId(), locked.acting(), "visibility", rawVisibility,
+                            "departmentIds", effectiveDepartmentIds, "accessRevision", newRev));
 
             return enqueued;
         });
 
         boolean applied = outboxDispatcher.sendDirect(event, Duration.ofSeconds(2));
         return new VisibilityResponse(applied ? "APPLIED" : "PENDING");
+    }
+
+    /**
+     * Moves responsibility for a document (ADR-009 decision 8): OWNER only. Sets visibility, owner department
+     * and the reader departments in one transaction (the owner foreign key is checked at commit), then sends
+     * {@code ACCESS_UPDATED} like {@link #updateVisibility}. Versions, status and chunks do not change, so the
+     * document keeps answering questions; the previous publisher's next write is refused.
+     */
+    public OwnershipResponse transferOwnership(AuthPrincipal principal, UUID documentId, String rawVisibility,
+                                               UUID ownerDepartmentId, List<UUID> rawDepartmentIds) {
+        if (rawVisibility == null || (!"WORKSPACE".equals(rawVisibility) && !"DEPARTMENTS".equals(rawVisibility))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Visibility must be WORKSPACE or DEPARTMENTS.");
+        }
+        boolean departmental = "DEPARTMENTS".equals(rawVisibility);
+        if (!departmental && (ownerDepartmentId != null || (rawDepartmentIds != null && !rawDepartmentIds.isEmpty()))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                    "A workspace document has no owner department and no department list.");
+        }
+        UUID wid = principal.workspaceId();
+        record Result(OutboxEvent event, boolean publisherAssigned) {
+        }
+
+        Result result = tenant.run(principal, () -> {
+            writePolicy.requireCanTransfer(principal);
+            DocumentHead head = docs.lockDocument(wid, documentId).orElseThrow(DocumentService::notFound);
+
+            // The owner department first: an archived one is a conflict of its own, not a bad department list.
+            if (departmental && ownerDepartmentId != null
+                    && departments.find(wid, ownerDepartmentId).filter(d -> d.status() == DepartmentStatus.ARCHIVED)
+                            .isPresent()) {
+                throw new ApiException(HttpStatus.CONFLICT, "DEPARTMENT_ARCHIVED",
+                        "An archived department cannot own a document.");
+            }
+            List<UUID> effective = resolveDepartments(wid, rawVisibility, rawDepartmentIds);
+            if (departmental && (ownerDepartmentId == null || !effective.contains(ownerDepartmentId))) {
+                throw DocumentWritePolicy.ownerNotInScope();
+            }
+
+            List<UUID> previousDepartments = docs.departmentIds(wid, documentId);
+            long newRev = head.accessRevision() + 1;
+            docs.updateOwnership(wid, documentId, rawVisibility, departmental ? ownerDepartmentId : null, newRev);
+            docs.setDocumentDepartments(wid, documentId, effective);
+            outbox.updatePendingIngestAccess(wid, documentId, rawVisibility, effective, newRev);
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("workspaceId", wid);
+            payload.put("visibility", rawVisibility);
+            payload.put("departmentIds", effective);
+            payload.put("accessRevision", newRev);
+            OutboxEvent enqueued = outbox.enqueueLeased(wid, documentId, OutboxEvent.Type.ACCESS_UPDATED, payload);
+
+            Map<String, Object> from = new LinkedHashMap<>();
+            from.put("visibility", head.visibility());
+            from.put("ownerDepartmentId", head.ownerDepartmentId());
+            from.put("departmentIds", previousDepartments);
+            Map<String, Object> to = new LinkedHashMap<>();
+            to.put("visibility", rawVisibility);
+            to.put("ownerDepartmentId", departmental ? ownerDepartmentId : null);
+            to.put("departmentIds", effective);
+            Map<String, Object> auditDetails = new LinkedHashMap<>();
+            auditDetails.put("from", from);
+            auditDetails.put("to", to);
+            auditDetails.put("accessRevision", newRev);
+            audit.record(principal, "DOCUMENT_OWNERSHIP_CHANGED", "DOCUMENT", documentId, auditDetails);
+
+            boolean assigned = writePolicy.hasPublisherFor(wid, departmental ? ownerDepartmentId : null);
+            return new Result(enqueued, assigned);
+        });
+
+        boolean applied = outboxDispatcher.sendDirect(result.event(), Duration.ofSeconds(2));
+        return new OwnershipResponse(applied ? "APPLIED" : "PENDING", result.publisherAssigned());
     }
 
     // ---- reads ----------------------------------------------------------------------------------
@@ -406,14 +520,18 @@ public class DocumentService {
             }
             String next = more ? new Cursor(rows.get(rows.size() - 1).createdAt(), rows.get(rows.size() - 1).id())
                     .encode() : null;
-            return new DocumentPage(rows.stream().map(d -> DocumentView.of(d, principal)).toList(), next, more);
+            PublisherScope scope = scopeOf(principal);
+            return new DocumentPage(rows.stream()
+                    .map(d -> DocumentView.of(d, principal, adminView(principal, scope, d))).toList(), next, more);
         });
     }
 
     /** 404 when the document does not exist or is outside the caller's read scope (no name leak). */
     public DocumentView get(AuthPrincipal principal, UUID documentId) {
-        return tenant.run(principal, () -> DocumentView.of(
-                docs.findVisible(principal, documentId).orElseThrow(DocumentService::notFound), principal));
+        return tenant.run(principal, () -> {
+            DocumentDetail d = docs.findVisible(principal, documentId).orElseThrow(DocumentService::notFound);
+            return DocumentView.of(d, principal, adminView(principal, scopeOf(principal), d));
+        });
     }
 
     public record DownloadUrl(String url, Instant expiresAt) {
@@ -428,10 +546,13 @@ public class DocumentService {
         return new DownloadUrl(presign(version), expires);
     }
 
+    /** OWNER/ADMIN and the publisher responsible for the document; other readers get {@code 403}. */
     public List<DocumentView.VersionHistory> versions(AuthPrincipal principal, UUID documentId) {
-        principal.requireManager();
         return tenant.run(principal, () -> {
-            docs.findDetail(principal.workspaceId(), documentId).orElseThrow(DocumentService::notFound);
+            DocumentDetail d = docs.findVisible(principal, documentId).orElseThrow(DocumentService::notFound);
+            if (!adminView(principal, scopeOf(principal), d)) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "You do not have permission to do this.");
+            }
             return docs.versionsOf(principal.workspaceId(), documentId).stream()
                     .map(DocumentView.VersionHistory::of).toList();
         });
@@ -467,7 +588,48 @@ public class DocumentService {
     }
 
     private DocumentView view(UUID wid, UUID documentId, AuthPrincipal viewer) {
-        return DocumentView.of(docs.findDetail(wid, documentId).orElseThrow(), viewer);
+        DocumentDetail d = docs.findDetail(wid, documentId).orElseThrow();
+        return DocumentView.of(d, viewer, adminView(viewer, scopeOf(viewer), d));
+    }
+
+    /** Administrative fields: managers, and the publisher responsible for this document (TECH §15.3). */
+    private static boolean adminView(AuthPrincipal viewer, PublisherScope scope, DocumentDetail d) {
+        return viewer.isManager() || scope.covers(d.ownerDepartmentId());
+    }
+
+    private PublisherScope scopeOf(AuthPrincipal viewer) {
+        return viewer.isManager() ? PublisherScope.NONE : writePolicy.scopeOf(viewer);
+    }
+
+    private record Locked(DocumentHead head, ActingAs acting) {
+    }
+
+    /**
+     * Locks the document row, then answers {@code 404} if the caller cannot read it, then asks the write policy
+     * ({@code 403 NOT_PUBLISHER}). The document lock comes first so the owner department is read after any
+     * concurrent transfer has committed.
+     */
+    private Locked lockForWrite(AuthPrincipal principal, UUID wid, UUID documentId) {
+        DocumentHead head = docs.lockDocument(wid, documentId).orElseThrow(DocumentService::notFound);
+        requireReadable(principal, documentId);
+        return new Locked(head, writePolicy.requireCanWrite(principal, head.ownerDepartmentId()));
+    }
+
+    private void requireReadable(AuthPrincipal principal, UUID documentId) {
+        if (!docs.isVisibleTo(principal, documentId)) {
+            throw notFound();
+        }
+    }
+
+    /** Audit details with the owner department and the capacity the caller acted in (TECH §15.5). */
+    private static Map<String, Object> details(UUID ownerDepartmentId, ActingAs acting, Object... pairs) {
+        Map<String, Object> d = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < pairs.length; i += 2) {
+            d.put((String) pairs[i], pairs[i + 1]);
+        }
+        d.put("ownerDepartmentId", ownerDepartmentId);
+        d.put("actingAs", acting.name());
+        return d;
     }
 
     private void checkQuota(UUID wid, boolean newDocument, long incomingBytes) {

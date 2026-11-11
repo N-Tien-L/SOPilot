@@ -33,12 +33,14 @@ public class DocumentRepository {
             + "%1$s.sha256 AS %2$ssha256, %1$s.object_key AS %2$sobject_key, %1$s.page_count AS %2$spage_count, "
             + "%1$s.detected_language AS %2$sdetected_language, %1$s.doc_code AS %2$sdoc_code, "
             + "%1$s.revision_label AS %2$srevision_label, %1$s.effective_date AS %2$seffective_date, "
-            + "%1$s.warning_codes AS %2$swarning_codes, %1$s.attempt AS %2$sattempt, %1$s.created_at AS %2$screated_at";
+            + "%1$s.warning_codes AS %2$swarning_codes, %1$s.attempt AS %2$sattempt, %1$s.created_at AS %2$screated_at, "
+            + "%1$s.uploaded_by AS %2$suploaded_by";
 
     private static final String DETAIL_SELECT = "SELECT d.id, d.title, d.description, d.language, d.visibility, "
             + "d.access_revision, d.current_version_id, d.latest_version_id, d.created_by, u.display_name AS creator_name, "
             + "d.created_at, d.updated_at, d.category_id, c.name AS category_name, "
             + "d.title_source, d.description_source, d.category_source, d.tags_source, d.language_source, "
+            + "d.owner_department_id, "
             + "COALESCE((SELECT array_agg(t.name ORDER BY lower(t.name) ASC) FROM core.document_tags dt "
             + " JOIN core.tags t ON t.workspace_id = dt.workspace_id AND t.id = dt.tag_id "
             + " WHERE dt.workspace_id = d.workspace_id AND dt.document_id = d.id), ARRAY[]::text[]) AS doc_tags, "
@@ -74,7 +76,8 @@ public class DocumentRepository {
                     rs.getString("language"), rs.getString("visibility"), rs.getLong("access_revision"),
                     rs.getObject("created_by", UUID.class), rs.getString("creator_name"),
                     rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
-                    version(rs, "lv_"), version(rs, "cv_"), category, tags, departments, fieldSources);
+                    version(rs, "lv_"), version(rs, "cv_"), category, tags, departments, fieldSources,
+                    rs.getObject("owner_department_id", UUID.class));
         };
     }
 
@@ -93,11 +96,13 @@ public class DocumentRepository {
 
     /** Locks the document row, serializing concurrent version changes of the same document. */
     public Optional<DocumentHead> lockDocument(UUID workspaceId, UUID documentId) {
-        return jdbc.query("SELECT id, title, visibility, access_revision, current_version_id, latest_version_id "
+        return jdbc.query("SELECT id, title, visibility, access_revision, current_version_id, latest_version_id, "
+                        + "owner_department_id "
                         + "FROM core.documents WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE",
                 (rs, i) -> new DocumentHead(rs.getObject("id", UUID.class), rs.getString("title"),
                         rs.getString("visibility"), rs.getLong("access_revision"),
-                        rs.getObject("current_version_id", UUID.class), rs.getObject("latest_version_id", UUID.class)),
+                        rs.getObject("current_version_id", UUID.class), rs.getObject("latest_version_id", UUID.class),
+                        rs.getObject("owner_department_id", UUID.class)),
                 workspaceId, documentId).stream().findFirst();
     }
 
@@ -111,6 +116,17 @@ public class DocumentRepository {
         return jdbc.query(DETAIL_SELECT + " WHERE d.workspace_id = ? AND d.id = ? AND d.deleted_at IS NULL AND "
                         + VISIBLE, detailMapper, principal.workspaceId(), documentId,
                 principal.isManager(), principal.departmentId(), principal.departmentId()).stream().findFirst();
+    }
+
+    /**
+     * The read filter of {@link #findVisible} without loading anything: write endpoints answer {@code 404} for a
+     * document the caller cannot read before they say {@code 403} (ADR-007, no name leak).
+     */
+    public boolean isVisibleTo(AuthPrincipal principal, UUID documentId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM core.documents d "
+                        + "WHERE d.workspace_id = ? AND d.id = ? AND d.deleted_at IS NULL AND " + VISIBLE + ")",
+                Boolean.class, principal.workspaceId(), documentId,
+                principal.isManager(), principal.departmentId(), principal.departmentId()));
     }
 
     public List<DocumentDetail> listVisible(AuthPrincipal principal, String status, UUID categoryId, String tag,
@@ -161,10 +177,13 @@ public class DocumentRepository {
                 (rs, i) -> version(rs, "v_"), workspaceId, documentId, versionId).stream().findFirst();
     }
 
-    public List<VersionRow> versionsOf(UUID workspaceId, UUID documentId) {
-        return jdbc.query("SELECT " + VERSION_COLUMNS.formatted("v", "v_") + " FROM core.document_versions v "
+    /** Versions newest first, each with the display name of whoever uploaded it. */
+    public List<VersionWithUploader> versionsOf(UUID workspaceId, UUID documentId) {
+        return jdbc.query("SELECT " + VERSION_COLUMNS.formatted("v", "v_") + ", u.display_name AS uploader_name "
+                        + "FROM core.document_versions v LEFT JOIN core.users u ON u.id = v.uploaded_by "
                         + "WHERE v.workspace_id = ? AND v.document_id = ? ORDER BY v.version_no DESC",
-                (rs, i) -> version(rs, "v_"), workspaceId, documentId);
+                (rs, i) -> new VersionWithUploader(version(rs, "v_"), rs.getString("uploader_name")),
+                workspaceId, documentId);
     }
 
     public int maxVersionNo(UUID workspaceId, UUID documentId) {
@@ -209,14 +228,18 @@ public class DocumentRepository {
 
     // ---- writes ---------------------------------------------------------------------------------
 
+    /**
+     * {@code ownerDepartmentId} is null exactly for {@code WORKSPACE}. The foreign key tying it to
+     * {@code document_departments} is checked at commit, so insert the departments in the same transaction.
+     */
     public void insertDocument(UUID id, UUID workspaceId, String title, String titleSource, UUID versionId,
-                               UUID createdBy, String visibility, UUID categoryId, String categorySource,
-                               String tagsSource) {
+                               UUID createdBy, String visibility, UUID ownerDepartmentId, UUID categoryId,
+                               String categorySource, String tagsSource) {
         jdbc.update("INSERT INTO core.documents (id, workspace_id, title, title_source, latest_version_id, "
-                        + "created_by, visibility, category_id, category_source, tags_source) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                id, workspaceId, title, titleSource, versionId, createdBy, visibility, categoryId, categorySource,
-                tagsSource);
+                        + "created_by, visibility, owner_department_id, category_id, category_source, tags_source) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                id, workspaceId, title, titleSource, versionId, createdBy, visibility, ownerDepartmentId, categoryId,
+                categorySource, tagsSource);
     }
 
     public void insertVersion(UUID id, UUID workspaceId, UUID documentId, int versionNo, String originalName,
@@ -288,6 +311,14 @@ public class DocumentRepository {
                 visibility, accessRevision, workspaceId, documentId);
     }
 
+    /** Visibility, owner department and revision in one statement: the CHECK ties the first two together. */
+    public void updateOwnership(UUID workspaceId, UUID documentId, String visibility, UUID ownerDepartmentId,
+                                long accessRevision) {
+        jdbc.update("UPDATE core.documents SET visibility = ?, owner_department_id = ?, access_revision = ? "
+                        + "WHERE workspace_id = ? AND id = ?",
+                visibility, ownerDepartmentId, accessRevision, workspaceId, documentId);
+    }
+
     public void setDocumentDepartments(UUID workspaceId, UUID documentId, List<UUID> departmentIds) {
         jdbc.update("DELETE FROM core.document_departments WHERE workspace_id = ? AND document_id = ?",
                 workspaceId, documentId);
@@ -349,7 +380,7 @@ public class DocumentRepository {
                 rs.getString(p + "detected_language"), rs.getString(p + "doc_code"),
                 rs.getString(p + "revision_label"), effective == null ? null : effective.toLocalDate(),
                 warnings == null ? new String[0] : (String[]) warnings.getArray(), rs.getInt(p + "attempt"),
-                rs.getObject(p + "created_at", OffsetDateTime.class));
+                rs.getObject(p + "created_at", OffsetDateTime.class), rs.getObject(p + "uploaded_by", UUID.class));
     }
 
     public record CategoryRef(UUID id, String name) {
@@ -362,21 +393,24 @@ public class DocumentRepository {
     }
 
     public record DocumentHead(UUID id, String title, String visibility, long accessRevision, UUID currentVersionId,
-                               UUID latestVersionId) {
+                               UUID latestVersionId, UUID ownerDepartmentId) {
     }
 
     public record DocumentDetail(UUID id, String title, String description, String language, String visibility,
                                  long accessRevision, UUID createdBy, String creatorName, OffsetDateTime createdAt,
                                  OffsetDateTime updatedAt, VersionRow latest, VersionRow current,
                                  CategoryRef category, List<String> tags, List<DepartmentRef> departments,
-                                 FieldSources fieldSources) {
+                                 FieldSources fieldSources, UUID ownerDepartmentId) {
     }
 
     public record VersionRow(UUID id, UUID documentId, int versionNo, String status, String failureCode,
                              String failureMessage, String originalName, String mimeType, String fileType,
                              long sizeBytes, byte[] sha256, String objectKey, Integer pageCount,
                              String detectedLanguage, String docCode, String revisionLabel, LocalDate effectiveDate,
-                             String[] warningCodes, int attempt, OffsetDateTime createdAt) {
+                             String[] warningCodes, int attempt, OffsetDateTime createdAt, UUID uploadedBy) {
+    }
+
+    public record VersionWithUploader(VersionRow version, String uploaderName) {
     }
 
     public record Duplicate(UUID documentId, String title, OffsetDateTime createdAt) {

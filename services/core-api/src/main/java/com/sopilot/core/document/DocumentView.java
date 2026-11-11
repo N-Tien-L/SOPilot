@@ -5,6 +5,7 @@ import com.sopilot.core.document.DocumentRepository.DepartmentRef;
 import com.sopilot.core.document.DocumentRepository.DocumentDetail;
 import com.sopilot.core.document.DocumentRepository.FieldSources;
 import com.sopilot.core.document.DocumentRepository.VersionRow;
+import com.sopilot.core.document.DocumentRepository.VersionWithUploader;
 import com.sopilot.core.security.AuthPrincipal;
 
 import java.time.LocalDate;
@@ -14,12 +15,14 @@ import java.util.UUID;
 
 /**
  * The {@code Document} object of TECH §5.5.
- * {@code departments}, {@code fieldSources}, and {@code latestVersion.failure*} are for OWNER/ADMIN only.
+ * {@code departments}, {@code ownerDepartment}, {@code fieldSources}, and {@code latestVersion.failure*} are for
+ * OWNER/ADMIN and for the publisher responsible for the document (TECH §15.3); other readers get {@code null}.
  */
 public record DocumentView(UUID id, String title, String description,
                            CategoryRef category, List<String> tags,
                            String language, String visibility,
                            List<DepartmentRef> departments,
+                           DepartmentRef ownerDepartment,
                            String status, boolean answerable,
                            LatestVersion latestVersion,
                            CurrentVersion currentVersion,
@@ -38,13 +41,23 @@ public record DocumentView(UUID id, String title, String description,
     public record Creator(UUID id, String displayName) {
     }
 
+    /** Administrative fields for managers only; the service passes {@code adminView} for responsible publishers. */
     static DocumentView of(DocumentDetail d, AuthPrincipal viewer) {
+        return of(d, viewer, viewer.isManager());
+    }
+
+    static DocumentView of(DocumentDetail d, AuthPrincipal viewer, boolean manager) {
         VersionRow latest = d.latest();
-        boolean manager = viewer.isManager();
+        DepartmentRef owner = null;
+        if (manager && d.ownerDepartmentId() != null && d.departments() != null) {
+            owner = d.departments().stream().filter(x -> x.id().equals(d.ownerDepartmentId())).findFirst()
+                    .orElse(new DepartmentRef(d.ownerDepartmentId(), null));
+        }
         return new DocumentView(d.id(), d.title(), d.description(),
                 d.category(), d.tags() == null ? List.of() : d.tags(),
                 d.language(), d.visibility(),
                 manager ? d.departments() : null,
+                owner,
                 latest.status(), d.current() != null,
                 new LatestVersion(latest.id(), latest.versionNo(), latest.status(),
                         manager ? latest.failureCode() : null, manager ? latest.failureMessage() : null),
@@ -58,13 +71,18 @@ public record DocumentView(UUID id, String title, String description,
                 v.pageCount(), v.docCode(), v.revisionLabel(), v.effectiveDate(), List.of(v.warningCodes()));
     }
 
-    /** One row of {@code GET /documents/{id}/versions} (OWNER/ADMIN). */
+    /**
+     * One row of {@code GET /documents/{id}/versions} (OWNER/ADMIN and the responsible publisher).
+     * {@code uploadedBy} and {@code uploadedAt} come from {@code document_versions.uploaded_by} and {@code created_at}.
+     */
     public record VersionHistory(UUID id, int versionNo, String status, String failureCode, String failureMessage,
                                  String originalName, String fileType, long sizeBytes, Integer pageCount,
-                                 int attempt, OffsetDateTime createdAt) {
-        static VersionHistory of(VersionRow v) {
+                                 int attempt, Creator uploadedBy, OffsetDateTime uploadedAt) {
+        static VersionHistory of(VersionWithUploader row) {
+            VersionRow v = row.version();
             return new VersionHistory(v.id(), v.versionNo(), v.status(), v.failureCode(), v.failureMessage(),
-                    v.originalName(), v.fileType(), v.sizeBytes(), v.pageCount(), v.attempt(), v.createdAt());
+                    v.originalName(), v.fileType(), v.sizeBytes(), v.pageCount(), v.attempt(),
+                    new Creator(v.uploadedBy(), row.uploaderName()), v.createdAt());
         }
     }
 }

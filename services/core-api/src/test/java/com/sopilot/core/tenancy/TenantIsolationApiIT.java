@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TenantIsolationApiIT extends ApiIT {
 
     private record World(Actor admin, Actor member, String key, UUID document, UUID version, UUID department,
-                         Map<String, String> secrets) {
+                         UUID invitation, Map<String, String> secrets) {
     }
 
     private List<World> worlds;
@@ -57,9 +57,12 @@ class TenantIsolationApiIT extends ApiIT {
             patch("/api/v1/members/" + member.userId(), owner, Map.of("displayName", name,
                     "departmentId", department.toString()));
             patch("/api/v1/documents/" + document, owner, Map.of("description", "SECRET" + key + "description"));
-            worlds.add(new World(owner, member, key, document, version, department,
+            String invitee = "SECRET" + key + "invitee" + UUID.randomUUID().toString().substring(0, 8);
+            UUID invitation = id(post("/api/v1/invitations", owner, Map.of("email", "invitee-" + key.toLowerCase()
+                    + "@example.test", "role", "MEMBER", "displayName", invitee)), "id");
+            worlds.add(new World(owner, member, key, document, version, department, invitation,
                     Map.of("document", doc, "department", dept, "person", name,
-                            "description", "SECRET" + key + "description")));
+                            "description", "SECRET" + key + "description", "invitee", invitee)));
         }
     }
 
@@ -67,6 +70,7 @@ class TenantIsolationApiIT extends ApiIT {
         return List.of("/api/v1/documents", "/api/v1/documents?q=SECRET", "/api/v1/documents?status=UPLOADED",
                 "/api/v1/departments?includeArchived=true", "/api/v1/members", "/api/v1/members?q=SECRET",
                 "/api/v1/members/me", "/api/v1/audit-logs", "/api/v1/audit-logs?limit=100",
+                "/api/v1/invitations", "/api/v1/publishers", "/api/v1/publishers?includeArchived=true",
                 "/api/v1/documents/" + own.document(), "/api/v1/documents/" + own.document() + "/versions",
                 "/api/v1/documents/" + own.document() + "/download-url");
     }
@@ -104,6 +108,8 @@ class TenantIsolationApiIT extends ApiIT {
                     .contains(w.secrets().get("department"));
             assertThat(String.valueOf(get("/api/v1/members", w.admin()).getBody())).contains(w.secrets().get("person"));
             assertThat(String.valueOf(get("/api/v1/audit-logs", w.admin()).getBody())).contains("DOCUMENT_UPLOADED");
+            assertThat(String.valueOf(get("/api/v1/invitations", w.admin()).getBody()))
+                    .contains(w.secrets().get("invitee"));
             assertThat(String.valueOf(get("/api/v1/documents", w.member()).getBody()))
                     .contains(w.secrets().get("document"));
         }
@@ -115,6 +121,11 @@ class TenantIsolationApiIT extends ApiIT {
             assertThat(get("/api/v1/documents", w.admin()).getBody().path("data")).hasSize(1);
             assertThat(get("/api/v1/departments?includeArchived=true", w.admin()).getBody().path("data")).hasSize(1);
             assertThat(get("/api/v1/members", w.admin()).getBody().path("data")).hasSize(2);
+            assertThat(get("/api/v1/invitations", w.admin()).getBody().path("data")).hasSize(1);
+            JsonNode publishers = get("/api/v1/publishers", w.member()).getBody().path("data");
+            assertThat(publishers.at("/workspace/userId").asText()).isEqualTo(w.admin().userId().toString());
+            assertThat(publishers.path("departments")).hasSize(1);
+            assertThat(publishers.at("/departments/0/departmentId").asText()).isEqualTo(w.department().toString());
             for (JsonNode entry : get("/api/v1/audit-logs?limit=100", w.admin()).getBody().path("data")) {
                 assertThat(entry.path("actorId").asText()).isIn(w.admin().userId().toString(),
                         w.member().userId().toString());
@@ -141,7 +152,14 @@ class TenantIsolationApiIT extends ApiIT {
                 delete("/api/v1/members/" + b.member().userId(), a.admin()),
                 patch("/api/v1/departments/" + b.department(), a.admin(), Map.of("name", "pwned")),
                 delete("/api/v1/departments/" + b.department(), a.admin()),
-                patch("/api/v1/members/" + b.admin().userId(), a.admin(), Map.of("departmentId", b.department().toString())));
+                patch("/api/v1/members/" + b.admin().userId(), a.admin(), Map.of("departmentId", b.department().toString())),
+                // V2-30 / V2-36: invitations, publishers and ownership transfer, called by another workspace's OWNER.
+                delete("/api/v1/invitations/" + b.invitation(), a.admin()),
+                put("/api/v1/documents/" + bDoc + "/ownership", a.admin(), Map.of("visibility", "WORKSPACE",
+                        "departmentIds", List.of())),
+                put("/api/v1/departments/" + b.department() + "/publisher", a.admin(),
+                        Map.of("userId", a.member().userId().toString())),
+                delete("/api/v1/departments/" + b.department() + "/publisher", a.admin()));
         for (ResponseEntity<JsonNode> r : attempts) {
             assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         }
@@ -155,6 +173,14 @@ class TenantIsolationApiIT extends ApiIT {
         assertThat(doc.at("/latestVersion/status").asText()).isEqualTo("UPLOADED");
         assertThat(get("/api/v1/members", b.admin()).getBody().path("data")).hasSize(2);
         assertThat(get("/api/v1/departments", b.admin()).getBody().path("data")).hasSize(1);
+        assertThat(get("/api/v1/invitations", b.admin()).getBody().path("data")).hasSize(1);
+        assertThat(get("/api/v1/publishers", b.admin()).getBody().at("/data/departments/0/publisher/userId").isMissingNode())
+                .as("B's department publisher is untouched").isTrue();
+        // The transfer did not move B's document: still a workspace document with no owner department.
+        assertThat(doc.path("visibility").asText()).isEqualTo("WORKSPACE");
+        // Redeeming B's invitation by id as someone it is not addressed to finds nothing.
+        assertThat(post("/api/v1/invitations/accept", a.member(), Map.of("invitationId", b.invitation().toString()))
+                .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test

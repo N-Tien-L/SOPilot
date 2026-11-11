@@ -65,15 +65,13 @@ class DocumentMetadataVisibilityIT extends ApiIT {
         patch("/api/v1/members/" + memberD2.userId(), owner, Map.of("departmentId", d2.toString()));
         memberD1 = actorFor(memberD1.userId(), owner.workspaceId());
         memberD2 = actorFor(memberD2.userId(), owner.workspaceId());
+        Actor financePublisher = addDepartmentPublisher(owner.workspaceId(), d1, "fin-pub");
 
-        // Document 1: WORKSPACE visibility
+        // Document 1: WORKSPACE visibility, written by the workspace publisher (the owner)
         UUID doc1 = id(uploadDocument(owner, "doc-workspace.md", markdown("workspace sop")), "id");
 
-        // Document 2: DEPARTMENTS visibility (limited to Finance / D1)
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("visibility", "DEPARTMENTS");
-        params.add("departmentIds", d1.toString());
-        UUID doc2 = id(upload("/api/v1/documents", owner, "doc-dept.md", markdown("dept sop"), params), "id");
+        // Document 2: DEPARTMENTS visibility (limited to Finance / D1), written by the Finance publisher
+        UUID doc2 = id(uploadToDepartments(financePublisher, "doc-dept.md", markdown("dept sop"), d1), "id");
 
         // --- doc1 (WORKSPACE): Everyone in workspace sees it; stranger gets 404 ---
         for (Actor viewer : List.of(owner, admin, memberD1, memberD2, memberNoDept)) {
@@ -109,15 +107,19 @@ class DocumentMetadataVisibilityIT extends ApiIT {
     void changeVisibilityFlowAndAccessSyncAndAudit() throws Exception {
         Actor owner = newTeamWorkspace("own");
         UUID dept = createDepartment(owner, "Legal");
-        UUID docId = id(uploadDocument(owner, "legal-sop.md", markdown("legal")), "id");
+        UUID extra = createDepartment(owner, "Audit");
+        Actor publisher = addDepartmentPublisher(owner.workspaceId(), dept, "legal-pub");
+        UUID docId = id(uploadToDepartments(publisher, "legal-sop.md", markdown("legal"), dept), "id");
 
-        // Document starts as WORKSPACE with accessRevision = 1
+        // Document starts limited to Legal with accessRevision = 1
         JsonNode docBefore = data(get("/api/v1/documents/" + docId, owner));
-        assertThat(docBefore.path("visibility").asText()).isEqualTo("WORKSPACE");
+        assertThat(docBefore.path("visibility").asText()).isEqualTo("DEPARTMENTS");
+        assertThat(docBefore.path("departments")).hasSize(1);
 
-        // Change to DEPARTMENTS
-        ResponseEntity<JsonNode> putRes = put("/api/v1/documents/" + docId + "/visibility", owner,
-                Map.of("visibility", "DEPARTMENTS", "departmentIds", List.of(dept.toString())));
+        // The publisher widens the readers to Legal and Audit: same kind of document, owner department kept
+        // (switching the kind is the OWNER's PUT /ownership, see DocumentPublisherIT)
+        ResponseEntity<JsonNode> putRes = put("/api/v1/documents/" + docId + "/visibility", publisher,
+                Map.of("visibility", "DEPARTMENTS", "departmentIds", List.of(dept.toString(), extra.toString())));
 
         assertThat(putRes.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(putRes.getBody().at("/data/accessSync").asText()).isEqualTo("APPLIED");
@@ -125,8 +127,8 @@ class DocumentMetadataVisibilityIT extends ApiIT {
         // Check document DB state: visibility = DEPARTMENTS, accessRevision = 2
         JsonNode docAfter = data(get("/api/v1/documents/" + docId, owner));
         assertThat(docAfter.path("visibility").asText()).isEqualTo("DEPARTMENTS");
-        assertThat(docAfter.path("departments")).hasSize(1);
-        assertThat(docAfter.at("/departments/0/id").asText()).isEqualTo(dept.toString());
+        assertThat(docAfter.path("departments")).hasSize(2);
+        assertThat(docAfter.path("departments").toString()).contains(dept.toString(), extra.toString());
 
         // Check Outbox event ACCESS_UPDATED payload contract (§8)
         String payload = asTenant(owner, () -> jdbc.queryForObject(
@@ -196,14 +198,16 @@ class DocumentMetadataVisibilityIT extends ApiIT {
     void raceConditionIngestVsAccessUpdate() throws Exception {
         Actor owner = newTeamWorkspace("own");
         UUID dept = createDepartment(owner, "Auditing");
+        UUID extra = createDepartment(owner, "Compliance");
+        Actor publisher = addDepartmentPublisher(owner.workspaceId(), dept, "audit-pub");
 
         // 1. Upload doc, creating INGEST_REQUESTED outbox event in PENDING state
-        ResponseEntity<JsonNode> created = uploadDocument(owner, "race.md", markdown("race"));
+        ResponseEntity<JsonNode> created = uploadToDepartments(publisher, "race.md", markdown("race"), dept);
         UUID docId = id(created, "id");
 
-        // 2. Before dispatching INGEST_REQUESTED, owner changes visibility to DEPARTMENTS
-        ResponseEntity<JsonNode> visRes = put("/api/v1/documents/" + docId + "/visibility", owner,
-                Map.of("visibility", "DEPARTMENTS", "departmentIds", List.of(dept.toString())));
+        // 2. Before dispatching INGEST_REQUESTED, the publisher widens the readers to a second department
+        ResponseEntity<JsonNode> visRes = put("/api/v1/documents/" + docId + "/visibility", publisher,
+                Map.of("visibility", "DEPARTMENTS", "departmentIds", List.of(dept.toString(), extra.toString())));
         assertThat(visRes.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         // 3. Race §7.1 check: verify that the pending INGEST_REQUESTED event has its access updated!
@@ -213,6 +217,7 @@ class DocumentMetadataVisibilityIT extends ApiIT {
         JsonNode p = json.readTree(ingestPayload);
         assertThat(p.at("/access/visibility").asText()).isEqualTo("DEPARTMENTS");
         assertThat(p.at("/access/departmentIds/0").asText()).isEqualTo(dept.toString());
+        assertThat(p.at("/access/departmentIds")).hasSize(2);
         assertThat(p.at("/access/accessRevision").asInt()).isEqualTo(2);
 
         // 4. Dispatch events: INGEST_REQUESTED will be delivered with the new access state!
@@ -222,7 +227,7 @@ class DocumentMetadataVisibilityIT extends ApiIT {
         JsonNode sentAccess = json.readTree(ingests.get(0).payload()).path("access");
         assertThat(sentAccess.path("visibility").asText()).isEqualTo("DEPARTMENTS");
         assertThat(sentAccess.at("/departmentIds/0").asText()).isEqualTo(dept.toString());
-        assertThat(sentAccess.path("departmentIds")).hasSize(1);
+        assertThat(sentAccess.path("departmentIds")).hasSize(2);
         assertThat(sentAccess.path("accessRevision").asInt()).isEqualTo(2);
     }
 
@@ -287,17 +292,18 @@ class DocumentMetadataVisibilityIT extends ApiIT {
         Actor owner = newTeamWorkspace("own");
         UUID d1 = createDepartment(owner, "Finance");
         UUID d2 = createDepartment(owner, "Legal");
+        Actor publisher = addDepartmentPublisher(owner.workspaceId(), d1, "fin-pub");
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("visibility", "DEPARTMENTS");
         params.add("departmentIds", d1.toString());
         params.add("departmentIds", d1.toString());
-        ResponseEntity<JsonNode> created = upload("/api/v1/documents", owner, "dup.md", markdown("dup"), params);
+        ResponseEntity<JsonNode> created = upload("/api/v1/documents", publisher, "dup.md", markdown("dup"), params);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(data(created).path("departments")).hasSize(1);
         UUID docId = id(created, "id");
 
-        ResponseEntity<JsonNode> changed = put("/api/v1/documents/" + docId + "/visibility", owner,
+        ResponseEntity<JsonNode> changed = put("/api/v1/documents/" + docId + "/visibility", publisher,
                 Map.of("visibility", "DEPARTMENTS", "departmentIds",
                         List.of(d2.toString(), d1.toString(), d2.toString(), d1.toString())));
         assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.OK);

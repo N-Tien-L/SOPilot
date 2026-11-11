@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * V2-26 / FR-29, core-api half: inside ONE workspace, a document limited to departments is invisible to
  * everyone outside them (ADR-007 §4.4, TECH-V2-core-api §5.6). Kept apart from the FR-19 classes
  * ({@code TenantIsolation*IT}) so a failure names the layer that broke. Reads are tested for every cell of the
- * matrix; for writes only "a MEMBER is refused" is asserted, because who may write changes with ADR-009/V2-36.
+ * matrix; for writes only "a MEMBER is refused" is asserted (the full write matrix is {@code DocumentPublisherIT}).
  *
  * <p>Every document has its own title and body secret. A "cannot read" check looks for the title, the secret and
  * the document id in the whole response, not just at a smaller count. The ai-service half is
@@ -84,10 +84,15 @@ class DepartmentAuthorizationIT extends ApiIT {
         Actor memberA = inDepartment(owner, addMember(wid, "MEMBER", "fr29-a"), deptA);
         Actor memberB = inDepartment(owner, addMember(wid, "MEMBER", "fr29-b"), deptB);
         Actor memberNoDept = addMember(wid, "MEMBER", "fr29-none");
+        // ADR-009: documents are written by publishers. The workspace publisher (the owner, seeded as at creation)
+        // uploads the WORKSPACE document; a separate department-A publisher uploads the two departmental ones, so
+        // none of the five matrix actors can write and "a MEMBER is refused" stays meaningful.
+        Actor publisherA = inDepartment(owner, addMember(wid, "MEMBER", "fr29-pub"), deptA);
+        seedDepartmentPublisher(wid, deptA, publisherA.userId());
         Map<String, Doc> docs = Map.of(
                 WS, uploadSecret(owner, "WS", "SECRET_WS_5521", "WORKSPACE"),
-                A, uploadSecret(owner, "A", "SECRET_A_8834", "DEPARTMENTS", deptA),
-                AB, uploadSecret(owner, "AB", "SECRET_AB_1907", "DEPARTMENTS", deptA, deptB));
+                A, uploadSecret(publisherA, "A", "SECRET_A_8834", "DEPARTMENTS", deptA),
+                AB, uploadSecret(publisherA, "AB", "SECRET_AB_1907", "DEPARTMENTS", deptA, deptB));
         return new World(owner, admin, memberA, memberB, memberNoDept, deptA, deptB, docs);
     }
 
@@ -252,8 +257,9 @@ class DepartmentAuthorizationIT extends ApiIT {
                 post(path + "/retry", member, null));
 
         for (ResponseEntity<JsonNode> attempt : attempts) {
-            // 403 for any document id, readable or not, so the refusal says nothing about existence.
-            assertThat(attempt.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            // A readable document is 403 (not its publisher); one the member cannot read is 404, as for a random id
+            // (TECH §15.3): the refusal says nothing about the existence of a document outside the member's scope.
+            assertThat(attempt.getStatusCode()).isEqualTo(canRead(who, doc) ? HttpStatus.FORBIDDEN : HttpStatus.NOT_FOUND);
             assertNothingLeaksAbout(target, attempt);
         }
         ResponseEntity<JsonNode> still = get(path, w.owner());
@@ -383,7 +389,8 @@ class DepartmentAuthorizationIT extends ApiIT {
     void deletingADepartmentThatDocumentsOrMembersStillReferenceIsRefusedWithDepartmentInUse() {
         World w = buildWorld();
         UUID docOnly = createDepartment(w.owner(), "Only docs " + UUID.randomUUID());
-        Doc scoped = uploadSecret(w.owner(), "C", "SECRET_C_4410", "DEPARTMENTS", docOnly);
+        Actor publisherC = addDepartmentPublisher(w.owner().workspaceId(), docOnly, "fr29-pubc");
+        Doc scoped = uploadSecret(publisherC, "C", "SECRET_C_4410", "DEPARTMENTS", docOnly);
 
         ResponseEntity<JsonNode> blockedByDocument = delete("/api/v1/departments/" + docOnly, w.owner());
         assertThat(blockedByDocument.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -401,7 +408,8 @@ class DepartmentAuthorizationIT extends ApiIT {
     }
 
     @Test
-    void narrowingADocumentFromWorkspaceToDepartmentAHidesItAtOnceFromOthersAndSendsAccessUpdated() throws Exception {
+    void anOwnerTransferNarrowingAWorkspaceDocumentToDepartmentAHidesItAtOnceFromOthersAndSendsAccessUpdated()
+            throws Exception {
         World w = buildWorld();
         Doc doc = w.docs().get(WS);
         for (Actor reader : List.of(w.memberA(), w.memberB(), w.memberNoDept())) {
@@ -410,8 +418,10 @@ class DepartmentAuthorizationIT extends ApiIT {
         dispatcher.dispatchDue();
         ai.reset();
 
-        ResponseEntity<JsonNode> narrowed = put("/api/v1/documents/" + doc.id() + "/visibility", w.owner(),
-                Map.of("visibility", "DEPARTMENTS", "departmentIds", List.of(w.deptA().toString())));
+        // Switching the kind of a document hands it to a department: the OWNER's PUT /ownership (ADR-009).
+        ResponseEntity<JsonNode> narrowed = put("/api/v1/documents/" + doc.id() + "/ownership", w.owner(),
+                Map.of("visibility", "DEPARTMENTS", "ownerDepartmentId", w.deptA().toString(),
+                        "departmentIds", List.of(w.deptA().toString())));
 
         assertThat(narrowed.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(get("/api/v1/documents/" + doc.id(), w.memberA()).getStatusCode()).isEqualTo(HttpStatus.OK);

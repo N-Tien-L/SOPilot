@@ -6,6 +6,7 @@ import com.sopilot.core.common.Cursor;
 import com.sopilot.core.common.PageResponse;
 import com.sopilot.core.document.DocumentService.DocumentPage;
 import com.sopilot.core.document.DocumentService.DownloadUrl;
+import com.sopilot.core.document.DocumentService.OwnershipResponse;
 import com.sopilot.core.document.DocumentService.UploadResult;
 import com.sopilot.core.document.DocumentService.VisibilityResponse;
 import com.sopilot.core.security.AuthPrincipal;
@@ -50,9 +51,10 @@ public class DocumentController {
                                                             @RequestParam(required = false) List<UUID> departmentIds,
                                                             @RequestParam(required = false) UUID categoryId,
                                                             @RequestParam(required = false) List<String> tags,
-                                                            @RequestParam(required = false) String title) {
+                                                            @RequestParam(required = false) String title,
+                                                            @RequestParam(required = false) UUID ownerDepartmentId) {
         UploadResult result = service.upload(principal, file.getOriginalFilename(), bytes(file),
-                visibility, departmentIds, categoryId, tags, title);
+                visibility, departmentIds, categoryId, tags, title, ownerDepartmentId);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(result.document()));
     }
 
@@ -104,6 +106,17 @@ public class DocumentController {
         return ApiResponse.of(service.updateVisibility(principal, id, request.visibility(), request.departmentIds()));
     }
 
+    /** Moves responsibility for the document to another publisher scope; OWNER only (ADR-009 decision 8). */
+    @PutMapping("/{id}/ownership")
+    public ApiResponse<OwnershipResponse> transferOwnership(AuthPrincipal principal, @PathVariable UUID id,
+                                                            @RequestBody TransferOwnershipRequest request) {
+        if (request == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Request body is required.");
+        }
+        return ApiResponse.of(service.transferOwnership(principal, id, request.visibility(),
+                request.ownerDepartmentId(), request.departmentIds()));
+    }
+
     @GetMapping("/{id}/download-url")
     public ApiResponse<DownloadUrl> downloadUrl(AuthPrincipal principal, @PathVariable UUID id) {
         return ApiResponse.of(service.downloadUrl(principal, id));
@@ -132,5 +145,8 @@ public class DocumentController {
     }
 
     public record UpdateVisibilityRequest(String visibility, List<UUID> departmentIds) {
+    }
+
+    public record TransferOwnershipRequest(String visibility, UUID ownerDepartmentId, List<UUID> departmentIds) {
     }
 }
