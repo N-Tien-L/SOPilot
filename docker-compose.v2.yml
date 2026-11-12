@@ -110,6 +110,132 @@ services:
     restart: "no"
     networks: [sopilot-v2]
 
+  core-api:
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+    container_name: sopilot-v2-core-api
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: 8080
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-dummy-client-id}
+      SOPILOT_DB_URL: jdbc:postgresql://postgres:5432/sopilot
+      SOPILOT_DB_USER: sopilot_core_app
+      SOPILOT_DB_PASSWORD: ${V2_DB_CORE_APP_PASSWORD}
+      SOPILOT_S3_ENDPOINT: http://minio:9000
+      SOPILOT_S3_BUCKET: ${SOPILOT_S3_BUCKET:-sopilot-v2-documents}
+      SOPILOT_S3_ACCESS_KEY: ${SOPILOT_S3_ACCESS_KEY}
+      SOPILOT_S3_SECRET_KEY: ${SOPILOT_S3_SECRET_KEY}
+      SOPILOT_AI_BASE_URL: http://ai-service:8000
+      SOPILOT_INTERNAL_TOKEN: ${SOPILOT_INTERNAL_TOKEN:?set SOPILOT_INTERNAL_TOKEN in .env (see root .env.example)}
+      SOPILOT_FRONTEND_ORIGIN: ${SOPILOT_FRONTEND_ORIGIN:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:${V2_CORE_API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flyway-core:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks: [sopilot-v2]
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: sopilot-v2-ai-service
+    environment:
+      SOPILOT_PROFILE: local
+      SOPILOT_DB_URL: postgresql://sopilot_ai_app:${V2_DB_AI_APP_PASSWORD}@postgres:5432/sopilot
+      SOPILOT_INTERNAL_TOKEN: ${SOPILOT_INTERNAL_TOKEN:?set SOPILOT_INTERNAL_TOKEN in .env (see root .env.example)}
+      SOPILOT_CORE_BASE_URL: http://core-api:8080
+      SOPILOT_CORE_JWKS_URL: http://core-api:8080/.well-known/jwks.json
+      SOPILOT_S3_ENDPOINT: minio:9000
+      SOPILOT_S3_SECURE: "false"
+      SOPILOT_S3_BUCKET: ${SOPILOT_S3_BUCKET:-sopilot-v2-documents}
+      SOPILOT_S3_AI_ACCESS_KEY: ${SOPILOT_S3_AI_ACCESS_KEY}
+      SOPILOT_S3_AI_SECRET_KEY: ${SOPILOT_S3_AI_SECRET_KEY}
+      SOPILOT_LLM_BASE_URL: ${SOPILOT_LLM_BASE_URL:?set SOPILOT_LLM_BASE_URL in .env (Modal endpoint with /v1)}
+      SOPILOT_LLM_MODEL: ${SOPILOT_LLM_MODEL:-Qwen/Qwen3.5-9B}
+      SOPILOT_LLM_API_KEY: ${SOPILOT_LLM_API_KEY:?set SOPILOT_LLM_API_KEY in .env (same as Modal VLLM_API_KEY)}
+      EMBEDDING_REVISION: ${EMBEDDING_REVISION:-}
+    ports:
+      - "127.0.0.1:${V2_AI_SERVICE_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flyway-rag:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      core-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 25s
+    networks: [sopilot-v2]
+
+  ai-worker:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: sopilot-v2-ai-worker
+    command: ["python", "-m", "sopilot_ai.worker"]
+    environment:
+      SOPILOT_PROFILE: local
+      SOPILOT_DB_URL: postgresql://sopilot_ai_app:${V2_DB_AI_APP_PASSWORD}@postgres:5432/sopilot
+      SOPILOT_INTERNAL_TOKEN: ${SOPILOT_INTERNAL_TOKEN:?set SOPILOT_INTERNAL_TOKEN in .env (see root .env.example)}
+      SOPILOT_CORE_BASE_URL: http://core-api:8080
+      SOPILOT_CORE_JWKS_URL: http://core-api:8080/.well-known/jwks.json
+      SOPILOT_S3_ENDPOINT: minio:9000
+      SOPILOT_S3_SECURE: "false"
+      SOPILOT_S3_BUCKET: ${SOPILOT_S3_BUCKET:-sopilot-v2-documents}
+      SOPILOT_S3_AI_ACCESS_KEY: ${SOPILOT_S3_AI_ACCESS_KEY}
+      SOPILOT_S3_AI_SECRET_KEY: ${SOPILOT_S3_AI_SECRET_KEY}
+      SOPILOT_LLM_BASE_URL: ${SOPILOT_LLM_BASE_URL:?set SOPILOT_LLM_BASE_URL in .env (Modal endpoint with /v1)}
+      SOPILOT_LLM_MODEL: ${SOPILOT_LLM_MODEL:-Qwen/Qwen3.5-9B}
+      SOPILOT_LLM_API_KEY: ${SOPILOT_LLM_API_KEY:?set SOPILOT_LLM_API_KEY in .env (same as Modal VLLM_API_KEY)}
+      EMBEDDING_REVISION: ${EMBEDDING_REVISION:-}
+      # V2-25 metadata suggestions. Optional: without it suggestions fall back to RULES_FALLBACK.
+      SOPILOT_GROQ_API_KEY: ${SOPILOT_GROQ_API_KEY:-}
+    # The worker has no HTTP server; the image's curl :8000 HEALTHCHECK would always fail.
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flyway-rag:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      ai-service:
+        condition: service_healthy
+    networks: [sopilot-v2]
+
+  web:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${V2_CORE_API_PORT:-8080}
+    container_name: sopilot-v2-web
+    ports:
+      - "127.0.0.1:${V2_WEB_PORT:-3000}:3000"
+    depends_on:
+      core-api:
+        condition: service_healthy
+    networks: [sopilot-v2]
+
 volumes:
   postgres_data:
   minio_data:
