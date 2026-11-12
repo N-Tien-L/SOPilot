@@ -299,6 +299,8 @@ def build_chain(config: ModelsConfig, task: str, *, transport: Any = None) -> LL
     from the environment too, so one source defines everything.
     """
     section = config.raw["llm"][task]
+    # Optional per-task HTTP timeout (V2-25 suggestions use 20 s); other tasks keep the default.
+    timeout = float(section.get("timeout_s", 120.0))
     entries = []
     for entry in section["chain"]:
         provider = str(entry["provider"])
@@ -306,6 +308,6 @@ def build_chain(config: ModelsConfig, task: str, *, transport: Any = None) -> LL
         key_name = endpoint.get("api_key_env")
         key = os.environ.get(str(key_name), "") if key_name else ""
         spec = _spec_from(entry, endpoint, section, key, provider)
-        client = OpenAICompatibleLLM(spec, transport=transport)
+        client = OpenAICompatibleLLM(spec, transport=transport, timeout=timeout)
         entries.append((client, RateLimiter(spec.rpm, spec.tpm)))
     return LLMChain(entries)

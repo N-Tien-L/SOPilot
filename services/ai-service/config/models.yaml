@@ -43,8 +43,22 @@ llm:
         extra_body: {chat_template_kwargs: {enable_thinking: false}}
     temperature: 0
     max_output_tokens: 200
+  # V2-25 metadata suggestions (TECH-V2-ai-service §5.7). Owner chose Groq for this task (2026-11-11);
+  # the answer model stays on Modal. Model id is an env default so it can be changed without a code change.
+  suggest:
+    timeout_s: ${SOPILOT_SUGGEST_TIMEOUT_S:20}
+    chain:
+      - provider: groq
+        model: "${SOPILOT_SUGGEST_MODEL:qwen/qwen3.8-27b}"
+        rpm: "${SOPILOT_SUGGEST_RPM:30}"
+        tpm: "${SOPILOT_SUGGEST_TPM:60000}"
+        context_max_tokens: "${SOPILOT_SUGGEST_CONTEXT_MAX_TOKENS:}"
+        extra_body: {reasoning_format: hidden}
+    temperature: 0
+    max_output_tokens: 400
 providers:
   modal: {base_url: "${SOPILOT_LLM_BASE_URL:}", rerank_base_url: "${SOPILOT_RERANK_BASE_URL:}", api_key_env: SOPILOT_LLM_API_KEY}
+  groq: {base_url: "${SOPILOT_GROQ_BASE_URL:https://api.groq.com/openai/v1}", api_key_env: SOPILOT_GROQ_API_KEY}
   # Embedding endpoints for the non-local providers (unused while bge-m3 runs locally).
   openai_compatible: {base_url: "${EMBEDDING_BASE_URL:http://tei:80/v1}", api_key_env: EMBEDDING_API_KEY}
   cloudflare: {base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID:}/ai/run", api_key_env: CLOUDFLARE_API_TOKEN}
