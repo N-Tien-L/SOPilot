@@ -67,11 +67,57 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
 
 ## Getting started
 
-Not verified: these commands were not run while writing this documentation.
+### SOPilot V2 (One-Command Stack)
 
-- **V1 stack:** copy `.env.example` to `.env`, fill in provider keys, then `docker compose up -d --build` from the repository root. The web app is on port 3000 and the gateway on 3001. The LLM and embedding providers need external API keys, and CLAUDE.md records that some configured LLM model IDs have been retired.
-- **V2 database and storage:** follow [infrastructure/db/README.md](infrastructure/db/README.md) (`docker-compose.v2.yml`; run one stack at a time).
+> [!NOTE]
+> System Requirements: Minimum 4 CPU cores, 8GB RAM, Docker Engine 24+ and Docker Compose v2.
+
+1. **Configure Environment:**
+   Copy the root `.env.example` to `.env` (Git-ignored) and replace every `<placeholder>`. Compose refuses to start unless these are set:
+   - `V2_POSTGRES_SUPERUSER_PASSWORD`, `V2_DB_MIGRATOR_PASSWORD`, `V2_DB_CORE_APP_PASSWORD`, `V2_DB_AI_APP_PASSWORD`
+   - `V2_MINIO_ROOT_USER`, `V2_MINIO_ROOT_PASSWORD`, `SOPILOT_S3_ACCESS_KEY`, `SOPILOT_S3_SECRET_KEY`, `SOPILOT_S3_AI_ACCESS_KEY`, `SOPILOT_S3_AI_SECRET_KEY`
+   - `SOPILOT_INTERNAL_TOKEN` (shared secret between core-api and ai-service)
+   - `SOPILOT_LLM_BASE_URL` (Modal endpoint, ending in `/v1`) and `SOPILOT_LLM_API_KEY` (the Modal `VLLM_API_KEY`)
+
+   Generate secrets with `openssl rand -hex 32`. Optional: `SOPILOT_GROQ_API_KEY` for metadata suggestions (see step 5).
+   ```bash
+   cp .env.example .env
+   ```
+2. **Start the Entire V2 Stack:**
+   One command builds and runs Postgres (with pgvector), Flyway migrations, MinIO object storage, `core-api` (Spring Boot), `ai-service` (FastAPI), `ai-worker`, and the `web` image:
+   ```bash
+   docker compose -f docker-compose.v2.yml up -d --build
+   ```
+   > [!WARNING]
+   > The `web` image is still wired to the V1 gateway (`api-gateway:3001`, Bearer token in `localStorage`) until ticket V2-15. Use the API on `http://localhost:8080` and `http://localhost:8000` for the V2 demo, not the web UI.
+   >
+   > The embedding model `BAAI/bge-m3` is downloaded from Hugging Face on the first ingest and cached in the container; the first upload is slow and needs network access.
+3. **Seed Demo Data:**
+   Run the idempotent seeding script once core-api is healthy. It creates the demo workspace `SOPilot Demo Workspace`, departments "Kỹ thuật" and "Nhân sự", and two members who are invited and then accept through dev login: `engineer@sopilot.local` ("Kỹ thuật", made the department's publisher, ADR-009) and `hr@sopilot.local` ("Nhân sự"). The owner uploads two workspace-wide SOPs; the engineer uploads one SOP limited to "Kỹ thuật" (UC-10: the engineer sees 3 documents, the HR member sees 2). All files are tracked in `eval/datasets/`. A second run changes nothing. The final output prints the actual counts and the exit code is 1 if any step failed.
+   ```powershell
+   ./scripts/seed-demo.ps1
+   ```
+   Three documents are far below the default document limits (50 documents / 200 MB, FR-09), so no limit variable needs to be set.
+4. **Dev Login (No Google OAuth Required):**
+   In `local` profile, use the built-in dev login endpoint:
+   ```http
+   POST http://localhost:8080/api/v1/auth/dev-login
+   Content-Type: application/json
+
+   { "email": "demo-owner@sopilot.local", "displayName": "Demo Owner" }
+   ```
+   The `local` profile generates the JWT signing key in memory at each core-api start. A restart invalidates all issued tokens; sign in again (dev login) after a restart. Data in Postgres and MinIO is kept.
+5. **LLM Provider Configuration & Missing Key Behavior:**
+   - Answers: `ai-service` calls one OpenAI-compatible endpoint (self-hosted vLLM on Modal, ADR-006 §4.4) configured by `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_API_KEY` and `SOPILOT_LLM_MODEL` (default `Qwen/Qwen3.5-9B` in compose). `SOPILOT_LLM_BASE_URL` and `SOPILOT_LLM_API_KEY` are required: compose stops with a message naming the missing variable instead of starting with a dummy endpoint.
+   - Metadata suggestions (V2-25): `ai-worker` reads `SOPILOT_GROQ_API_KEY`. It is optional. Without it the worker logs `suggest_key_missing` and suggestions fall back to rules only (no LLM call); the rest of the stack works.
+   - If the Modal endpoint is unreachable or times out, a question fails with the stable code `LLM_UNAVAILABLE` and is not retried against another provider after the first token. The Modal container cold start can take minutes; warm it before a demo (`infrastructure/modal/README.md`).
+   - Time to first answer has not been measured on a clean clone; no latency figure is claimed here.
+6. **Measure time to first token (optional, real provider):** with the stack up, the demo seeded and the Modal endpoint warm, `./scripts/measure-ttft.ps1` asks 15 questions in new conversations and 15 follow-ups (with the rewrite call) through `POST /ai/v1/conversations/{id}/messages` and writes P50/P95, spread, hardware and outcomes to `eval/results/ttft/` (PRD-V2 NFR target: P95 < 3 s). `./scripts/measure-ingest-latency.ps1` does the same for upload, READY and suggestion times.
+
+### Evaluation Harness & Development
+
 - **Evaluation harness:** `cd eval && uv sync --extra dev && uv run pytest -q`, per [eval/README.md](eval/README.md).
+- **V1 legacy stack (frozen):** `docker compose up -d --build` (runs legacy 8 services, ports 3000/3001).
 - Build, lint and test commands per service are in [CLAUDE.md](CLAUDE.md).
 
 ## Known limitations and next steps
