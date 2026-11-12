@@ -83,6 +83,7 @@ jobs:
         run: |
           uv sync --extra dev
           uv run pytest tests/integration/test_retrieval.py tests/integration/test_qa_isolation.py \
+            tests/integration/test_feedback_isolation.py \
             "tests/integration/test_qa_api.py::test_reopened_answer_is_hidden_when_a_cited_document_is_no_longer_readable" \
             "tests/integration/test_qa_api.py::test_reopened_answer_without_citations_is_hidden_when_a_source_is_no_longer_readable" \
             "tests/integration/test_qa_api.py::test_citation_to_an_older_version_keeps_its_snippet_and_is_marked" -v
