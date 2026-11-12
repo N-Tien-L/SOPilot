@@ -40,7 +40,7 @@ public class DocumentRepository {
             + "d.access_revision, d.current_version_id, d.latest_version_id, d.created_by, u.display_name AS creator_name, "
             + "d.created_at, d.updated_at, d.category_id, c.name AS category_name, "
             + "d.title_source, d.description_source, d.category_source, d.tags_source, d.language_source, "
-            + "d.owner_department_id, "
+            + "d.owner_department_id, ds.title AS suggested_title, ds.proposed_category_name AS suggested_category, "
             + "COALESCE((SELECT array_agg(t.name ORDER BY lower(t.name) ASC) FROM core.document_tags dt "
             + " JOIN core.tags t ON t.workspace_id = dt.workspace_id AND t.id = dt.tag_id "
             + " WHERE dt.workspace_id = d.workspace_id AND dt.document_id = d.id), ARRAY[]::text[]) AS doc_tags, "
@@ -52,6 +52,8 @@ public class DocumentRepository {
             + "LEFT JOIN core.categories c ON c.workspace_id = d.workspace_id AND c.id = d.category_id "
             + "JOIN core.document_versions lv ON lv.id = d.latest_version_id "
             + "LEFT JOIN core.document_versions cv ON cv.id = d.current_version_id "
+            + "LEFT JOIN core.document_suggestions ds ON ds.workspace_id = d.workspace_id "
+            + " AND ds.version_id = d.current_version_id "
             + "LEFT JOIN core.users u ON u.id = d.created_by";
 
     private final JdbcTemplate jdbc;
@@ -71,13 +73,23 @@ public class DocumentRepository {
                     rs.getString("title_source"), rs.getString("description_source"),
                     rs.getString("category_source"), rs.getString("tags_source"),
                     rs.getString("language_source"));
+            // Only what the document does not already show: the title unless the user set it or it is the same,
+            // and a proposed category name only while the document has no category.
+            String title = rs.getString("title");
+            String suggestedTitle = rs.getString("suggested_title");
+            if ("USER".equals(fieldSources.title()) || suggestedTitle == null || suggestedTitle.equals(title)) {
+                suggestedTitle = null;
+            }
+            String suggestedCategory = categoryId == null ? rs.getString("suggested_category") : null;
+            Suggestions suggestions = suggestedTitle == null && suggestedCategory == null
+                    ? null : new Suggestions(suggestedTitle, suggestedCategory);
             return new DocumentDetail(
-                    rs.getObject("id", UUID.class), rs.getString("title"), rs.getString("description"),
+                    rs.getObject("id", UUID.class), title, rs.getString("description"),
                     rs.getString("language"), rs.getString("visibility"), rs.getLong("access_revision"),
                     rs.getObject("created_by", UUID.class), rs.getString("creator_name"),
                     rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
                     version(rs, "lv_"), version(rs, "cv_"), category, tags, departments, fieldSources,
-                    rs.getObject("owner_department_id", UUID.class));
+                    rs.getObject("owner_department_id", UUID.class), suggestions);
         };
     }
 
@@ -306,6 +318,19 @@ public class DocumentRepository {
             languageSource, tagsSource, workspaceId, documentId);
     }
 
+    /** Keeps the latest suggestion per version (V2-25); the document fields are changed separately. */
+    public void upsertSuggestion(UUID workspaceId, UUID documentId, UUID versionId, String method, String title,
+                                 String description, UUID categoryId, String proposedCategoryName, String[] tags) {
+        jdbc.update("INSERT INTO core.document_suggestions (workspace_id, version_id, document_id, method, title, "
+                        + "description, category_id, proposed_category_name, tags) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                        + "ON CONFLICT (version_id) DO UPDATE SET method = EXCLUDED.method, title = EXCLUDED.title, "
+                        + "description = EXCLUDED.description, category_id = EXCLUDED.category_id, "
+                        + "proposed_category_name = EXCLUDED.proposed_category_name, tags = EXCLUDED.tags, "
+                        + "updated_at = now()",
+                workspaceId, versionId, documentId, method, title, description, categoryId, proposedCategoryName, tags);
+    }
+
     public void updateVisibility(UUID workspaceId, UUID documentId, String visibility, long accessRevision) {
         jdbc.update("UPDATE core.documents SET visibility = ?, access_revision = ? WHERE workspace_id = ? AND id = ?",
                 visibility, accessRevision, workspaceId, documentId);
@@ -396,11 +421,26 @@ public class DocumentRepository {
                                UUID latestVersionId, UUID ownerDepartmentId) {
     }
 
+    /**
+     * Suggested values that are stored but never applied (V2-25): the title (decision of 2026-11-12) and a category
+     * name the workspace does not have yet. Either may be {@code null}.
+     */
+    public record Suggestions(String title, String proposedCategoryName) {
+    }
+
     public record DocumentDetail(UUID id, String title, String description, String language, String visibility,
                                  long accessRevision, UUID createdBy, String creatorName, OffsetDateTime createdAt,
                                  OffsetDateTime updatedAt, VersionRow latest, VersionRow current,
                                  CategoryRef category, List<String> tags, List<DepartmentRef> departments,
-                                 FieldSources fieldSources, UUID ownerDepartmentId) {
+                                 FieldSources fieldSources, UUID ownerDepartmentId, Suggestions suggestions) {
+        public DocumentDetail(UUID id, String title, String description, String language, String visibility,
+                              long accessRevision, UUID createdBy, String creatorName, OffsetDateTime createdAt,
+                              OffsetDateTime updatedAt, VersionRow latest, VersionRow current,
+                              CategoryRef category, List<String> tags, List<DepartmentRef> departments,
+                              FieldSources fieldSources, UUID ownerDepartmentId) {
+            this(id, title, description, language, visibility, accessRevision, createdBy, creatorName, createdAt,
+                    updatedAt, latest, current, category, tags, departments, fieldSources, ownerDepartmentId, null);
+        }
     }
 
     public record VersionRow(UUID id, UUID documentId, int versionNo, String status, String failureCode,

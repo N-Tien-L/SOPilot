@@ -256,6 +256,16 @@ class TenantIsolationApiIT extends ApiIT {
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(asTenant(b.admin(), () -> jdbc.queryForObject("SELECT status FROM core.document_versions WHERE id = ?",
                 String.class, b.version()))).isEqualTo("UPLOADED");
+
+        // V2-25 metadata suggestions: the same rule for the suggestions callback.
+        ResponseEntity<JsonNode> s = http.exchange("/internal/documents/" + b.document() + "/suggestions",
+                HttpMethod.PUT, new org.springframework.http.HttpEntity<>(
+                        Map.of("workspaceId", a.admin().workspaceId().toString(), "versionId", b.version().toString(),
+                                "method", "LLM", "title", "x", "tags", List.of()), headers), JsonNode.class);
+        assertThat(s.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(asTenant(b.admin(), () -> jdbc.queryForObject(
+                "SELECT count(*) FROM core.document_suggestions WHERE document_id = ?", Long.class, b.document())))
+                .isZero();
     }
 
     @Test

@@ -35,6 +35,11 @@ public class TagService {
         return tenant.run(principal, () -> tags.list(principal.workspaceId()));
     }
 
+    /** Tag names of a workspace for a metadata suggestion (V2-25). Call inside the caller's tenant transaction. */
+    public List<String> names(UUID workspaceId) {
+        return tags.list(workspaceId).stream().map(TagRepository.Tag::name).toList();
+    }
+
     public List<String> findTagsForDocument(UUID workspaceId, UUID documentId) {
         return tags.findTagsForDocument(workspaceId, documentId);
     }

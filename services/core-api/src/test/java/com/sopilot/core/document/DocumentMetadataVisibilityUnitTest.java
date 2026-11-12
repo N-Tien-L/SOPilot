@@ -42,7 +42,8 @@ class DocumentMetadataVisibilityUnitTest {
         FieldSources sources = new FieldSources("USER", "SYSTEM", "SUGGESTED", "USER", "SYSTEM");
         return new DocumentDetail(docId, "Title", "Desc", "vi", visibility, 2L,
                 userId, "Creator", OffsetDateTime.now(), OffsetDateTime.now(),
-                ver, ver, cat, tags, depts, sources, null);
+                ver, ver, cat, tags, depts, sources, null,
+                new DocumentRepository.Suggestions("Suggested title", null));
     }
 
     @Test
@@ -61,6 +62,7 @@ class DocumentMetadataVisibilityUnitTest {
         assertThat(ownerView.departments().get(0).name()).isEqualTo("Dept A");
         assertThat(ownerView.fieldSources()).isNotNull();
         assertThat(ownerView.fieldSources().title()).isEqualTo("USER");
+        assertThat(ownerView.suggestions().title()).isEqualTo("Suggested title");
         assertThat(ownerView.category()).isNotNull();
         assertThat(ownerView.tags()).containsExactly("ISO", "Finance");
 
@@ -71,6 +73,7 @@ class DocumentMetadataVisibilityUnitTest {
         DocumentView memberView = DocumentView.of(detail, memberWithDept);
         assertThat(memberView.departments()).isNull();
         assertThat(memberView.fieldSources()).isNull();
+        assertThat(memberView.suggestions()).isNull();
         // Category and tags remain visible to members
         assertThat(memberView.category().name()).isEqualTo("Finance");
         assertThat(memberView.tags()).containsExactly("ISO", "Finance");

@@ -117,7 +117,7 @@ class DocumentLifecycleIT extends ApiIT {
         assertThat(p.path("sha256").asText()).hasSize(64);
         assertThat(p.at("/access/visibility").asText()).isEqualTo("WORKSPACE");
         assertThat(p.at("/access/accessRevision").asInt()).isEqualTo(1);
-        assertThat(p.at("/suggest/enabled").asBoolean()).isFalse();
+        assertThat(p.at("/suggest/enabled").asBoolean()).isTrue();  // V2-25: suggestions are on
 
         assertThat(get("/api/v1/audit-logs?action=DOCUMENT_UPLOADED", owner).getBody().path("data")).hasSize(1);
     }
