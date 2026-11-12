@@ -716,6 +716,7 @@ Mã lỗi `FAILED` và hành động gợi ý trên giao diện: `EMBEDDING_ERRO
                       "sizeBytes": 183422, "pageCount": 7, "docCode": "QT-MH-01", "revisionLabel": "03",
                       "effectiveDate": "2026-01-15", "warningCodes": ["PAGES_WITHOUT_TEXT"] },
   "fieldSources": { "title": "USER", "description": "SYSTEM", "category": "SUGGESTED", "tags": "SUGGESTED", "language": "SYSTEM" },
+  "suggestions": { "title": "Quy trình mua hàng", "proposedCategoryName": "Mua sắm" },
   "suggestion": { "status": "READY", "description": "…", "proposedCategoryName": null },
   "createdBy": { "id": "…", "displayName": "An" }, "createdAt": "…", "updatedAt": "…"
 }
@@ -747,7 +748,7 @@ WHERE d.deleted_at IS NULL
 
 RLS đã giới hạn workspace; điều kiện trên giới hạn role/phòng ban. `wrole` và `wdept` lấy từ token, không đọc lại DB ở mỗi request (đồng nhất với ai-service; trễ tối đa 15 phút như ADR-007).
 
-**Áp dụng gợi ý (FR-28, V2-25):** khi nhận `PUT /internal/documents/{id}/suggestions`, core-api lưu `document_suggestions`, rồi với từng trường có nguồn `SYSTEM` hoặc `SUGGESTED` thì ghi giá trị gợi ý và đặt nguồn `SUGGESTED`. Trường nguồn `USER` không bị đụng. Gợi ý không chứa và không thể đổi `visibility` hay phòng ban (DTO không có các trường này). Category chỉ nhận `categoryId` thuộc workspace và `ACTIVE`; tên category mới chỉ lưu dạng đề xuất, không tự tạo.
+**Áp dụng gợi ý (FR-28, V2-25):** khi nhận `PUT /internal/documents/{id}/suggestions`, core-api lưu `document_suggestions`, rồi với từng trường **trừ tiêu đề** có nguồn `SYSTEM` hoặc `SUGGESTED` thì ghi giá trị gợi ý và đặt nguồn `SUGGESTED`. Trường nguồn `USER` không bị đụng. **Tiêu đề gợi ý chỉ được lưu trong `document_suggestions`, không tự áp dụng** (owner chốt 2026-11-12): heading đầu của Markdown thường là tên mục, không phải tên tài liệu (chạy thật với `gitlab-meetings.md` cho ra "What to do before the meeting"). Tiêu đề gợi ý, và tên category đề xuất khi tài liệu chưa có category, được trả trong `suggestions` của `Document` (chỉ OWNER/ADMIN và publisher phụ trách, như `fieldSources`; `null` nếu không có gì khác với giá trị hiện tại hoặc tiêu đề đã do `USER` đặt). Giao diện điền sẵn ô tiêu đề bằng giá trị này; người dùng lưu qua `PATCH` hiện có (đặt nguồn `USER`), xóa ô rồi lưu thì giữ nguyên tiêu đề hiện tại. Không có endpoint mới. Gợi ý không chứa và không thể đổi `visibility` hay phòng ban (DTO không có các trường này). Category chỉ nhận `categoryId` thuộc workspace và `ACTIVE`; tên category mới chỉ lưu dạng đề xuất, không tự tạo.
 
 ### 5.7 Audit (FR-20)
 

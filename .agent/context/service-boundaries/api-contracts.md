@@ -37,6 +37,11 @@ version: 1.0
 > DOCUMENT_DELETED}`), `PATCH /conversations/{id}` (title), `DELETE /conversations/{id}` (soft). These routes use plain
 > JSON, not the core-api `{"data", "traceId"}` envelope. `503` when the LLM endpoint or embedding model is not
 > configured (the first question builds them).
+> **Feedback and knowledge gaps (V2-13, TECH-V2-ai-service §7.6):** `PUT /messages/{id}/feedback` `{vote: -1|1,
+> comment?}` → `204` (conversation owner, `ASSISTANT` message only, one vote per user, else `404`);
+> `GET /knowledge-gaps?status=open|resolved&limit&offset` (OWNER/ADMIN, MEMBER `403`; PII-masked question, no asker
+> identity); `POST /knowledge-gaps/{messageId}/resolve` `{note?}` (OWNER/ADMIN, idempotent, `404` if not a gap).
+> Core-api callback `PUT /internal/documents/{id}/suggestions` (V2-25) stores and applies metadata suggestions.
 > The rest of this file describes frozen V1 (gateway, `ApiResponse` with `success`).
 
 ## Purpose

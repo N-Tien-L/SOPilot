@@ -2,9 +2,9 @@
 id: V2-28
 title: "Bộ kiểm hệ thống SOP tiếng Việt (30–40 câu): ô gộp, ghép context, mã tài liệu, hiệu lực, không dấu"
 type: test
-status: todo
+status: review
 created: 2026-10-21
-updated: 2026-10-24
+updated: 2026-11-13
 author: "Owner"
 scope: tests
 priority: P1
@@ -38,6 +38,11 @@ Owner chốt 2026-10-21 (audit đầu-cuối ai-service theo loại query, D7; x
 - [ ] Runner chạy pipeline `V2-10` thật trên stack local và DB (LLM cố định, `temperature=0`; phần không cần sinh chạy với LLM giả). Báo cáo theo nhóm (a)–(i) và theo `query_types`: tỉ lệ gold span nằm trong context, citation precision, tỉ lệ từ chối đúng, `refusal_reason` đúng, tỉ lệ câu vào danh sách khoảng trống đúng.
 - [ ] Dùng bộ `dev` để chốt giá trị khởi đầu còn để ngỏ: `retrieval.doc_code_boost`, `SOPILOT_HEADER_FOOTER_MIN_PAGES`, `SOPILOT_FOLLOWUP_MAX_TOKENS`; số liệu `test` chỉ để báo cáo.
 - [ ] Báo cáo `docs/04-reports/AUDIT-vi-sop-system-check-<ngày>.md`: nhóm nào đạt hay không, nguyên nhân, đề xuất tiếp theo (ví dụ chunk `DOC_INFO` hoặc mở §6.4a, theo TECH-V2-ai-service §12a). Ghi rõ đây không phải kết quả RQ và cỡ mẫu nhỏ.
+
+## 2a. Bằng chứng và mục còn mở (2026-11-13)
+- Harness: `eval/sopilot_eval/system_check.py`, `eval/configs/vi-sop-check.yaml`, `eval/tests/test_vi_sop_check.py`. Runner gọi `QAService.answer` thật; nhóm e sinh tự động với seed cố định.
+- Bộ câu bản nháp `eval/datasets/vi-sop-check/` (gitignored): 33 câu + 4 câu nhóm e = 37, 33 span, 6 tài liệu; `--dry-run` 2026-11-13 hợp lệ. Báo cáo: [AUDIT-vi-sop-system-check-2026-11-13](../../04-reports/AUDIT-vi-sop-system-check-2026-11-13.md) (`draft`, không phải kết quả RQ, cỡ mẫu nhỏ, **chưa chạy pipeline**).
+- **Còn mở (owner):** duyệt từng câu và giấy phép 6 tài liệu; chốt cỡ và ngưỡng đạt 0,8; chạy thật trên stack local với Modal (`dev` để chốt `doc_code_boost`, `SOPILOT_HEADER_FOOTER_MIN_PAGES`, `SOPILOT_FOLLOWUP_MAX_TOKENS`, rồi `test`). Phần còn thiếu trong harness: `gold_in_context` (asker chưa trả span của context) và tỉ lệ vào danh sách khoảng trống.
 
 ## 3. Hướng dẫn
 - **File:** `eval/datasets/vi-sop-check/` (câu hỏi, nhãn, `SOURCES.md`), `eval/sopilot_eval/system_check.py`, `eval/configs/vi-sop-check.yaml`. Tài liệu không được phân phối lại thì commit manifest và script tải, không commit file.

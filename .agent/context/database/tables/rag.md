@@ -26,7 +26,7 @@ hash only), `processed_requests` (idempotency keys), `system_usage` (daily count
 | `retrieval_results` | All `rerank_pool` candidates of a question with `dense_score`, `bm25_score`, `fusion_score`, `rerank_score` kept apart, `in_context` for the hit chunks | `sopilot_ai.db.repositories.retrieval_results.save` (called by the Q&A pipeline, V2-10) |
 | `conversations`, `messages`, `message_citations`, `guard_events`, `usage_counters`, `system_usage` | Q&A (V2-10); `messages` has `refusal_reason`, `route`, `rewrite_status`, `checks`, `context_sources`. One turn writes a USER and an ASSISTANT row in one transaction (`conversations/repository.py`); counters only when a quota is on (`quota/counters.py`) | used since V2-10 milestone 3 |
 | `message_feedback`, `knowledge_gap_status` | FR-16/17 (V2-13) | not yet used |
-| `suggestion_jobs`, `suggestion_cache` | Metadata suggestions (V2-25) | not yet used |
+| `suggestion_jobs`, `suggestion_cache` | Metadata suggestions (V2-25): job enqueued in the same transaction that makes a version READY (`ingest/handler.py`); worker `suggest/runner.py`; cache keyed by workspace, content hash, prompt version, model and category list | used since V2-25 (not yet live-tested with the Groq key) |
 | `outbox_events` | `VERSION_STATUS` / `SUGGESTIONS_READY` callbacks to core-api | worker; dispatcher marks `DELIVERED`/`DEAD` |
 | `processed_requests` | `Idempotency-Key` of `/internal/**` | internal API |
 
@@ -38,12 +38,13 @@ hash only), `processed_requests` (idempotency keys), `system_usage` (daily count
 | Function | Use |
 |---|---|
 | `rag.claim_ingestion_job(lease_seconds)` | One due job of any workspace (`QUEUED` and `run_after <= now()`, or `RUNNING` with expired lease); sets `RUNNING`, lease, `attempts + 1` |
+| `rag.claim_suggestion_job(lease_seconds)` | One `QUEUED` (or lease-expired `RUNNING`) suggestion job of any workspace; sets `RUNNING`, lease, `attempts + 1` (V004) |
 | `rag.claim_outbox_batch(limit, lease_seconds)` | Due `PENDING` events; pushes `next_attempt_at` forward as a lease |
 | `rag.stale_active_versions(model, revision, normalizer_version, all)` | Active versions to ingest again (startup check, `admin reindex`) |
 
 Because `FORCE ROW LEVEL SECURITY` also binds the table owner, these functions rely on extra
 policies granted `TO sopilot_migrator` only (`definer_jobs`, `definer_outbox`, `definer_read` on
-`document_access`, `chunks`, `extracted_documents`). Application roles never match them.
+`document_access`, `chunks`, `extracted_documents`, and `definer_suggestions` on `suggestion_jobs` from V004). Application roles never match them.
 
 ## Rules
 

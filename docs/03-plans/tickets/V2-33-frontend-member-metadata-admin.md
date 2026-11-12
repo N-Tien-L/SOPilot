@@ -24,6 +24,7 @@ Tách phạm vi từ V2-15 XL ngày 2026-10-24; giữ nguyên yêu cầu PRD/TEC
 ## 2. Tiêu chí Hoàn thành
 - [ ] Thành viên: hồ sơ (họ tên, mã nhân viên, chức danh, phòng ban), tạm khóa/mở khóa; phòng ban và category phẳng: tạo, đổi tên, ngừng sử dụng, xóa khi hợp lệ. Ẩn phòng ban ở workspace một thành viên.
 - [ ] Tài liệu: sửa metadata, chọn phạm vi `WORKSPACE`/`DEPARTMENTS`, xem và chấp nhận/sửa gợi ý metadata; trạng thái gợi ý không chặn thao tác khác.
+  - Form gợi ý theo quyết định owner 2026-11-12 trong V2-25 §2a: một form sửa được, `doc_code`/revision/ngày hiệu lực chỉ đọc, nút tạo category gợi ý chỉ cho OWNER/ADMIN.
 - [ ] UI tạo/thu hồi/nhận link lời mời; thao tác OWNER/ADMIN theo quyền và hiển thị lỗi API đúng ngữ cảnh.
 - [ ] Kiểm bằng trình duyệt quyền admin/member, trạng thái tạm khóa, gợi ý đang chạy/lỗi và quyền đọc thay đổi.
 

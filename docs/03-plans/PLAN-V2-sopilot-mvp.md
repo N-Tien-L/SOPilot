@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "Kế hoạch triển khai SOPilot V2: eval-first, chạy local, bàn giao nghiên cứu"
 status: approved
 created: 2026-10-17
-updated: 2026-11-11
+updated: 2026-11-13
 author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -18,8 +18,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 37
 completed_tickets: 25
-implemented_tickets: 25
-review_tickets: 0
+implemented_tickets: 30
+review_tickets: 5
 ---
 
 > **Owner chốt 2026-10-20:** hoãn DOCX sau MVP V2 để giảm độ phức tạp trích xuất và kiểm thử. Phạm vi hiện hành là PDF có lớp chữ, MD, TXT (PRD-V2 FR-06); DOCX trả `415` ở upload, không tạo job, hướng dẫn xuất PDF có lớp chữ. Các nhận xét DOCX trong audit là lịch sử, không phải yêu cầu nghiệm thu MVP. Không đổi trạng thái hoặc bộ đếm ticket. *Sửa 2026-10-21: TXT cũng bị bỏ, phạm vi còn PDF có lớp chữ và MD.*
@@ -234,7 +234,7 @@ flowchart TD
 | `V2-09` | ai-service: worker ingest, embedding, hybrid retrieval, RLS, 4 loại điểm, provider interface | ai-qa | L | `V2-03`, `V2-06`, `V2-08`, `V2-20`, `V2-21`, `V2-22` | done |
 | `V2-34` | Hạ tầng: endpoint LLM tự host (Qwen3.5-9B FP8, vLLM) trên Modal và kiểm nhanh | infra | M | `V2-02` | done |
 | `V2-10` | ai-service: pipeline hỏi đáp 2 lần gọi LLM, SSE, trích dẫn, từ chối | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
-| `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | todo |
+| `V2-27` | ai-service: semantic router (luật + embedding) và đo so với chỉ luật | ai-qa | L | `V2-05`, `V2-10` | review |
 | `V2-35` | Hạ tầng + ai-service: rerank bge-reranker-v2-m3 trên GPU, chung container A10 với vLLM | infra | L | `V2-09`, `V2-34` | done |
 
 ### Phase 2b: Ingestion SOP (AUDIT-ingestion-sop-data)
@@ -244,7 +244,7 @@ flowchart TD
 | `V2-20` | ai-service: Docling (ADR-008), biểu diễn có cấu trúc và Markdown chuẩn có offset (PDF/MD) | ai-qa | L | `V2-03`, `V2-19` | done |
 | `V2-21` | ai-service: tách phần khung, trích metadata SOP và cảnh báo trích xuất | ai-qa | M | `V2-20` | done |
 | `V2-22` | ai-service: nhận diện loại tài liệu, bảng quy trình và chunk theo cấu trúc | ai-qa | L | `V2-20` | done |
-| `V2-28` | Bộ kiểm hệ thống SOP tiếng Việt (30–40 câu): ô gộp, ghép context, mã tài liệu, hiệu lực, không dấu | tests | M | `V2-10`, `V2-19`, `V2-21`, `V2-22` | todo |
+| `V2-28` | Bộ kiểm hệ thống SOP tiếng Việt (30–40 câu): ô gộp, ghép context, mã tài liệu, hiệu lực, không dấu | tests | M | `V2-10`, `V2-19`, `V2-21`, `V2-22` | review |
 
 Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau khi có kết quả `V2-07`.
 
@@ -255,11 +255,11 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-29` | core-api: workspace CRUD, chuyển workspace và refresh session | user | L | `V2-11` | done |
 | `V2-30` | core-api: lời mời, thành viên và quy tắc OWNER | user | M | `V2-29` | done |
 | `V2-12` | core-api: tài liệu, upload, outbox, hạn mức tài liệu, thay bản an toàn, audit log | knowledge | L | `V2-09`, `V2-11` | done |
-| `V2-13` | Phản hồi câu trả lời và danh sách khoảng trống tri thức | ai-qa | M | `V2-10`, `V2-12` | todo |
+| `V2-13` | Phản hồi câu trả lời và danh sách khoảng trống tri thức | ai-qa | M | `V2-10`, `V2-12` | review |
 | `V2-14` | Test cách ly tenant FR-19 trong CI và đo RQ4 | tests | M | `V2-09`, `V2-12` | done |
 | `V2-23` | core-api: hồ sơ thành viên, vòng đời tạm khóa và phòng ban phẳng | user | M | `V2-11` | done |
 | `V2-24` | core-api: metadata tài liệu, category/tags phẳng, phạm vi hiển thị theo phòng ban | knowledge | L | `V2-12`, `V2-23` | done |
-| `V2-25` | ai-service: gợi ý metadata chạy nền và đo độ trễ | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | todo |
+| `V2-25` | ai-service: gợi ý metadata chạy nền và đo độ trễ | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | review |
 | `V2-26` | Test phân quyền tài liệu theo phòng ban (FR-29) trong CI | tests | M | `V2-10`, `V2-23`, `V2-24` | done |
 | `V2-36` | core-api: quyền ghi tài liệu theo publisher phòng ban và publisher workspace | knowledge | L | `V2-23`, `V2-24` | done |
 
@@ -270,7 +270,7 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 | `V2-31` | Frontend: nạp nhiều tài liệu và theo dõi xử lý | web | L | `V2-12`, `V2-15`, `V2-36` | todo |
 | `V2-32` | Frontend: nội dung nhận diện và trình xem trích dẫn | web | L | `V2-10`, `V2-12`, `V2-15` | todo |
 | `V2-33` | Frontend: thành viên, phòng ban và metadata tài liệu | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
-| `V2-16` | Dữ liệu demo và docker compose chạy bằng một lệnh | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | todo |
+| `V2-16` | Dữ liệu demo và docker compose chạy bằng một lệnh | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | review |
 | `V2-17` | Kiểm tra parity, gỡ 8 service cũ, cập nhật tài liệu hướng dẫn | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
 | `V2-18` | Báo cáo nghiên cứu và gói bàn giao | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37` | todo |
 
@@ -364,6 +364,10 @@ Contextual retrieval (bước 10 của audit) không có ticket; chỉ xét sau 
 > **Owner chốt 2026-11-11:** `V2-30` và `V2-36` → `done` (bằng chứng ở mục ghi chú cuối từng ticket: 126 unit + 238 integration test, tenant isolation 31, migration và docs check xanh; 3 chỗ lệch ghi ở TECH-V2-core-api §16, §17; hoãn FR-05 và FR-24). `completed_tickets` 23 → 25, `review_tickets` 2 → 0, `implemented_tickets` 25.
 
 > **Owner chốt 2026-11-11 (thêm V2-37, cấu hình đề xuất và thứ tự hoàn thành):** ticket mới [`V2-37`](tickets/V2-37-eval-config-matrix-answer-level.md) làm ma trận cấu hình truy xuất, độ nhạy RRF/pool, eval mức câu trả lời trên `sop-main-v2` với giám khảo độc lập (Gemma 4 26B A4B hoặc 31B trên L40S, tài khoản Modal thứ hai, chọn theo κ với owner trên 30 câu) và đối chiếu với API thật. Cấu hình đề xuất cho báo cáo là hybrid RRF 1/1 `k = 60` + rerank `bge-reranker-v2-m3`, pool 25. Hypothesis (non-inferiority δ = 0,02 và vai trò BM25) cùng luật quyết định ghi trong `V2-37` §1 trước khi chạy. Nhãn `sop-main-v2` giữ nguyên `review.jsonl`. `V2-37` phụ thuộc `V2-07`, `V2-10`, `V2-13`, `V2-27`, `V2-35`: phần ma trận truy xuất chạy được ngay; phần mức câu trả lời chạy trên commit QA đã ghim sau `V2-13`, `V2-27`. `V2-18` phụ thuộc thêm `V2-37`. Owner làm hết ticket còn lại theo thứ tự: `V2-37` truy xuất song song với `V2-27`, `V2-13` → `V2-37` câu trả lời song song với `V2-25` và phần dữ liệu `V2-28` → `V2-15` → `V2-31`, `V2-32`, `V2-33` → `V2-16` → `V2-17` → `V2-28` phần còn lại → `V2-18`. `total_tickets` 36 → 37; các bộ đếm khác không đổi.
+
+> **Owner chốt 2026-11-12 (V2-25):** Groq chỉ còn dùng cho gợi ý metadata, không dùng cho sinh câu trả lời hay giám khảo (ghi ở [ADR-006 §4.4](../02-architecture/adr/ADR-006-free-tier-providers-and-environments.md)); gợi ý chạy cùng vòng lặp worker sau ingest; tiêu đề gợi ý chỉ lưu, không tự áp dụng (ghi ở [TECH-V2-core-api](../02-architecture/designs/TECH-V2-core-api.md)). Ticket thay đổi: [`V2-25`](tickets/V2-25-async-metadata-suggestion.md), vẫn `todo` cho tới khi có số đo.
+
+> **Cập nhật 2026-11-13 (đóng Wave 1):** `V2-13`, `V2-16`, `V2-25`, `V2-27`, `V2-28` chuyển `todo` → `review` (mã và test đã commit trên nhánh `feat/wave1-closeout`; chưa owner nghiệm thu). `review_tickets` 0 → 5, `implemented_tickets` 25 → 30. Mục còn mở của từng ticket ghi ở mục 2a của ticket: `V2-13` chờ owner review; `V2-16` thử máy sạch, TTFT đầu-cuối với provider thật, frontend V2 (`V2-15`); `V2-25` p50/p95 cache trống trên corpus V2-19; `V2-27` owner duyệt bộ định tuyến và câu mẫu, chỉnh ngưỡng, `feedback_in_chat`, đo `followup` qua pipeline, cờ giữ `false` ([AUDIT-routing](../04-reports/AUDIT-routing-guard-eval-2026-11-13.md)); `V2-28` owner duyệt bộ 37 câu và giấy phép, chạy thật ([AUDIT-vi-sop](../04-reports/AUDIT-vi-sop-system-check-2026-11-13.md)).
 
 ---
 

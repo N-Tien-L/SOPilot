@@ -45,6 +45,7 @@ Added by `V007` (V2-24):
 |---|---|---|
 | `core.tags` | FORCE | `name` 1–50 chars (case kept as typed); unique on `(workspace_id, lower(name))`; `UNIQUE (workspace_id, id)` for the composite FK |
 | `core.document_tags` | FORCE | PK `(document_id, tag_id)`; composite FKs `(workspace_id, document_id)` → `documents` and `(workspace_id, tag_id)` → `tags`, both `ON DELETE CASCADE`; index `ix_document_tags_tag (workspace_id, tag_id)` |
+| `core.document_suggestions` | FORCE | V010 (V2-25). One row per version: `method` (`LLM` / `RULES_FALLBACK`), suggested `title`, `description`, `category_id`, `proposed_category_name` (stored, never created), `tags text[]`. Written by `PUT /internal/documents/{id}/suggestions`; applied to the document only when the version is current and the field's source is not `USER` (`document/SuggestionService.java`) |
 
 Functions: `core.claim_outbox_batch(int)` leases due events of every workspace for 60 s (`FOR UPDATE SKIP LOCKED`);
 `core.referenced_object_keys(text[])` tells the storage janitor which object keys a version still references.

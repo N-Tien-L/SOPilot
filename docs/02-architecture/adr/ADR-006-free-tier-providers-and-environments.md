@@ -3,7 +3,7 @@ id: ADR-006
 title: "V2: nhà cung cấp AI/hạ tầng miễn phí; môi trường eval local và các phương án deploy"
 status: approved
 created: 2026-10-17
-updated: 2026-11-09
+updated: 2026-11-12
 author: "Owner"
 refs:
   - docs/01-requirements/PRD-V2-sopilot-mvp.md
@@ -140,9 +140,11 @@ superseded_by: ""
 |---|---|---|---|
 | Sinh câu trả lời | **Qwen 3.5 9B**, lượng tử hóa Q4 hoặc FP8, trên A10 hoặc L4 (24 GB) | **Qwen 3.5 4B** trên L4 hoặc T4 nếu 9B không đạt độ trễ hoặc ngân sách | Họ Qwen được khuyến nghị nhiều nhất cho tiếng Việt ở cỡ này; ngữ cảnh 256K dư cho prompt RAG 3–5K token; 9B vừa 24 GB. **Chưa đo trên bộ SOP của dự án** (xem tiêu chí chọn bên dưới) |
 | Guard injection/jailbreak | Bốn lớp không gọi LLM (PRD FR-13): luật đầu vào hai mức, ghép prompt có thẻ dữ liệu, canary token kiểm đầu ra, log | — | Llama Prompt Guard 2 86M bị loại sau bài test V2-02 (2026-10-20): chặn đúng 4/20 tấn công tiếng Việt, chặn nhầm 2/10 câu tiếng Anh dễ nhầm và 1/10 chunk tài liệu. Quyền đọc đã được thực thi trong SQL nên guard chỉ là lớp phụ |
-| Gợi ý metadata | Groq `openai/gpt-oss-20b` (30 RPM, 1K RPD, 8K TPM), giữ theo owner | Chỉ kết quả luật | Prompt ngắn. Đây là phụ thuộc Groq còn lại duy nhất; nếu bỏ nốt thì đổi sang model sinh ở trên hoặc chỉ dùng luật |
+| Gợi ý metadata | Groq `qwen/qwen3.8-27b` (mặc định `llm.suggest` trong `models.yaml`, 30 RPM, 60K TPM theo cấu hình), owner chọn Groq 2026-11-11 | Chỉ kết quả luật | Prompt ngắn. Đây là phụ thuộc Groq còn lại duy nhất; nếu bỏ nốt thì đổi sang model sinh ở trên hoặc chỉ dùng luật |
 | Giám khảo faithfulness | **Gemma 4** (khác họ với Qwen để không tự chấm): bản MoE cỡ 26B trên L40S (48 GB) cho lượt chạy cuối; bản E4B trên A10 cho lượt chạy thử khi phát triển | Giảm kích thước tập con được chấm, và người chấm tay mẫu cố định | Khác họ với model sinh. Model giám khảo nhỏ yếu hơn `gpt-oss-120b`, nên báo cáo phải nêu rõ và thêm chấm tay 30–50 câu để đối chiếu. Tên và kích thước bản Gemma 4 chưa kiểm trên Ollama/Hugging Face (nguồn mâu thuẫn), phải xác nhận tag trước khi kéo |
 | Embedding, rerank | Embedding: local (`bge-m3`). Rerank: `bge-reranker-v2-m3` local trên CPU hoặc **trên GPU A10 chung container với vLLM** (V2-35, owner chọn 2026-11-09) | Rerank local | Không phụ thuộc quota. Rerank CPU mất 15,7–18,1 giây/câu; chung container GPU không thêm GPU và không thêm lượt khởi động lạnh riêng. Chunk gửi lên Modal cùng mức với prompt. Hai URL cùng một container: `sopilot-vllm-serve` (chat) và `sopilot-vllm-rerank` (`POST /v1/rerank`) |
+
+> **Ghi chú V2-25 (2026-11-12) — owner xác nhận dùng Groq cho gợi ý metadata, chỉ cho việc này (không cho sinh câu trả lời hay giám khảo).** Gợi ý metadata (V2-25) gửi **nội dung trích đoạn tài liệu** (tiêu đề, dàn ý heading và tối đa vài đoạn đại diện, cắt theo trần token cấu hình) tới **Groq**. Đây là thay đổi luồng dữ liệu tới provider bên ngoài, khác với Modal (model tự triển khai); chỉ dùng tài liệu mà owner chấp nhận gửi ra ngoài. Model lấy từ `services/ai-service/config/models.yaml` (`llm.suggest`); bảng trên đã đồng bộ với mặc định `models.yaml` (`qwen/qwen3.8-27b`, có trong trang model của Groq ngày 2026-11-12). Đã xác nhận 2026-11-12: `GET /models` với key thật trả 200 và có `qwen/qwen3.8-27b`; một lượt chạy thật cho `method=LLM`, `llm_ms=2135`. Hạn mức (30 RPM, 60K TPM) vẫn là giá trị cấu hình, chưa đối chiếu với `console.groq.com/settings/limits`. Quy tắc: luật trước (tiêu đề, mã số, ngày), một lần gọi LLM có timeout 20 s, tối đa một lần thử lại, lỗi thì lưu kết quả luật với `method = RULES_FALLBACK`. Kết quả chỉ áp dụng vào trường không do người dùng đặt.
 
 **Chốt model sinh câu trả lời và ứng viên thay thế (owner chốt 2026-11-04, V2-10):** owner bỏ bake-off đầy đủ bên dưới; chọn **Qwen3.5-9B, FP8, vLLM trên L4** (A10 nếu L4 quá chậm). Chỉ chạy một lần kiểm nhanh trước khi cam kết: khoảng 20 câu từ `sop-main` (có câu âm), `temperature=0`, đọc bằng mắt xem đáp đúng ngôn ngữ của câu hỏi và có `[n]` đúng nguồn, đo TTFT một lần lạnh và một lần nóng, đếm token đầu ra so với độ dài câu hiển thị để biết `enable_thinking=false` có thực sự hết sinh suy luận. Chi phí dự kiến $1–3.
 
