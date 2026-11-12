@@ -133,3 +133,31 @@ error_internal:
   text:
     vi: "Đã xảy ra lỗi khi xử lý câu hỏi. Vui lòng thử lại."
     en: "Something went wrong while handling the question. Please try again."
+
+# Semantic router (V2-27, TECH §7.1 step 3). Disclaimers: RAG still answers; the sentence is sent
+# after the answer and before `citations`, and the intent is logged in messages.checks.disclaimers.
+disclaimer_action_request:
+  text:
+    vi: "Lưu ý: mình chỉ tra cứu tài liệu, không thực hiện thao tác thay bạn (duyệt, gửi, sửa dữ liệu). Hãy làm theo quy trình trong tài liệu hoặc liên hệ bộ phận phụ trách."
+    en: "Note: I only look up documents and cannot carry out actions for you (approve, send, change data). Follow the procedure in the documents or contact the team in charge."
+
+disclaimer_personal_data:
+  text:
+    vi: "Lưu ý: mình không cung cấp thông tin cá nhân của người khác. Câu trả lời chỉ dựa trên nội dung tài liệu bạn được phép xem."
+    en: "Note: I do not give out other people's personal information. The answer is based only on the documents you are allowed to see."
+
+disclaimer_legal_medical:
+  text:
+    vi: "Lưu ý: đây là nội dung trích từ tài liệu nội bộ, không phải tư vấn pháp lý hay y tế. Khi khẩn cấp, hãy gọi số cấp cứu 115 hoặc hỏi người có chuyên môn."
+    en: "Note: this is content from internal documents, not legal or medical advice. In an emergency, call your local emergency number or ask a qualified professional."
+
+# `about_source` (only with history): the sources of the previous answer, from message_citations.
+about_source:
+  text:
+    vi: "Câu trả lời trước dựa trên các tài liệu sau:\n{sources}"
+    en: "The previous answer is based on these documents:\n{sources}"
+
+about_source_none:
+  text:
+    vi: "Câu trả lời trước không có trích dẫn tài liệu nào mà bạn còn xem được."
+    en: "The previous answer has no citation to a document you can still see."

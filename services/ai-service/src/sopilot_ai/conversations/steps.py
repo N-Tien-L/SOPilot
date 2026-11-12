@@ -19,13 +19,16 @@ from datetime import date
 from typing import Any, Protocol
 from uuid import UUID
 
+import numpy as np
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from sopilot_ai.conversations import repository as conv_repo
 from sopilot_ai.db.engine import tenant_tx
 from sopilot_ai.providers.llm import LLMError, estimate_tokens
 from sopilot_ai.qa import checks as qa_checks
 from sopilot_ai.qa import citations as qa_citations
 from sopilot_ai.qa import prompt as qa_prompt
+from sopilot_ai.qa import router as qa_router
 from sopilot_ai.qa.output_guard import OutputGuard, Verdict
 from sopilot_ai.qa.pipeline import (
     CONTINUE,
@@ -65,9 +68,12 @@ class QAContext(PipelineContext):
     lang: str = "vi"  # resolved once, from the request or the text; templates and prompt use it
     today: date | None = None
     history: list[tuple[str, str]] = field(default_factory=list)  # masked (question, answer)
+    conversation_id: UUID | None = None  # None for a new conversation
     emit: Callable[[str, Any], None] = field(default=lambda name, data: None, repr=False)
 
     reservation: Reservation | None = None
+    semantic: qa_router.SemanticDecision | None = None  # V2-27; None when the router is off
+    query_vector: np.ndarray | None = None  # router vector of ``text``, reused without history
     rewritten: str | None = None
     rewrite_status: str = "NONE"
     retrieval: RetrievalResult | None = None
@@ -159,6 +165,64 @@ class QuotaStep:
         return refuse("QUOTA_EXCEEDED", rule_id=f"quota.{c.reservation.state.value}")
 
 
+class SemanticRouterStep:
+    """Step 6b (V2-27): embedding router, only on questions the rules left undecided.
+
+    Never calls an LLM and never blocks. Present in the chain only when
+    ``SOPILOT_SEMANTIC_ROUTER_ENABLED`` is true, so with the flag off the chain is V2-10's.
+    It embeds the masked original question (not the rewrite) and records its decision in
+    ``messages.route.semantic``. Template intents answer with a fixed sentence (``TEMPLATE``,
+    free); disclaimer intents still run RAG; ``off_topic`` only matters if the gate refuses.
+    """
+
+    name = "semantic_router"
+
+    def __init__(self, layer: qa_router.SemanticLayer, engine: AsyncEngine) -> None:
+        self.layer = layer
+        self.engine = engine
+
+    async def run(self, ctx: PipelineContext) -> Decision:
+        c = _ctx(ctx)
+        start = time.monotonic()
+        vector = await asyncio.to_thread(self.layer.embed_query, c.text)
+        decision = self.layer.decide(vector, has_history=bool(c.history))
+        c.timings["router"] = _ms(start)
+        c.semantic = decision
+        if not c.history:
+            c.query_vector = vector
+        c.route_info["semantic"] = {
+            "layer": "semantic", "intent": decision.intent, "topIntent": decision.top_intent,
+            "score": round(decision.top_score, 4), "margin": round(decision.margin, 4)}
+        intent = decision.intent
+        action = qa_router.action_for(intent)
+        if intent is None or action == qa_router.ACTION_RAG:
+            return CONTINUE
+        if action == qa_router.ACTION_DISCLAIMER:
+            c.checks.setdefault("disclaimers", []).append(intent)
+            return CONTINUE
+        if action == qa_router.ACTION_OUT_OF_SCOPE:
+            return CONTINUE  # decided by RetrieveStep, after the gate
+        c.route_info["layer"] = "semantic"
+        c.route_info["intent"] = intent
+        if intent == qa_router.KIND_ABUSE:
+            c.record("INPUT_FLAG", "router.abuse")
+        if intent in qa_router.HISTORY_INTENTS:
+            return await self._about_source(c)
+        return template(intent, rule_id=f"router.{intent}")
+
+    async def _about_source(self, c: QAContext) -> Decision:
+        sources: list[tuple[str, int | None]] = []
+        if c.conversation_id is not None and c.principal is not None:
+            async with tenant_tx(self.engine, c.principal.workspace_id,
+                                 c.principal.user_id) as conn:
+                sources = await conv_repo.previous_sources(conn, c.principal, c.conversation_id)
+        if not sources:
+            return template("about_source_none", rule_id="router.about_source")
+        page_word = "trang" if c.lang == "vi" else "page"
+        lines = "\n".join(f"- {t}" + (f", {page_word} {p}" if p else "") for t, p in sources)
+        return template("about_source", rule_id="router.about_source", sources=lines)
+
+
 class RewriteStep:
     """Step 7: a standalone question from the last turns, only when there is history (D5)."""
 
@@ -211,8 +275,11 @@ class RetrieveStep:
         assert c.principal is not None and c.frame is not None
         start = time.monotonic()
         async with tenant_tx(self.engine, c.principal.workspace_id, c.principal.user_id) as conn:
+            # The router's vector is reused only when retrieval searches exactly that text
+            # (no history, nothing stripped); otherwise the query is embedded as before.
+            reuse = c.query_vector if c.query_vector is not None and c.query == c.text else None
             result = await self.retriever.retrieve(conn, c.principal, c.query,
-                                                   query_lang=c.frame.lang)
+                                                   query_lang=c.frame.lang, query_vector=reuse)
             nearest_ids: list[UUID] = []
             if not result.passed:
                 nearest_ids = list(dict.fromkeys(
@@ -225,10 +292,15 @@ class RetrieveStep:
         if result.passed:
             c.route_info["refusal"] = None
             return CONTINUE
+        # D1: OUT_OF_SCOPE (V2-27) is decided only here, after the gate has refused: same
+        # sentence, no nearest documents, and never on the knowledge-gap list.
+        if c.semantic is not None and qa_router.is_out_of_scope(c.semantic, gate_refused=True):
+            c.route_info["refusal"] = "OUT_OF_SCOPE"
+            return refuse("REFUSED_NO_EVIDENCE", template_key="no_evidence",
+                          reason="OUT_OF_SCOPE", rule_id="router.off_topic")
         c.route_info["refusal"] = "NO_EVIDENCE"
         c.nearest = [{"documentId": str(i), "title": titles[i]} for i in nearest_ids
                      if i in titles]
-        # D1: OUT_OF_SCOPE (V2-27) is decided only here, after the gate has refused.
         return refuse("REFUSED_NO_EVIDENCE", template_key="no_evidence", reason="NO_EVIDENCE",
                       rule_id="gate.below_threshold")
 

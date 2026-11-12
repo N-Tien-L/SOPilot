@@ -238,6 +238,29 @@ async def recent_turns(conn: AsyncConnection, principal: Principal, conversation
     return pairs[-limit:]
 
 
+async def previous_sources(conn: AsyncConnection, principal: Principal,
+                           conversation_id: UUID) -> list[tuple[str, int | None]]:
+    """``(title, page)`` of the citations of the last answered turn, for ``about_source`` (V2-27).
+
+    Same visibility as reading the conversation back: a hidden answer gives nothing, and a
+    citation to a document the caller can no longer read is left out.
+    """
+    rows = (await conn.execute(_RECENT, {
+        "cid": conversation_id, "wid": principal.workspace_id, "uid": principal.user_id,
+        "limit": 12})).all()
+    last = next((r.id for r in rows if r.role == "ASSISTANT" and r.outcome == "ANSWERED"), None)
+    if last is None or last in await hidden_answers(conn, principal, [last]):
+        return []
+    cites = (await conn.execute(_CITATIONS, {
+        **access_params(principal), "ids": [str(last)]})).all()
+    out: list[tuple[str, int | None]] = []
+    for c in cites:
+        item = (c.title, c.page_start)
+        if c.title and item not in out:
+            out.append(item)
+    return out
+
+
 async def list_conversations(conn: AsyncConnection, principal: Principal, *, limit: int = 50,
                              offset: int = 0) -> list[Any]:
     return list((await conn.execute(_LIST, {
