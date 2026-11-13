@@ -11,8 +11,8 @@ refs:
   - docs/product/prd-v2-sopilot-mvp.md
   - docs/architecture/components/ai-service.md
   - docs/execution/initiatives/v2-sopilot-mvp/designs/qa-strip-and-judge.md
-  - docs/03-plans/tickets/V2-10-ai-service-qa-pipeline.md
-  - docs/03-plans/tickets/V2-27-semantic-router.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-10-ai-service-qa-pipeline.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-27-semantic-router.md
 ---
 
 # TECHNICAL DESIGN: THE GUARD SYSTEM AND DEFENSE IN DEPTH
@@ -156,7 +156,7 @@ In SSE, tokens are emitted continuously as `delta`s. Checking the answer only af
 
 ---
 
-## 6. Grey-zone support layer: the semantic router ([V2-27](../../../../03-plans/tickets/V2-27-semantic-router.md))
+## 6. Grey-zone support layer: the semantic router ([V2-27](../tickets/V2-27-semantic-router.md))
 
 The semantic router handles natural-language cases not covered by fixed rules, without the cost of an LLM classifier.
 

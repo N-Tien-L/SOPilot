@@ -9,7 +9,7 @@ updated: 2026-10-18
 author: "Owner"
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
-  - docs/03-plans/PLAN-V2-sopilot-mvp.md
+  - docs/execution/initiatives/v2-sopilot-mvp/PLAN.md
   - docs/04-reports/AUDIT-retrieval-stack-research-2026-10-18.md
 ---
 

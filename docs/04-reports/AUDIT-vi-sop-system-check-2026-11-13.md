@@ -10,7 +10,7 @@ milestone: "V2: SOPilot MVP"
 scope: [tests, ai-qa]
 verdict: PASSED_WITH_WARNINGS
 refs:
-  - docs/03-plans/tickets/V2-28-vi-sop-system-check.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-28-vi-sop-system-check.md
   - eval/README.md
 ---
 

@@ -8,7 +8,7 @@ updated: YYYY-MM-DD
 author: "Owner"
 scope: "[ticket hoặc phạm vi]"
 refs:
-  - docs/03-plans/tickets/V2-NN-....md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-NN-....md
 ---
 
 # Handoff: [tên việc]

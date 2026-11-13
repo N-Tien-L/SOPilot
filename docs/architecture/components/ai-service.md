@@ -74,7 +74,7 @@ affected_schemas: [rag]
 | `infrastructure/db/migrations/rag/` | Flyway | Schema `rag` | New migration chain (V2-08) |
 | Ingest and metadata-suggestion worker | A child process in the same container (`python -m sopilot_ai.worker`) | `rag.ingestion_jobs`, `rag.suggestion_jobs` | Postgres `FOR UPDATE SKIP LOCKED` queue |
 | Local models | sentence-transformers / transformers on CPU | — | `bge-m3`, `bge-reranker-v2-m3` (ADR-006 §4.2) |
-| LLM API | One self-hosted endpoint (vLLM on Modal) through an OpenAI-style API | — | ADR-006 §4.4, [V2-10 milestone 2](../../03-plans/tickets/V2-10-ai-service-qa-pipeline.md) |
+| LLM API | One self-hosted endpoint (vLLM on Modal) through an OpenAI-style API | — | ADR-006 §4.4, [V2-10 milestone 2](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-10-ai-service-qa-pipeline.md) |
 
 The API and the worker are two processes sharing the image and configuration. They are separate so that CPU-heavy embedding does not block the API's event loop (an old bug: synchronous OCR inside an `async` function, AUDIT-ingestion §2.1). Q&A requests still embed the question inside the API process, through `run_in_threadpool` with a preloaded model.
 

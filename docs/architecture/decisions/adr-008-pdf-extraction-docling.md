@@ -9,7 +9,7 @@ refs:
   - docs/product/prd-v2-sopilot-mvp.md
   - docs/architecture/decisions/adr-004-two-service-architecture.md
   - docs/architecture/components/ai-service.md
-  - docs/03-plans/tickets/V2-20-structured-extraction.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-20-structured-extraction.md
   - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
 deciders: ["Owner"]
 amends: []

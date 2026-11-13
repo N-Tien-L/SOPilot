@@ -10,7 +10,7 @@ affected_schemas: ["rag"]
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
   - docs/architecture/components/ai-service.md
-  - docs/03-plans/tickets/V2-10-ai-service-qa-pipeline.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-10-ai-service-qa-pipeline.md
 ---
 
 # TECHNICAL DESIGN: "STRIP THEN JUDGE"

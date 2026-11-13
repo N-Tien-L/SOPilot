@@ -13,7 +13,7 @@ parent_plan: PLAN-NEXT
 depends_on: []
 ---
 
-> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../03-plans/PLAN-V2-sopilot-mvp.md); không làm tiếp. Roster tạo trước bị bỏ (ADR-005); import thành viên từ CSV là FR-24 (P1) thuộc V2-23.
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../execution/initiatives/v2-sopilot-mvp/PLAN.md); không làm tiếp. Roster tạo trước bị bỏ (ADR-005); import thành viên từ CSV là FR-24 (P1) thuộc V2-23.
 
 # NEXT-03: Hoàn thiện import CSV theo PRD-M1
 

@@ -13,7 +13,7 @@ parent_plan: PLAN-NEXT
 depends_on: []
 ---
 
-> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../03-plans/PLAN-V2-sopilot-mvp.md); không làm tiếp. Nguồn gốc embedding (`embedding_provider/model/dim/revision`) thiết kế ở TECH-V2-ai-service §3.3, §4.2, triển khai ở V2-09; V2 dùng database mới nên không cần migration vector.
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../execution/initiatives/v2-sopilot-mvp/PLAN.md); không làm tiếp. Nguồn gốc embedding (`embedding_provider/model/dim/revision`) thiết kế ở TECH-V2-ai-service §3.3, §4.2, triển khai ở V2-09; V2 dùng database mới nên không cần migration vector.
 
 # NEXT-05: Thiết kế model identity và kế hoạch cache/vector migration
 

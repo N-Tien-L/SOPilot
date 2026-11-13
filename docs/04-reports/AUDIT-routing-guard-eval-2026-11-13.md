@@ -10,7 +10,7 @@ milestone: "V2: SOPilot MVP"
 scope: [ai-qa, tests]
 verdict: PASSED_WITH_WARNINGS
 refs:
-  - docs/03-plans/tickets/V2-27-semantic-router.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-27-semantic-router.md
   - docs/architecture/components/ai-service.md
 ---
 

@@ -149,7 +149,7 @@ Notes:
   - A single-member workspace: that person is the OWNER and the workspace publisher; `DEPARTMENTS` documents can be published only after creating a department, placing themselves in it and assigning themselves as its publisher.
 - **Next actions (on approval):**
   - TECH-V2-core-api §15 moves from proposal to specification; migration `core/V009` through the `flyway-migration` skill.
-  - Ticket [V2-36](../../03-plans/tickets/V2-36-core-api-department-publishers.md) implements core-api and the write-authorization tests; V2-31 and V2-33 show the write buttons and the publisher assignment screen; V2-16 creates publishers for the demo data.
+  - Ticket [V2-36](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-36-core-api-department-publishers.md) implements core-api and the write-authorization tests; V2-31 and V2-33 show the write buttons and the publisher assignment screen; V2-16 creates publishers for the demo data.
   - Update PRD-V2 FR-06, FR-25, §8 item 9.
   - Update the identity and core-schema context docs (then `.agent/context/authorization/v2-core-identity.md` and `.agent/context/database/tables/core.md`, now `docs/architecture/domain/identity-and-access.md` and `docs/architecture/data/core-schema.md`) together with the implementation (as for ADR-007), not before.
   - Update the diagram `docs/architecture/diagrams/sopilot-database-erd.excalidraw` from "proposed" to actual once the migration is merged.

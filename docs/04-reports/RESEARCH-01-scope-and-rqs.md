@@ -11,7 +11,7 @@ refs:
   - docs/04-reports/HANDOFF-research-workstreams-2026-10-18.md
   - docs/product/prd-v2-sopilot-mvp.md
   - docs/architecture/decisions/adr-006-free-tier-providers-and-environments.md
-  - docs/03-plans/PLAN-V2-sopilot-mvp.md
+  - docs/execution/initiatives/v2-sopilot-mvp/PLAN.md
   - docs/04-reports/AUDIT-retrieval-stack-research-2026-10-18.md
   - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
   - temp/De_cuong_NCKH_sinh_vien_2026.md

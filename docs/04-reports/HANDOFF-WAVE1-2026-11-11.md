@@ -9,8 +9,8 @@ scope: [ai-qa, user, infra, tests]
 milestone: V2
 author: "Owner"
 refs:
-  - docs/03-plans/tickets/V2-13-feedback-and-knowledge-gaps.md
-  - docs/03-plans/tickets/V2-25-async-metadata-suggestion.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-13-feedback-and-knowledge-gaps.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-25-async-metadata-suggestion.md
   - docs/architecture/components/ai-service.md
   - docs/architecture/components/core-api.md
 ---

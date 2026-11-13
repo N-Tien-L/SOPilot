@@ -68,7 +68,7 @@ sequenceDiagram
 
 ## 3. Evaluation: what the metrics measure
 
-**Constraint.** Before rewriting the system, the project needs to know whether Vietnamese and cross-lingual retrieval is good enough ([PLAN-V2](../03-plans/PLAN-V2-sopilot-mvp.md) states this ordering).
+**Constraint.** Before rewriting the system, the project needs to know whether Vietnamese and cross-lingual retrieval is good enough ([PLAN-V2](../execution/initiatives/v2-sopilot-mvp/PLAN.md) states this ordering).
 
 **What exists.** `eval/` is a retrieval-only harness: an in-memory index with dense, BM25 (own implementation, Vietnamese unigram and bigram tokens) and hybrid RRF retrievers, optional cross-encoder rerank, and recall@k, MRR, nDCG@10 plus a refusal-threshold sweep. It needs no LLM or running stack.
 

@@ -1,8 +1,8 @@
 # SOPilot Documentation Hub (`docs/`)
 
-Thư mục này là nguồn sự thật cho **đặc tả** (PRD, ADR, TECH), **kế hoạch** (PLAN, ticket) và **báo cáo** (AUDIT, RESEARCH, HANDOFF). README này chỉ giữ cấu trúc và quy ước. Tiến độ và nhật ký quyết định nằm ở [PLAN-V2](03-plans/PLAN-V2-sopilot-mvp.md) (mục 6 là nhật ký cập nhật).
+Thư mục này là nguồn sự thật cho **đặc tả** (PRD, ADR, TECH), **kế hoạch** (PLAN, ticket) và **báo cáo** (AUDIT, RESEARCH, HANDOFF). README này chỉ giữ cấu trúc và quy ước. Tiến độ và nhật ký quyết định nằm ở [PLAN-V2](execution/initiatives/v2-sopilot-mvp/PLAN.md) (mục 6 là nhật ký cập nhật).
 
-**Điểm bắt đầu:** [PLAN-V2](03-plans/PLAN-V2-sopilot-mvp.md) và ticket tương ứng trong `03-plans/tickets/`. Bàn giao mới nhất là file `HANDOFF-*` có ngày lớn nhất trong `04-reports/`.
+**Điểm bắt đầu:** [PLAN-V2](execution/initiatives/v2-sopilot-mvp/PLAN.md) và ticket tương ứng trong `03-plans/tickets/`. Bàn giao mới nhất là file `HANDOFF-*` có ngày lớn nhất trong `04-reports/`.
 
 **Thứ tự ưu tiên khi các nguồn mâu thuẫn:** code → đặc tả trong `docs/` (PRD, ADR, TECH) → [`.agent/context/`](../.agent/context/README.md) (tóm tắt dẫn xuất, cập nhật cùng thay đổi) → README của service. Quy tắc làm việc cho agent nằm ở [`CLAUDE.md`](../CLAUDE.md) và `.claude/`.
 

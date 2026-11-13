@@ -10,7 +10,7 @@ created: 2026-10-19
 updated: 2026-10-20
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
-  - docs/03-plans/tickets/V2-09-ai-service-ingest-retrieval.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-09-ai-service-ingest-retrieval.md
   - docs/04-reports/RESEARCH-02-dataset-and-labeling.md
 ---
 

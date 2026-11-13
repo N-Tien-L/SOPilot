@@ -8,8 +8,8 @@ type: research
 scope: tests
 author: "Owner"
 refs:
-  - docs/03-plans/tickets/V2-06-multilingual-eval-dataset.md
-  - docs/03-plans/tickets/V2-19-sop-extraction-corpus.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-06-multilingual-eval-dataset.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-19-sop-extraction-corpus.md
   - docs/04-reports/AUDIT-v2-readiness-preparation-2026-10-24.md
 ---
 

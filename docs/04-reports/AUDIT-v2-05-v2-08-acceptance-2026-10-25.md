@@ -9,8 +9,8 @@ author: "Owner"
 scope: [eval, infra]
 verdict: PASSED_WITH_WARNINGS
 refs:
-  - docs/03-plans/tickets/V2-05-eval-harness.md
-  - docs/03-plans/tickets/V2-08-flyway-and-compose.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-05-eval-harness.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-08-flyway-and-compose.md
 ---
 
 # Phạm vi owner đã chốt

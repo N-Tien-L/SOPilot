@@ -8,7 +8,7 @@ author: "Owner"
 type: research
 scope: tests
 refs:
-  - docs/03-plans/tickets/V2-19-sop-extraction-corpus.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-19-sop-extraction-corpus.md
 ---
 
 # Khuyến nghị

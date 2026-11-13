@@ -7,7 +7,7 @@ Single instruction file for Claude Code in this repo. Stack details load on dema
 - SOPilot: multi-tenant Q&A over company SOPs with verified citations (hybrid RAG). University research project (NCKH) + portfolio. **Local only, no deployment** (ADR-006). Old codename *Poliwise* survives in V1 code; do not rename it in unrelated work.
 - **V2 is the product.** The V1 stack (8 services, `services/api-gateway`, `docker-compose.yml`, `infrastructure/init-db/`) is frozen. Read it and port from it, never extend it. Ticket V2-17 deletes it (`.claude/rules/v1-frozen.md` loads when you touch it).
 - Specs are in Vietnamese (`docs/`); code, comments, identifiers and commit messages are in English.
-- Progress source: `docs/03-plans/PLAN-V2-sopilot-mvp.md` and its tickets `docs/03-plans/tickets/V2-*.md`.
+- Progress source: `docs/execution/initiatives/v2-sopilot-mvp/PLAN.md` and its tickets `docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-*.md`.
 
 ## Architecture (V2)
 
@@ -97,7 +97,7 @@ UI work also follows the global `frontend-delivery` skill. A green build is not 
 
 ## Documentation references
 
-- Spec conventions, statuses, counters: `docs/README.md`. Plan: `docs/03-plans/PLAN-V2-sopilot-mvp.md`.
+- Spec conventions, statuses, counters: `docs/README.md`. Plan: `docs/execution/initiatives/v2-sopilot-mvp/PLAN.md`.
 - Service READMEs (endpoints, env vars): `services/core-api/README.md`, `infrastructure/db/README.md`, `eval/README.md`.
 - Technical context index: `.agent/context/README.md` (V2 rows in its task table).
 

@@ -10,7 +10,7 @@ milestone: "V2: SOPilot MVP"
 scope: [eval, ai-service]
 verdict: PASSED_WITH_WARNINGS
 refs:
-  - docs/03-plans/tickets/V2-07-run-rq1-rq3-rq5.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-07-run-rq1-rq3-rq5.md
   - docs/architecture/components/ai-service.md
   - docs/04-reports/RESEARCH-04-experiment-tooling.md
   - eval/datasets/sop-main/README.md
@@ -18,7 +18,7 @@ refs:
 
 # V2-07: Số liệu truy xuất RQ1–RQ3 và RQ5
 
-> **Mã báo cáo:** `AUDIT-EVAL-RQ1-RQ3-2026-11-04` | **Ngày chạy:** 2026-11-04 | **Kết luận:** `PASSED_WITH_WARNINGS`. Đủ số liệu truy xuất; nhóm cross-lingual của tập test chỉ có 5 câu và ngưỡng RQ3 chọn trên 4 câu âm của dev, nên hai kết luận này chưa đủ chắc để đổi cấu hình. **Không có ngưỡng hay hệ số nào được ghi vào cấu hình ai-service**; mục 8 và 12 là đề xuất; owner chốt ngày 2026-11-07 như ghi ở [V2-07 §6](../03-plans/tickets/V2-07-run-rq1-rq3-rq5.md), vẫn không đổi cấu hình ai-service.
+> **Mã báo cáo:** `AUDIT-EVAL-RQ1-RQ3-2026-11-04` | **Ngày chạy:** 2026-11-04 | **Kết luận:** `PASSED_WITH_WARNINGS`. Đủ số liệu truy xuất; nhóm cross-lingual của tập test chỉ có 5 câu và ngưỡng RQ3 chọn trên 4 câu âm của dev, nên hai kết luận này chưa đủ chắc để đổi cấu hình. **Không có ngưỡng hay hệ số nào được ghi vào cấu hình ai-service**; mục 8 và 12 là đề xuất; owner chốt ngày 2026-11-07 như ghi ở [V2-07 §6](../execution/initiatives/v2-sopilot-mvp/tickets/V2-07-run-rq1-rq3-rq5.md), vẫn không đổi cấu hình ai-service.
 
 ## 1. Tóm tắt
 

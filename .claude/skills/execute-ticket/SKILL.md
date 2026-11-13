@@ -1,13 +1,13 @@
 ---
 name: execute-ticket
-description: Implement a planned SOPilot V2 ticket (docs/03-plans/tickets/V2-*.md) end to end. Covers dependency check, branch, service → frontend order, tests, self-review, context docs, and ticket/PLAN status with evidence. Use when the user says "implement/làm/triển khai V2-NN" or picks up a ticket. Not for one-line fixes or doc-only edits.
+description: Implement a planned SOPilot V2 ticket (docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-*.md) end to end. Covers dependency check, branch, service → frontend order, tests, self-review, context docs, and ticket/PLAN status with evidence. Use when the user says "implement/làm/triển khai V2-NN" or picks up a ticket. Not for one-line fixes or doc-only edits.
 ---
 
 # Execute a V2 ticket
 
 ## 1. Read before writing
 
-1. Ticket `docs/03-plans/tickets/<ID>-*.md`: frontmatter (`scope`, `depends_on`, `branch`, `status`), acceptance criteria, implementation notes. Tickets are in Vietnamese; code, comments and commit messages are in English.
+1. Ticket `docs/execution/initiatives/v2-sopilot-mvp/tickets/<ID>-*.md`: frontmatter (`scope`, `depends_on`, `branch`, `status`), acceptance criteria, implementation notes. Tickets are in Vietnamese; code, comments and commit messages are in English.
 2. Every `depends_on` ticket must be `done` (or `review` if the owner said so). Otherwise stop and report the blocker.
 3. Read the TECH section the ticket cites (`TECH-V2-core-api` / `TECH-V2-ai-service`) and the matching rule in `.claude/rules/` (it loads when you open files in that service). Then read the actual code path you will change. Never treat a stub as wired.
 4. Note any doc/code disagreement. Code wins; report it, do not quietly align either side.

@@ -13,7 +13,7 @@ parent_plan: PLAN-NEXT
 depends_on: []
 ---
 
-> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../03-plans/PLAN-V2-sopilot-mvp.md); không làm tiếp. Phạm vi sản phẩm và chính sách tài khoản đã chốt ở PRD-V2 và ADR-005 (bỏ mật khẩu/OTP, đăng nhập Google JIT, workspace).
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../execution/initiatives/v2-sopilot-mvp/PLAN.md); không làm tiếp. Phạm vi sản phẩm và chính sách tài khoản đã chốt ở PRD-V2 và ADR-005 (bỏ mật khẩu/OTP, đăng nhập Google JIT, workspace).
 
 # NEXT-01: Chốt phạm vi sản phẩm và chính sách tài khoản kế thừa
 

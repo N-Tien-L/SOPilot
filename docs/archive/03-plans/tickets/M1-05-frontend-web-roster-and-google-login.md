@@ -16,7 +16,7 @@ branch: "feat/m1-05-web-roster-and-google-login"
 assignee: pair
 ---
 
-> **Ghi chú 2026-10-20 (V2-04):** đóng `superseded` ngày 2026-11-08 (trạng thái cũ: `in-progress`); giữ file làm lịch sử, không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang [V2-11](../../../03-plans/tickets/V2-11-core-api-identity-workspace.md) và [V2-15](../../../03-plans/tickets/V2-15-frontend-trim-and-citations.md). Component đăng nhập Google được giữ; UI roster bị bỏ.
+> **Ghi chú 2026-10-20 (V2-04):** đóng `superseded` ngày 2026-11-08 (trạng thái cũ: `in-progress`); giữ file làm lịch sử, không làm tiếp trên kiến trúc cũ. Phần còn giá trị được port sang [V2-11](../../../execution/initiatives/v2-sopilot-mvp/tickets/V2-11-core-api-identity-workspace.md) và [V2-15](../../../execution/initiatives/v2-sopilot-mvp/tickets/V2-15-frontend-trim-and-citations.md). Component đăng nhập Google được giữ; UI roster bị bỏ.
 
 ## Context
 Checkpoint 2026-10-15: đã có UI login/403, roster, upload và API/types. Giữ acceptance chưa tick cho đến kiểm tra runtime. CSV backend còn thiếu; client ID phải được cấu hình trước khi build frontend. Xem `docs/_archive/04-reports/HANDOFF-implementation-2026-10-15.md`.

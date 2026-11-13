@@ -10,12 +10,12 @@ milestone: "V2: SOPilot MVP"
 scope: [docs, eval, infra]
 verdict: PASSED_WITH_WARNINGS
 refs:
-  - docs/03-plans/PLAN-V2-sopilot-mvp.md
-  - docs/03-plans/tickets/V2-04-close-legacy-backlog.md
-  - docs/03-plans/tickets/V2-05-eval-harness.md
-  - docs/03-plans/tickets/V2-06-multilingual-eval-dataset.md
-  - docs/03-plans/tickets/V2-08-flyway-and-compose.md
-  - docs/03-plans/tickets/V2-19-sop-extraction-corpus.md
+  - docs/execution/initiatives/v2-sopilot-mvp/PLAN.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-04-close-legacy-backlog.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-05-eval-harness.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-06-multilingual-eval-dataset.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-08-flyway-and-compose.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-19-sop-extraction-corpus.md
 ---
 
 # Kết quả chuẩn bị V2 ngày 2026-10-24

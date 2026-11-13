@@ -13,7 +13,7 @@ implemented_tickets: 2
 review_tickets: 0
 ---
 
-> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../03-plans/PLAN-V2-sopilot-mvp.md). M1-01/02 giữ `done`, M1-03/04/05 chuyển `superseded` ngày 2026-11-08 (trước đó `review`/`review`/`in-progress`; port sang V2-11/V2-15), M1-06 `superseded`. Không cập nhật tiến độ ở đây nữa.
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../execution/initiatives/v2-sopilot-mvp/PLAN.md). M1-01/02 giữ `done`, M1-03/04/05 chuyển `superseded` ngày 2026-11-08 (trước đó `review`/`review`/`in-progress`; port sang V2-11/V2-15), M1-06 `superseded`. Không cập nhật tiến độ ở đây nữa.
 
 # KẾ HOẠCH TRIỂN KHAI THỰC THI (EXECUTION PLAN)
 

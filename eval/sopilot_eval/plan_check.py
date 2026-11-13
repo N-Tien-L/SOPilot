@@ -17,11 +17,11 @@ def frontmatter(path: Path) -> dict:
 
 
 def validate_plan(root: Path = ROOT) -> dict:
-    plan_path = root / "docs/03-plans/PLAN-V2-sopilot-mvp.md"
+    plan_path = root / "docs/execution/initiatives/v2-sopilot-mvp/PLAN.md"
     plan = frontmatter(plan_path)
     text = plan_path.read_text(encoding="utf-8")
     tickets = {}
-    for path in sorted((root / "docs/03-plans/tickets").glob("V2-*.md")):
+    for path in sorted((root / "docs/execution/initiatives/v2-sopilot-mvp/tickets").glob("V2-*.md")):
         meta = frontmatter(path)
         if meta["id"] in tickets:
             raise ValueError("duplicate V2 ticket ID")

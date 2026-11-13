@@ -13,7 +13,7 @@ parent_plan: PLAN-NEXT
 depends_on: []
 ---
 
-> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../03-plans/PLAN-V2-sopilot-mvp.md); không làm tiếp. Baseline test và CI cho kiến trúc mới thuộc V2-08 (scope script mới), V2-14 và V2-26 (FR-19, FR-29 trong CI).
+> **Đóng 2026-10-20 (V2-04):** `superseded` bởi [PLAN-V2](../../../execution/initiatives/v2-sopilot-mvp/PLAN.md); không làm tiếp. Baseline test và CI cho kiến trúc mới thuộc V2-08 (scope script mới), V2-14 và V2-26 (FR-19, FR-29 trong CI).
 
 # NEXT-06: Khôi phục baseline test/lint và đưa gates vào CI
 
