@@ -151,7 +151,7 @@ Notes:
   - TECH-V2-core-api §15 moves from proposal to specification; migration `core/V009` through the `flyway-migration` skill.
   - Ticket [V2-36](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-36-core-api-department-publishers.md) implements core-api and the write-authorization tests; V2-31 and V2-33 show the write buttons and the publisher assignment screen; V2-16 creates publishers for the demo data.
   - Update PRD-V2 FR-06, FR-25, §8 item 9.
-  - Update the identity and core-schema context docs (then `.agent/context/authorization/v2-core-identity.md` and `.agent/context/database/tables/core.md`, now `docs/architecture/domain/identity-and-access.md` and `docs/architecture/data/core-schema.md`) together with the implementation (as for ADR-007), not before.
+  - Update the identity and core-schema context docs (then the former agent context `authorization/v2-core-identity.md` and the former agent context `database/tables/core.md`, now `docs/architecture/domain/identity-and-access.md` and `docs/architecture/data/core-schema.md`) together with the implementation (as for ADR-007), not before.
   - Update the diagram `docs/architecture/diagrams/sopilot-database-erd.excalidraw` from "proposed" to actual once the migration is merged.
 
 ## 6. Open questions (the owner decides; the ADR does not settle them itself)

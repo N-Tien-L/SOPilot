@@ -13,9 +13,7 @@
 #>
 param(
     [ValidateSet('strict', 'audit')]
-    [string]$Mode = 'strict',
-    # Phase 5 of the docs migration turns legacy-path references into errors.
-    [switch]$LegacyRefsAsErrors
+    [string]$Mode = 'strict'
 )
 $ErrorActionPreference = 'Stop'
 
@@ -42,11 +40,10 @@ $Status = @{
 $Base = @('title', 'status', 'created', 'updated', 'author')
 
 # Ordered: first match wins. Fm = frontmatter required; Id = id regex ('' = no id check, $null = id not used).
-# Legacy rows (docs/0N-*) exist only while the docs migration runs; Phase 5 removes them.
 $Kinds = @(
     @{ Name = 'index';       Re = '^docs/README\.md$';                                         Fm = $false }
     @{ Name = 'archive-index'; Re = '^docs/archive/README\.md$';                               Fm = $false }
-    @{ Name = 'archive';     Re = '^docs/(archive|_archive)/';                                 Fm = $false; Archive = $true }
+    @{ Name = 'archive';     Re = '^docs/archive/';                                          Fm = $false; Archive = $true }
     @{ Name = 'template';    Re = '^docs/templates/[^/]+\.md$';                                Fm = $false; Template = $true }
     @{ Name = 'portfolio';   Re = '^docs/portfolio/[^/]+\.md$';                                Fm = $false }
     @{ Name = 'prd';         Re = '^docs/product/[^/]+\.md$';                                  Fm = $true; St = 'general'; Id = '^PRD-[A-Z0-9-]+$' }
@@ -62,14 +59,6 @@ $Kinds = @(
     @{ Name = 'runbook';     Re = '^docs/operations/[^/]+\.md$';                               Fm = $true; St = 'general' }
     @{ Name = 'research';    Re = '^docs/research/[^/]+\.md$';                                 Fm = $true; St = 'research'; Id = '^(RESEARCH|AUDIT)-[A-Za-z0-9-]+$' }
     @{ Name = 'handoff';     Re = '^docs/handoffs/[^/]+\.md$';                                 Fm = $true; St = 'report'; Id = '^HANDOFF-[A-Za-z0-9-]+$'; IdOptional = $true }
-    # ---- legacy locations (removed in Phase 5)
-    @{ Name = 'template';    Re = '^docs/0[1-4]-[^/]+/(.+/)?templates/';                       Fm = $false; Template = $true; Legacy = $true }
-    @{ Name = 'prd';         Re = '^docs/01-requirements/PRD-[^/]+\.md$';                      Fm = $true; St = 'general'; Id = '^PRD-[A-Z0-9-]+$' }
-    @{ Name = 'adr';         Re = '^docs/02-architecture/adr/ADR-[^/]+\.md$';                  Fm = $true; St = 'general'; Id = '^ADR-\d{3}$' }
-    @{ Name = 'design';      Re = '^docs/02-architecture/designs/TECH-[^/]+\.md$';             Fm = $true; St = 'general'; Id = '^TECH-[A-Za-z0-9-]+$' }
-    @{ Name = 'plan';        Re = '^docs/03-plans/PLAN-[^/]+\.md$';                            Fm = $true; St = 'general'; Id = '^PLAN-[A-Z0-9-]+$' }
-    @{ Name = 'ticket';      Re = '^docs/03-plans/tickets/[^/]+\.md$';                         Fm = $true; St = 'ticket'; Id = '^(V2-\d{2}|TICKET-\d{3})$' }
-    @{ Name = 'report';      Re = '^docs/04-reports/(AUDIT|RESEARCH|HANDOFF)-[^/]+\.md$';      Fm = $true; St = 'report'; Id = '^(AUDIT|RESEARCH|HANDOFF)-[A-Za-z0-9-]+$'; PrefixType = $true }
 )
 # Template file name -> kind whose required fields the template must carry.
 $TemplateKinds = @{
@@ -225,16 +214,14 @@ foreach ($rel in $docFiles) {
 
     if ($kind.Template) {
         $tk = $TemplateKinds[[System.IO.Path]::GetFileName($rel)]
-        if (-not $kind.Legacy) {
-            if (-not $tk) { Add-Err $rel 'template has no kind mapping in check-docs.ps1 ($TemplateKinds)'; continue }
-            if ($null -eq $fm) { Add-Err $rel 'template missing frontmatter'; continue }
-            $need = @($Base)
-            $kd = $Kinds | Where-Object { $_.Name -eq $tk } | Select-Object -First 1
-            if ($kd.Id -and -not $kd.IdOptional) { $need += 'id' }
-            if ($kd.Extra) { $need += $kd.Extra }
-            if ($KindRequired.ContainsKey($tk)) { $need += $KindRequired[$tk] }
-            foreach ($f in $need) { if (-not $fm.ContainsKey($f)) { Add-Err $rel "template lacks required field '$f' of kind $tk" } }
-        }
+        if (-not $tk) { Add-Err $rel 'template has no kind mapping in check-docs.ps1 ($TemplateKinds)'; continue }
+        if ($null -eq $fm) { Add-Err $rel 'template missing frontmatter'; continue }
+        $need = @($Base)
+        $kd = $Kinds | Where-Object { $_.Name -eq $tk } | Select-Object -First 1
+        if ($kd.Id -and -not $kd.IdOptional) { $need += 'id' }
+        if ($kd.Extra) { $need += $kd.Extra }
+        if ($KindRequired.ContainsKey($tk)) { $need += $KindRequired[$tk] }
+        foreach ($f in $need) { if (-not $fm.ContainsKey($f)) { Add-Err $rel "template lacks required field '$f' of kind $tk" } }
         continue
     }
     if ($isArchive -and -not $audit) { continue }
@@ -325,19 +312,14 @@ $agentFiles = @($tracked | Where-Object {
 foreach ($rel in $agentFiles) { Test-Links $rel (Read-Text $rel) $true }
 
 $legacyRe = '(?<![\w])(\.agent/|docs/0[1-4]-|docs/_archive|AGENTS\.md|GEMINI\.md)'
-$activeDocs = @($docFiles | Where-Object { $_ -notmatch '^docs/(archive|_archive)/' })
-$legacyFiles = 0
+$activeDocs = @($docFiles | Where-Object { $_ -notmatch '^docs/archive/' })
 foreach ($rel in ($activeDocs + $agentFiles)) {
     $hits = [regex]::Matches((Read-Text $rel), $legacyRe)
     if ($hits.Count -gt 0) {
-        $legacyFiles++
         $what = (($hits | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique) -join ', ')
         $msg = "legacy path reference x$($hits.Count) ($what)"
-        if ($LegacyRefsAsErrors) { Add-Err $rel $msg } elseif ($audit) { Add-Warn $rel $msg }
+        Add-Err $rel $msg
     }
-}
-if ($legacyFiles -gt 0 -and -not $LegacyRefsAsErrors -and -not $audit) {
-    Add-Warn '(summary)' "$legacyFiles files still reference legacy paths (.agent/, docs/0N-, docs/_archive, AGENTS.md, GEMINI.md); list them with -Mode audit"
 }
 
 # ---------------------------------------------------------------- gitignore probes

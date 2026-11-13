@@ -18,7 +18,7 @@ assignee: pair
 
 # TICKET V2-26: Department authorization tests
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under `.agent/context/` are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under the former agent context folder are as they were at the time.
 
 ## 1. Context & goal
 PRD-V2 FR-29, ADR-007 §4.4–4.5. A second test layer, independent of workspace isolation (V2-14/FR-19): within **one workspace**, department-restricted documents never leak to people outside those departments.
@@ -96,7 +96,7 @@ PRD-V2 FR-29, ADR-007 §4.4–4.5. A second test layer, independent of workspace
 | ai-service | `_READABLE`: the department branch removed | 23 / 60 |
 
 **GAPs and design questions**
-1. The suspension criterion said "refresh returns `403 MEMBERSHIP_SUSPENDED`". Through the API (`MemberService.java:116`) the refresh chain is revoked at suspension time, so refresh gets `401` (`RefreshTokenService.java:76`); `403` appears only when the status changes without the chain being revoked (`RefreshTokenService.java:89`; the `SessionWorkspaceIT` test does the same). Safer than the documents described. **Resolved 2026-11-10:** the owner accepted both codes and the documents were updated to match the source (TECH-V2-core-api §5.1 and the permission table, `services/core-api/README.md`, `.agent/context/authorization/v2-core-identity.md`); ADR-007 only says `SUSPENDED` blocks token issuance, so it is unchanged.
+1. The suspension criterion said "refresh returns `403 MEMBERSHIP_SUSPENDED`". Through the API (`MemberService.java:116`) the refresh chain is revoked at suspension time, so refresh gets `401` (`RefreshTokenService.java:76`); `403` appears only when the status changes without the chain being revoked (`RefreshTokenService.java:89`; the `SessionWorkspaceIT` test does the same). Safer than the documents described. **Resolved 2026-11-10:** the owner accepted both codes and the documents were updated to match the source (TECH-V2-core-api §5.1 and the permission table, `services/core-api/README.md`, the former agent context `authorization/v2-core-identity.md`); ADR-007 only says `SUSPENDED` blocks token issuance, so it is unchanged.
 2. `rag.suggestion_cache` (V2-25) is keyed by `workspace_id` and `cache_key`, without `wdept`; its results come from document content. When V2-25 writes this table, decide who may see suggestions for department-restricted documents.
 3. Two known gaps, asserted by tests rather than treated as bugs: an old token after a department change or suspension stays valid up to 15 minutes; ai-service keeps the old scope until it receives `ACCESS_UPDATED`.
 4. core-api's `?q=` searches titles (`ILIKE`), not content; content search lives in ai-service.

@@ -34,7 +34,7 @@ Scope split from V2-15 (XL) on 2026-10-24; the approved PRD/TECH requirements ar
 1. Declare types in `frontend/web/types` and the API client in `frontend/web/lib/api.ts` per TECH-V2-core-api/ai-service.
 2. Implement in `frontend/web/app/` and `frontend/web/components/`, using the V2-15 shell.
 3. Record browser evidence per acceptance criterion; update the frontend README.
-- Update the related contracts in `.agent/context/` along with the change; V2-17 only consolidates and removes V1 descriptions.
+- Update the related contracts in `docs/architecture/` along with the change; V2-17 only consolidates and removes V1 descriptions.
 
 ## 4. Testing
 - Browser: profiles/departments/flat categories, invitations, last OWNER, editing document access, metadata suggestions not blocking upload/chat.

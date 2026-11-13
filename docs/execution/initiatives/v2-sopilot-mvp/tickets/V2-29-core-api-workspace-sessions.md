@@ -18,7 +18,7 @@ assignee: pair
 
 # TICKET V2-29: core-api: workspace CRUD, workspace switching and session refresh
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under `.agent/context/` are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under the former agent context folder are as they were at the time.
 
 ## 1. Context & goal
 Splits the FR-03 part out of V2-11 (XL). Follows TECH-V2-core-api §3.1–§3.2, §4, §5.1–§5.2; does not change the approved contract.
@@ -36,7 +36,7 @@ Splits the FR-03 part out of V2-11 (XL). Follows TECH-V2-core-api §3.1–§3.2,
 2. Add the workspace controller/service/repository in `services/core-api/src/main/java/com/sopilot/core/workspace/`.
 3. Add the next migration in `infrastructure/db/migrations/core/` for sessions/workspaces if not part of V2-11; do not edit migrations that have run.
 4. Add tests in `services/core-api/src/test/`, update the README and the API contract.
-- Update the related contracts in `.agent/context/` along with the change; V2-17 only consolidates and removes V1 descriptions.
+- Update the related contracts in the former agent context (now `docs/architecture/`) along with the change; V2-17 only consolidates and removes V1 descriptions.
 
 ## 4. Testing
 - Unit: wrong/expired token, workspace without membership, revoked session.
@@ -54,4 +54,4 @@ Owner acceptance 2026-11-09, moved to `done`. Code in commits `6ec8dde`, `622359
 - **Coverage:** rotation and the new token in the same family; reusing an old token revokes the whole chain (including the successor token); unknown/expired token; role reread from the DB; suspension (`403 MEMBERSHIP_SUSPENDED`) and lost membership (`401 MEMBERSHIP_LOST`); suspension/removal through the API revokes the chain immediately; wrong/missing `Origin` → `403`; cookie `HttpOnly; SameSite=Strict; Path=/api/v1/auth`; logout always `204`; workspace switching (member, non-member `404`, suspended `403`, missing bearer `401`); workspace creation (name check, OWNER, new token); only the OWNER renames/deletes; a personal workspace cannot be deleted; deleting a workspace emits one `DOCUMENT_DELETED` per document and blocks refresh; tokens signed with the previous key are still accepted, an unknown key or a forged `kid` is refused.
 - **Deviations/notes:** see TECH-V2-core-api §14. Notably: the column `refresh_tokens.target_workspace_id` (not `workspace_id`) so the isolation suite does not treat the global table as a tenant table; `WorkspaceRole` moved to `security`; workspace creation/switching lives in `identity` so `ArchitectureTest` does not report a cycle.
 - **Not done:** hard deletion of the workspace row (outside the MVP, owner settled 2026-11-09); domain join (FR-05, P1, a V2-30 criterion); confirming V2-30 reuses this service (a V2-30 criterion); the two real services have not run together. ~~No GitHub Actions run yet~~: green on `develop` 2026-11-08.
-- **Docs:** `services/core-api/README.md`, `.agent/context/authorization/v2-core-identity.md`, `.agent/context/database/tables/core.md`, `.env.example`, TECH-V2-core-api §14, PLAN-V2.
+- **Docs:** `services/core-api/README.md`, the former agent context `authorization/v2-core-identity.md`, the former agent context `database/tables/core.md`, `.env.example`, TECH-V2-core-api §14, PLAN-V2.

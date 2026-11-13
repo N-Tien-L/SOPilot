@@ -14,7 +14,7 @@ refs:
   - docs/architecture/decisions/adr-006-free-tier-providers-and-environments.md
 ---
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. It describes the code snapshot of 2026-10-19 (V1 services and the early `eval/`); file:line references are to that snapshot. Paths under `.agent/` and `AGENTS.md` are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. It describes the code snapshot of 2026-10-19 (V1 services and the early `eval/`); file:line references are to that snapshot. Paths under the former agent folder and the former agent instructions file are as they were at the time.
 
 # Workstream 04 research tooling handoff
 
@@ -30,7 +30,7 @@ Scope inherited from the owner: the original EN corpus; EN/VI queries (EN→EN, 
 
 Git was checked before any action: branch `fix/auth-google-roster-admission`, many staged/unstaged/untracked changes, including an untracked `eval/`. The target file did not exist, so there was no old content to merge. The session only added this file, did not change branch/commit, did not read `.env`, did not download models, did not call APIs and did not run the stack. The evidence is the working tree snapshot of 19/10/2026; the HEAD commit alone does not represent the code surveyed.
 
-Read `AGENTS.md`, `docs/README.md`, the workstream 01/overall handoffs and the context `.agent/context/README.md`, `architecture/system-overview.md`, `database/schema.md`, `database/tables/{knowledge,conversation}.md`, `authorization/dual-strategy.md`, and the ownership/retrieval part of `service-boundaries/responsibilities.md`. The context has drift: the rerank/schema descriptions and the `to_tsvector('english', ...)` example do not prove the runtime. The DDL `infrastructure/init-db/003_knowledge.sql:126` uses `simple`; the running DB state was not checked. The skill `.agent/skills/analyze-quality/SKILL.md` was applied to classify evidence; the HANDOFF name/path was kept at the owner's request.
+Read the former agent instructions file, `docs/README.md`, the workstream 01/overall handoffs and the former agent context files `README.md`, `architecture/system-overview.md`, `database/schema.md`, `database/tables/{knowledge,conversation}.md`, `authorization/dual-strategy.md`, and the ownership/retrieval part of `service-boundaries/responsibilities.md`. The context has drift: the rerank/schema descriptions and the `to_tsvector('english', ...)` example do not prove the runtime. The DDL `infrastructure/init-db/003_knowledge.sql:126` uses `simple`; the running DB state was not checked. The former `analyze-quality` skill was applied to classify evidence; the HANDOFF name/path was kept at the owner's request.
 
 ## 2. Tracing the real code
 

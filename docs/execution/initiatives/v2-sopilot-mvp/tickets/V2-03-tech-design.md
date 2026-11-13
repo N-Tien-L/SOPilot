@@ -21,7 +21,7 @@ assignee: pair
 > Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
-Specify the DDL (with RLS), APIs, sequences and events of the two new services, folding in findings R1–R5, A1–A9 and AUDIT §4.2. Skill at the time: `.agent/skills/design-architecture/SKILL.md` (removed 2026-11-08).
+Specify the DDL (with RLS), APIs, sequences and events of the two new services, folding in findings R1–R5, A1–A9 and AUDIT §4.2. Skill at the time: the former `design-architecture` skill (removed 2026-11-08).
 
 ## 2. Acceptance criteria
 - [x] `TECH-V2-core-api.md`: DDL for workspaces, memberships, invitations, documents, outbox, audit, quota, feedback; a versioned REST API; the Google login and refresh flows.
@@ -36,7 +36,7 @@ Specify the DDL (with RLS), APIs, sequences and events of the two new services, 
 > **Acceptance 2026-10-20:** the owner approved [TECH-V2-core-api](../../../../architecture/components/core-api.md) and [TECH-V2-ai-service](../../../../architecture/components/ai-service.md), settling §11 as proposed. Q1: feedback/knowledge gaps live in ai-service (ADR-004 §4.1 and V2-13 updated). Q2: replaced by the research-first decision, commercial quotas off by default (PRD-V2 FR-09, §8.10). PRD-V2-ingestion-mvp-scope was approved at the same time and FR-07/FR-30 synchronized into PRD-V2, V2-12, V2-15.
 
 ## 3. Guide
-- **Files:** `docs/architecture/components/core-api.md`, `ai-service.md` (CREATE; then `TECH-V2-*.md` in `docs/02-architecture/designs/`), following the TECH design template.
+- **Files:** `docs/architecture/components/core-api.md`, `ai-service.md` (CREATE; then `TECH-V2-*.md` in `02-architecture/designs/`), following the TECH design template.
 
 ## 4. Testing
 None. Cross-reviewed against PRD §3 so that every FR has a place in the design.

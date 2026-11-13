@@ -18,7 +18,7 @@ assignee: pair
 
 # TICKET V2-30: core-api: invitations, members and OWNER rules
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under `.agent/context/` are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under the former agent context folder are as they were at the time.
 
 ## 1. Context & goal
 Splits FR-04 and the P1 part of FR-05 out of V2-11. Follows TECH-V2-core-api §3.2, §5.3 and ADR-005.
@@ -37,7 +37,7 @@ Splits FR-04 and the P1 part of FR-05 out of V2-11. Follows TECH-V2-core-api §3
 1. Add the controller/service in `services/core-api/src/main/java/com/sopilot/core/member/`.
 2. Add the next additive migration in `infrastructure/db/migrations/core/` for invitations/constraints if needed.
 3. Add to `services/core-api/src/test/` for transactions and OWNER invariants; update the API docs.
-- Update the related contracts in `.agent/context/` along with the change; V2-17 only consolidates and removes V1 descriptions.
+- Update the related contracts in the former agent context (now `docs/architecture/`) along with the change; V2-17 only consolidates and removes V1 descriptions.
 
 ## 4. Testing
 - Unit: last OWNER, ADMIN promoting to OWNER, mismatched email, expired/revoked invitation.

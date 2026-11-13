@@ -49,7 +49,7 @@ Rules:
   default revoke: the global PUBLIC EXECUTE default must be revoked globally for
   `sopilot_migrator`. The chains serialize this shared change with a transaction
   advisory lock. Existing explicit app-role grants remain.
-- Update `.agent/context/database/` when a migration adds or changes tables.
+- Update `docs/architecture/data/` when a migration adds or changes tables.
 - `FORCE ROW LEVEL SECURITY` also binds the owner, so a `SECURITY DEFINER` helper that must read
   across workspaces needs a policy granted `TO sopilot_migrator` only on the tables it touches
   (see `rag/V003__rag_tables.sql`).

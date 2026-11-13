@@ -46,7 +46,7 @@ working tree, not committed.
 | core-api new IT | `DocumentSuggestionIT` | 7 passed |
 | core-api existing IT | `DocumentLifecycleIT` | 18 passed (after changing `suggest.enabled` to `true`) |
 | core-api tenant | `TenantIsolationApiIT`, `TenantIsolationIT` | 17 passed (a case added for `PUT .../suggestions`) |
-| docs | `./scripts/check-docs.ps1` | passed |
+| docs | `./scripts/docs/check-docs.ps1` | passed |
 
 Not run: the full `./mvnw verify` (every core-api IT). No browser opened (no UI in this wave).
 

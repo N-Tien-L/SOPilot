@@ -27,7 +27,7 @@ AUDIT-v2 §4.1 lists the Groq/Gemini models that were shut down, but **without t
 - [x] Call `GET /models` of Groq and Gemini with the owner's keys; record the live models in AUDIT-v2 §4.1 (the "Called in V2-02" column, same day).
 - [x] Send one short request to `openai/gpt-oss-20b` (Groq) and to a Gemini Flash-Lite model; record the response codes.
 - [x] Decide the LLM. **Changed 2026-11-01 (owner):** Gemini and Groq `gpt-oss-120b` are dropped from answer generation and the faithfulness judge, replaced by small self-hosted open-source models on Modal (two Starter accounts, $30/month each). The old ADR-006 §4.4 role split for these two tasks no longer applies. Unchanged: the rule-based guard (the four FR-13 layers), metadata suggestions, embedding, rerank. ADR-006 §4.4 was rewritten on 2026-11-01 (Qwen 3.5 9B for generation, Gemma 4 as judge, Modal infrastructure and budget; **not measured**). The bake-off to fix the exact model is done in `V2-10`.
-- [x] No key is printed or stored in the repo (AGENTS.md §Secrets); the script only reports whether a key is present; raw results are in `eval/provider_check/results/` (excluded by `eval/.gitignore`).
+- [x] No key is printed or stored in the repo (the former agent instructions file, Secrets section); the script only reports whether a key is present; raw results are in `eval/provider_check/results/` (excluded by `eval/.gitignore`).
 
 > Results of the 2026-10-20 run (AUDIT-v2 §4.1): Groq `/models` and both `gpt-oss` models HTTP 200; Prompt Guard 2 86M runs but fails the test, so the guard moves to rules; Gemini 3.1 Flash Lite returned 503 overloaded for both ids and had to be retried before closing the ticket.
 >

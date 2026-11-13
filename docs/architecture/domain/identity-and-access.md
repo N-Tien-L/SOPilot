@@ -15,7 +15,7 @@ refs:
 
 # Identity, tenancy and access in core-api (V2)
 
-> **Implementation status:** implemented in V2-11, V2-12, V2-23, V2-29, V2-30 and V2-36. Deferred: workspace domains / `hd` join (FR-05, P1) and CSV invitation import (FR-24, P1), see TECH-V2-core-api §16. Moved from `.agent/context/authorization/v2-core-identity.md` on 2026-11-13.
+> **Implementation status:** implemented in V2-11, V2-12, V2-23, V2-29, V2-30 and V2-36. Deferred: workspace domains / `hd` join (FR-05, P1) and CSV invitation import (FR-24, P1), see TECH-V2-core-api §16. Moved from the former agent context `authorization/v2-core-identity.md` on 2026-11-13.
 
 Read before changing V2 login, access tokens, JIT provisioning, roles, publishers or RLS in `services/core-api`. Source of truth: [TECH-V2-core-api](../components/core-api.md) §3.1–§5.1 and §15, ADR-005, ADR-007, ADR-009. The V1 roster admission (auth-service) does not apply to V2.
 

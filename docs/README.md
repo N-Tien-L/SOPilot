@@ -26,8 +26,6 @@ The persistent knowledge base for SOPilot. Agents start at the root [`CLAUDE.md`
 | History (V1, closed plans, old handoffs) | [`archive/`](archive/) — read-only; may be Vietnamese |
 | Starting a new document | [`templates/`](templates/) |
 
-Transitional: `01-requirements/`, `02-architecture/`, `03-plans/`, `04-reports/templates/` and `_archive/` are legacy remnants of the old layout and are removed in the cleanup phase. Do not add to them or link new work to them.
-
 ## Conventions
 
 ### Language and authorship

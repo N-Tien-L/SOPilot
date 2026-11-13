@@ -21,7 +21,7 @@ assignee: owner
 > Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
-Per `AGENTS.md` (the agent instructions at the time), no PLAN is made while the PRD is not `approved`. This ticket moves four `draft` documents to `approved` (or edits them as the owner wants) and settles the open questions of PRD §8.
+Per the agent instructions at the time, no PLAN is made while the PRD is not `approved`. This ticket moves four `draft` documents to `approved` (or edits them as the owner wants) and settles the open questions of PRD §8.
 
 ## 2. Acceptance criteria
 - [x] The owner decides each open question of PRD §8 and records the result in the PRD: Java 17 or 21; LLM provider; object storage when running locally; whether there is a public demo workspace.

@@ -141,5 +141,5 @@ Measured on 2026-11-09, A10 GPU, `us-east` endpoint, from the owner's machine (V
 ```powershell
 ./scripts/validate-build.ps1 -Scope ai
 ./scripts/run-tests.ps1 -Scope ai-service -Type unit
-./scripts/check-docs.ps1
+./scripts/docs/check-docs.ps1
 ```

@@ -46,7 +46,7 @@ review_tickets: 5
 
 > **Plan id:** `PLAN-V2-SOPILOT-MVP` | **Status:** `approved` (owner approval 2026-10-20)
 >
-> **Process constraint:** PRD-V2 and ADR-004/005/006/007 were approved by the owner on 2026-10-20 (`V2-01`). On 2026-10-19 the scope was reopened to keep staff management, flat departments, category/metadata and department-based document permissions (ADR-007). Per `AGENTS.md` (the agent instructions at the time), the PLAN passed its approval gate when `V2-01` completed on 2026-10-20. The research tickets (`V2-05` to `V2-07`, `V2-19`) do not depend on architecture decisions, so they run first. Ingestion is split into `V2-19` to `V2-22` per [AUDIT-ingestion-sop-data](../../../research/audit-ingestion-sop-data-2026-10-19.md).
+> **Process constraint:** PRD-V2 and ADR-004/005/006/007 were approved by the owner on 2026-10-20 (`V2-01`). On 2026-10-19 the scope was reopened to keep staff management, flat departments, category/metadata and department-based document permissions (ADR-007). Per the agent instructions at the time, the PLAN passed its approval gate when `V2-01` completed on 2026-10-20. The research tickets (`V2-05` to `V2-07`, `V2-19`) do not depend on architecture decisions, so they run first. Ingestion is split into `V2-19` to `V2-22` per [AUDIT-ingestion-sop-data](../../../research/audit-ingestion-sop-data-2026-10-19.md).
 
 ---
 
@@ -389,4 +389,4 @@ Moved from the top of `docs/README.md` on 2026-11-08 so the README keeps only st
 
 Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/04-reports/AUDIT-google-admission-2026-10-15.md), [policy ADR-003](../../../architecture/decisions/adr-003-google-identity-and-roster-admission.md). This adds the checkpoint below; it does not turn the whole-project audit's conclusion into release-ready.
 
-**Docs restructure 2026-11-13:** this plan moved from `docs/03-plans/PLAN-V2-sopilot-mvp.md` to `docs/execution/initiatives/v2-sopilot-mvp/PLAN.md` and was translated to English; ticket ids, statuses and counters are unchanged.
+**Docs restructure 2026-11-13:** this plan moved from `03-plans/PLAN-V2-sopilot-mvp.md` to `docs/execution/initiatives/v2-sopilot-mvp/PLAN.md` and was translated to English; ticket ids, statuses and counters are unchanged.

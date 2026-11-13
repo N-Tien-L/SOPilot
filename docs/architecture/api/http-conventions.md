@@ -14,7 +14,7 @@ refs:
 
 # HTTP conventions and endpoint map (V2)
 
-> **Implementation status:** reflects V2-09 to V2-13, V2-23 to V2-25, V2-29, V2-30 and V2-36. Moved from the V2 header of `.agent/context/service-boundaries/api-contracts.md` on 2026-11-13; the rest of that file describes V1 (gateway, `ApiResponse` with `success`) and is archived at [v1-context/service-boundaries/api-contracts.md](../../archive/v1-context/service-boundaries/api-contracts.md). The detailed contracts are TECH-V2-core-api §5 and §8 and TECH-V2-ai-service §7; this page is the map.
+> **Implementation status:** reflects V2-09 to V2-13, V2-23 to V2-25, V2-29, V2-30 and V2-36. Moved from the V2 header of the former agent context `service-boundaries/api-contracts.md` on 2026-11-13; the rest of that file describes V1 (gateway, `ApiResponse` with `success`) and is archived at [v1-context/service-boundaries/api-contracts.md](../../archive/v1-context/service-boundaries/api-contracts.md). The detailed contracts are TECH-V2-core-api §5 and §8 and TECH-V2-ai-service §7; this page is the map.
 
 ## 1. Shared rules
 

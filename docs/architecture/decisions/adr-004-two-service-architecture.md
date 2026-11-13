@@ -100,4 +100,4 @@ Each service writes only its own schema. ai-service does not read `core`; everyt
 - **Next actions (historical, all done):**
   - Write `TECH-V2-core-api` and `TECH-V2-ai-service` (DDL, API, sequences).
   - Add the `core-api` and `ai-service` scopes to `validate-build.ps1` and `run-tests.ps1`.
-  - On approval: set ADR-002 to `superseded` and update the agent instructions (then `AGENTS.md`, now `CLAUDE.md`: topology table, migration rules).
+  - On approval: set ADR-002 to `superseded` and update the agent instructions (then the former agent instructions file, now `CLAUDE.md`: topology table, migration rules).

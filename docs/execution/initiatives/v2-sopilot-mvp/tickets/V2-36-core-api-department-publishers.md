@@ -21,7 +21,7 @@ assignee: pair
 > **Scope:** `knowledge` | **Size:** `L` | **Priority:** `P0`
 > **Parent plan:** `PLAN-V2-SOPILOT-MVP` | **Branch:** `feat/knowledge-core-api-department-publishers`
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under `.agent/context/` are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under the former agent context folder are as they were at the time.
 
 ## 1. Context & goal
 
@@ -57,7 +57,7 @@ Implements [ADR-009](../../../../architecture/decisions/adr-009-department-publi
 - [x] `tests/tenant-isolation` green with the two new tables (RLS FORCE, the negative control red when RLS is disabled); `TenantIsolation*IT` green.
 
 **Docs**
-- [x] Update `.agent/context/authorization/v2-core-identity.md`, `.agent/context/database/tables/core.md`, `services/core-api/README.md` along with the change; the ERD moves the proposed part to actual.
+- [x] Update the former agent context `authorization/v2-core-identity.md`, the former agent context `database/tables/core.md`, `services/core-api/README.md` along with the change; the ERD moves the proposed part to actual.
 - [x] Code deviations from TECH §15 recorded as an implementation-notes table in TECH-V2-core-api.
 
 ## 3. Guide
@@ -85,7 +85,7 @@ Implements [ADR-009](../../../../architecture/decisions/adr-009-department-publi
 | `services/core-api/src/main/java/com/sopilot/core/document/DocumentService.java`, `DocumentView.java`, `DocumentController.java` | MODIFY |
 | `services/core-api/src/main/java/com/sopilot/core/department/` (publisher assignment API), `member/MemberService.java` | MODIFY |
 | `services/core-api/src/test/java/...` (unit, IT) | CREATE/MODIFY |
-| `.agent/context/authorization/v2-core-identity.md`, `.agent/context/database/tables/core.md`, `services/core-api/README.md` | MODIFY |
+| the former agent context `authorization/v2-core-identity.md`, the former agent context `database/tables/core.md`, `services/core-api/README.md` | MODIFY |
 
 ## 6. Quick check commands
 

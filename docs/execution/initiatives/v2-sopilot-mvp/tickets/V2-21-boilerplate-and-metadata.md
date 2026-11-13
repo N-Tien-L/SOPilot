@@ -33,7 +33,7 @@ assignee: pair
 
 ## 3. Guide
 - A processing step on V2-20's structure, before V2-22's chunking.
-- Metadata schema per TECH-V2; if columns are added, a migration in `infrastructure/db/migrations/` and an update of `.agent/context/database/` (now `docs/architecture/data/`).
+- Metadata schema per TECH-V2; if columns are added, a migration in `infrastructure/db/migrations/` and an update of the former agent context `database/` (now `docs/architecture/data/`).
 
 ## 4. Testing
 | Kind | Content | Command |

@@ -61,7 +61,7 @@ Each criterion has a check; results go into section 5 (evidence) when done.
 | Kind | Content | Tool | Command |
 |---|---|---|---|
 | Manual | `/v1/models`, `/v1/chat/completions`, the `enable_thinking` flag, cold/warm TTFT, tokens/second | `test_endpoint.py` / `curl` | `python infrastructure/modal/test_endpoint.py --benchmark` |
-| Syntax & docs | Python compile, frontmatter, `depends_on`/`blocks` relations, links | `python -m py_compile`, `check-docs.ps1` | `./scripts/check-docs.ps1` |
+| Syntax & docs | Python compile, frontmatter, `depends_on`/`blocks` relations, links | `python -m py_compile`, `check-docs.ps1` | `./scripts/docs/check-docs.ps1` |
 
 ---
 

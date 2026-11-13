@@ -28,7 +28,7 @@ Package everything so the assessor can rerun the results.
 - [ ] The NFR targets (recall@5 ≥ 0.80...) settled against the baseline, stating honestly whether each is met.
 - [ ] Reproduction instructions for every table of numbers with the exact commands, recording the commit and configuration hash.
 - [ ] A list of limitations and future work (rerank, deployment B1/B3, groups, ...).
-- [ ] The handover package: source code, README, dataset or download script, results, the report in `docs/04-reports/`; no secrets or `.env`.
+- [ ] The handover package: source code, README, dataset or download script, results, the report in `docs/research/`; no secrets or `.env`.
 - [ ] PLAN-V2: the remaining 32 tickets `done`, the V2-18 report reviewed before moving to `done`; after acceptance the PLAN is 33/33 with matching counters (changed 2026-10-21: `V2-28` added). The report presents the results of `V2-28`'s Vietnamese SOP check set as a supplement, not as RQ results.
 
 ## 3. Guide

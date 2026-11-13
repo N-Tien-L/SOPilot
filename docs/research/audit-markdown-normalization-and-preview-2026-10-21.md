@@ -277,4 +277,4 @@ The quota decision partially reverses the owner's 2026-10-20 decision ("commerci
 
 ## 9. Documents updated
 
-PRD-V2 (FR-06, FR-07, FR-08, FR-09, FR-14, FR-30, new FR-31, UC-04, new UC-12, §5, §8), PRD-V2-ingestion-mvp-scope (`superseded`), TECH-V2-ai-service, TECH-V2-core-api, PLAN-V2, tickets V2-09, V2-12, V2-15, V2-16, V2-19, V2-20, V2-21, V2-22, V2-25, `.agent/context/README.md`, `docs/README.md`. No ticket status or PLAN counter changed; no acceptance scenario is recorded as met.
+PRD-V2 (FR-06, FR-07, FR-08, FR-09, FR-14, FR-30, new FR-31, UC-04, new UC-12, §5, §8), PRD-V2-ingestion-mvp-scope (`superseded`), TECH-V2-ai-service, TECH-V2-core-api, PLAN-V2, tickets V2-09, V2-12, V2-15, V2-16, V2-19, V2-20, V2-21, V2-22, V2-25, the former agent context `README.md`, `docs/README.md`. No ticket status or PLAN counter changed; no acceptance scenario is recorded as met.

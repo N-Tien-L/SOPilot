@@ -17,7 +17,7 @@ refs:
   - temp/De_cuong_NCKH_sinh_vien_2026.md
 ---
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. This is the scope of 2026-10-18/19; the language scope later widened to a bilingual corpus (see AUDIT-eval-rq1-rq3, `sop-main`). `AGENTS.md` and the `docs/03-plans/` and `docs/04-reports/` paths are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. This is the scope of 2026-10-18/19; the language scope later widened to a bilingual corpus (see AUDIT-eval-rq1-rq3, `sop-main`). The former agent instructions file and the `03-plans/` and `04-reports/` paths are as they were at the time.
 
 # SOPilot research scope and questions
 
@@ -39,7 +39,7 @@ The owner's next clarification replaced the earlier proposal of four directions 
 
 | Input | Inherited content / check result | Consequence for workstream 1 |
 |---|---|---|
-| `AGENTS.md`, `docs/README.md` | Check Git first; keep existing work; progress docs only in `docs/03-plans/`; reports use `draft/final` | Only this HANDOFF file was added; `.env` not read, no commit/push, no status inferred from scaffolding |
+| the former agent instructions file, `docs/README.md` | Check Git first; keep existing work; progress docs only in `03-plans/`; reports use `draft/final` | Only this HANDOFF file was added; `.env` not read, no commit/push, no status inferred from scaffolding |
 | PRD-V2 §4, §6–8 | `draft`, updated 17/10; RQ1–3 primary, RQ4 secondary, RQ5 proposed; CPU without GPU; VI/EN and cross-lingual | The quality targets are still targets, not measurements or approvals |
 | ADR-004/005/006, PLAN-V2 | All still `draft`; the PLAN records 0 tickets `done`, 1 `review` | The two-service and workspace architecture is a proposed target, not the current runtime |
 | Workstreams handoff 18/10 | Prioritize research/reporting before deployment; reopen the embedding choice | Authority to survey and write the handover; no stack settled from the source report |
@@ -48,7 +48,7 @@ The owner's next clarification replaced the earlier proposal of four directions 
 | `eval/README.md`, config, smoke JSONL, `metrics.py`, `run.py`, `embedders.py` | A retrieval-only harness; a smoke corpus of 3 documents, 9 questions; no EN→VI in smoke; every SentenceTransformer capped at 512 tokens; the research config does not pin revisions | Smoke only checks tooling. No human-reviewed labels or results enough to answer the RQs; EN→VI is no longer a missing condition under the scope the owner clarified on 19/10 |
 | Runtime `chunk_repo.py`, `api/routes/chat.py`, `pipeline_orchestrator.py` | `bm25_search` uses `ts_rank`; chat creates `PipelineOrchestrator()`; the reranker depends on dependencies/settings in the orchestrator | Eval BM25 is not representative of the runtime; a rerank configuration is not evidence that default chat reranks |
 
-Checked the list `docs/04-reports/HANDOFF-research*`: before writing there was only the shared handoff, no workstream 1–6 output to inherit, and the target file did not exist. No newer approval documents were found among the PRD/ADR/PLAN and the reports checked. This does not replace the owner's confirmation of decisions made outside the repo.
+Checked the list `04-reports/HANDOFF-research*`: before writing there was only the shared handoff, no workstream 1–6 output to inherit, and the target file did not exist. No newer approval documents were found among the PRD/ADR/PLAN and the reports checked. This does not replace the owner's confirmation of decisions made outside the repo.
 
 Git is on `fix/auth-google-roster-admission`, with many pre-existing staged/unstaged/untracked changes. This document does not claim those changes as this session's work. No branch switch or code edit to serve the survey.
 

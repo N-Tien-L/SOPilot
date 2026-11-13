@@ -78,4 +78,4 @@ Running ruff on all of `eval/tests` from `eval/` still reports import order in t
 2. Compare the selected pages in the V2-19 sheet; confirm the representation of headings/nested tables/merged cells and metadata. The review applies only to the pages viewed; whole-document labels still have to be completed before corpus acceptance.
 3. After feedback, record the real reviewer/date/review version; complete the PDF labels, extend the corpus and prepare the V2-20 Docling baseline. Do not change `review_status` or `done` just to make the tooling green.
 
-Progress docs updated: V2-06, V2-19 and PLAN-V2; the dataset/eval guides gained the pilot paths. No product contract change, so `.agent/context/` is unchanged.
+Progress docs updated: V2-06, V2-19 and PLAN-V2; the dataset/eval guides gained the pilot paths. No product contract change, so the former agent context folder is unchanged.

@@ -13,7 +13,7 @@ refs:
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-08-flyway-and-compose.md
 ---
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under `.agent/context/` are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under the former agent context folder are as they were at the time.
 
 # Scope settled by the owner
 
@@ -43,7 +43,7 @@ an independent peer reviewer or a CI/PR review that has not happened.
 - A MinIO attach error is accepted only if the attached policy is verified to be correct; checked by
   running init a second time and that AI has no write/delete rights.
 
-Context updated: `.agent/context/database/schema.md`; guidance in
+Context updated: the former agent context `database/schema.md`; guidance in
 `infrastructure/db/README.md`. No product endpoint/event contract changed.
 
 ## Evidence

@@ -34,7 +34,7 @@ Remove only once V2 reaches parity. Remove in a separate commit so the history i
 - [ ] Remove `auth-service`, `user-service`, `knowledge-service`, `metadata-service`, `feedback-service`, `api-gateway`, `ai-qa-service`, `ingestion-service`, the old `docker-compose.yml`, `docker-compose.dev.yml` and the infrastructure only V1 uses (`infrastructure/init-db/`, `infrastructure/combined_init.sql`, `infrastructure/onlyoffice/`, `infrastructure/seed*` if V2-16 does not reuse them) — only those exact paths, never recursive wildcard deletion (CLAUDE.md). Rename `docker-compose.v2.yml` to `docker-compose.yml` in the same change if the owner agrees.
 - [ ] Do not delete the V1 Docker volumes (`sopilot_postgres_data`, `sopilot_minio_data`, ...) in this ticket; only record the cleanup commands for the owner to run when they want (CLAUDE.md: no `down -v`, no prune).
 - [ ] Update `CLAUDE.md` (architecture table, commands, the drift section: remove items no longer valid), `.claude/settings.json` (remove the `ask` permissions for V1 paths), `README.md`; delete `.claude/rules/v1-frozen.md`.
-- [ ] Update `.agent/context/` (service-boundaries, database, authorization, events, storage, architecture/frontend) and `scripts/*.ps1` for the new structure.
+- [ ] Update `docs/architecture/` (api, data, domain, components/frontend; the V1 context stays in `docs/archive/v1-context/`) and `scripts/*.ps1` for the new structure.
 - [ ] `./scripts/pre-commit-check.ps1` PASS.
 - [ ] Keep a git milestone (tag/branch) of M1 before removing.
 

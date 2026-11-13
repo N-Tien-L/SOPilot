@@ -13,7 +13,7 @@ refs:
   - eval/README.md
 ---
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. This is the design of 2026-10-19; the dataset actually built is `sop-main`/`sop-main-v2` (see AUDIT-eval-rq1-rq3), with a bilingual corpus rather than this EN-only GitLab design. `AGENTS.md` is as it was at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. This is the design of 2026-10-19; the dataset actually built is `sop-main`/`sop-main-v2` (see AUDIT-eval-rq1-rq3), with a bilingual corpus rather than this EN-only GitLab design. The former agent instructions file is as it was at the time.
 
 # Proposed corpus and eval set for SOPilot
 
@@ -27,7 +27,7 @@ This is the proposed implementation following the owner's request to prioritize 
 
 ## 2. What was checked in the repo
 
-`git status --short` was checked before reading content; the current branch `fix/auth-google-roster-admission` has many pre-existing staged/unstaged/untracked changes, including `eval/`. The workstream 02 target file did not exist at the start. Read `AGENTS.md`, `docs/README.md`, the whole workstream 01 handoff and the workstreams handoff; `.env` not read. Only this report was added; no branch, code, PRD/ADR/PLAN/ticket or other sessions' files changed. Workstreams 03–04 run in parallel; their results are neither awaited nor assumed.
+`git status --short` was checked before reading content; the current branch `fix/auth-google-roster-admission` has many pre-existing staged/unstaged/untracked changes, including `eval/`. The workstream 02 target file did not exist at the start. Read the former agent instructions file, `docs/README.md`, the whole workstream 01 handoff and the workstreams handoff; `.env` not read. Only this report was added; no branch, code, PRD/ADR/PLAN/ticket or other sessions' files changed. Workstreams 03–04 run in parallel; their results are neither awaited nor assumed.
 
 | File/input read | State on disk | Consequence for the design |
 |---|---|---|

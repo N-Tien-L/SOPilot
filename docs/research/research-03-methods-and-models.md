@@ -13,7 +13,7 @@ refs:
   - docs/research/audit-retrieval-stack-research-2026-10-18.md
 ---
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. This is the method design of 2026-10-19; the runs actually done are in AUDIT-eval-rq1-rq3-2026-11-04. `AGENTS.md` and `.agent/` paths are as they were at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged. This is the method design of 2026-10-19; the runs actually done are in AUDIT-eval-rq1-rq3-2026-11-04. The former agent instructions file and the former agent folder paths are as they were at the time.
 
 # Research methods and model choice
 
@@ -47,7 +47,7 @@ The observations below come from reading code on 19/10/2026, not from runs. Path
 | Resources | The index holds both dense and BM25 even for the BM25 configuration; a dictionary keeps several indexes/models in the same process | Do not take the current index build time as BM25's necessary cost. Run each embedding and the reranker in stages, freeing models; measure cache hits/misses separately |
 | `eval/tests/test_eval.py` | Smoke tests, page constraint, RRF and simple sweeps | Not enough to prove many-evidence, nDCG without double counting, the Qwen instruction, split leakage or correct answer-level behaviour |
 
-Also compared `services/ai-qa-service/src/db/repositories/chunk_repo.py`: the function named `bm25_search` uses PostgreSQL `ts_rank`/`plainto_tsquery('simple', ...)`, unlike the eval scorer. The results proposed here describe the **offline harness**; they do not yet represent the deployed stack or the product's warm TTFT. Read `AGENTS.md`, `docs/README.md`, the two required reports and the `.agent/context/README.md` index; no service contract changed.
+Also compared `services/ai-qa-service/src/db/repositories/chunk_repo.py`: the function named `bm25_search` uses PostgreSQL `ts_rank`/`plainto_tsquery('simple', ...)`, unlike the eval scorer. The results proposed here describe the **offline harness**; they do not yet represent the deployed stack or the product's warm TTFT. Read the former agent instructions file, `docs/README.md`, the two required reports and the index `README.md` of the former agent context; no service contract changed.
 
 ## 3. A shortlist based on official sources
 

@@ -13,7 +13,7 @@ refs:
 
 # Schema `core` (V2, core-api)
 
-> **Implementation status:** migrations `core/V001`–`V010` (V2-08, V2-11, V2-12, V2-23, V2-24, V2-25, V2-29, V2-30, V2-36). Moved from `.agent/context/database/tables/core.md` (V2 section) and `database/schema.md` (V2 bootstrap) on 2026-11-13. The V1 `core` tables are archived at [v1-context/database/tables/core.md](../../archive/v1-context/database/tables/core.md).
+> **Implementation status:** migrations `core/V001`–`V010` (V2-08, V2-11, V2-12, V2-23, V2-24, V2-25, V2-29, V2-30, V2-36). Moved from the former agent context `database/tables/core.md` (V2 section) and `database/schema.md` (V2 bootstrap) on 2026-11-13. The V1 `core` tables are archived at [v1-context/database/tables/core.md](../../archive/v1-context/database/tables/core.md).
 
 Source of truth: the migrations in `infrastructure/db/migrations/core/` and [TECH-V2-core-api](../components/core-api.md) §3. core-api is the only owner/writer of V2 `core`. Schema changes are new Flyway files only (skill `flyway-migration`).
 

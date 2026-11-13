@@ -78,7 +78,7 @@ Owner decision 2026-11-11 (note in [PLAN-V2](../PLAN.md)). RQ1–RQ5 retrieval n
 ### G. Budget and report
 - [ ] The answer-generation Modal account ≤ $15; the judge account ≤ $8. Record the real cost after each step. If a cap is exceeded, stop and ask the owner.
 - [ ] Raw results stored in `eval/results/<run_id>/`. Report `docs/research/audit-eval-config-matrix-answers-<date>.md`: hypotheses, decision rules, tables with CIs, unfavourable results, limitations (LLM-drafted labels, 23 documents, a small judge, Vietnamese not on the Gemma 4 model card).
-- [ ] `eval` pytest green; `./scripts/check-docs.ps1` green.
+- [ ] `eval` pytest green; `./scripts/docs/check-docs.ps1` green.
 
 ## 3. Guide
 

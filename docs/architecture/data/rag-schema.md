@@ -13,7 +13,7 @@ refs:
 
 # Schema `rag` (V2, ai-service)
 
-> **Implementation status:** migrations `rag/V001`–`V004` (V2-08, V2-09, V2-25). Moved from `.agent/context/database/tables/rag.md` on 2026-11-13.
+> **Implementation status:** migrations `rag/V001`–`V004` (V2-08, V2-09, V2-25). Moved from the former agent context `database/tables/rag.md` on 2026-11-13.
 
 Source of truth: `infrastructure/db/migrations/rag/` (`V003__rag_tables.sql` from V2-09, `V004` from V2-25) and
 [TECH-V2-ai-service](../components/ai-service.md) §3. Only `sopilot_ai_app` has DML here.
