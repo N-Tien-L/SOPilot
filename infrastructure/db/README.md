@@ -73,7 +73,7 @@ From `eval/`: `./.venv/Scripts/python.exe -m sopilot_eval.infra_check`.
 Checks Flyway, role/schema isolation, RLS, explicit function grants and S3 privileges
 in a unique project using tmpfs and random credentials. No existing volume is
 mounted or deleted. Scope and limits are recorded in
-`docs/04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md`.
+`docs/quality/test-reports/audit-v2-05-v2-08-acceptance-2026-10-25.md`.
 
 ## Check
 

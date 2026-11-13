@@ -15,7 +15,7 @@ defaults; new helpers require explicit EXECUTE grants. V001 checksums are unchan
 
 Verification uses `eval/sopilot_eval/infra_check.py` on a disposable tmpfs project;
 no migration was applied to the owner's persistent DB. See `infrastructure/db/README.md`
-and `docs/04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md`.
+and `docs/quality/test-reports/audit-v2-05-v2-08-acceptance-2026-10-25.md`.
 
 `rag/V003__rag_tables.sql` (V2-09) adds every `rag` table of TECH-V2-ai-service §3 and §7.6,
 RLS on each table with `workspace_id`, and the SECURITY DEFINER helpers
