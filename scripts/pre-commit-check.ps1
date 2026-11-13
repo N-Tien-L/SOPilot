@@ -140,7 +140,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # 6. Docs: frontmatter, status vocabulary, PLAN counters, ticket relations, links
 Write-Host "`n[6/7] Checking docs..." -ForegroundColor Cyan
-& (Join-Path $PSScriptRoot "check-docs.ps1")
+& (Join-Path $PSScriptRoot "docs/check-docs.ps1")
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Docs check failed" -ForegroundColor Red
     $FailedChecks++

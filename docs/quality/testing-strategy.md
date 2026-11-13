@@ -53,7 +53,7 @@ Playwright is **not installed** in this repository: `frontend/web/package.json` 
 | Department authorization (FR-29) | `tenant-isolation.yml` job `department-authorization` (`DepartmentAuthorizationIT`, `test_department_authorization.py`) | same commands |
 | Eval harness | not in CI | `cd eval; uv sync --extra dev; uv run pytest -q` |
 | Frontend build | `ci.yml` job `frontend-and-gateway` (`pnpm build`, no lint, no tests) | `validate-build.ps1 -Scope web` |
-| Docs check | **planned**, not present yet | `./scripts/docs/check-docs.ps1` |
+| Docs check | `ci.yml` job `docs` (`pwsh ./scripts/docs/check-docs.ps1`; not yet run on GitHub) | `./scripts/docs/check-docs.ps1` |
 
 Consequences to keep in mind when reporting results:
 

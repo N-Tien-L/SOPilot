@@ -106,11 +106,15 @@ function Resolve-RelPath([string]$baseDir, [string]$link) {
     return ($out -join '/')
 }
 
-# Returns $null when the path exists with exactly this case, otherwise an error message.
+# Returns $null when the path exists with exactly this case, otherwise an error message. A target that is
+# gitignored ('untracked-ignored', a warning) is told apart by .gitignore, not by presence on disk: a fresh CI
+# checkout does not have datasets/ or eval/datasets/, and those links must stay warnings there too.
 function Test-RepoPath([string]$p) {
     if ($fileSet.Contains($p)) { return $null }
     if ($fileSetCI.Contains($p)) { return 'case mismatch' }
     if (Test-Path -LiteralPath (Join-Path $repoRoot $p)) { return 'untracked-ignored' }
+    git check-ignore -q --no-index -- $p 2>$null
+    if ($LASTEXITCODE -eq 0) { return 'untracked-ignored' }
     return 'missing'
 }
 

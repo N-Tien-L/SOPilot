@@ -31,12 +31,10 @@ Run the narrowest check first, then the suite of the touched scope.
 3. For every touched `services/<name>/` and for `frontend/web/`, calls `run-tests.ps1` with the default `-Type all`. For `core-api` that is `mvnw verify`, so **Docker is needed** when core-api changed. For `ai-service` it runs all of `tests/`, integration included; without Docker those tests skip and the step still passes. Any touched frozen V1 service is tested too. For `frontend` the call errors because there is no `test` script (see the note below).
 4. Validates `docker-compose.v2.yml` with `docker compose config` against `.env.example` (never `.env`); the frozen V1 `docker-compose.yml` only if the change touched it.
 5. Runs `check-migrations.ps1`.
-6. Runs the docs check (`check-docs.ps1`).
+6. Runs the docs check (`scripts/docs/check-docs.ps1`, strict mode).
 7. Prints the summary and exits non-zero if any step failed.
 
 It does **not** run `ruff` or `validate-build.ps1`, the eval harness, the tenant-isolation suite or the browser checks.
-
-Note on step 6: it currently calls `scripts/check-docs.ps1`, the old checker kept for the transition, not `scripts/docs/check-docs.ps1`. Switching it is planned and has not been done.
 
 Note on step 3 for the frontend: `run-tests.ps1 -Scope frontend` raises an error when `package.json` has no `test` script, so a frontend change does not get through this step today. Run `validate-build.ps1 -Scope web` separately and record that the pre-commit step could not pass.
 
@@ -46,11 +44,10 @@ Note on step 3 for the frontend: `run-tests.ps1 -Scope frontend` raises an error
 
 | Workflow | Jobs that gate V2 |
 |---|---|
-| `ci.yml` | `secret-scan`, `migrations`, `core-api-unit`, `ai-service-unit`; the frozen V1 jobs `backend-java`, `backend-python`, `frontend-and-gateway` (V1 until V2-17) |
+| `ci.yml` | `secret-scan`, `migrations`, `docs`, `core-api-unit`, `ai-service-unit`; the frozen V1 jobs `backend-java`, `backend-python`, `frontend-and-gateway` (V1 until V2-17) |
 | `tenant-isolation.yml` | `database`, `negative-control`, `core-api`, `ai-service`, `department-authorization` |
-| docs job | **planned**, not present |
 
-CI proves unit-level behaviour and the isolation claims (FR-19, FR-29). It does not run the full core-api IT set, the full ai-service integration set, the eval harness, a browser, or any live provider. See the table in [testing strategy](testing-strategy.md#what-runs-where).
+CI proves unit-level behaviour and the isolation claims (FR-19, FR-29). The `docs` job runs `./scripts/docs/check-docs.ps1` under `pwsh` (errors fail, warnings do not); it was added in the same change as the pre-commit path fix and has not yet run on GitHub, so its first run is the first evidence that the checker works on Linux. CI does not run the full core-api IT set, the full ai-service integration set, the eval harness, a browser, or any live provider. See the table in [testing strategy](testing-strategy.md#what-runs-where).
 
 ## 4. Review
 

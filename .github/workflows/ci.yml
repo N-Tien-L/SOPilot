@@ -37,6 +37,17 @@ jobs:
       shell: pwsh
       run: ./scripts/check-migrations.ps1 -BaseRef "origin/${{ github.base_ref || 'main' }}"
 
+  # Docs: frontmatter, ids, statuses, PLAN counters, ticket relations and links (strict mode: errors fail,
+  # warnings do not). Read-only; needs no secrets and no history.
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    - name: Check docs
+      shell: pwsh
+      run: ./scripts/docs/check-docs.ps1
+
   # V2 core-api: Java 21, unit tests only (Testcontainers suites run in tenant-isolation.yml).
   core-api-unit:
     runs-on: ubuntu-latest
