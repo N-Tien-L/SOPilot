@@ -1,7 +1,7 @@
 # Schema `rag` (V2, ai-service)
 
 Source of truth: `infrastructure/db/migrations/rag/V003__rag_tables.sql` (V2-09) and
-`docs/02-architecture/designs/TECH-V2-ai-service.md` §3. Only `sopilot_ai_app` has DML here.
+`docs/architecture/components/ai-service.md` §3. Only `sopilot_ai_app` has DML here.
 
 ## Tenant isolation
 

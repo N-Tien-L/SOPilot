@@ -10,7 +10,7 @@ milestone: V2
 author: "Owner"
 refs:
   - docs/03-plans/tickets/V2-10-ai-service-qa-pipeline.md
-  - docs/02-architecture/designs/TECH-V2-ai-service.md
+  - docs/architecture/components/ai-service.md
   - docs/04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md
   - docs/03-plans/tickets/V2-07-run-rq1-rq3-rq5.md
   - docs/03-plans/tickets/V2-27-semantic-router.md
@@ -24,7 +24,7 @@ Bạn làm việc trong repo SOPilot (`C:\Users\Tien\Workspace\Personal\SOPilot`
 
 1. `CLAUDE.md` (ràng buộc kỹ thuật 1–13, lệnh, drift V2) và `.claude/rules/ai-service.md` (cấu trúc package, `tenant_tx`, `allowed_cte()`, cấu hình model, test). Nếu đụng schema: `.claude/rules/migrations.md`.
 2. Skill `execute-ticket` (quy trình ticket), `testing` (viết và chọn bộ test), `flyway-migration` (chỉ khi cần migration). Review bằng agent `v2-reviewer` trước khi đề xuất commit.
-3. Ticket V2-10 (toàn bộ tiêu chí hoàn thành) và `docs/02-architecture/designs/TECH-V2-ai-service.md`: §1.1 (cấu trúc package), §3.4 (bảng hội thoại, retrieval, guard), §4.2–4.3 (models.yaml, interface provider), §6.4–6.4a (cổng ngưỡng, ghép context), §7 (toàn bộ), §11a (D1–D11), §12, §12a.
+3. Ticket V2-10 (toàn bộ tiêu chí hoàn thành) và `docs/architecture/components/ai-service.md`: §1.1 (cấu trúc package), §3.4 (bảng hội thoại, retrieval, guard), §4.2–4.3 (models.yaml, interface provider), §6.4–6.4a (cổng ngưỡng, ghép context), §7 (toàn bộ), §11a (D1–D11), §12, §12a.
 4. Code đã có: `src/sopilot_ai/retrieval/` (`retriever.py`, `fusion.py`, `search.py`, `access_filter.py`), `src/sopilot_ai/providers/` (`registry.py`, `embedding.py`, `rerank.py`), `src/sopilot_ai/qa/doc_code.py`, `config/models.yaml`, `src/sopilot_ai/api/app.py`. Migration của các bảng `rag.messages`, `rag.guard_events`, `rag.message_citations`… đã có từ V2-09 trong `infrastructure/db/migrations/rag/`; bảng mô tả ở `.agent/context/database/tables/rag.md`. Kiểm cột thật trên đĩa trước khi dùng; code thắng tài liệu. Test giả có sẵn ở `tests/fakes.py`.
 6. `docs/03-plans/PLAN-V2-sopilot-mvp.md` dòng "Owner chốt 2026-11-01" và ADR-006 §4.4 (model sinh và giám khảo tự host trên Modal).
 5. `docs/04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md` §6 (vì sao cosine là cổng yếu) và V2-07 §6 (chốt 2026-11-07).

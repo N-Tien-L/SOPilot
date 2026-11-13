@@ -9,7 +9,7 @@ type: audit
 scope: ingestion
 verdict: needs-user-validation
 refs:
-  - docs/01-requirements/PRD-V2-sopilot-mvp.md
+  - docs/product/prd-v2-sopilot-mvp.md
   - docs/03-plans/tickets/V2-19-sop-extraction-corpus.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
 ---

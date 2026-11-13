@@ -11,7 +11,7 @@ scope: [eval, ai-service]
 verdict: PASSED_WITH_WARNINGS
 refs:
   - docs/03-plans/tickets/V2-07-run-rq1-rq3-rq5.md
-  - docs/02-architecture/designs/TECH-V2-ai-service.md
+  - docs/architecture/components/ai-service.md
   - docs/04-reports/RESEARCH-04-experiment-tooling.md
   - eval/datasets/sop-main/README.md
 ---

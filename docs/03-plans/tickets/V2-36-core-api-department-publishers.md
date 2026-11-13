@@ -23,7 +23,7 @@ assignee: pair
 
 ## 1. Bối cảnh & Mục tiêu
 
-Triển khai [ADR-009](../../02-architecture/adr/ADR-009-department-publishers.md) theo [TECH-V2-core-api §15](../../02-architecture/designs/TECH-V2-core-api.md): quyền ghi tài liệu chuyển từ OWNER/ADMIN sang publisher của phòng chủ quản (tài liệu `DEPARTMENTS`) hoặc publisher toàn workspace (tài liệu `WORKSPACE`). Quyền đọc, token và ai-service không đổi.
+Triển khai [ADR-009](../../architecture/decisions/adr-009-department-publishers.md) theo [TECH-V2-core-api §15](../../architecture/components/core-api.md): quyền ghi tài liệu chuyển từ OWNER/ADMIN sang publisher của phòng chủ quản (tài liệu `DEPARTMENTS`) hoặc publisher toàn workspace (tài liệu `WORKSPACE`). Quyền đọc, token và ai-service không đổi.
 
 **Điều kiện bắt đầu:** đã đủ. ADR-009 `approved` 2026-11-10 (Q0–Q7 chốt ở ADR-009 §6); PRD-V2 FR-06, FR-25, FR-26, §8 mục 9 đã sửa theo (Q7).
 

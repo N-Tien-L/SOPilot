@@ -10,10 +10,10 @@ milestone: "V2: SOPilot MVP"
 scope: ingestion
 verdict: decided-pending-converter-spike
 refs:
-  - docs/01-requirements/PRD-V2-sopilot-mvp.md
-  - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
-  - docs/02-architecture/designs/TECH-V2-ai-service.md
-  - docs/02-architecture/designs/TECH-V2-core-api.md
+  - docs/product/prd-v2-sopilot-mvp.md
+  - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
+  - docs/architecture/components/ai-service.md
+  - docs/architecture/components/core-api.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
   - docs/04-reports/AUDIT-ingestion-business-cases-2026-10-20.md
   - docs/04-reports/RESEARCH-V2-19-corpus-sources-2026-10-20.md

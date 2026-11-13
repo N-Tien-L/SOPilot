@@ -9,8 +9,8 @@ updated: 2026-10-19
 author: "Owner"
 refs:
   - docs/04-reports/HANDOFF-research-workstreams-2026-10-18.md
-  - docs/01-requirements/PRD-V2-sopilot-mvp.md
-  - docs/02-architecture/adr/ADR-006-free-tier-providers-and-environments.md
+  - docs/product/prd-v2-sopilot-mvp.md
+  - docs/architecture/decisions/adr-006-free-tier-providers-and-environments.md
   - docs/03-plans/PLAN-V2-sopilot-mvp.md
   - docs/04-reports/AUDIT-retrieval-stack-research-2026-10-18.md
   - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md

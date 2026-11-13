@@ -6,7 +6,7 @@ Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-google-aut
 
 Only the new labelled test container is removed. Existing containers/volumes are untouched. Logs and generated test configuration live in ignored `scratch/google-auth-*`; they contain ephemeral test credentials, never copy them into source control. This suite checks backend auth, concurrent enrollment, token validation and session lifecycle. Hosted Google UI, roster Excel import UI, chatbot navigation and audit RabbitMQ delivery still belong to M1-06.
 
-Checkpoint 2026-10-15: frontend has no `test` script yet; build/typecheck/lint are separate checks. Ingestion currently keeps mixed mock-based tests in `tests/ingestion_tests`, so use `-Scope ingestion-service -Type all`; there are no separate unit/integration folders. Java `all` runs Maven verify; a separate integration profile is not configured. Missing suites must be reported as unavailable, never as PASS. See [handoff](../docs/_archive/04-reports/HANDOFF-implementation-2026-10-15.md).
+Checkpoint 2026-10-15: frontend has no `test` script yet; build/typecheck/lint are separate checks. Ingestion currently keeps mixed mock-based tests in `tests/ingestion_tests`, so use `-Scope ingestion-service -Type all`; there are no separate unit/integration folders. Java `all` runs Maven verify; a separate integration profile is not configured. Missing suites must be reported as unavailable, never as PASS. See [handoff](../docs/archive/04-reports/HANDOFF-implementation-2026-10-15.md).
 
 This directory contains **platform-wide, cross-service, and end-to-end (E2E) automated tests**, along with shared test fixtures and performance test configurations.
 

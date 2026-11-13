@@ -1,7 +1,7 @@
 # V2 core-api identity and tenancy (V2-11, 2026-11-04)
 
 Read before changing V2 login, access tokens, JIT provisioning or RLS in `services/core-api`.
-Source of truth: [TECH-V2-core-api](../../../docs/02-architecture/designs/TECH-V2-core-api.md) §3.1–§5.1, ADR-005.
+Source of truth: [TECH-V2-core-api](../../../docs/architecture/components/core-api.md) §3.1–§5.1, ADR-005.
 The V1 notes in `google-admission.md` (roster admission, auth-service) do not apply to V2.
 
 - **Identity** is `(issuer, subject)` in `core.external_identities`; email is an attribute, not unique.

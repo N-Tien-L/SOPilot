@@ -8,7 +8,7 @@ created: 2026-10-18
 updated: 2026-10-18
 author: "Owner"
 refs:
-  - docs/01-requirements/PRD-V2-sopilot-mvp.md
+  - docs/product/prd-v2-sopilot-mvp.md
   - docs/03-plans/PLAN-V2-sopilot-mvp.md
   - docs/04-reports/AUDIT-retrieval-stack-research-2026-10-18.md
 ---

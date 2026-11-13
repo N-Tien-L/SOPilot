@@ -11,8 +11,8 @@ author: "Owner"
 refs:
   - docs/03-plans/tickets/V2-13-feedback-and-knowledge-gaps.md
   - docs/03-plans/tickets/V2-25-async-metadata-suggestion.md
-  - docs/02-architecture/designs/TECH-V2-ai-service.md
-  - docs/02-architecture/designs/TECH-V2-core-api.md
+  - docs/architecture/components/ai-service.md
+  - docs/architecture/components/core-api.md
 ---
 
 # Bàn giao Wave 1: V2-13 và V2-25

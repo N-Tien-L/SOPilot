@@ -10,7 +10,7 @@ affected_services: [user-service, auth-service, api-gateway, feedback-service, f
 affected_schemas: [core]
 ---
 
-> **Đóng 2026-11-08:** `superseded` vì PRD-M1 và ADR-001/002 đã `superseded`; thay bằng [TECH-V2-core-api](../../../02-architecture/designs/TECH-V2-core-api.md) và ADR-005. Giữ file làm lịch sử V1; không dùng làm đặc tả.
+> **Đóng 2026-11-08:** `superseded` vì PRD-M1 và ADR-001/002 đã `superseded`; thay bằng [TECH-V2-core-api](../../../architecture/components/core-api.md) và ADR-005. Giữ file làm lịch sử V1; không dùng làm đặc tả.
 
 # THIẾT KẾ KỸ THUẬT (TECHNICAL DESIGN DOCUMENT)
 

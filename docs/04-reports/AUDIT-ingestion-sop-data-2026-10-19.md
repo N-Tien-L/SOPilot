@@ -9,7 +9,7 @@ author: "Owner"
 created: 2026-10-19
 updated: 2026-10-20
 refs:
-  - docs/01-requirements/PRD-V2-sopilot-mvp.md
+  - docs/product/prd-v2-sopilot-mvp.md
   - docs/03-plans/tickets/V2-09-ai-service-ingest-retrieval.md
   - docs/04-reports/RESEARCH-02-dataset-and-labeling.md
 ---

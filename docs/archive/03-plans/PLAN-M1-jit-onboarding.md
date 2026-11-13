@@ -19,7 +19,7 @@ review_tickets: 0
 
 > **Mã kế hoạch:** `PLAN-M1-JIT-ONBOARDING` | **Milestone:** Milestone 1: JIT Onboarding v1.0 | **Trạng thái:** Superseded (2026-10-20)  
 > **Tham chiếu nghiệp vụ:** [PRD-M1](../01-requirements/PRD-M1-jit-onboarding.md)  
-> **Tham chiếu kỹ thuật:** [TECH-M1](../02-architecture/designs/TECH-M1-jit-onboarding.md) | [ADR-001](../../02-architecture/adr/ADR-001-employee-roster-ownership.md) | [ADR-002](../../02-architecture/adr/ADR-002-google-jit-auth-boundary.md)
+> **Tham chiếu kỹ thuật:** [TECH-M1](../02-architecture/designs/TECH-M1-jit-onboarding.md) | [ADR-001](../../architecture/decisions/adr-001-employee-roster-ownership.md) | [ADR-002](../../architecture/decisions/adr-002-google-jit-auth-boundary.md)
 
 ---
 

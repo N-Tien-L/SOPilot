@@ -275,7 +275,7 @@ except AlreadyIndexedError:
 { "eventId": "uuid", "userId": "uuid", "username": "string", "departmentId": "uuid", "departmentName": "string", "assignedBy": "uuid", "occurredAt": "ISO-8601" }
 ```
 
-**Delivery guarantee**: publishing happens after the roster row is saved and a publish failure is only logged, so the claim succeeds even if the events are lost. There is no outbox. The delivery design is tracked in ticket NEXT-04 (`docs/_archive/03-plans/tickets/NEXT-04-jit-audit-delivery-design.md`).
+**Delivery guarantee**: publishing happens after the roster row is saved and a publish failure is only logged, so the claim succeeds even if the events are lost. There is no outbox. The delivery design is tracked in ticket NEXT-04 (`docs/archive/03-plans/tickets/NEXT-04-jit-audit-delivery-design.md`).
 
 ---
 

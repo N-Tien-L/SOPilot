@@ -3,13 +3,13 @@ id: ADR-003
 title: "Google subject binding and roster admission on every Google login"
 status: superseded
 created: 2026-10-15
-updated: 2026-10-20
+updated: 2026-11-13
 author: "Owner"
 amends: [ADR-001]
 superseded_by: "ADR-005"
 ---
 
-> **Trạng thái:** Superseded bởi ADR-005 (2026-10-20).
+> **Status:** Superseded by ADR-005 (2026-10-20). V1 decision, kept for the decision log.
 
 # Google identity and admission
 

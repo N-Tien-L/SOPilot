@@ -15,7 +15,7 @@ verdict: FAILED
 
 > **Mã báo cáo:** `AUDIT-V2-BASELINE-ANALYSIS` | **Ngày:** `2026-10-16 → 2026-10-17` | **Kết luận:** `FAILED`. Mã nguồn hiện tại không đáp ứng mục tiêu V2 (đa tổ chức, 0 USD/tháng) nếu không thiết kế lại.
 >
-> Báo cáo này ghi lại các phân tích đã dẫn tới [PRD-V2](../01-requirements/PRD-V2-sopilot-mvp.md), [ADR-004](../02-architecture/adr/ADR-004-two-service-architecture.md), [ADR-005](../02-architecture/adr/ADR-005-workspace-tenancy-and-google-jit.md) và [ADR-006](../02-architecture/adr/ADR-006-free-tier-providers-and-environments.md). Đây là phân tích bằng cách đọc code và tài liệu; **chưa chạy test nào** trong đợt này.
+> Báo cáo này ghi lại các phân tích đã dẫn tới [PRD-V2](../product/prd-v2-sopilot-mvp.md), [ADR-004](../architecture/decisions/adr-004-two-service-architecture.md), [ADR-005](../architecture/decisions/adr-005-workspace-tenancy-and-google-jit.md) và [ADR-006](../architecture/decisions/adr-006-free-tier-providers-and-environments.md). Đây là phân tích bằng cách đọc code và tài liệu; **chưa chạy test nào** trong đợt này.
 
 ---
 

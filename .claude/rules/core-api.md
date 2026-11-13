@@ -5,7 +5,7 @@ paths:
 
 # core-api (Spring Boot 3.5, Java 21, Maven)
 
-Design source: `docs/02-architecture/designs/TECH-V2-core-api.md`. Endpoint table and env vars: `services/core-api/README.md`. Roles: `.agent/context/authorization/v2-core-identity.md`.
+Design source: `docs/architecture/components/core-api.md`. Endpoint table and env vars: `services/core-api/README.md`. Roles: `.agent/context/authorization/v2-core-identity.md`.
 
 ## Structure
 

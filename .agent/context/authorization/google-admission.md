@@ -3,8 +3,8 @@
 
 Read when changing Google login, linking provider identities, or claiming employee roster entries.
 
-- Policy and trade-offs: `docs/02-architecture/adr/ADR-003-google-identity-and-roster-admission.md`.
-- Exact DTO/status/ownership contract: `docs/_archive/02-architecture/designs/TECH-google-admission.md`.
+- Policy and trade-offs: `docs/architecture/decisions/adr-003-google-identity-and-roster-admission.md`.
+- Exact DTO/status/ownership contract: `docs/archive/02-architecture/designs/TECH-google-admission.md`.
 - auth-service owns `core.external_identities`; user-service owns roster admission. Apply additive migration 012 before deploying auth-service.
 - Resolve a returning Google account by canonical issuer plus subject. Use email only to enroll an unbound, authoritative Google identity against an eligible roster.
 - Every Google login requires roster admission, including admins. Password/bootstrap access remains available. Match legacy account role and department before first enrollment; mismatch requires HR review.

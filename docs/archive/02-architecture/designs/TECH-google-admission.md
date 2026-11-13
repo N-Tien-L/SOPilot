@@ -10,7 +10,7 @@ affected_services: [auth-service, user-service, api-gateway]
 affected_schemas: [core]
 ---
 
-> **Đóng 2026-11-08:** `superseded` vì ADR-001 đến 003 đã `superseded`; thay bằng [TECH-V2-core-api](../../../02-architecture/designs/TECH-V2-core-api.md) và ADR-005. Giữ file làm lịch sử V1; không dùng làm đặc tả.
+> **Đóng 2026-11-08:** `superseded` vì ADR-001 đến 003 đã `superseded`; thay bằng [TECH-V2-core-api](../../../architecture/components/core-api.md) và ADR-005. Giữ file làm lịch sử V1; không dùng làm đặc tả.
 
 # Google admission contract
 

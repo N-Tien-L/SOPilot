@@ -23,7 +23,7 @@ Single instruction file for Claude Code in this repo. Stack details load on dema
 - `docker-compose.v2.yml` (project `sopilot-v2`) runs only infra: Postgres `127.0.0.1:55432`, MinIO `59000/59001`, one-shot `flyway-core`/`flyway-rag`/`minio-init`. Apps run from source until V2-16.
 - core-api → ai-service: transactional outbox (`core.outbox_events`, sent after commit by `OutboxDispatcher`). ai-service → core-api: `/internal/**` callbacks with `X-Internal-Token`. Browser → both services with the core-api RS256 access token (claims `wid`, `wrole`, `wdept`; ≤ 15 min). ai-service verifies it through `/.well-known/jwks.json`.
 - Tenant isolation (FR-19) has two layers: Postgres RLS on `<schema>.current_workspace()`, **and** an explicit `workspace_id` filter in every query.
-- Decisions: ADR-004 (two services), ADR-005 (workspaces, Google JIT, RLS), ADR-006 (providers, environments), ADR-007 (departments, visibility), ADR-008 (Docling). Designs: `docs/02-architecture/designs/TECH-V2-core-api.md`, `TECH-V2-ai-service.md`. Settled values (quotas, model ids) live there and in `services/ai-service/config/models.yaml`; do not copy them here.
+- Decisions: ADR-004 (two services), ADR-005 (workspaces, Google JIT, RLS), ADR-006 (providers, environments), ADR-007 (departments, visibility), ADR-008 (Docling). Designs: `docs/architecture/components/core-api.md`, `TECH-V2-ai-service.md`. Settled values (quotas, model ids) live there and in `services/ai-service/config/models.yaml`; do not copy them here.
 
 ## Development commands (run from repo root, PowerShell)
 

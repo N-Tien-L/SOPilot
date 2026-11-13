@@ -28,7 +28,7 @@ Theo `AGENTS.md`, không lập PLAN khi PRD chưa `approved`. Ticket này chuy�
 - [x] PLAN-V2 chuyển `approved`.
 
 ## 3. Hướng dẫn
-- **File:** `docs/01-requirements/PRD-V2-sopilot-mvp.md`, `docs/02-architecture/adr/ADR-00{1,2,3,4,5,6,7}-*.md`, `docs/03-plans/PLAN-V2-sopilot-mvp.md`
+- **File:** `docs/product/prd-v2-sopilot-mvp.md`, `docs/02-architecture/adr/ADR-00{1,2,3,4,5,6,7}-*.md`, `docs/03-plans/PLAN-V2-sopilot-mvp.md`
 - **Action:** MODIFY. Cập nhật frontmatter `status`/`updated`, mục §8 của PRD, và liên kết `superseded_by`.
 - Đây là việc của owner; agent chỉ chuẩn bị bản so sánh lựa chọn.
 

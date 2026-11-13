@@ -35,7 +35,7 @@ PRD-V2 FR-25 (phần core-api), FR-26, FR-27; ADR-007 §4.1, §4.4, §4.5. Thay 
 
 ## 3. Hướng dẫn
 - **Đã có từ V2-12, không làm lại:** bộ lọc đọc `VISIBLE` trong `DocumentRepository` (list/chi tiết/URL tải, `404`), `presign` 5 phút, payload `access` trong `INGEST_REQUESTED`, nhánh `ACCESS_UPDATED` của `HttpAiServiceClient`, `core.categories`, `core.document_departments`, các cột `*_source`. V2-24 nối API, mở `DEPARTMENTS` (hiện `requireWorkspaceVisibility` chặn khi upload) và bổ sung test.
-- **Luồng đồng bộ:** [TECH-V2-DOCUMENT-ACCESS-SYNC](../../02-architecture/designs/TECH-V2-document-access-sync.md); contract ở TECH-V2-core-api §8. ai-service không cần sửa.
+- **Luồng đồng bộ:** [TECH-V2-DOCUMENT-ACCESS-SYNC](../../architecture/data/document-access-sync.md); contract ở TECH-V2-core-api §8. ai-service không cần sửa.
 - **Migration:** `core/V007` cho `core.tags`, `core.document_tags` theo TECH-V2-core-api §3.4 (RLS, grant), qua skill `flyway-migration`.
 - **File:** module documents/metadata trong `services/core-api/`; migration trong `infrastructure/db/migrations/`.
 - Tham khảo: `services/metadata-service` (Category, Tag, DocumentMetadata), `frontend/web/app/admin/metadata/`. Không port `document_access_rules`.

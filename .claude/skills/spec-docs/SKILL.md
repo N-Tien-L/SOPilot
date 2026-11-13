@@ -25,7 +25,7 @@ Chain: PRD `approved` → ADR/TECH → PLAN → tickets → code → AUDIT. No P
 
 - Prose in Vietnamese; identifiers, paths, commands and code in English. Concise: decisions, numbers, file paths.
 - `author: "Owner"` on every document (required field). Never name Claude, Codex or any AI or invented role as author or co-author. If a tool did the review, say so in the body as a method fact.
-- Report prefix, `id` prefix and `type` must match (`AUDIT`/`audit`, `RESEARCH`/`research`, `HANDOFF`/`handoff`). Closed V1 documents live in `docs/_archive/`; do not edit them or link new work to them except as history.
+- Report prefix, `id` prefix and `type` must match (`AUDIT`/`audit`, `RESEARCH`/`research`, `HANDOFF`/`handoff`). Closed V1 documents live in `docs/archive/`; do not edit them or link new work to them except as history.
 - Record an owner decision once, in the ADR or TECH it belongs to. The PLAN note and the ticket point to it; do not paste the decision text into several places.
 - Status changes to `approved`/`done`/`final` are the owner's decision. You may propose them. Ticket `done` requires evidence (`docs/README.md`).
 - Changing a ticket's status updates the PLAN table **and** its counters in the same edit. Keep `depends_on` ↔ `blocks` ↔ the PLAN DAG consistent.

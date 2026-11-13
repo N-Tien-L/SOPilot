@@ -9,8 +9,8 @@ created: 2026-10-18
 updated: 2026-10-18
 author: "Owner"
 refs:
-  - docs/02-architecture/adr/ADR-006-free-tier-providers-and-environments.md
-  - docs/01-requirements/PRD-V2-sopilot-mvp.md
+  - docs/architecture/decisions/adr-006-free-tier-providers-and-environments.md
+  - docs/product/prd-v2-sopilot-mvp.md
 ---
 
 # Kết luận nghiên cứu retrieval stack
@@ -32,9 +32,9 @@ Nếu bắt buộc **rerank thành công ở mọi lượt**, 0 USD/tháng chỉ
 
 ## 2. Ràng buộc thực của project
 
-[PRD-V2](../01-requirements/PRD-V2-sopilot-mvp.md) yêu cầu VI/EN và cross-lingual, CPU owner không GPU cho eval, mục tiêu 0 USD/tháng và warm TTFT p95 < 3 giây. FR-10 hiện ghi rerank tùy chọn và mặc định tắt khi deploy miễn phí. Mong muốn mới luôn có rerank cần được phản ánh vào PRD/ADR/TECH khi triển khai; báo cáo này chưa tự thay đổi hợp đồng đó.
+[PRD-V2](../product/prd-v2-sopilot-mvp.md) yêu cầu VI/EN và cross-lingual, CPU owner không GPU cho eval, mục tiêu 0 USD/tháng và warm TTFT p95 < 3 giây. FR-10 hiện ghi rerank tùy chọn và mặc định tắt khi deploy miễn phí. Mong muốn mới luôn có rerank cần được phản ánh vào PRD/ADR/TECH khi triển khai; báo cáo này chưa tự thay đổi hợp đồng đó.
 
-[ADR-006](../02-architecture/adr/ADR-006-free-tier-providers-and-environments.md) vẫn `draft`. Lý do chọn BGE ban đầu là đa ngôn ngữ, tự host, eval độc lập quota và có Cloudflare deploy. Đây là tính khả thi và khả năng tái lập, chưa phải chứng minh tốt nhất trên dữ liệu SOP.
+[ADR-006](../architecture/decisions/adr-006-free-tier-providers-and-environments.md) vẫn `draft`. Lý do chọn BGE ban đầu là đa ngôn ngữ, tự host, eval độc lập quota và có Cloudflare deploy. Đây là tính khả thi và khả năng tái lập, chưa phải chứng minh tốt nhất trên dữ liệu SOP.
 
 [Eval config](../../eval/configs/rq1-rq3-bge-m3.yaml) có BGE-M3 và BGE reranker v2 M3 nhưng chưa ghim revision. [Embedders](../../eval/sopilot_eval/embedders.py) giới hạn mọi SentenceTransformer ở 512 tokens; [retrievers](../../eval/sopilot_eval/retrievers.py) dùng pool mặc định 25 và cross-encoder max_length 512. Chunk size 800 trong YAML không đồng nghĩa 800 model tokens. Vì thế không thể dùng context tối đa trên model card để mô tả độ dài thực đã eval. Trong `eval/configs/` hiện chỉ thấy smoke và RQ1–RQ3; chưa thấy cấu hình RQ5 Qwen/E5 đã hoàn thiện.
 

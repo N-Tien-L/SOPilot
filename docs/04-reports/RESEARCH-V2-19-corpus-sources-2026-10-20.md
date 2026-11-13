@@ -10,7 +10,7 @@ scope: "V2-19: lựa chọn nguồn corpus"
 refs:
   - docs/03-plans/tickets/V2-19-sop-extraction-corpus.md
   - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
-  - docs/_archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
+  - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
 ---
 
 # Nguồn corpus V2-19

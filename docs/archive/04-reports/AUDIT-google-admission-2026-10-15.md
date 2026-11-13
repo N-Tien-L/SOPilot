@@ -53,4 +53,4 @@ docker compose exec -T postgres psql -U sopilot -d sopilot -v ON_ERROR_STOP=1 -f
 docker compose up -d --build auth-service user-service api-gateway
 ```
 
-Không reset volume. Test Google thật bằng email trong roster; tài khoản legacy cần khớp role/phòng ban. Xem [ADR-003](../../02-architecture/adr/ADR-003-google-identity-and-roster-admission.md) và [contract](../02-architecture/designs/TECH-google-admission.md).
+Không reset volume. Test Google thật bằng email trong roster; tài khoản legacy cần khớp role/phòng ban. Xem [ADR-003](../../architecture/decisions/adr-003-google-identity-and-roster-admission.md) và [contract](../02-architecture/designs/TECH-google-admission.md).

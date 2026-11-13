@@ -1,7 +1,7 @@
 # core-api (V2)
 
 Spring Boot 3.5, Java 21. Owns schema `core` and is the only writer of `core.users`
-([TECH-V2-core-api](../../docs/02-architecture/designs/TECH-V2-core-api.md), ADR-004/005).
+([TECH-V2-core-api](../../docs/architecture/components/core-api.md), ADR-004/005).
 Package: `com.sopilot.core` (modules `common`, `config`, `security`, `tenancy`, `identity`, `workspace`, `member`,
 `department`, `document`, `outbox`, `storage`, `audit`).
 
