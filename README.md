@@ -8,7 +8,7 @@ It is a personal project, built to learn and demonstrate backend engineering: se
 
 ## Current status
 
-- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Done so far: specifications ([PRD](docs/product/prd-v2-sopilot-mvp.md), [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md) and others, 33 tickets), a retrieval-evaluation harness, local database/storage infrastructure, and parts of both services (core-api identity, workspaces, documents and outbox; ai-service ingestion, extraction, chunking and retrieval). Not yet built: the question-answering pipeline, the V2 frontend and any end-to-end V2 flow. Ticket counts are not a completion measure; status per capability is in [implementation evidence](docs/portfolio/implementation-evidence.md).
+- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Per the [PLAN](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md) (37 tickets: 25 `done`, 5 `review`, the rest `todo`): specifications ([PRD](docs/product/prd-v2-sopilot-mvp.md), [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md) and others), a retrieval-evaluation harness, local database/storage infrastructure, and both services (core-api identity, workspaces, departments, documents and outbox; ai-service ingestion, extraction, chunking, retrieval and the question-answering pipeline). Not yet built: the V2 frontend (V2-15 is `todo`; the web image is still wired to V1). Nothing here has been verified end to end by a reviewer. Ticket counts are not a completion measure; status per capability is in [implementation evidence](docs/portfolio/implementation-evidence.md).
 - **V1 (frozen):** eight services, from a course project built with a classmate. I audited it and found problems on its question-answering path (below); those findings drive V2.
 - **Source is public** at [N-Tien-L/SOPilot](https://github.com/N-Tien-L/SOPilot). There is no live demo or screenshot set.
 - No evidence of real users, deployment or measured performance exists.
@@ -61,9 +61,11 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
 |---|---|
 | [Engineering case study](docs/portfolio/engineering-case-study.md) | Decisions, trade-offs and failure modes |
 | [Implementation evidence](docs/portfolio/implementation-evidence.md) | Per-capability status, source paths, tests, evaluation scope |
-| [Documentation hub](docs/README.md) | PRDs, ADRs, technical designs, plans, audits (mostly Vietnamese) |
+| [Documentation hub](docs/README.md) | PRDs, ADRs, technical designs, plans, test reports and research (English; archived V1 material may be Vietnamese) |
 | [CLAUDE.md](CLAUDE.md) | Repository layout, rules and commands (Claude Code; details in `.claude/`) |
 | [`eval/README.md`](eval/README.md) | Evaluation harness usage |
+| [Operations runbooks](docs/operations/local-development.md) | Running, troubleshooting and re-indexing the local stack |
+| [Testing strategy](docs/quality/testing-strategy.md) | Test layers, what runs in CI, where evidence goes |
 
 ## Getting started
 
@@ -118,7 +120,7 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
 
 - **Evaluation harness:** `cd eval && uv sync --extra dev && uv run pytest -q`, per [eval/README.md](eval/README.md).
 - **V1 legacy stack (frozen):** `docker compose up -d --build` (runs legacy 8 services, ports 3000/3001).
-- Build, lint and test commands per service are in [CLAUDE.md](CLAUDE.md).
+- Build, lint and test commands per service are in [CLAUDE.md](CLAUDE.md); running the stack from source: [local development](docs/operations/local-development.md).
 
 ## Known limitations and next steps
 

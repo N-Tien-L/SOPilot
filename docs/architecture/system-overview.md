@@ -52,4 +52,4 @@ Two layers, both mandatory: Postgres RLS on `<schema>.current_workspace()` (boun
 
 ## 5. Environments
 
-Local only, no deployment (ADR-006). `docker-compose.v2.yml` (project `sopilot-v2`) runs Postgres on `127.0.0.1:55432`, MinIO on `59000/59001` and one-shot Flyway/MinIO init jobs. Run commands are in `CLAUDE.md` and the service READMEs.
+Local only, no deployment (ADR-006). `docker-compose.v2.yml` (project `sopilot-v2`) runs Postgres on `127.0.0.1:55432`, MinIO on `59000/59001`, one-shot Flyway/MinIO init jobs and, as optional container images, `core-api`, `ai-service`, `ai-worker` and `web`; day to day the apps run from source. Run commands: [local development](../operations/local-development.md).

@@ -27,7 +27,7 @@ Overview, flows and tenancy model: `docs/architecture/system-overview.md`. Settl
 |---|---|
 | Any ticket | its file in `docs/execution/initiatives/<initiative>/tickets/`, then the design section it cites |
 | core-api change | `docs/architecture/components/core-api.md` (TECH-V2-core-api, cite by §), `services/core-api/README.md` (endpoints, env) |
-| ai-service change | `docs/architecture/components/ai-service.md` (TECH-V2-ai-service, cite by §) |
+| ai-service change | `docs/architecture/components/ai-service.md` (TECH-V2-ai-service, cite by §), `services/ai-service/README.md` (endpoints, env) |
 | Frontend change | `docs/architecture/components/frontend.md`, `.claude/rules/frontend.md` |
 | Schema / RLS | `docs/architecture/data/`, skill `flyway-migration` |
 | Auth, roles, tenancy | `docs/architecture/domain/identity-and-access.md`, ADR-005, ADR-007, ADR-009 |
@@ -35,6 +35,7 @@ Overview, flows and tenancy model: `docs/architecture/system-overview.md`. Settl
 | Why something is the way it is | `docs/architecture/decisions/` (ADRs) |
 | Product behaviour | `docs/product/` |
 | Tests and evidence | `docs/quality/`, skill `testing` |
+| Running or fixing the local stack | `docs/operations/` |
 | Continuing interrupted work | newest file in `docs/handoffs/` |
 
 Code wins over docs. When they disagree, report the mismatch; do not silently align either side. A documented design is not proof of implementation.
@@ -51,12 +52,10 @@ Code wins over docs. When they disagree, report the mismatch; do not silently al
 | Docs | `./scripts/docs/check-docs.ps1` (strict) · `-Mode audit` (report-only, includes archive) |
 | Eval harness | `cd eval; uv sync --extra dev; uv run pytest -q` |
 | Before proposing a commit | `./scripts/pre-commit-check.ps1` |
-| V2 infra | `docker compose -f docker-compose.v2.yml up -d` · stop with `down` (**never** `-v`) |
-| Run core-api | `cd services/core-api; ./mvnw spring-boot:run "-Dspring-boot.run.profiles=local"` |
-| Run ai-service | `cd services/ai-service; uv run uvicorn --app-dir src sopilot_ai.api.app:create_app --factory` · worker `$env:PYTHONPATH="src"; uv run python -m sopilot_ai.worker` |
+| V2 infra | `docker compose -f docker-compose.v2.yml up -d postgres flyway-core flyway-rag minio minio-init` · stop with `down` (**never** `-v`) |
 | Hook self-test | `python .claude/hooks/test_guard.py` |
 
-`docker-compose.v2.yml` runs only infrastructure (Postgres `127.0.0.1:55432`, MinIO `59000/59001`, one-shot Flyway/MinIO init); apps run from source until V2-16. CI: `ci.yml` (gitleaks, core-api tests, ai-service ruff + unit tests, frozen V1 jobs) and `tenant-isolation.yml` (DB suite, RLS-disabled negative control, `TenantIsolation*IT`, retrieval isolation).
+`docker-compose.v2.yml` defines the infrastructure (Postgres `127.0.0.1:55432`, MinIO `59000/59001`, one-shot Flyway/MinIO init) and also `core-api`, `ai-service`, `ai-worker` and `web`; the day-to-day way is infrastructure in compose and the apps from source. Running services from source: `docs/operations/local-development.md`. CI: `ci.yml` (gitleaks, core-api tests, ai-service ruff + unit tests, frozen V1 jobs) and `tenant-isolation.yml` (DB suite, RLS-disabled negative control, `TenantIsolation*IT`, retrieval isolation).
 
 ## Engineering constraints
 
