@@ -10,6 +10,7 @@
 data/minio/
 data/postgres/
 data/
+!docs/architecture/data/
 
 # Token files
 *.token.txt

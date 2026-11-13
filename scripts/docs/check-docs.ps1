@@ -338,7 +338,7 @@ if ($legacyFiles -gt 0 -and -not $LegacyRefsAsErrors -and -not $audit) {
 
 # ---------------------------------------------------------------- gitignore probes
 $mustIgnore = @('artifacts/testing/probe-run/screenshots/probe.png', 'artifacts/testing/probe-run/logs/probe.log')
-$mustTrack = @('docs/quality/test-reports/test-report-001-probe.md', 'docs/quality/test-plans/test-plan-001-probe.md')
+$mustTrack = @('docs/quality/test-reports/test-report-001-probe.md', 'docs/quality/test-plans/test-plan-001-probe.md', 'docs/architecture/data/probe.md')
 foreach ($p in $mustIgnore) { git check-ignore -q --no-index $p 2>$null; if ($LASTEXITCODE -ne 0) { Add-Err '.gitignore' "generated evidence is not ignored: $p" } }
 foreach ($p in $mustTrack) { git check-ignore -q --no-index $p 2>$null; if ($LASTEXITCODE -eq 0) { Add-Err '.gitignore' "documentation path would be ignored: $p" } }
 
