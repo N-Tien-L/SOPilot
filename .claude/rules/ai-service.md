@@ -6,7 +6,7 @@ paths:
 
 # ai-service (FastAPI, Python ≥ 3.11, uv)
 
-Design source: `docs/architecture/components/ai-service.md`. Tables: `.agent/context/database/tables/rag.md`. PDF library: Docling (ADR-008).
+Design source: `docs/architecture/components/ai-service.md`. Tables: `docs/architecture/data/rag-schema.md`. PDF library: Docling (ADR-008).
 
 ## Structure (`src/sopilot_ai/`)
 

@@ -25,7 +25,7 @@ Rule: no fix without a confirmed cause. Write down the hypothesis, the evidence 
 | ai-service cannot read objects | `SOPILOT_S3_REGION` must be set (the read-only policy denies GetBucketLocation, fix `e96599c`); bucket name same on both services |
 | Retrieval returns nothing | `/health` `degraded` + `staleVersions` means an embedding model/revision mismatch; run `python -m sopilot_ai.admin reindex` (with `PYTHONPATH=src`). Also check the `document_access` row exists with `active_version_id` and visibility/department |
 | Flyway service exits non-zero | Checksum mismatch means an applied migration was edited. Never "repair" on the persistent volume without the owner |
-| Provider 429/5xx | Limits in `config/models.yaml` chain; owner decisions in PLAN-V2 (2026-11-01) |
+| Provider 429/5xx | Limits in `config/models.yaml` chain; the answer LLM is the self-hosted Modal endpoint (ADR-006 §4.4, `infrastructure/modal/`) |
 
 Inspect data read-only: `docker exec sopilot-v2-postgres psql -U postgres -d sopilot -c "<SELECT ...>"`. No writes, no DDL (the hook blocks DROP/TRUNCATE through psql).
 

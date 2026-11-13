@@ -124,7 +124,7 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
 
 - V1 answer generation path: `pipeline_orchestrator.py` imports a `build_sources` function I could not find; the reranker is not connected; document/category filters appear unreachable from the chat request. Runtime behavior is unconfirmed.
 - Document access rules are copied onto chunks at ingestion; no update path was found when visibility changes.
-- Configuration drift (bucket names, exchange names, a retired-model list) is recorded in [CLAUDE.md](CLAUDE.md#known-v2-doccode-drift-verify-before-relying-on-docs). V1 is frozen, so these items are documented and not fixed.
+- Configuration drift (bucket names, exchange names, a retired-model list) is recorded in [the V1-frozen rule](.claude/rules/v1-frozen.md#known-v1-drift-found-2026-10-1617-not-fixed-port-carefully). V1 is frozen, so these items are documented and not fixed.
 - No official retrieval results exist; the evaluation datasets are drafts.
 - Next: first official retrieval results (BM25 vs dense vs hybrid on a reviewed dataset), then the two V2 services ([PLAN-V2](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md)).
 

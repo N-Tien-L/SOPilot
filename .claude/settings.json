@@ -12,6 +12,7 @@
       "PowerShell(./scripts/run-tests.ps1*)",
       "PowerShell(./scripts/check-migrations.ps1*)",
       "PowerShell(./scripts/pre-commit-check.ps1*)",
+      "PowerShell(./scripts/docs/check-docs.ps1*)",
       "Bash(./mvnw test*)",
       "Bash(./mvnw -B test*)",
       "Bash(./mvnw -q -B test*)",

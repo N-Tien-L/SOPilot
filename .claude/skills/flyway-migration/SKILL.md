@@ -35,12 +35,12 @@ Start from `references/template.sql`. Checklist:
 
 ## 4. Update docs in the same change
 
-- `.agent/context/database/tables/core.md` or `rag.md`: table, columns, RLS, grants.
-- TECH-V2 section only if the design changed (owner approval). Ticket notes: the migration file name.
+- `docs/architecture/data/core-schema.md` or `rag-schema.md`: table, columns, RLS, grants (append; keep the per-migration layout).
+- The design section only if the design changed (owner approval). Ticket notes: the migration file name.
 
 ## Done when
 
-The check script passes; the integration suite that applies the chain passes; the context doc is updated; the report names the file, the commands run with their results, and anything not verified (for example "not applied to the persistent volume").
+The check script passes; the integration suite that applies the chain passes; the schema doc is updated; the report names the file, the commands run with their results, and anything not verified (for example "not applied to the persistent volume").
 
 ## If something fails
 
