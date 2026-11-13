@@ -104,13 +104,15 @@ config/rabbitmq.env
 reports/
 
 # Test artifacts
-test-*.ps1
-test-*.bat
-test-*.js
-test-*.ts
-test-*.md
-!.agent/skills/**/test-*.md
+/test-*.ps1
+/test-*.bat
+/test-*.js
+/test-*.ts
+/test-*.md
 !codebase-map.json
+
+# Generated test evidence: screenshots, videos, traces, logs (reports live in docs/quality/test-reports/)
+/artifacts/
 
 # Database backups (local only)
 *.sql.bak
