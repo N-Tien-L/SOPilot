@@ -21,7 +21,7 @@ assignee: pair
 > Translated from Vietnamese on 2026-11-13; content unchanged. Quoted strings from source documents stay in Vietnamese.
 
 ## 1. Context & goal
-[AUDIT-ingestion-sop-data](../../../../04-reports/AUDIT-ingestion-sop-data-2026-10-19.md) steps 4 and 8, PRD-V2 FR-08. The boilerplate (repeated headers/footers, national motto/heading lines, signatures, distribution lists, approval tables, revision tables) is being embedded as content. Remove it from the index but keep the useful information as metadata.
+[AUDIT-ingestion-sop-data](../../../../research/audit-ingestion-sop-data-2026-10-19.md) steps 4 and 8, PRD-V2 FR-08. The boilerplate (repeated headers/footers, national motto/heading lines, signatures, distribution lists, approval tables, revision tables) is being embedded as content. Remove it from the index but keep the useful information as metadata.
 
 ## 2. Acceptance criteria
 - [x] Detect headers/footers repeated across PDF pages (DOCX deferred after the MVP per FR-06); remove them from content. Changed 2026-10-21 (audit by query type, owner decision P0-4, TECH-V2-ai-service §5.3): the "≥ 60% of pages" rule applies only when the PDF has at least `SOPILOT_HEADER_FOOTER_MIN_PAGES` pages (default 3, fixed on the V2-19 corpus), and the first `heading` element is never marked `header`; add 1-page and 2-page PDF fixtures, on which the "content wrongly removed" metric must be 0. *Done 2026-10-26: `docproc/clean/boilerplate.py`, tests in `test_clean.py` (including 1–2-page PDFs not losing content and the first heading not marked `header`) and the real PDF `framed_procedure` in `test_pdf.py`.*

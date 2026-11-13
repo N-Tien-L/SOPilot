@@ -21,7 +21,7 @@ assignee: pair
 > Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
-Keep the chat components; remove the system admin pages, analytics, roster, the V1 department tree, OnlyOffice, version comparison and the model-picker UI. Flat V2 departments belong to V2-33. Orchestrated by the `frontend-delivery` skill (global CLAUDE.md). Changed 2026-10-21 per [AUDIT-markdown-normalization](../../../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md) §4: the ≤ 10-file upload flow and the "Nội dung hệ thống nhận diện" (recognized content) view (PRD-V2 FR-30, FR-31, UC-12). Split from XL on 2026-10-24: upload is V2-31, the viewer V2-32, administration V2-33; every criterion kept, no added scope.
+Keep the chat components; remove the system admin pages, analytics, roster, the V1 department tree, OnlyOffice, version comparison and the model-picker UI. Flat V2 departments belong to V2-33. Orchestrated by the `frontend-delivery` skill (global CLAUDE.md). Changed 2026-10-21 per [AUDIT-markdown-normalization](../../../../research/audit-markdown-normalization-and-preview-2026-10-21.md) §4: the ≤ 10-file upload flow and the "Nội dung hệ thống nhận diện" (recognized content) view (PRD-V2 FR-30, FR-31, UC-12). Split from XL on 2026-10-24: upload is V2-31, the viewer V2-32, administration V2-33; every criterion kept, no added scope.
 
 ## 2. Acceptance criteria
 - [ ] Google sign-in; choosing/switching workspaces; tokens kept per workspace (T8).

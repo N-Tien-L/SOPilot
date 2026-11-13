@@ -6,13 +6,13 @@ created: 2026-10-20
 updated: 2026-11-13
 refs:
   - docs/architecture/decisions/adr-009-department-publishers.md
-  - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
+  - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
   - docs/product/prd-v2-sopilot-mvp.md
   - docs/architecture/decisions/adr-004-two-service-architecture.md
   - docs/architecture/decisions/adr-005-workspace-tenancy-and-google-jit.md
   - docs/architecture/decisions/adr-006-free-tier-providers-and-environments.md
   - docs/architecture/decisions/adr-007-departments-member-profiles-document-access.md
-  - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
+  - docs/research/audit-v2-baseline-analysis-2026-10-17.md
   - docs/architecture/components/ai-service.md
 author: "Owner"
 affected_services: [core-api, ai-service, frontend/web]
@@ -25,7 +25,7 @@ affected_schemas: [core]
 >
 > This document pairs with [TECH-V2-ai-service](ai-service.md). The contract between the two services (§8) is the shared source; TECH-V2-ai-service only refers to it and does not redefine it.
 >
-> **Changed 2026-10-21 (owner, [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):** TXT dropped (§3.3, §5.5); the replacement rule while a version is processing (§3.3, §11 Q7); the document quota defaults to 50/200 MB (§3.3, §9, §11 Q6); `attempt` in the ingest payload and callback so retries really rerun (§5.5, §8); `warningCodes` and `latestVersion` for the FR-31 view (§5.5, §8.2).
+> **Changed 2026-10-21 (owner, [AUDIT-markdown-normalization](../../research/audit-markdown-normalization-and-preview-2026-10-21.md)):** TXT dropped (§3.3, §5.5); the replacement rule while a version is processing (§3.3, §11 Q7); the document quota defaults to 50/200 MB (§3.3, §9, §11 Q6); `attempt` in the ingest payload and callback so retries really rerun (§5.5, §8); `warningCodes` and `latestVersion` for the FR-31 view (§5.5, §8.2).
 >
 > **Owner approval 2026-11-10 ([ADR-009](../decisions/adr-009-department-publishers.md), `approved`):** document write rights move to department publishers and a workspace publisher; the OWNER revokes and transfers responsibility; DDL, API and the check point are in §15. Implemented by V2-36 (`done`).
 >

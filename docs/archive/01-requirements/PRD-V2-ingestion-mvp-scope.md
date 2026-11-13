@@ -14,7 +14,7 @@ refs:
 
 # Phạm vi ingestion MVP
 
-> **`superseded` 2026-10-21.** Toàn bộ yêu cầu đã hợp nhất vào [PRD-V2](../../product/prd-v2-sopilot-mvp.md) FR-06, FR-07, FR-08, FR-09, FR-30, FR-31 và UC-12; PRD-V2 là nguồn yêu cầu duy nhất. Hai điểm dưới đây đã thay đổi so với thân tài liệu: TXT bị bỏ khỏi MVP (ING-03), hạn mức tài liệu mặc định 50 tài liệu/200 MB thay vì tắt (ING-02). Thân bài giữ nguyên để làm lịch sử quyết định; không dùng làm tiêu chí nghiệm thu. Lý do: [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md).
+> **`superseded` 2026-10-21.** Toàn bộ yêu cầu đã hợp nhất vào [PRD-V2](../../product/prd-v2-sopilot-mvp.md) FR-06, FR-07, FR-08, FR-09, FR-30, FR-31 và UC-12; PRD-V2 là nguồn yêu cầu duy nhất. Hai điểm dưới đây đã thay đổi so với thân tài liệu: TXT bị bỏ khỏi MVP (ING-03), hạn mức tài liệu mặc định 50 tài liệu/200 MB thay vì tắt (ING-02). Thân bài giữ nguyên để làm lịch sử quyết định; không dùng làm tiêu chí nghiệm thu. Lý do: [AUDIT-markdown-normalization](../../research/audit-markdown-normalization-and-preview-2026-10-21.md).
 
 > **Owner duyệt 2026-10-20** theo khuyến nghị, kèm quyết định ưu tiên nghiên cứu: hạn mức thương mại tạm tắt (PRD-V2 FR-09, §8.10). Hai thay đổi sản phẩm ở §5 đã đồng bộ vào PRD-V2 (FR-07, FR-30), TECH-V2-core-api §3.3/§5.5, V2-12 và V2-15.
 

@@ -8,11 +8,11 @@ author: "Owner"
 milestone: "V2: SOPilot MVP"
 priority: P0
 refs:
-  - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
+  - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
   - docs/archive/04-reports/AUDIT-project-progress-2026-10-14.md
   - docs/archive/04-reports/AUDIT-google-admission-2026-10-15.md
-  - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
-  - docs/04-reports/AUDIT-ingestion-sop-data-2026-10-19.md
+  - docs/research/audit-v2-baseline-analysis-2026-10-17.md
+  - docs/research/audit-ingestion-sop-data-2026-10-19.md
   - docs/architecture/decisions/adr-007-departments-member-profiles-document-access.md
   - docs/architecture/decisions/adr-009-department-publishers.md
 ---
@@ -108,13 +108,13 @@ Workspace roles: `OWNER`, `ADMIN`, `MEMBER`. There is no longer a system-wide ro
 
   Editing title, description, category or tags creates no ingestion job; changing visibility follows the access-sync mechanism of FR-25/FR-26. Deleting a document deletes the file and all its chunks.
 - [ ] **FR-30: Multi-file selection.** The UI allows selecting up to 10 files per batch (a starting product limit, not a measured one), sent as one upload request per file; there is no batch table/job and no all-or-nothing transaction. Each file has its own status and failure reason; a failed, duplicate or over-quota file does not cancel the others. A failed file is retried or replaced on its own, without reloading files that succeeded. The user does not have to stay on the upload screen once files have finished uploading. ZIP/folder import, wiki/Git/Drive/SharePoint sync and a migration dashboard are out of scope (§5).
-- [ ] **FR-08: Ingestion.** Structured extraction keeps page numbers and section headings, chunks, embeds, and stores `workspace_id`, `document_id`, `page` and character positions. The queue is durable (no lost jobs when the service restarts); jobs and outbox are idempotent, so resending the same operation does not duplicate a job. Content normalization (owner decision 2026-10-21, [AUDIT-markdown-normalization](../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):
+- [ ] **FR-08: Ingestion.** Structured extraction keeps page numbers and section headings, chunks, embeds, and stores `workspace_id`, `document_id`, `page` and character positions. The queue is durable (no lost jobs when the service restarts); jobs and outbox are idempotent, so resending the same operation does not duplicate a job. Content normalization (owner decision 2026-10-21, [AUDIT-markdown-normalization](../research/audit-markdown-normalization-and-preview-2026-10-21.md)):
   - A PDF is converted directly from the structure returned by **one** conversion library into a shared representation (headings, paragraphs, lists, tables, page numbers); no plain-text extraction followed by rebuilding Markdown; no fallback chain of tools. Input Markdown goes through a parser into the same representation.
   - From the cleaned representation the system renders **one canonical Markdown** shared by chunking, indexing, citations, metadata suggestions and the FR-31 view. Citation character offsets refer to this canonical (post-cleaning) Markdown. Both the structure and the Markdown are stored for reuse, so metadata suggestions never re-parse the file.
   - No LLM rewrites content. Identical content in different formats is not promised to produce identical Markdown.
   - Embedding cache keyed by model + revision + SHA-256 of the exact embedding input; no promised cache-hit rate; the Markdown hash is not used to skip a version automatically.
 
-  Additions from [AUDIT-ingestion-sop-data](../04-reports/AUDIT-ingestion-sop-data-2026-10-19.md):
+  Additions from [AUDIT-ingestion-sop-data](../research/audit-ingestion-sop-data-2026-10-19.md):
   - One extractor, producing structured text (headings, lists keeping the numbering shown in the source, tables in place).
   - Separate boilerplate from indexed content: headers/footers repeated on each page, national motto/heading lines, signatures, distribution lists, approval tables, revision-history tables.
   - Extract metadata from the content when present: document code, issue number, effective date.
@@ -219,7 +219,7 @@ Environment and experiment design: ADR-006 §4.2 (runs on the local machine, ind
 12. **Ingestion scope:** [PRD-V2-ingestion-mvp-scope](../archive/01-requirements/PRD-V2-ingestion-mvp-scope.md) is approved; FR-30 (multi-file selection) and the no-op on a replacement with the same SHA-256 (FR-07) move into this PRD. On 2026-10-21 all remaining content of that document was merged into FR-06..FR-09 and FR-30 and that document became `superseded`; this PRD is the single source of requirements.
 13. **Sign-in:** anyone with a Google account can sign in and gets a personal workspace (UC-01), without an invitation.
 
-**Additional owner decisions 2026-10-21 (Markdown normalization and the extraction view, [AUDIT-markdown-normalization](../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md)):**
+**Additional owner decisions 2026-10-21 (Markdown normalization and the extraction view, [AUDIT-markdown-normalization](../research/audit-markdown-normalization-and-preview-2026-10-21.md)):**
 
 14. **Formats and quotas:** the MVP accepts only PDFs with a text layer and Markdown; TXT is dropped, DOCX and OCR stay deferred (FR-06). The document quota defaults to 50 documents/200 MB per workspace, checked in the backend including concurrent uploads (FR-09).
 15. **Content pipeline:** one library converts PDFs into a structured representation, Markdown also goes through a parser into the same representation, and one canonical Markdown rendered after cleaning is the shared source (FR-08). The PDF library is **Docling** (ADR-008, owner decision 2026-10-21, not yet tried on the corpus); V2-20 confirms it against the hard constraints in the report above, with no further comparison against PyMuPDF.

@@ -21,11 +21,11 @@ assignee: pair
 > **Scope:** `tests` | **Size:** `L` | **Priority:** `P0`
 > **Parent plan:** `PLAN-V2-SOPILOT-MVP` | **Branch:** `test/eval-config-matrix`
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. The report path `docs/04-reports/` is as it was at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
 
-Owner decision 2026-11-11 (note in [PLAN-V2](../PLAN.md)). RQ1–RQ5 retrieval numbers exist ([AUDIT-eval-rq1-rq3](../../../../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) §12, [V2-35](V2-35-infra-modal-rerank-shared-gpu.md) results section). The research report still lacks:
+Owner decision 2026-11-11 (note in [PLAN-V2](../PLAN.md)). RQ1–RQ5 retrieval numbers exist ([AUDIT-eval-rq1-rq3](../../../../research/audit-eval-rq1-rq3-2026-11-04.md) §12, [V2-35](V2-35-infra-modal-rerank-shared-gpu.md) results section). The research report still lacks:
 
 - **answer-level** numbers on `sop-main-v2`. V2-10's `answers` run covered only `sop-main`, and the generation model graded itself (`judge_is_the_answer_model: true`);
 - a measure of **correctness against `reference_answer`**. `answers.py` currently measures only faithfulness to the context;
@@ -77,7 +77,7 @@ Owner decision 2026-11-11 (note in [PLAN-V2](../PLAN.md)). RQ1–RQ5 retrieval n
 
 ### G. Budget and report
 - [ ] The answer-generation Modal account ≤ $15; the judge account ≤ $8. Record the real cost after each step. If a cap is exceeded, stop and ask the owner.
-- [ ] Raw results stored in `eval/results/<run_id>/`. Report `docs/04-reports/AUDIT-eval-config-matrix-answers-<date>.md`: hypotheses, decision rules, tables with CIs, unfavourable results, limitations (LLM-drafted labels, 23 documents, a small judge, Vietnamese not on the Gemma 4 model card).
+- [ ] Raw results stored in `eval/results/<run_id>/`. Report `docs/research/audit-eval-config-matrix-answers-<date>.md`: hypotheses, decision rules, tables with CIs, unfavourable results, limitations (LLM-drafted labels, 23 documents, a small judge, Vietnamese not on the Gemma 4 model card).
 - [ ] `eval` pytest green; `./scripts/check-docs.ps1` green.
 
 ## 3. Guide
@@ -105,7 +105,7 @@ Owner decision 2026-11-11 (note in [PLAN-V2](../PLAN.md)). RQ1–RQ5 retrieval n
 | `eval/configs/v2-37-matrix.yaml`, `v2-37-sensitivity.yaml`, `v2-37-answers.yaml` | CREATE |
 | `infrastructure/modal/serve_judge.py` | CREATE |
 | `eval/tests/test_v2_37_*.py` | CREATE |
-| `docs/04-reports/AUDIT-eval-config-matrix-answers-<date>.md` | CREATE |
+| `docs/research/audit-eval-config-matrix-answers-<date>.md` | CREATE |
 
 ## 6. Results
 

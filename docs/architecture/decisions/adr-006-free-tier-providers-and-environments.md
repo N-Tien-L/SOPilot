@@ -8,7 +8,7 @@ author: "Owner"
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
   - docs/architecture/decisions/adr-004-two-service-architecture.md
-  - docs/04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md
+  - docs/research/audit-v2-baseline-analysis-2026-10-17.md
 deciders: ["Owner"]
 amends: [ADR-004]
 supersedes: []
@@ -19,7 +19,7 @@ superseded_by: ""
 
 > **Status:** `approved` (2026-10-20) | **Proposed:** `2026-10-17` | **Decider:** `Owner`
 >
-> This ADR extends ADR-004 in two ways: the choice of embedding, LLM, reranker and storage, and how each environment runs. Evidence and analysis are in [AUDIT-v2-baseline-analysis](../../04-reports/AUDIT-v2-baseline-analysis-2026-10-17.md).
+> This ADR extends ADR-004 in two ways: the choice of embedding, LLM, reranker and storage, and how each environment runs. Evidence and analysis are in [AUDIT-v2-baseline-analysis](../../research/audit-v2-baseline-analysis-2026-10-17.md).
 >
 > **Every free-tier figure below was read on 2026-10-17 and changes quickly.** Re-check them with the list in §6 before any deployment.
 >

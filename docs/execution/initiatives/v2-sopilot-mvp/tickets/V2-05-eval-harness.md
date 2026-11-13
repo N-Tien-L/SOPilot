@@ -56,7 +56,7 @@ uv run python -m sopilot_eval.run --dataset datasets/smoke --config configs/rq1-
 - Remaining: code review by someone else.
 
 ### Review 2026-10-24
-Fixed nDCG to discount duplicates, splitter limits/parameter checks, the refuse-all threshold, the cache namespace, the reranker cache, wrong configurations and the run id. The report states that the gold is a document/page proxy, not span gold yet; no silent fallback to `docproc`. Commands/tests and limits in [AUDIT readiness](../../../../04-reports/AUDIT-v2-readiness-preparation-2026-10-24.md). Kept `review` because the delta was not yet committed/peer-reviewed; heavy models and the official RQs were not rerun in this round.
+Fixed nDCG to discount duplicates, splitter limits/parameter checks, the refuse-all threshold, the cache namespace, the reranker cache, wrong configurations and the run id. The report states that the gold is a document/page proxy, not span gold yet; no silent fallback to `docproc`. Commands/tests and limits in [AUDIT readiness](../../../../archive/reports/AUDIT-v2-readiness-preparation-2026-10-24.md). Kept `review` because the delta was not yet committed/peer-reviewed; heavy models and the official RQs were not rerun in this round.
 
 ### Acceptance 2026-10-25
-The owner settled the scope in chat ("ok chốt"). Accepts the retrieval benchmark tooling, not the RQ results or the whole system. The delta review and the 18 tests in the commit's scope pass; the official RQs still belong to V2-06/V2-07/V2-22. See the [acceptance record](../../../../04-reports/AUDIT-v2-05-v2-08-acceptance-2026-10-25.md).
+The owner settled the scope in chat ("ok chốt"). Accepts the retrieval benchmark tooling, not the RQ results or the whole system. The delta review and the 18 tests in the commit's scope pass; the official RQs still belong to V2-06/V2-07/V2-22. See the [acceptance record](../../../../quality/test-reports/audit-v2-05-v2-08-acceptance-2026-10-25.md).

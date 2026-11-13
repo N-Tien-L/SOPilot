@@ -18,7 +18,7 @@ assignee: pair
 
 # TICKET V2-07: Run the experiments
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. The report path `docs/04-reports/` is as it was at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
 The decision gate: multilingual retrieval numbers tell whether RAG is worth further investment. The NFR targets (recall@5 ≥ 0.80...) may be adjusted from the baseline.
@@ -29,7 +29,7 @@ Changed 2026-10-21 (pre-implementation review, TECH-V2-ai-service §6.5): the of
 
 ## 2. Acceptance criteria
 - [x] The official RQ configuration uses `chunking: docproc` (target 384 / max 512 tokens, the tokenizer of the model measured, like ai-service's `config/models.yaml`); the report records the `docproc` version and `normalizer_version`. Results from the old chunker are labelled exploratory only.
-- [x] Changed 2026-10-21 (audit by query type, owner decisions D11/P0-1/P0-6), **done before the official runs so nothing needs remeasuring**: (a) the harness implements TECH-V2-ai-service §6.3's final BM25 tokenizer (diacritic-free `~` terms) in `eval/sopilot_eval/retrievers.py::tokenize`; (b) the harness's `hybrid` gate uses an always-present `dense_score`: a top candidate with only a BM25 score gets its cosine computed directly (TECH-V2-ai-service §6.4, [RESEARCH-04](../../../../04-reports/RESEARCH-04-experiment-tooling.md) §5), because RQ3 measures the threshold on exactly this score; (c) `V2-06` has labelled `query_types` and frozen the test set. The report splits numbers by `query_types`.
+- [x] Changed 2026-10-21 (audit by query type, owner decisions D11/P0-1/P0-6), **done before the official runs so nothing needs remeasuring**: (a) the harness implements TECH-V2-ai-service §6.3's final BM25 tokenizer (diacritic-free `~` terms) in `eval/sopilot_eval/retrievers.py::tokenize`; (b) the harness's `hybrid` gate uses an always-present `dense_score`: a top candidate with only a BM25 score gets its cosine computed directly (TECH-V2-ai-service §6.4, [RESEARCH-04](../../../../research/research-04-experiment-tooling.md) §5), because RQ3 measures the threshold on exactly this score; (c) `V2-06` has labelled `query_types` and frozen the test set. The report splits numbers by `query_types`.
 - [x] Smoke-measure the time and RAM of `bge-m3` and `bge-reranker-v2-m3` on the owner's machine with ~50 chunks; decide which configurations enter the matrix from the measurements.
 - [x] RQ1/RQ1b: dense, bm25, hybrid (both weightings 1/1 and 0.7/0.3) with pinned `bge-m3`, on the test set, **reported by `lang` and by cross-lingual**.
 - [x] Changed 2026-10-21 (TECH-V2-ai-service §6.4): if hybrid loses to dense on the cross-lingual group, also run hybrid with `cross_lingual_bm25_factor` ∈ {0.3, 0} (the harness implements this factor in its own RRF until `V2-09` has `retrieval.fusion`); choose the value on dev, report on test, record it in `retrieval.cross_lingual_bm25_factor`. If it does not lose, keep `1.0` and record why. **(Decided 2026-11-07: keep `1.0`. The dev rule chose 0.3 but by only 1 question, test shows no difference, and the factor does not address the cause; see the report §4.2, §12.)**
@@ -38,7 +38,7 @@ Changed 2026-10-21 (pre-implementation review, TECH-V2-ai-service §6.5): the of
 - [x] RQ5: compare only the models that run on the machine (candidates: `bge-m3`, `Qwen3-Embedding-0.6B`, `multilingual-e5-large-instruct`; e5 limited to 512 tokens). Record each model's corpus embedding time.
 - [x] Record the hardware (CPU, RAM); latency over ≥ 3 runs, with the spread.
 - [x] State the limits: small data scale, simple BM25 tokenization (no per-language tokenizer), retrieval only if V2-10 is not done.
-- [x] Report `docs/04-reports/AUDIT-eval-rq1-rq3-<date>.md` pointing to `eval/results/<run_id>/`.
+- [x] Report `docs/research/audit-eval-rq1-rq3-<date>.md` pointing to `eval/results/<run_id>/`.
 
 ## 3. Guide
 `uv sync --extra local` then `uv run python -m sopilot_eval.run --dataset ... --config configs/rq1-rq3-bge-m3.yaml`. Add RQ5 configurations to `eval/configs/` after the smoke measurement. `eval/pyproject.toml` declares `services/ai-service` as a path dependency to import `sopilot_ai.docproc`.
@@ -48,7 +48,7 @@ Rerunning the same configuration must give the same retrieval ranks (PRD reprodu
 
 ## 5. Progress 2026-11-04
 
-The official numbers have run; report [AUDIT-eval-rq1-rq3-2026-11-04](../../../../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) (`draft`). Harness code committed in `583d0a3`.
+The official numbers have run; report [AUDIT-eval-rq1-rq3-2026-11-04](../../../../research/audit-eval-rq1-rq3-2026-11-04.md) (`draft`). Harness code committed in `583d0a3`.
 
 - [x] `docproc` chunks (target 384 / max 512, each model's tokenizer) through `sopilot_ai.docproc` (path dependency in `eval/pyproject.toml`); 23/23 documents rebuilt byte-identical to the frozen corpus. `normalizer_version=2`, corpus from docproc `26d1ed1`.
 - [x] (a) BM25 tokenizer with `~` terms (`retrievers.tokenize`, `lexical_len`); (b) the `hybrid` gate uses an always-present `dense_score`, `bm25` has no gate, rerank uses a sigmoid; (c) the report is split by `query_types`. Tests: `eval/tests/test_v2_07_retrieval.py`.
@@ -74,7 +74,7 @@ The official numbers have run; report [AUDIT-eval-rq1-rq3-2026-11-04](../../../.
 
 ## 6. Decision 2026-11-07
 
-The owner set the ticket `done` on the report [AUDIT-eval-rq1-rq3-2026-11-04](../../../../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) (`final`). The proposals in §8 and §12 of the report were taken as follows; `services/ai-service/config/models.yaml` is **not changed**.
+The owner set the ticket `done` on the report [AUDIT-eval-rq1-rq3-2026-11-04](../../../../research/audit-eval-rq1-rq3-2026-11-04.md) (`final`). The proposals in §8 and §12 of the report were taken as follows; `services/ai-service/config/models.yaml` is **not changed**.
 
 | Item | Decision |
 |---|---|

@@ -21,7 +21,7 @@ assignee: pair
 > Translated from Vietnamese on 2026-11-13; content unchanged. Context-doc paths under `.agent/context/` are as they were at the time.
 
 ## 1. Context & goal
-FR-06, 07, 09, 20, 30, 31 (the core-api part). Replaces knowledge-service and RabbitMQ with an outbox + HTTP calls to ai-service. Changed 2026-10-21 per [AUDIT-markdown-normalization](../../../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md): TXT dropped, document quota on by default, the replacement rule while processing, retries carry `attempt`.
+FR-06, 07, 09, 20, 30, 31 (the core-api part). Replaces knowledge-service and RabbitMQ with an outbox + HTTP calls to ai-service. Changed 2026-10-21 per [AUDIT-markdown-normalization](../../../../research/audit-markdown-normalization-and-preview-2026-10-21.md): TXT dropped, document quota on by default, the replacement rule while processing, retries carry `attempt`.
 
 ## 2. Acceptance criteria
 - [x] DOCX deferred until after the MVP (owner decision 2026-10-20, FR-06): upload returns `415`, creates no job; tells the user to export a PDF with a text layer, no server-side conversion.

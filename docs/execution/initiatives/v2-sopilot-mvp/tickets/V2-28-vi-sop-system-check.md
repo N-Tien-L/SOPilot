@@ -18,7 +18,7 @@ assignee: owner
 
 # TICKET V2-28: Vietnamese SOP system check set
 
-> Translated from Vietnamese on 2026-11-13; content unchanged. The report path `docs/04-reports/` is as it was at the time.
+> Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
 Owner decision 2026-10-21 (end-to-end audit of ai-service by query type, D7; see [PLAN-V2](../PLAN.md)). `V2-06`'s RQ corpus is English GitLab Markdown; its Vietnamese questions are all VI→EN. So `PROCEDURE_STEP` chunks, Điều/Khoản (article/clause) texts, section-based context assembly (TECH-V2-ai-service §6.4a), document codes, metadata in `<source>` and diacritic-free terms have **never been measured on real Vietnamese SOPs**; `V2-19` measures only extraction, not Q&A.
@@ -39,11 +39,11 @@ This is a **system check** set to accept the audit's changes, not an RQ experime
   - (i) questions containing PII (checks masking before sending to the LLM and in the gap list).
 - [ ] A runner executes the real `V2-10` pipeline on the local stack and DB (a fixed LLM, `temperature=0`; parts not needing generation run with a fake LLM). Reported by group (a)–(i) and by `query_types`: the share of gold spans in the context, citation precision, the correct refusal rate, correct `refusal_reason`, the correct gap-list rate.
 - [ ] Use the `dev` set to settle the still-open starting values: `retrieval.doc_code_boost`, `SOPILOT_HEADER_FOOTER_MIN_PAGES`, `SOPILOT_FOLLOWUP_MAX_TOKENS`; `test` numbers are only for reporting.
-- [ ] Report `docs/04-reports/AUDIT-vi-sop-system-check-<date>.md`: which groups pass or not, the causes, next proposals (for example the `DOC_INFO` chunk or opening §6.4a, per TECH-V2-ai-service §12a). State clearly that these are not RQ results and the sample is small.
+- [ ] Report `docs/quality/test-reports/audit-vi-sop-system-check-<date>.md`: which groups pass or not, the causes, next proposals (for example the `DOC_INFO` chunk or opening §6.4a, per TECH-V2-ai-service §12a). State clearly that these are not RQ results and the sample is small.
 
 ## 2a. Evidence and open items (2026-11-13)
 - Harness: `eval/sopilot_eval/system_check.py`, `eval/configs/vi-sop-check.yaml`, `eval/tests/test_vi_sop_check.py`. The runner calls the real `QAService.answer`; group e is generated automatically with a fixed seed.
-- The draft question set `eval/datasets/vi-sop-check/` (gitignored): 33 questions + 4 group-e questions = 37, 33 spans, 6 documents; `--dry-run` on 2026-11-13 is valid. Report: [AUDIT-vi-sop-system-check-2026-11-13](../../../../04-reports/AUDIT-vi-sop-system-check-2026-11-13.md) (`draft`, not RQ results, small sample, **pipeline not yet run**).
+- The draft question set `eval/datasets/vi-sop-check/` (gitignored): 33 questions + 4 group-e questions = 37, 33 spans, 6 documents; `--dry-run` on 2026-11-13 is valid. Report: [AUDIT-vi-sop-system-check-2026-11-13](../../../../quality/test-reports/audit-vi-sop-system-check-2026-11-13.md) (`draft`, not RQ results, small sample, **pipeline not yet run**).
 - **Still open (owner):** review every question and the licenses of the 6 documents; agree the size and the 0.8 pass threshold; run for real on the local stack with Modal (`dev` to settle `doc_code_boost`, `SOPILOT_HEADER_FOOTER_MIN_PAGES`, `SOPILOT_FOLLOWUP_MAX_TOKENS`, then `test`). Missing in the harness: `gold_in_context` (the asker does not return the context spans yet) and the gap-list rate.
 
 ## 3. Guide

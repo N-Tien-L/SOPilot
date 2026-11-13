@@ -10,7 +10,7 @@ refs:
   - docs/architecture/decisions/adr-004-two-service-architecture.md
   - docs/architecture/components/ai-service.md
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-20-structured-extraction.md
-  - docs/04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md
+  - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 deciders: ["Owner"]
 amends: []
 supersedes: []
@@ -30,7 +30,7 @@ superseded_by: ""
 ## 1. Context and the decision to make
 
 - TECH-V2-ai-service §5.2 and PRD-V2 FR-08 require **one** library that converts PDFs with a text layer into a `StructuredDocument` (headings, paragraphs, lists, tables, real page numbers, reading order), from which ai-service renders the canonical Markdown with offsets. No plain-text extraction followed by rebuilding structure, no fallback chain, no OCR, no LLM rewriting.
-- The [AUDIT-markdown-normalization](../../04-reports/AUDIT-markdown-normalization-and-preview-2026-10-21.md) report §6 named two candidates: **Docling** (MIT) and **PyMuPDF 2.x** (AGPL-3.0 or a commercial license), to be chosen by a 2-day spike in `V2-20`.
+- The [AUDIT-markdown-normalization](../../research/audit-markdown-normalization-and-preview-2026-10-21.md) report §6 named two candidates: **Docling** (MIT) and **PyMuPDF 2.x** (AGPL-3.0 or a commercial license), to be chosen by a 2-day spike in `V2-20`.
 - On 2026-10-21 the owner chose Docling without waiting for the comparison spike.
 - General constraints: runs locally on CPU (the owner's machine, 32 GB RAM), free, ai-service already needs `torch` for `bge-m3`, only PDFs with a text layer and Markdown in the MVP.
 

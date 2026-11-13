@@ -21,7 +21,7 @@ assignee: pair
 > Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
-[AUDIT-ingestion-sop-data](../../../../04-reports/AUDIT-ingestion-sop-data-2026-10-19.md) steps 5, 6 and 7, PRD-V2 FR-08. The old standardizer recognized only Chương/Điều/Khoản (chapter/article/clause), lost titles, accumulated `section_path` wrongly, split sentences broken across lines, and the chunker counted tokens with `cl100k`.
+[AUDIT-ingestion-sop-data](../../../../research/audit-ingestion-sop-data-2026-10-19.md) steps 5, 6 and 7, PRD-V2 FR-08. The old standardizer recognized only Chương/Điều/Khoản (chapter/article/clause), lost titles, accumulated `section_path` wrongly, split sentences broken across lines, and the chunker counted tokens with `cl100k`.
 
 ## 2. Acceptance criteria
 - [x] Recognize the document family (ISO procedure, Chương/Điều/Khoản, Markdown/wiki, non-standard prose) from V2-20's structure; Markdown headings (`#`) first, then numbering patterns (`1.`, `5.1`, `I.`, `Điều n`), heuristics (uppercase lines, bold) last. *Done 2026-10-26: `chunk/family.py`, `chunk/headings.py`.*

@@ -26,7 +26,7 @@ assignee: pair
 ---
 
 ## 1. Context & goal
-Reranking with `bge-reranker-v2-m3` on CPU takes 15.7–18.1 seconds per question ([AUDIT-eval-rq1-rq3](../../../../04-reports/AUDIT-eval-rq1-rq3-2026-11-04.md) RQ2/RQ2b), so `V2-07` does not enable it by default. The default retrieval mode (hybrid, dense or with rerank) is still open and was moved to `V2-10`/`V2-18` ([V2-07](V2-07-run-rq1-rq3-rq5.md) §6).
+Reranking with `bge-reranker-v2-m3` on CPU takes 15.7–18.1 seconds per question ([AUDIT-eval-rq1-rq3](../../../../research/audit-eval-rq1-rq3-2026-11-04.md) RQ2/RQ2b), so `V2-07` does not enable it by default. The default retrieval mode (hybrid, dense or with rerank) is still open and was moved to `V2-10`/`V2-18` ([V2-07](V2-07-run-rq1-rq3-rq5.md) §6).
 
 This ticket moves the reranker onto the A10 GPU **in the same Modal container** as `V2-34`'s vLLM (`infrastructure/modal/serve_vllm.py`), to get real latency numbers and rerun RQ2/RQ2b quickly. The owner chose the shared-container option on 2026-11-09. Reason: no extra GPU and no separate cold start. A separate rerank endpoint on the owner's second Modal account remains the fallback if the shared container does not work out (VRAM, TTFT).
 

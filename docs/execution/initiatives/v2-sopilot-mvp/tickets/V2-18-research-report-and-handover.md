@@ -32,7 +32,7 @@ Package everything so the assessor can rerun the results.
 - [ ] PLAN-V2: the remaining 32 tickets `done`, the V2-18 report reviewed before moving to `done`; after acceptance the PLAN is 33/33 with matching counters (changed 2026-10-21: `V2-28` added). The report presents the results of `V2-28`'s Vietnamese SOP check set as a supplement, not as RQ results.
 
 ## 3. Guide
-- **Files:** `docs/04-reports/AUDIT-v2-final-<date>.md`, `docs/04-reports/RESEARCH-REPORT-v2.md` (CREATE). Author "Owner".
+- **Files:** `docs/research/audit-v2-final-<date>.md`, `docs/research/research-report-v2.md` (CREATE). Author "Owner".
 
 ## 4. Testing
 Someone else (or a clean environment) reruns the commands in the instructions and gets matching numbers.

@@ -21,7 +21,7 @@ assignee: pair
 > Translated from Vietnamese on 2026-11-13; content unchanged.
 
 ## 1. Context & goal
-The new service `services/ai-service` (FastAPI) replaces `ai-qa-service` and `ingestion-service`. Port the embedding and the hybrid SQL selectively; fix R1–R5 and AUDIT §4.2. Extraction and chunking are split into V2-20 and V2-22 (owner decision 2026-10-19 per [AUDIT-ingestion-sop-data](../../../../04-reports/AUDIT-ingestion-sop-data-2026-10-19.md)); this ticket wires them into the worker and stores the chunks.
+The new service `services/ai-service` (FastAPI) replaces `ai-qa-service` and `ingestion-service`. Port the embedding and the hybrid SQL selectively; fix R1–R5 and AUDIT §4.2. Extraction and chunking are split into V2-20 and V2-22 (owner decision 2026-10-19 per [AUDIT-ingestion-sop-data](../../../../research/audit-ingestion-sop-data-2026-10-19.md)); this ticket wires them into the worker and stores the chunks.
 
 ## 2. Acceptance criteria
 - [x] The ingest worker calls extraction (V2-20) and chunking (V2-22); chunks store `workspace_id`, `document_id`, `page`, character positions and the heading path.
