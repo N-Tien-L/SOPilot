@@ -16,7 +16,7 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 38
+total_tickets: 39
 completed_tickets: 30
 implemented_tickets: 30
 review_tickets: 0
@@ -117,6 +117,7 @@ flowchart TD
     V36["V2-36: core-api: document write rights by department publisher and workspace publisher"]
     V37["V2-37: Retrieval configuration matrix and answer-level eval with an independent judge"]
     V38["V2-38: Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal"]
+    V39["V2-39: core-api: refresh-token grace window so a reload during a refresh does not end the session"]
     V01 --> V03
     V01 --> V04
     V05 --> V07
@@ -149,6 +150,7 @@ flowchart TD
     V10 --> V38
     V11 --> V38
     V29 --> V38
+    V29 --> V39
     V38 --> V15
     V10 --> V16
     V12 --> V16
@@ -212,6 +214,7 @@ flowchart TD
     V27 --> V37
     V35 --> V37
     V37 --> V18
+    V39 --> V18
 ```
 
 ---
@@ -261,6 +264,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-11` | core-api: service skeleton, Google identity, JIT and personal workspace | user | L | `V2-03`, `V2-08` | done |
 | `V2-29` | core-api: workspace CRUD, workspace switching and refresh sessions | user | L | `V2-11` | done |
 | `V2-30` | core-api: invitations, members and OWNER rules | user | M | `V2-29` | done |
+| `V2-39` | core-api: refresh-token grace window so a reload during a refresh does not end the session | user | S | `V2-29` | todo |
 | `V2-12` | core-api: documents, upload, outbox, document quota, safe replacement, audit log | knowledge | L | `V2-09`, `V2-11` | done |
 | `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | done |
 | `V2-14` | FR-19 tenant isolation tests in CI and RQ4 | tests | M | `V2-09`, `V2-12` | done |
@@ -280,7 +284,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
-| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37` | todo |
+| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39` | todo |
 
 ---
 
@@ -384,6 +388,8 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 > **Owner decision 2026-11-14 (frontend NFRs, [frontend-nfrs](../../../architecture/components/frontend-nfrs.md) §5):** the UI language is English (replaces the Vietnamese UI copy rule; the Vietnamese strings quoted in PRD FR-31/UC-12 and tickets V2-15, V2-31, V2-32, V2-33 are to be rewritten in English when each ticket is implemented); a unit test runner is allowed for the frontend (tool chosen in the stack ADR, added by a ticket); original PDFs use the browser's native viewer at `#page=N` with no PDF library (`V2-32`); Chrome and Firefox first; dark mode deferred to the polish phase.
 
 > **Owner decision 2026-11-14 (frontend stack, [ADR-010](../../../architecture/decisions/adr-010-frontend-stack.md) approved):** keep Next.js 16 as a client-rendered app and rebuild the foundation. New ticket [`V2-38`](tickets/V2-38-frontend-foundation.md) (web, P0, L) delivers it; `V2-15` now also depends on `V2-38`. Vitest and TanStack Query v5 are approved (replacing the legacy `react-query` v3 package). `total_tickets` 37 → 38. `v1-final` tag moves from V2-15 to V2-38 (first branch that breaks the V1 demo). `V2-31` and `V2-32` gain unit-test criteria. Inputs: [feature inventory](../../../architecture/components/frontend-feature-inventory.md), [NFRs](../../../architecture/components/frontend-nfrs.md).
+
+> **Owner decision 2026-11-15 (V2-39 added):** the V2-38 browser run showed that reloading a tab while its refresh request is in flight ends the session (strict refresh rotation, no grace window). New ticket [`V2-39`](tickets/V2-39-core-api-refresh-grace-window.md) (core-api, P1, S, depends on `V2-29`) adds a short grace window for the immediately previous token while keeping replay detection. `total_tickets` 38 → 39; `completed_tickets`, `implemented_tickets`, `review_tickets` unchanged (`todo` is not counted).
 
 ---
 

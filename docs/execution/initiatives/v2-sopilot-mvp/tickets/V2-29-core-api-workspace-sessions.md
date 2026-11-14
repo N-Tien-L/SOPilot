@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-11]
-blocks: [V2-15, V2-30, V2-38]
+blocks: [V2-15, V2-30, V2-38, V2-39]
 branch: "feat/user-v2-29"
 assignee: pair
 ---
