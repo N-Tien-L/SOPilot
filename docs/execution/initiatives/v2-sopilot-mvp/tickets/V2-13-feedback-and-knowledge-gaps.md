@@ -36,7 +36,8 @@ FR-16, FR-17. Replaces feedback-service with a minimal part inside ai-service, w
 - Votes: `PUT /ai/v1/messages/{id}/feedback` only by the conversation's owner, only on `ASSISTANT` messages, upsert by `(message_id, user_id)` (one vote per person per answer). The list: `GET /ai/v1/knowledge-gaps` (OWNER/ADMIN, MEMBER `403`), `POST .../{id}/resolve` (idempotent, `404` when not a gap).
 - Tests: `tests/integration/test_feedback_isolation.py` (15 tests: 3 workspaces with secret strings, MEMBER gets `403`, only the right criteria, email and phone masked, no asker identity, votes/comments/questions not leaking to other workspaces, resolve once), `tests/unit/test_feedback_sql.py` (every subquery filters `workspace_id`). The integration file was added to the ai-service step of `tenant-isolation.yml`.
 - No dashboard, export or trends.
-- **Still open:** owner review; `tenant-isolation.yml` has run only locally, not yet on GitHub Actions (not pushed). The feedback and list UI belong to `V2-15`.
+- `tenant-isolation.yml` ran on GitHub Actions for PR #14 (jobs `database`, `negative-control`, `department-authorization` passed). Owner review done 2026-11-14 ([PLAN-V2](../PLAN.md) change log).
+- **Still open:** the feedback and list UI belong to `V2-15`.
 
 ## 3. Guide
 - **Files:** `services/ai-service/` (tables `rag.message_feedback`, `rag.knowledge_gap_status`, APIs `/ai/v1/messages/{id}/feedback`, `/ai/v1/knowledge-gaps`); sources: `services/feedback-service`, `services/ai-qa-service/src/services/knowledge_gap.py` (reference only, the old thresholds are not reused).

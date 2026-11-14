@@ -225,6 +225,14 @@ foreach ($rel in $docFiles) {
         continue
     }
     if ($isArchive -and -not $audit) { continue }
+
+    # file names: lowercase kebab-case; README.md, PLAN.md and V2-NN-<slug>.md tickets are the exceptions
+    if (-not $isArchive) {
+        $fname = [System.IO.Path]::GetFileName($rel)
+        $nameOk = ($fname -cmatch '^[a-z0-9]+(?:-[a-z0-9]+)*\.md$') -or ($fname -ceq 'README.md') -or
+                  ($kind.Name -eq 'plan') -or ($kind.Name -eq 'ticket' -and $fname -cmatch '^V2-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$')
+        if (-not $nameOk) { Add-Err $rel "file name must be lowercase kebab-case (docs/README.md, ""Filenames"")" }
+    }
     if (-not $kind.Fm -and -not $isArchive) { continue }
     if ($null -eq $fm) { Add-Err $rel 'missing frontmatter'; continue }
 
@@ -252,11 +260,23 @@ foreach ($rel in $docFiles) {
         if ($fm['type'] -ne $prefix.ToLower()) { Add-Err $rel "type must be '$($prefix.ToLower())' to match the file name prefix (got '$($fm['type'])')" }
     }
     if ($kind.Name -eq 'ticket' -and $fm['status'] -eq 'blocked' -and -not $fm['blocked_reason']) { Add-Err $rel "status blocked requires 'blocked_reason'" }
+    if ($kind.Name -eq 'ticket' -and $fm['id'] -and -not [System.IO.Path]::GetFileName($rel).ToLowerInvariant().StartsWith($fm['id'].ToLowerInvariant() + '-')) {
+        Add-Err $rel "file name must start with the ticket id '$($fm['id'])-'"
+    }
 
-    # root-relative paths in frontmatter must exist
+    # root-relative paths in frontmatter must exist: every `refs` item, plus repo paths with an extension in other fields
     if ($text -match '(?s)\A\uFEFF?---\r?\n(.*?)\r?\n---') {
-        foreach ($m in [regex]::Matches($Matches[1], '(?<![\w/.])((?:docs|\.agent|\.claude|services|infrastructure|eval|scripts|tests|frontend)/[\w\-./]+\.[A-Za-z]+)')) {
-            $p = $m.Groups[1].Value
+        $paths = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+        foreach ($m in [regex]::Matches($Matches[1], '(?<![\w/.])((?:docs|\.claude|services|infrastructure|eval|scripts|tests|frontend)/[\w\-./]+\.[A-Za-z]+)')) {
+            [void]$paths.Add($m.Groups[1].Value)
+        }
+        if ($fm.ContainsKey('refs') -and $fm['refs']) {
+            foreach ($r in ($fm['refs'].Trim('[', ']') -split '[\s,]+')) {
+                $r = $r.Trim('"', "'").TrimEnd('/')
+                if ($r -and $r -notmatch '^[a-zA-Z][a-zA-Z0-9+.-]*:') { [void]$paths.Add($r) }
+            }
+        }
+        foreach ($p in $paths) {
             $res = Test-RepoPath $p
             if ($res -and $res -ne 'untracked-ignored') { Add-Err $rel "frontmatter ref ($res): $p" }
         }

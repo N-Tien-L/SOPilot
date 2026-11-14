@@ -154,6 +154,14 @@ if ($LASTEXITCODE -ne 0) {
 } else {
     Write-Host "✅ Docs check passed" -ForegroundColor Green
 }
+# V2 PLAN table, Mermaid DAG and handover closure (check-docs.ps1 covers only counters and depends_on/blocks)
+uv run --no-project --with pyyaml python (Join-Path $PSScriptRoot "../eval/sopilot_eval/plan_check.py") | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ PLAN check failed (eval/sopilot_eval/plan_check.py)" -ForegroundColor Red
+    $FailedChecks++
+} else {
+    Write-Host "✅ PLAN check passed" -ForegroundColor Green
+}
 
 # 7. Summary
 Write-Host "`n========================================="

@@ -20,7 +20,7 @@ Use the "Which document, if any" table in `docs/README.md`. Prefer updating the 
 - New id: the highest existing number for that prefix + 1, counting `docs/archive/`. Filenames are lowercase kebab-case (V2 tickets keep `V2-NN-…`).
 - Never renumber TECH/ADR sections. Append new ones.
 - Owner decisions: write them once in the ADR or design; add one dated change-log line to the PLAN naming the affected tickets.
-- Ticket status change → update the PLAN table and the counters in the same edit; keep `depends_on` ↔ `blocks` ↔ the Mermaid DAG consistent (both `check-docs.ps1` and `eval/sopilot_eval/plan_check.py` check this).
+- Ticket status change → update the PLAN table and the counters in the same edit; keep `depends_on` ↔ `blocks` ↔ the Mermaid DAG consistent (`check-docs.ps1` checks only the counters and `depends_on` ↔ `blocks`; the PLAN table rows and the Mermaid edges are checked only by `eval/sopilot_eval/plan_check.py`, which runs in the CI `docs` job and in `pre-commit-check.ps1`).
 - Mark planned behaviour as planned. Do not set `approved`, `done` or `final` yourself; propose it to the owner.
 
 ## 4. Handoff (stopping mid-task)

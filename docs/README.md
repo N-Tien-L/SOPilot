@@ -47,7 +47,7 @@ English only for active docs. Keep Vietnamese only for quoted source material, U
 | `operations/` | runbook | none | draft · approved · superseded · archived |
 | `research/` | research | `RESEARCH-NNN` (existing `RESEARCH-…`/`AUDIT-…` ids kept) | draft · final · superseded |
 | `handoffs/` | handoff | none (existing `HANDOFF-…` kept) | draft · final |
-| `archive/` | historical | unchanged | unchanged (not validated) |
+| `archive/` | historical | unchanged | unchanged (only links and id uniqueness are checked) |
 
 Required on every validated doc: `title`, `status`, `created`, `updated` (`YYYY-MM-DD`), `author`. Kind-specific fields are listed in each template (for example `verdict` on test reports, PLAN counters, ticket `depends_on`/`blocks`). Optional on all: `refs` (root-relative paths), `supersedes`, `superseded_by`.
 
@@ -65,7 +65,7 @@ Relative Markdown links in bodies, root-relative paths in `refs`. Link to the so
 - `approved`, `done` and `final` are owner decisions. Agents may propose them.
 - A design states what is implemented and what is still planned. A documented design is not proof of implementation.
 - A ticket is `done` only with evidence (tests or commands with results, linked in "Evidence") and owner review. `review` means the code is committed and evidence is pending review. `blocked` requires `blocked_reason`.
-- Changing a ticket status updates the PLAN table and counters in the same edit (`completed` = done, `review` = review, `implemented` = done + review).
+- Changing a ticket status updates the PLAN table and counters in the same edit (`completed` = done, `review` = review, `implemented` = done + review). `check-docs.ps1` checks the counters; the table rows and Mermaid edges are checked by `eval/sopilot_eval/plan_check.py` (CI `docs` job and pre-commit; by hand: `uv run --no-project --with pyyaml python eval/sopilot_eval/plan_check.py`).
 - An owner decision is recorded once, in the ADR or design it belongs to. The PLAN change log gets one dated line naming the affected tickets.
 - ADR `amends` = partial change (the old ADR stays approved); `supersedes` = full replacement (the old one becomes superseded).
 - Closing an initiative: set the README and PLAN to `archived`, move the folder to `archive/initiatives/`, and update links in the same change.
