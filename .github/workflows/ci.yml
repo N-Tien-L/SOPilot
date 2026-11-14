@@ -38,7 +38,8 @@ jobs:
       run: ./scripts/check-migrations.ps1 -BaseRef "origin/${{ github.base_ref || 'main' }}"
 
   # Docs: frontmatter, ids, statuses, PLAN counters, ticket relations and links (strict mode: errors fail,
-  # warnings do not). Read-only; needs no secrets and no history.
+  # warnings do not), then the V2 PLAN table, Mermaid DAG and handover closure (plan_check.py, needs only
+  # pyyaml). Read-only; needs no secrets and no history.
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -47,6 +48,9 @@ jobs:
     - name: Check docs
       shell: pwsh
       run: ./scripts/docs/check-docs.ps1
+    - uses: astral-sh/setup-uv@v5
+    - name: Check V2 PLAN integrity
+      run: uv run --no-project --with pyyaml python eval/sopilot_eval/plan_check.py
 
   # Claude Code guard hook (.claude/hooks/guard.py): self-test against synthetic events and a throwaway git
   # repository. Stdlib only; no secrets, no Docker, no database.
