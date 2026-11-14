@@ -24,11 +24,26 @@ from sopilot_ai.retrieval.retriever import Retriever
 MODELS = Path(__file__).resolve().parents[2] / "config" / "models.yaml"
 
 
+def _service(**kw) -> QAService:  # noqa: ANN003
+    return QAService(None, Retriever(BowEmbedder(), RetrievalConfig()),  # type: ignore[arg-type]
+                     ScriptedChain(), ScriptedChain(), context=ContextConfig(),
+                     quota=QuotaCounter(None), **kw)  # type: ignore[arg-type]
+
+
 def test_the_service_chain_follows_the_documented_step_order() -> None:
-    service = QAService(None, Retriever(BowEmbedder(), RetrievalConfig()),  # type: ignore[arg-type]
-                        ScriptedChain(), ScriptedChain(), context=ContextConfig(),
-                        quota=QuotaCounter(None))  # type: ignore[arg-type]
-    assert tuple(s.name for s in service.steps()) == STEP_ORDER
+    layer = object()  # the chain only holds it; the step uses it when a question runs
+    assert tuple(s.name for s in _service(semantic=layer).steps()) == STEP_ORDER
+
+
+def test_without_the_semantic_router_the_chain_is_the_v2_10_chain() -> None:
+    names = tuple(s.name for s in _service().steps())
+    assert names == tuple(n for n in STEP_ORDER if n != "semantic_router")
+
+
+def test_the_semantic_router_flag_is_off_by_default() -> None:
+    settings = Settings.model_validate({"SOPILOT_DB_URL": "postgresql://unused",
+                                        "SOPILOT_INTERNAL_TOKEN": "t"})
+    assert settings.semantic_router_enabled is False
 
 
 # -- titles come from rules and never carry masked PII ------------------------------------------

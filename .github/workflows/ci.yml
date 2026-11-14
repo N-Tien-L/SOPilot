@@ -37,6 +37,27 @@ jobs:
       shell: pwsh
       run: ./scripts/check-migrations.ps1 -BaseRef "origin/${{ github.base_ref || 'main' }}"
 
+  # Docs: frontmatter, ids, statuses, PLAN counters, ticket relations and links (strict mode: errors fail,
+  # warnings do not). Read-only; needs no secrets and no history.
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    - name: Check docs
+      shell: pwsh
+      run: ./scripts/docs/check-docs.ps1
+
+  # Claude Code guard hook (.claude/hooks/guard.py): self-test against synthetic events and a throwaway git
+  # repository. Stdlib only; no secrets, no Docker, no database.
+  guard-selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    - name: Guard self-test
+      run: python3 .claude/hooks/test_guard.py
+
   # V2 core-api: Java 21, unit tests only (Testcontainers suites run in tenant-isolation.yml).
   core-api-unit:
     runs-on: ubuntu-latest

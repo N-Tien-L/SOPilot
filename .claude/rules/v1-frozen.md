@@ -18,7 +18,7 @@ These paths are the eight-service V1 stack (codename *Poliwise*: `com.poliwise.*
 
 - Old commands: `./scripts/validate-build.ps1 -Scope auth|user|knowledge|metadata|feedback|ai-qa|ingestion|gateway`, `./scripts/run-tests.ps1 -Scope <name>-service|api-gateway`. CI job "V1 (frozen)" in `ci.yml` keeps them green.
 - `infrastructure/init-db/reset-and-bootstrap.ps1` deletes the V1 Postgres volume. Run it only on the user's explicit request (`permissions.ask`).
-- `.agent/context/*` files marked "V1 LEGACY" describe this stack, not the V2 contract.
+- The V1 design notes are archived in `docs/archive/v1-context/`; they describe this stack, not the V2 contract.
 
 ## Known V1 drift (found 2026-10-16/17, not fixed; port carefully)
 

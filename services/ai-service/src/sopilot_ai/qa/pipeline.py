@@ -34,6 +34,7 @@ STEP_ORDER: tuple[str, ...] = (
     "guard",
     "router",
     "meaningful_tokens",
+    "semantic_router",  # V2-27; only in the chain when SOPILOT_SEMANTIC_ROUTER_ENABLED is true
     "rewrite",
     "retrieve_and_gate",
     "build_context",

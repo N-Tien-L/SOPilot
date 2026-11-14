@@ -26,7 +26,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from sopilot_ai.db.engine import system_tx, tenant_tx
-from sopilot_ai.db.repositories import embedding_cache, jobs, outbox
+from sopilot_ai.db.repositories import embedding_cache, jobs, outbox, suggestions
 from sopilot_ai.db.repositories.ingest import (
     ChunkRow,
     EmbeddingInfo,
@@ -204,6 +204,15 @@ async def _activate(job: ClaimedJob, request: IngestionRequest, processed: Proce
         await jobs.finish(conn, job.id, "DONE", None, timings)
         if _is_reindex(job):
             return "DONE"
+        if request.suggest is not None and request.suggest.enabled:
+            # V2-25: queued in the same transaction: a suggestion exists only for a READY version.
+            await suggestions.enqueue(
+                conn, workspace_id=job.workspace_id, document_id=job.document_id,
+                version_id=job.version_id,
+                input={"sha256": request.sha256, "title": request.title,
+                       "categories": [{"id": str(c.id), "name": c.name}
+                                      for c in request.suggest.categories],
+                       "tags": list(request.suggest.tags)})
         payload = _status_payload(job, request, "READY")
         payload.update({
             "pageCount": processed.page_count,

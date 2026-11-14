@@ -8,11 +8,11 @@ Evidence that no workspace can read or change another workspace's data, run on e
 | Database (this directory) | `test_db_isolation.py` | Three seeded workspaces, both application roles, **every** tenant table of `core` and `rag` found from the catalog: no/unknown/malformed workspace sees nothing, a workspace sees only its rows and none of another's secret strings, cannot insert/move/update/delete across tenants, the tenant never survives into the next transaction on a reused connection, roles are confined to their schema, SECURITY DEFINER helpers are not reachable from the other service |
 | core-api HTTP | `services/core-api/.../tenancy/TenantIsolationApiIT.java` | Three workspaces with secrets in documents, departments, members, audit; every GET endpoint with admin and member tokens returns no foreign secret; every by-id attempt on another workspace's object is `404`; forged, edited, missing, expired tokens are `401`; one pooled connection is reused across requests; the application filter alone still holds with RLS off |
 | ai-service retrieval | `services/ai-service/tests/integration/test_retrieval.py` | The access filter applies before `LIMIT` and never returns another workspace's chunks; delete removes everything |
+| ai-service Q&A | `test_qa_isolation.py` | Three workspaces, one secret each, a scripted LLM that copies every source it is given: no foreign secret in the stream, citations or a stored conversation |
+| ai-service feedback | `test_feedback_isolation.py` | Feedback, comments, questions and knowledge gaps stay inside their workspace; only the conversation owner votes; MEMBER cannot read gaps |
 
-Not covered yet, because the code does not exist: Q&A answers, conversations and feedback through the API (V2-10,
-V2-13). Their tables are already covered by the database layer (`rag.conversations`, `messages`,
-`message_feedback`, `message_citations`); add API-level cases here when those endpoints land. Department-level
-authorization inside one workspace is V2-26.
+Department-level authorization inside one workspace is a separate suite (V2-26, `DepartmentAuthorizationIT` and
+`test_department_authorization.py`); it runs as its own job (`department-authorization`) in the same workflow.
 
 ```bash
 cd tests/tenant-isolation

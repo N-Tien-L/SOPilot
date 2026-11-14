@@ -1,0 +1,28 @@
+# Vietnamese SOP system check (V2-28). Paths resolve against this file, eval/ and the repo root.
+name: vi-sop-check
+dataset: eval/datasets/vi-sop-check/questions.jsonl   # evidence.jsonl and manifest.json sit beside it
+output_dir: eval/results/vi-sop-check                 # JSON reports (gitignored)
+
+# Recorded in the report only. The answer model, its temperature (0) and max tokens are set in
+# services/ai-service/config/models.yaml; the runner does not change them.
+temperature: 0.0
+max_tokens: 800
+
+# Starting values to calibrate on dev (V2-28). Recorded only; the runner does not apply them.
+parameters:
+  doc_code_boost: 0.02
+  header_footer_min_pages: 3
+  followup_max_tokens: 150
+
+# PROPOSED thresholds. The ticket gives no numeric acceptance threshold; owner to confirm.
+acceptance:
+  min_group_pass_rate: 0.8
+  min_overall_pass_rate: 0.8
+  min_rows_per_group: 4
+
+# Real run only (not needed for --dry-run). Fill from the local stack; do not commit real ids.
+principal:
+  user_id: ""
+  workspace_id: ""
+  role: ""          # OWNER, ADMIN or MEMBER
+document_ids: {}    # doc_id (e.g. nb-qt02) -> document UUID in that workspace

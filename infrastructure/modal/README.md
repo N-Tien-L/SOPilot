@@ -1,7 +1,7 @@
 # Modal LLM Endpoint (vLLM on A10 GPU)
 
 > **Ticket:** `V2-34` | **Phạm vi:** `infra` | **Kế hoạch cha:** `PLAN-V2-SOPILOT-MVP`  
-> **Quyết định kiến trúc:** [ADR-006 §4.4](../../docs/02-architecture/adr/ADR-006-free-tier-providers-and-environments.md) | **Thiết kế:** [TECH-V2-ai-service §4.2, §4.3](../../docs/02-architecture/designs/TECH-V2-ai-service.md)
+> **Quyết định kiến trúc:** [ADR-006 §4.4](../../docs/architecture/decisions/adr-006-free-tier-providers-and-environments.md) | **Thiết kế:** [TECH-V2-ai-service §4.2, §4.3](../../docs/architecture/components/ai-service.md)
 
 Thư mục này chứa script triển khai và kiểm thử endpoint OpenAI-compatible phục vụ model mã nguồn mở **Qwen3.5-9B** (FP8) chạy bằng **vLLM** trên nền tảng **Modal** (GPU NVIDIA A10 24GB).
 

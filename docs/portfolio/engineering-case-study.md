@@ -50,7 +50,7 @@ sequenceDiagram
 
 **Unverified.** None of this was exercised. Tests exist for deduplication and for `checkDuplicate`; I found none for the ordering above.
 
-**V2 (proposed).** [TECH-V2-core-api §2](../02-architecture/designs/TECH-V2-core-api.md) writes the document, version, job request (an `outbox` row) and audit log in one database transaction, then delivers the request to `ai-service` with retries and idempotency on document and checksum. The file is still uploaded to storage before the commit, so the design adds a periodic cleanup job for orphaned objects instead of pretending the two are atomic. The AI side claims jobs with `SELECT ... FOR UPDATE SKIP LOCKED`. The trade-off is replacing a broker with a database-backed queue: fewer moving parts and a transactional hand-off, at the cost of polling and a throughput ceiling I have not measured. Implementation status: none of this exists yet.
+**V2 (proposed).** [TECH-V2-core-api §2](../architecture/components/core-api.md) writes the document, version, job request (an `outbox` row) and audit log in one database transaction, then delivers the request to `ai-service` with retries and idempotency on document and checksum. The file is still uploaded to storage before the commit, so the design adds a periodic cleanup job for orphaned objects instead of pretending the two are atomic. The AI side claims jobs with `SELECT ... FOR UPDATE SKIP LOCKED`. The trade-off is replacing a broker with a database-backed queue: fewer moving parts and a transactional hand-off, at the cost of polling and a throughput ceiling I have not measured. Implementation status: none of this exists yet.
 
 ## 2. Retrieval and permission-aware access
 
@@ -64,11 +64,11 @@ sequenceDiagram
 
 **Unverified.** No authorization test for the SQL predicate was found. No retrieval quality has been measured on V1.
 
-**V2 (proposed).** [TECH-V2-ai-service §6](../02-architecture/designs/TECH-V2-ai-service.md) replaces `ts_rank` with BM25 computed in SQL, using the same tokenizer as the evaluation harness (Vietnamese unigrams and bigrams, plus accent-stripped terms), so harness results can be compared with the service. The relevance cutoff is applied to a stated score per mode (cosine for hybrid, because rank-fusion scores are not comparable across queries) and reranking runs before the cutoff. Visibility changes carry an `access_revision` so a stale update cannot overwrite a newer one, and tenant isolation moves into row-level security with separate database roles. The access-revision and role pieces are specified; the role and schema bootstrap migrations exist, the tables and policies do not.
+**V2 (proposed).** [TECH-V2-ai-service §6](../architecture/components/ai-service.md) replaces `ts_rank` with BM25 computed in SQL, using the same tokenizer as the evaluation harness (Vietnamese unigrams and bigrams, plus accent-stripped terms), so harness results can be compared with the service. The relevance cutoff is applied to a stated score per mode (cosine for hybrid, because rank-fusion scores are not comparable across queries) and reranking runs before the cutoff. Visibility changes carry an `access_revision` so a stale update cannot overwrite a newer one, and tenant isolation moves into row-level security with separate database roles. The access-revision and role pieces are specified; the role and schema bootstrap migrations exist, the tables and policies do not.
 
 ## 3. Evaluation: what the metrics measure
 
-**Constraint.** Before rewriting the system, the project needs to know whether Vietnamese and cross-lingual retrieval is good enough ([PLAN-V2](../03-plans/PLAN-V2-sopilot-mvp.md) states this ordering).
+**Constraint.** Before rewriting the system, the project needs to know whether Vietnamese and cross-lingual retrieval is good enough ([PLAN-V2](../execution/initiatives/v2-sopilot-mvp/PLAN.md) states this ordering).
 
 **What exists.** `eval/` is a retrieval-only harness: an in-memory index with dense, BM25 (own implementation, Vietnamese unigram and bigram tokens) and hybrid RRF retrievers, optional cross-encoder rerank, and recall@k, MRR, nDCG@10 plus a refusal-threshold sweep. It needs no LLM or running stack.
 
@@ -82,9 +82,9 @@ The design choice worth noting is the guard rails: configs that request unimplem
 
 ## V2 direction (proposed / in progress)
 
-V2 is the focus of current work. What exists today: the specifications ([PRD-V2](../01-requirements/PRD-V2-sopilot-mvp.md), ADR-004 to ADR-008, two technical designs, 33 tickets), the evaluation harness, local PostgreSQL/MinIO infrastructure with role isolation, the `core` and `rag` application tables, and parts of `core-api` and `ai-service` (see [implementation evidence](implementation-evidence.md) for status per capability). What does not exist: the question-answering pipeline, the V2 frontend and any end-to-end V2 workflow.
+V2 is the focus of current work. What exists today: the specifications ([PRD-V2](../product/prd-v2-sopilot-mvp.md), ADR-004 to ADR-009, two technical designs, 37 tickets: 25 `done`, 5 `review`, per the [PLAN](../execution/initiatives/v2-sopilot-mvp/PLAN.md)), the evaluation harness, local PostgreSQL/MinIO infrastructure with role isolation, the `core` and `rag` application tables, and both services including the `ai-service` question-answering pipeline (see [implementation evidence](implementation-evidence.md) for status per capability; ticket status is not proof of reviewed behaviour). What does not exist: the V2 frontend (V2-15 is `todo`) and a reviewed end-to-end V2 workflow.
 
-[ADR-004](../02-architecture/adr/ADR-004-two-service-architecture.md) records the decision (owner-approved 2026-10-20) to replace the eight services with `core-api` (Spring Boot) and `ai-service` (FastAPI). Documented reasons: a target of zero monthly hosting cost, one maintainer unable to operate eight services, and each remaining service having a real boundary (language, load, lifecycle). It rejects keeping eight services and rejects a Supabase-based design.
+[ADR-004](../architecture/decisions/adr-004-two-service-architecture.md) records the decision (owner-approved 2026-10-20) to replace the eight services with `core-api` (Spring Boot) and `ai-service` (FastAPI). Documented reasons: a target of zero monthly hosting cost, one maintainer unable to operate eight services, and each remaining service having a real boundary (language, load, lifecycle). It rejects keeping eight services and rejects a Supabase-based design.
 
 ```mermaid
 flowchart LR

@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sopilot_ai.admin import active_embedding, stale_count
 from sopilot_ai.api.conversations import router as conversations_router
 from sopilot_ai.api.documents import router as documents_router
+from sopilot_ai.api.feedback import router as feedback_router
 from sopilot_ai.api.internal import router as internal_router
 from sopilot_ai.auth.jwt import TokenVerifier
 from sopilot_ai.config import Settings, get_settings
@@ -57,6 +58,7 @@ def create_app(settings: Settings | None = None, engine: AsyncEngine | None = No
     app.include_router(internal_router)
     app.include_router(documents_router)
     app.include_router(conversations_router)
+    app.include_router(feedback_router)
 
     build_lock = asyncio.Lock()
     app.state.qa_service = qa_service

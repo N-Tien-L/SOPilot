@@ -1,0 +1,22 @@
+# Config (b): rules + semantic router (SOPILOT_SEMANTIC_ROUTER_ENABLED=true).
+# Also reports config (a) as `baseline` in the same run, so the comparison is one command:
+#   cd eval; uv run python -m sopilot_eval.routing --config configs/routing-rules-router.yaml
+# Paths are repository-relative (resolved against the repo root, see sopilot_eval/routing.py).
+name: routing-rules-router
+split: test
+datasets:
+  dev: eval/datasets/routing/dev.jsonl
+  test: eval/datasets/routing/test.jsonl
+# Words the asker can use without being "not understood" (ai-service: rag.chunk_terms).
+vocabulary: eval/datasets/sop-main-v2/corpus
+semantic_router_enabled: true
+# The service's own provider (sopilot_ai.providers.embedding.LocalEmbeddingProvider), same model
+# and revision as config/models.yaml; the revision is pinned here for the report.
+embedder:
+  models_config: services/ai-service/config/models.yaml
+  revision: 5617a9f61b028005a4858fdac845db406aefb181
+exemplars: services/ai-service/src/sopilot_ai/qa/router_exemplars.yaml
+thresholds: services/ai-service/src/sopilot_ai/qa/router_thresholds.yaml
+baseline: eval/configs/routing-rules.yaml
+acceptance:
+  sop_misroute_max: 0.02

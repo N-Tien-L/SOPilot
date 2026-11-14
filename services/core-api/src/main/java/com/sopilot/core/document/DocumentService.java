@@ -171,7 +171,7 @@ public class DocumentService {
 
             outbox.enqueue(wid, documentId, OutboxEvent.Type.INGEST_REQUESTED,
                     ingestPayload(wid, documentId, versionId, 1, objectKey, file, 0, title,
-                            effectiveVisibility, effectiveDepartmentIds, 1));
+                            effectiveVisibility, effectiveDepartmentIds, 1, suggestSpec(wid)));
             audit.record(principal, "DOCUMENT_UPLOADED", "DOCUMENT", documentId,
                     details(creation.ownerDepartmentId(), creation.actingAs(), "versionId", versionId,
                             "fileType", file.type().name(), "sizeBytes", file.size()));
@@ -218,7 +218,8 @@ public class DocumentService {
             docs.setLatestVersion(wid, documentId, versionId);
             outbox.enqueue(wid, documentId, OutboxEvent.Type.INGEST_REQUESTED,
                     ingestPayload(wid, documentId, versionId, versionNo, objectKey, file, 0, head.title(),
-                            head.visibility(), docs.departmentIds(wid, documentId), head.accessRevision()));
+                            head.visibility(), docs.departmentIds(wid, documentId), head.accessRevision(),
+                            suggestSpec(wid)));
             audit.record(principal, "DOCUMENT_VERSION_UPLOADED", "DOCUMENT", documentId,
                     details(head.ownerDepartmentId(), locked.acting(), "versionId", versionId,
                             "versionNo", versionNo, "sizeBytes", file.size()));
@@ -247,7 +248,7 @@ public class DocumentService {
             outbox.enqueue(wid, documentId, OutboxEvent.Type.INGEST_REQUESTED,
                     ingestPayload(wid, documentId, latest.id(), latest.versionNo(), latest.objectKey(), file, attempt,
                             head.title(), head.visibility(), docs.departmentIds(wid, documentId),
-                            head.accessRevision()));
+                            head.accessRevision(), suggestSpec(wid)));
             audit.record(principal, "DOCUMENT_RETRY_REQUESTED", "DOCUMENT", documentId,
                     details(head.ownerDepartmentId(), locked.acting(), "versionId", latest.id(), "attempt", attempt));
             return view(wid, documentId, principal);
@@ -683,17 +684,30 @@ public class DocumentService {
         }
     }
 
+    /**
+     * What ai-service may choose from (V2-25): the workspace's active categories and tag names. Read at
+     * queue time, inside the caller's tenant transaction, so the suggestion sees the same lists.
+     */
+    private Map<String, Object> suggestSpec(UUID wid) {
+        List<Map<String, Object>> active = categories.list(wid, false).stream()
+                .filter(c -> c.status() == CategoryStatus.ACTIVE)
+                .map(c -> Map.<String, Object>of("id", c.id(), "name", c.name()))
+                .toList();
+        Map<String, Object> suggest = new LinkedHashMap<>();
+        suggest.put("enabled", true);
+        suggest.put("categories", active);
+        suggest.put("tags", tagService.names(wid));
+        return suggest;
+    }
+
     static Map<String, Object> ingestPayload(UUID wid, UUID documentId, UUID versionId, int versionNo,
                                              String objectKey, Validated file, int attempt, String title,
-                                             String visibility, List<UUID> departmentIds, long accessRevision) {
+                                             String visibility, List<UUID> departmentIds, long accessRevision,
+                                             Map<String, Object> suggest) {
         Map<String, Object> access = new LinkedHashMap<>();
         access.put("visibility", visibility);
         access.put("departmentIds", departmentIds);
         access.put("accessRevision", accessRevision);
-        Map<String, Object> suggest = new LinkedHashMap<>();
-        suggest.put("enabled", false);
-        suggest.put("categories", List.of());
-        suggest.put("tags", List.of());
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("workspaceId", wid);
         payload.put("documentId", documentId);

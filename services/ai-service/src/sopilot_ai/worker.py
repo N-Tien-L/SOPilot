@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import signal
 
 import httpx
@@ -23,7 +24,9 @@ from sopilot_ai.ingest.handler import IngestDeps, handle_job
 from sopilot_ai.ingest.storage import MinioObjectStore
 from sopilot_ai.outbox.dispatcher import OutboxDispatcher
 from sopilot_ai.providers.embedding import build_embedding_provider
+from sopilot_ai.providers.llm import build_chain
 from sopilot_ai.providers.registry import ModelsConfig
+from sopilot_ai.suggest import runner as suggest_runner
 
 log = structlog.get_logger(__name__)
 
@@ -68,6 +71,19 @@ def _psycopg_dsn(url: str) -> str:
     return url.replace("postgresql+psycopg://", "postgresql://", 1)
 
 
+def _suggest_deps(config: ModelsConfig, engine: AsyncEngine) -> suggest_runner.SuggestDeps:
+    """Metadata suggestions (V2-25): the Groq chain from models.yaml; rules only if unbuildable."""
+    try:
+        chain = build_chain(config, "suggest")
+    except (KeyError, ValueError) as exc:
+        log.warning("suggest_model_unavailable", error=type(exc).__name__)
+        return suggest_runner.SuggestDeps(engine, None, "")
+    if not os.environ.get("SOPILOT_GROQ_API_KEY"):
+        log.warning("suggest_key_missing", hint="set SOPILOT_GROQ_API_KEY")
+    model = chain.clients[0].spec.model
+    return suggest_runner.SuggestDeps(engine, chain, model)
+
+
 async def run(settings: Settings, engine: AsyncEngine | None = None) -> None:
     config = ModelsConfig.load(settings.models_config)
     embedder = build_embedding_provider(config, settings.profile)
@@ -86,6 +102,7 @@ async def run(settings: Settings, engine: AsyncEngine | None = None) -> None:
         max_attempts=settings.ingest_max_attempts,
         backoff_base_seconds=settings.ingest_backoff_base_seconds,
     )
+    suggest_deps = _suggest_deps(config, engine)
     stop, wake = asyncio.Event(), asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -108,6 +125,7 @@ async def run(settings: Settings, engine: AsyncEngine | None = None) -> None:
                 wake.clear()
                 try:
                     await drain(deps, settings.ingest_lease_seconds, dispatcher, stop)
+                    await suggest_runner.drain(suggest_deps, settings.ingest_lease_seconds)
                     await dispatcher.dispatch_due()
                 except Exception:  # noqa: BLE001 - a lost DB connection must not end the worker
                     log.exception("worker_iteration_failed")

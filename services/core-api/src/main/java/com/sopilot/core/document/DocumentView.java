@@ -4,6 +4,7 @@ import com.sopilot.core.document.DocumentRepository.CategoryRef;
 import com.sopilot.core.document.DocumentRepository.DepartmentRef;
 import com.sopilot.core.document.DocumentRepository.DocumentDetail;
 import com.sopilot.core.document.DocumentRepository.FieldSources;
+import com.sopilot.core.document.DocumentRepository.Suggestions;
 import com.sopilot.core.document.DocumentRepository.VersionRow;
 import com.sopilot.core.document.DocumentRepository.VersionWithUploader;
 import com.sopilot.core.security.AuthPrincipal;
@@ -15,7 +16,8 @@ import java.util.UUID;
 
 /**
  * The {@code Document} object of TECH §5.5.
- * {@code departments}, {@code ownerDepartment}, {@code fieldSources}, and {@code latestVersion.failure*} are for
+ * {@code departments}, {@code ownerDepartment}, {@code fieldSources}, {@code suggestions} (stored suggestions that
+ * were not applied: the title and a new category name), and {@code latestVersion.failure*} are for
  * OWNER/ADMIN and for the publisher responsible for the document (TECH §15.3); other readers get {@code null}.
  */
 public record DocumentView(UUID id, String title, String description,
@@ -27,6 +29,7 @@ public record DocumentView(UUID id, String title, String description,
                            LatestVersion latestVersion,
                            CurrentVersion currentVersion,
                            FieldSources fieldSources,
+                           Suggestions suggestions,
                            Creator createdBy, OffsetDateTime createdAt,
                            OffsetDateTime updatedAt) {
 
@@ -63,6 +66,7 @@ public record DocumentView(UUID id, String title, String description,
                         manager ? latest.failureCode() : null, manager ? latest.failureMessage() : null),
                 d.current() == null ? null : currentOf(d.current()),
                 manager ? d.fieldSources() : null,
+                manager ? d.suggestions() : null,
                 new Creator(d.createdBy(), d.creatorName()), d.createdAt(), d.updatedAt());
     }
 

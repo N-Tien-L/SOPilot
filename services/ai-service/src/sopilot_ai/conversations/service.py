@@ -36,6 +36,7 @@ from sopilot_ai.conversations.steps import (
     RetrieveStep,
     RewriteStep,
     SelfRefusalStep,
+    SemanticRouterStep,
 )
 from sopilot_ai.db.engine import tenant_tx
 from sopilot_ai.qa import pii, templates
@@ -48,6 +49,7 @@ from sopilot_ai.qa.pipeline import (
 )
 from sopilot_ai.qa.prompt import PROMPT_VERSION
 from sopilot_ai.qa.query_frame import detect_lang
+from sopilot_ai.qa.router import SemanticLayer
 from sopilot_ai.qa.steps import deterministic_steps
 from sopilot_ai.qa.textnorm import nfc
 from sopilot_ai.quota.counters import FREE_OUTCOMES, QuotaCounter
@@ -92,7 +94,8 @@ class QAService:
                  rewrite: ChatChain, *, context: ContextConfig, quota: QuotaCounter,
                  max_question_chars: int = 1000, followup_max_tokens: int | None = None,
                  support_contact: str = "", timezone: str = "Asia/Ho_Chi_Minh",
-                 now: Callable[[], datetime] | None = None) -> None:
+                 now: Callable[[], datetime] | None = None,
+                 semantic: SemanticLayer | None = None) -> None:
         self.engine = engine
         self.retriever = retriever
         self.generate = generate
@@ -102,6 +105,7 @@ class QAService:
         self.max_question_chars = max_question_chars
         self.followup_max_tokens = followup_max_tokens
         self.support_contact = support_contact
+        self.semantic = semantic  # V2-27 router; None = the V2-10 rule router only
         tz = ZoneInfo(timezone)
         self._now = now or (lambda: datetime.now(tz))
         self._detached: set[asyncio.Task[None]] = set()
@@ -120,7 +124,8 @@ class QAService:
 
     def steps(self) -> list[Step]:
         """The chain in the order of TECH §7.1 (``qa.pipeline.STEP_ORDER``)."""
-        return [QuotaStep(self.quota), *deterministic_steps(), RewriteStep(self.rewrite),
+        router = [SemanticRouterStep(self.semantic, self.engine)] if self.semantic else []
+        return [QuotaStep(self.quota), *deterministic_steps(), *router, RewriteStep(self.rewrite),
                 RetrieveStep(self.retriever, self.engine),
                 BuildContextStep(self.engine, self.context, self.generate), BuildPromptStep(),
                 GenerateStep(self.generate), CitationStep(), SelfRefusalStep(),
@@ -137,6 +142,7 @@ class QAService:
             question=content, lang_override=lang, max_question_chars=self.max_question_chars,
             followup_max_tokens=self.followup_max_tokens, support_contact=self.support_contact,
             principal=principal, lang=detect_lang(content, lang), today=user_created.date(),
+            conversation_id=None if ref.new else ref.id,
             emit=lambda name, data: queue.put_nowait(Event(name, data)))
 
         async def known_terms(words: Sequence[str]) -> set[str]:
@@ -211,7 +217,13 @@ class QAService:
         if d.kind is DecisionKind.CONTINUE:
             closing = [Event("citations", [self._citation(ctx, c) for c in ctx.citations])] \
                 if ctx.citations else []
-            return "ANSWERED", None, ctx.final_text, closing
+            text = ctx.final_text
+            # V2-27 (b): a fixed disclaimer after the answer and before `citations`, stored too.
+            for intent in ctx.checks.get("disclaimers", []):
+                note = "\n\n" + templates.render(f"disclaimer_{intent}", lang)
+                text += note
+                closing.insert(0, Event("delta", {"text": note}))
+            return "ANSWERED", None, text, closing
         outcome = d.outcome or "TEMPLATE"
         if outcome in ("ERROR", "QUOTA_EXCEEDED"):
             code = ctx.error_code or "INTERNAL_ERROR"

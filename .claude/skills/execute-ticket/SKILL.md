@@ -1,15 +1,15 @@
 ---
 name: execute-ticket
-description: Implement a planned SOPilot V2 ticket (docs/03-plans/tickets/V2-*.md) end to end. Covers dependency check, branch, service → frontend order, tests, self-review, context docs, and ticket/PLAN status with evidence. Use when the user says "implement/làm/triển khai V2-NN" or picks up a ticket. Not for one-line fixes or doc-only edits.
+description: Implement a planned SOPilot ticket (docs/execution/initiatives/<initiative>/tickets/, e.g. V2-NN or TICKET-NNN) end to end. Covers dependency check, branch, service → frontend order, tests, self-review, doc reconciliation, and ticket/PLAN status with evidence. Use when the user says "implement/làm/triển khai V2-NN" or picks up a ticket. Not for one-line fixes or doc-only edits.
 ---
 
-# Execute a V2 ticket
+# Execute a ticket
 
 ## 1. Read before writing
 
-1. Ticket `docs/03-plans/tickets/<ID>-*.md`: frontmatter (`scope`, `depends_on`, `branch`, `status`), acceptance criteria, implementation notes. Tickets are in Vietnamese; code, comments and commit messages are in English.
+1. Ticket `docs/execution/initiatives/<initiative>/tickets/<ID>-*.md` (V2 MVP: `v2-sopilot-mvp`): frontmatter (`scope`, `depends_on`, `branch`, `status`), acceptance criteria, implementation notes. The initiative README lists its PRD, designs and ADRs.
 2. Every `depends_on` ticket must be `done` (or `review` if the owner said so). Otherwise stop and report the blocker.
-3. Read the TECH section the ticket cites (`TECH-V2-core-api` / `TECH-V2-ai-service`) and the matching rule in `.claude/rules/` (it loads when you open files in that service). Then read the actual code path you will change. Never treat a stub as wired.
+3. Read the design section the ticket cites (`TECH-V2-core-api` = `docs/architecture/components/core-api.md`, `TECH-V2-ai-service` = `components/ai-service.md`) and the matching rule in `.claude/rules/` (it loads when you open files in that service). Then read the actual code path you will change. Never treat a stub as wired.
 4. Note any doc/code disagreement. Code wins; report it, do not quietly align either side.
 
 ## 2. Plan
@@ -21,7 +21,7 @@ description: Implement a planned SOPilot V2 ticket (docs/03-plans/tickets/V2-*.m
 
 - Inspect `git status` first. Do not touch unrelated uncommitted files.
 - Branch from `develop` using the ticket's `branch` field or `{type}/{scope}-{short-name}`. Never `main`.
-- Set the ticket `status: in-progress` and `updated:`. Leave PLAN counters alone until `review`.
+- Set the ticket `status: in_progress` and `updated:`. Leave PLAN counters alone until `review`.
 
 ## 4. Implement
 
@@ -49,9 +49,9 @@ Use skill `testing` for writing tests and triaging failures.
 
 ## 7. Docs and status
 
-- Endpoint, schema, RBAC or flow changed → update the V2 file in `.agent/context/` (`authorization/v2-core-identity.md`, `database/tables/core.md|rag.md`, V2 header of `service-boundaries/api-contracts.md`) and `services/<svc>/README.md` endpoint/env tables.
-- Ticket → `review` when code is committed and the evidence exists. Update the PLAN status table and the counters `review_tickets` and `implemented_tickets` (definitions in `docs/README.md`). **Never set `done`.** That needs owner review of the evidence.
-- Commit only when asked: Conventional Commits `<type>(<scope>): <summary> (V2-NN)`, no AI attribution.
+- Reconcile docs with what was built (`docs/README.md`, "Which document, if any"). Endpoint, schema, RBAC or flow changed → update the design section, `docs/architecture/domain/identity-and-access.md`, `docs/architecture/data/{core,rag}-schema.md` or `docs/architecture/api/http-conventions.md` as relevant, and the `services/<svc>/README.md` endpoint/env tables. Mark anything still planned as planned. Skill `project-docs` for ids and validation.
+- Ticket → `review` when code is committed and the evidence is listed in its "Evidence" section. Update the PLAN status table and the counters `review_tickets` and `implemented_tickets` in the same edit (definitions in `docs/README.md`), then run `./scripts/docs/check-docs.ps1` and `cd eval; uv run pytest -q tests/test_review_regressions.py -k plan`. **Never set `done`.** That needs owner review of the evidence.
+- Commit only when asked: Conventional Commits `<type>(<scope>): <summary> (<ticket id>)`, no AI attribution.
 
 ## Done when
 

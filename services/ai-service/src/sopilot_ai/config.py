@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     followup_max_tokens: int | None = Field(None, ge=1, alias="SOPILOT_FOLLOWUP_MAX_TOKENS")
     support_contact: str = Field("", alias="SOPILOT_SUPPORT_CONTACT")
     timezone: str = Field("Asia/Ho_Chi_Minh", alias="SOPILOT_TIMEZONE")
+    # Semantic router (V2-27, TECH §7.1): off = the V2-10 rule router only. Enable after the
+    # thresholds are tuned on dev (routing eval, eval/README.md).
+    semantic_router_enabled: bool = Field(False, alias="SOPILOT_SEMANTIC_ROUTER_ENABLED")
 
     @field_validator("followup_max_tokens", mode="before")
     @classmethod
