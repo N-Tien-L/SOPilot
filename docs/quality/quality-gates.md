@@ -2,7 +2,7 @@
 title: "Quality gates"
 status: draft
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 ---
 
@@ -47,7 +47,7 @@ Note on step 3 for the frontend: `run-tests.ps1 -Scope frontend` raises an error
 | `ci.yml` | `secret-scan`, `migrations`, `docs`, `core-api-unit`, `ai-service-unit`; the frozen V1 jobs `backend-java`, `backend-python`, `frontend-and-gateway` (V1 until V2-17) |
 | `tenant-isolation.yml` | `database`, `negative-control`, `core-api`, `ai-service`, `department-authorization` |
 
-CI proves unit-level behaviour and the isolation claims (FR-19, FR-29). The `docs` job runs `./scripts/docs/check-docs.ps1` under `pwsh` (errors fail, warnings do not); it was added in the same change as the pre-commit path fix and has not yet run on GitHub, so its first run is the first evidence that the checker works on Linux. CI does not run the full core-api IT set, the full ai-service integration set, the eval harness, a browser, or any live provider. See the table in [testing strategy](testing-strategy.md#what-runs-where).
+CI proves unit-level behaviour and the isolation claims (FR-19, FR-29). The `docs` job runs `./scripts/docs/check-docs.ps1` under `pwsh` (errors fail, warnings do not), then `eval/sopilot_eval/plan_check.py` (PLAN table, Mermaid DAG, handover closure); the check-docs step first passed on GitHub on PR #14, which is the evidence that the checker works under pwsh 7 on Linux. CI does not run the full core-api IT set, the full ai-service integration set, the eval harness, a browser, or any live provider. See the table in [testing strategy](testing-strategy.md#what-runs-where).
 
 ## 4. Review
 

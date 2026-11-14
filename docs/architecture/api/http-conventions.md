@@ -2,7 +2,7 @@
 title: "HTTP conventions and endpoint map (V2)"
 status: approved
 created: 2026-11-04
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 affected_services: [core-api, ai-service, web]
 affected_schemas: []
@@ -27,8 +27,8 @@ refs:
 
 - **Envelope:** success `{"data": ..., "traceId": "..."}`; lists `{"data": [...], "page": {"cursor", "hasMore"}, "traceId"}`; error `{"error": {"code", "message", "details"}, "traceId"}`. `X-Trace-Id` is accepted (8–64 `[A-Za-z0-9-]`) or generated, and echoed.
 - **Common codes:** `400 VALIDATION_FAILED` (details list field names only), `401 INVALID_GOOGLE_TOKEN`, `401 UNAUTHENTICATED`, `401 MEMBERSHIP_LOST`, `403 MEMBERSHIP_SUSPENDED`, `403 NOT_PUBLISHER`, `404 NOT_FOUND`, `405 METHOD_NOT_ALLOWED`, `415 UNSUPPORTED_MEDIA_TYPE`, `500 INTERNAL_ERROR`.
-- **Auth and sessions:** `POST /auth/google/nonce`, `POST /auth/google`, `POST /auth/dev-login` (`local`/`test` only), `POST /auth/refresh`, `POST /auth/logout`, `GET /.well-known/jwks.json`.
-- **Workspaces:** list, create TEAM, switch, `/workspaces/current` read/rename/soft delete.
+- **Auth and sessions:** `POST /auth/google/nonce`, `POST /auth/google`, `POST /auth/dev-login` (`local`/`test` only), `POST /auth/refresh`, `POST /auth/switch-workspace`, `POST /auth/logout`, `GET /.well-known/jwks.json`.
+- **Workspaces:** list, create TEAM, `/workspaces/current` read/rename/soft delete (switching is `POST /auth/switch-workspace`).
 - **Departments:** `GET/POST /departments`, `PATCH/DELETE /departments/{id}` (`409 DEPARTMENT_NAME_TAKEN`, `409 DEPARTMENT_IN_USE` with counts); publishers `PUT|DELETE /departments/{id}/publisher`, `/publishers/workspace`, `GET /publishers`.
 - **Members and invitations:** `GET /members`, `GET /members/me` (with `publisherOf`), `PATCH /members/{userId}` (profile, department, role), `POST /members/{userId}/suspend|reactivate`, `DELETE /members/{userId}`, `POST /members/leave` (`409 LAST_OWNER`, `409 EMPLOYEE_CODE_TAKEN`, `409 DEPARTMENT_ARCHIVED`); `GET/POST /invitations`, `DELETE /invitations/{id}` (revoke), `POST /invitations/accept`.
 - **Documents:** `POST /documents` (multipart `file`, 20 MB, PDF or Markdown only: `415 UNSUPPORTED_TYPE|INVALID_ENCODING`, `413 FILE_TOO_LARGE`, `409 DUPLICATE_DOCUMENT|QUOTA_EXCEEDED`), `POST /documents/{id}/versions` (`409 VERSION_IN_PROGRESS|DOCUMENT_UNCHANGED`), `POST /documents/{id}/retry` (`409 VERSION_NOT_FAILED`), `GET /documents` (cursor page), `GET /documents/{id}`, `PATCH /documents/{id}`, `PUT /documents/{id}/visibility`, `PUT /documents/{id}/ownership` (OWNER), `GET /documents/{id}/download-url|versions`, `DELETE /documents/{id}`; categories and tags.

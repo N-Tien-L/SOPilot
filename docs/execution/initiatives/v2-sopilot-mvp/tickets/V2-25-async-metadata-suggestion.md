@@ -49,6 +49,7 @@ PRD-V2 FR-28 and the performance NFR. The old code called suggestions **synchron
   - **Several documents suggesting the same idea under different names** (for example "Mua hàng", "Quy trình mua sắm"): the admin groups them by suggested name, enters **one** name (or picks an existing category) and applies it to the whole group. Needs an endpoint listing documents with an unapplied `proposedCategoryName` and a bulk category assignment endpoint (not yet; a separate ticket together with the approval flow).
 
 - **Update 2026-11-13:** moved to `review` (code, migrations `core/V010`, `rag/V004` and tests committed). No code change in this round. The measurement criterion is still open: p50/p95 of `t_upload_ack`, `t_ready`, `t_suggest` on the V2-19 corpus with an empty embedding cache; no targets set. Bulk category assignment for proposal groups and the publisher-proposes/admin-approves flow are later separate tickets, not done here.
+- **Closure 2026-11-14:** set to `done` by owner decision ([PLAN-V2](../PLAN.md) change log) with the measurement criterion (p50/p95 on the V2-19 corpus) **not met**. It moves to [V2-18](V2-18-research-report-and-handover.md) ("Carried over from closed tickets"); no latency targets are set until it is measured.
 
 ## 3. Guide
 - Upgrade options (only if the measurements call for them): classifying the category by the nearest embedding instead of the LLM, or a smaller model. Record the choice and the measurements in the report.
