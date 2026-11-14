@@ -2,9 +2,9 @@
 id: V2-27
 title: "ai-service: semantic router (rules + embedding) measured against rules only"
 type: feat
-status: review
+status: done
 created: 2026-10-20
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: ai-qa
 priority: P1

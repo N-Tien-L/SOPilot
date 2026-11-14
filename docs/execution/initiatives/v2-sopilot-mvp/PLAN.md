@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "V2 SOPilot execution plan: eval first, local only, research handover"
 status: approved
 created: 2026-10-17
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
@@ -17,9 +17,9 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 37
-completed_tickets: 25
+completed_tickets: 30
 implemented_tickets: 30
-review_tickets: 5
+review_tickets: 0
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -236,7 +236,7 @@ flowchart TD
 | `V2-09` | ai-service: ingest worker, embedding, hybrid retrieval, RLS, 4 score types, provider interface | ai-qa | L | `V2-03`, `V2-06`, `V2-08`, `V2-20`, `V2-21`, `V2-22` | done |
 | `V2-34` | Infra: self-hosted LLM endpoint (Qwen3.5-9B FP8, vLLM) on Modal and a quick check | infra | M | `V2-02` | done |
 | `V2-10` | ai-service: 2-LLM-call Q&A pipeline, SSE, citations, refusal | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
-| `V2-27` | ai-service: semantic router (rules + embedding) measured against rules only | ai-qa | L | `V2-05`, `V2-10` | review |
+| `V2-27` | ai-service: semantic router (rules + embedding) measured against rules only | ai-qa | L | `V2-05`, `V2-10` | done |
 | `V2-35` | Infra + ai-service: bge-reranker-v2-m3 rerank on GPU, sharing the A10 container with vLLM | infra | L | `V2-09`, `V2-34` | done |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
@@ -246,7 +246,7 @@ flowchart TD
 | `V2-20` | ai-service: Docling (ADR-008), structured representation and canonical Markdown with offsets (PDF/MD) | ai-qa | L | `V2-03`, `V2-19` | done |
 | `V2-21` | ai-service: boilerplate separation, SOP metadata extraction and extraction warnings | ai-qa | M | `V2-20` | done |
 | `V2-22` | ai-service: document-type recognition, procedure tables and structure-aware chunking | ai-qa | L | `V2-20` | done |
-| `V2-28` | Vietnamese SOP system check set (30–40 questions): merged cells, context assembly, document codes, validity, no diacritics | tests | M | `V2-10`, `V2-19`, `V2-21`, `V2-22` | review |
+| `V2-28` | Vietnamese SOP system check set (30–40 questions): merged cells, context assembly, document codes, validity, no diacritics | tests | M | `V2-10`, `V2-19`, `V2-21`, `V2-22` | done |
 
 Contextual retrieval (step 10 of the audit) has no ticket; it is considered only after `V2-07`'s results.
 
@@ -257,11 +257,11 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-29` | core-api: workspace CRUD, workspace switching and refresh sessions | user | L | `V2-11` | done |
 | `V2-30` | core-api: invitations, members and OWNER rules | user | M | `V2-29` | done |
 | `V2-12` | core-api: documents, upload, outbox, document quota, safe replacement, audit log | knowledge | L | `V2-09`, `V2-11` | done |
-| `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | review |
+| `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | done |
 | `V2-14` | FR-19 tenant isolation tests in CI and RQ4 | tests | M | `V2-09`, `V2-12` | done |
 | `V2-23` | core-api: member profiles, suspension lifecycle and flat departments | user | M | `V2-11` | done |
 | `V2-24` | core-api: document metadata, flat categories/tags, department-based visibility | knowledge | L | `V2-12`, `V2-23` | done |
-| `V2-25` | ai-service: background metadata suggestions and latency measurement | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | review |
+| `V2-25` | ai-service: background metadata suggestions and latency measurement | ai-qa | M | `V2-09`, `V2-21`, `V2-24` | done |
 | `V2-26` | Department-based document authorization tests (FR-29) in CI | tests | M | `V2-10`, `V2-23`, `V2-24` | done |
 | `V2-36` | core-api: document write rights by department publisher and workspace publisher | knowledge | L | `V2-23`, `V2-24` | done |
 
@@ -272,7 +272,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | todo |
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | todo |
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
-| `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | review |
+| `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
 | `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37` | todo |
 
@@ -370,6 +370,8 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 > **Owner decision 2026-11-12 (V2-25):** Groq is used only for metadata suggestions, not for answers or the judge (recorded in [ADR-006 §4.4](../../../architecture/decisions/adr-006-free-tier-providers-and-environments.md)); suggestions run in the same worker loop after ingest; a suggested title is only stored, never applied automatically (recorded in [TECH-V2-core-api](../../../architecture/components/core-api.md)). Ticket changed: [`V2-25`](tickets/V2-25-async-metadata-suggestion.md), still `todo` until measured.
 
 > **Update 2026-11-13 (closing Wave 1):** `V2-13`, `V2-16`, `V2-25`, `V2-27`, `V2-28` move `todo` → `review` (code and tests committed on branch `feat/wave1-closeout`; not yet owner-accepted). `review_tickets` 0 → 5, `implemented_tickets` 25 → 30. Each ticket's open items are in its section 2a: `V2-13` waits for owner review; `V2-16` a clean-machine test, end-to-end TTFT with the real provider, the V2 frontend (`V2-15`); `V2-25` p50/p95 with an empty cache on the V2-19 corpus; `V2-27` owner review of the routing set and example sentences, threshold tuning, `feedback_in_chat`, `followup` measured through the pipeline, flag kept `false` ([AUDIT-routing](../../../research/audit-routing-guard-eval-2026-11-13.md)); `V2-28` owner review of the 37-question set and licenses, a real run ([AUDIT-vi-sop](../../../quality/test-reports/audit-vi-sop-system-check-2026-11-13.md)).
+
+> **Owner decision 2026-11-14:** `V2-13`, `V2-16`, `V2-25`, `V2-27`, `V2-28` → `done` (owner review of the Wave 1 closeout; CI on PR #14 green). The open items listed in the 2026-11-13 update stay recorded in each ticket's section 2a and are not closed by this decision. `completed_tickets` 25 → 30, `review_tickets` 5 → 0, `implemented_tickets` stays 30.
 
 ---
 

@@ -2,9 +2,9 @@
 id: V2-25
 title: "ai-service: background metadata suggestions and latency measurement"
 type: feat
-status: review
+status: done
 created: 2026-10-19
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: ai-qa
 priority: P0

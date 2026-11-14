@@ -2,9 +2,9 @@
 id: V2-13
 title: "Answer feedback and the knowledge-gap list"
 type: feat
-status: review
+status: done
 created: 2026-10-17
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: ai-qa
 priority: P1

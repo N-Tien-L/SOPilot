@@ -2,9 +2,9 @@
 id: V2-16
 title: "Demo data and a one-command docker compose"
 type: feat
-status: review
+status: done
 created: 2026-10-17
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: platform
 priority: P0

@@ -2,9 +2,9 @@
 id: V2-28
 title: "Vietnamese SOP system check set (30–40 questions): merged cells, context assembly, document codes, validity, no diacritics"
 type: test
-status: review
+status: done
 created: 2026-10-21
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: tests
 priority: P1
