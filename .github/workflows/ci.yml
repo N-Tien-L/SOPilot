@@ -48,6 +48,16 @@ jobs:
       shell: pwsh
       run: ./scripts/docs/check-docs.ps1
 
+  # Claude Code guard hook (.claude/hooks/guard.py): self-test against synthetic events and a throwaway git
+  # repository. Stdlib only; no secrets, no Docker, no database.
+  guard-selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    - name: Guard self-test
+      run: python3 .claude/hooks/test_guard.py
+
   # V2 core-api: Java 21, unit tests only (Testcontainers suites run in tenant-isolation.yml).
   core-api-unit:
     runs-on: ubuntu-latest
