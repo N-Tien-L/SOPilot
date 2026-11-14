@@ -89,7 +89,14 @@ if ($AffectedServices.Count -eq 0) {
         }
 
         if ($Service -eq "frontend") {
-            & $ScriptPath -Scope "frontend"
+            # The frontend has no test script yet (run-tests.ps1 would always fail): build + lint instead.
+            $global:LASTEXITCODE = 0
+            try {
+                & (Join-Path $PSScriptRoot "validate-build.ps1") -Scope "web"
+            } catch {
+                Write-Host $_.Exception.Message -ForegroundColor Red
+                $global:LASTEXITCODE = 1
+            }
         } else {
             & $ScriptPath -Scope $Service
         }
