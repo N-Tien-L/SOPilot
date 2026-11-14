@@ -55,7 +55,7 @@ Code wins over docs. When they disagree, report the mismatch; do not silently al
 | V2 infra | `docker compose -f docker-compose.v2.yml up -d postgres flyway-core flyway-rag minio minio-init` · stop with `down` (**never** `-v`) |
 | Hook self-test | `python .claude/hooks/test_guard.py` |
 
-`docker-compose.v2.yml` defines the infrastructure (Postgres `127.0.0.1:55432`, MinIO `59000/59001`, one-shot Flyway/MinIO init) and also `core-api`, `ai-service`, `ai-worker` and `web`; the day-to-day way is infrastructure in compose and the apps from source. Running services from source: `docs/operations/local-development.md`. CI: `ci.yml` (gitleaks, migrations, docs check, core-api tests, ai-service ruff + unit tests, frozen V1 jobs) and `tenant-isolation.yml` (DB suite, RLS-disabled negative control, `TenantIsolation*IT`, retrieval isolation).
+`docker-compose.v2.yml` defines the infrastructure (Postgres `127.0.0.1:55432` by default, overridable with `V2_POSTGRES_PORT`; MinIO `59000/59001`, one-shot Flyway/MinIO init) and also `core-api`, `ai-service`, `ai-worker` and `web`; the day-to-day way is infrastructure in compose and the apps from source. Running services from source: `docs/operations/local-development.md`. CI: `ci.yml` (gitleaks, migrations, docs check, core-api tests, ai-service ruff + unit tests, frozen V1 jobs) and `tenant-isolation.yml` (DB suite, RLS-disabled negative control, `TenantIsolation*IT`, retrieval isolation).
 
 ## Engineering constraints
 
