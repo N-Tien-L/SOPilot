@@ -170,3 +170,10 @@ jobs:
         cd ${{ matrix.app }}
         pnpm install --frozen-lockfile
         pnpm build
+
+    - name: Lint and unit tests (frontend only)
+      if: matrix.app == 'frontend/web'
+      run: |
+        cd frontend/web
+        pnpm lint
+        pnpm test

@@ -18,8 +18,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 39
 completed_tickets: 30
-implemented_tickets: 30
-review_tickets: 0
+implemented_tickets: 31
+review_tickets: 1
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -277,7 +277,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 ### Phase 4: Frontend, integration, handover
 | Ticket | Title | Scope | Size | Depends on | Status |
 |---|---|---|:---:|---|:---:|
-| `V2-38` | Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal | web | L | `V2-10`, `V2-11`, `V2-29` | todo |
+| `V2-38` | Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal | web | L | `V2-10`, `V2-11`, `V2-29` | review |
 | `V2-15` | Frontend: V2 shell, sign-in/workspace, chat and gaps | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30`, `V2-38` | todo |
 | `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | todo |
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | todo |

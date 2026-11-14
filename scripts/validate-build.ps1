@@ -64,6 +64,8 @@ elseif ($Scope -eq "web") {
         if ($LASTEXITCODE -ne 0) { throw "Next.js build failed." }
         pnpm lint
         if ($LASTEXITCODE -ne 0) { throw "Next.js linting failed." }
+        pnpm test
+        if ($LASTEXITCODE -ne 0) { throw "Next.js tests failed." }
     } else { throw "Directory $serviceDir not found." }
 }
 else {

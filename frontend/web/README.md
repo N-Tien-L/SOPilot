@@ -1,196 +1,54 @@
-# Poliwise Frontend - Hướng Dẫn Cài Đặt
+# SOPilot web (`frontend/web`)
 
-## Cài đặt Dependencies
+Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4, used as a **client-rendered app** ([ADR-010](../../docs/architecture/decisions/adr-010-frontend-stack.md)). Design and constraints: [frontend.md](../../docs/architecture/components/frontend.md). Rules for changes: [.claude/rules/frontend.md](../../.claude/rules/frontend.md).
 
-```bash
+Implemented so far (ticket V2-38): same-origin proxy, API client, in-memory session, SSE client, TanStack Query, Vitest and a minimal shell (dev sign-in, empty home, sign-out). Google sign-in, the workspace picker and chat are V2-15; upload, viewer and administration are V2-31 to V2-33.
+
+## Run
+
+```powershell
 cd frontend/web
 pnpm install
+pnpm dev          # http://localhost:3000
 ```
 
-Dependencies đã được thêm vào `package.json`:
-- `lucide-react` - Icon library
-- `clsx` - Utility cho class names
+core-api and ai-service must be running (see [local development](../../docs/operations/local-development.md)). Backend targets are **run-time** server-side variables read by `proxy.ts`; copy `.env.example` to your own env file and adjust if the defaults (`http://localhost:8080`, `http://localhost:8000`) do not fit.
 
-## Chạy Development Server
+| Variable | Used by | Meaning |
+|---|---|---|
+| `CORE_API_URL` | `proxy.ts` (run time) | core-api base URL; receives `/api/v1/**` |
+| `AI_SERVICE_URL` | `proxy.ts` (run time) | ai-service base URL; receives `/ai/v1/**` |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | build time | Google sign-in (V2-15 decides whether it becomes run time) |
 
-```bash
-pnpm dev
-```
+core-api's `SOPILOT_FRONTEND_ORIGIN` must equal the origin of the page (`http://localhost:3000` for `pnpm dev` and for the compose `web` service); refresh and logout check the `Origin` header.
 
-Frontend sẽ chạy tại: `http://localhost:3001`
+The browser only talks to its own origin. There is no `NEXT_PUBLIC_API_URL`.
 
-## Build Production
+A request body above 25 MB is rejected by Next itself with a 500 before it reaches core-api (whose limit is 20 MB and which answers `413 FILE_TOO_LARGE`), so upload code must check the size on the client first.
 
-```bash
-pnpm build
-pnpm start
-```
+## Scripts
 
-## Cấu Trúc Pages
+| Command | Purpose |
+|---|---|
+| `pnpm build` | production build (standalone output; type-checks under `strict`) |
+| `pnpm lint` | ESLint, zero errors expected |
+| `pnpm test` | Vitest unit tests (`**/*.test.ts`, Node environment) |
 
-```
-app/
-├── layout.tsx              # Root layout
-├── globals.css             # Global styles với CSS variables
-├── page.tsx               # Trang chủ - Chat AI
-├── login/
-│   ├── page.tsx          # Trang đăng nhập
-│   └── login.module.css
-├── documents/
-│   ├── page.tsx          # Trang danh sách tài liệu
-│   └── documents.module.css
-├── analytics/
-│   ├── page.tsx          # Trang phân tích (Manager+)
-│   └── analytics.module.css
-├── profile/
-│   ├── page.tsx          # Trang cá nhân
-│   └── profile.module.css
-└── admin/
-    └── users/
-        ├── page.tsx      # Quản lý người dùng (Admin)
-        └── admin-users.module.css
-```
+Repo-level: `./scripts/validate-build.ps1 -Scope web` runs build, lint and test.
 
-## Components
+## Layout
 
-```
-components/
-├── layout/
-│   ├── Header.tsx         # Header với navigation
-│   ├── Sidebar.tsx        # Sidebar menu
-│   ├── MainLayout.tsx     # Layout wrapper
-│   └── *.module.css
-```
+| Path | Contents |
+|---|---|
+| `proxy.ts`, `lib/server/proxy-target.ts` | same-origin proxy to core-api and ai-service; `next.config.ts` sets `compress: false` (SSE must not be buffered) and `experimental.proxyClientMaxBodySize` above core-api's 20 MB upload limit |
+| `lib/api/` | the only `fetch` caller: core-api adapter (envelope, errors, `traceId`), ai-service adapter (plain JSON, `{detail}`), contract types |
+| `lib/session/` | in-memory access token, refresh single-flight (Web Locks, `BroadcastChannel` fallback), dev login, switch workspace, sign-out |
+| `lib/sse/` | SSE parser, `streamAnswer` (fetch stream with defined end states), answer reducer, open-stream registry |
+| `lib/query/` | TanStack Query v5 client, workspace-scoped keys, `resetWorkspaceState` |
+| `store/session-store.ts` | Zustand session view (user, workspace); memory only |
+| `providers/` | `QueryProvider`, `SessionProvider` (restores the session from the HttpOnly cookie) |
+| `components/ui/` | carried-over primitives; V2-15 decides their styling |
 
-## Stores (Zustand)
+## Docker
 
-```
-store/
-├── auth-store.ts          # Auth state management
-├── ui-store.ts            # UI state (sidebar, theme)
-└── index.ts
-```
-
-## API Client
-
-```
-lib/
-└── api.ts                 # Axios client với interceptors
-```
-
-## Types
-
-```
-types/
-├── auth.ts               # Auth types
-├── document.ts           # Document & Metadata types
-├── ai.ts                 # AI conversation types
-├── analytics.ts          # Analytics types
-└── index.ts
-```
-
-## Environment Variables
-
-Tạo file `.env.local` trong `frontend/web/`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
-
-## API Endpoints Coverage
-
-### Auth Service (Proxy → auth-service:8081)
-| Method | Endpoint | Status |
-|--------|----------|--------|
-| POST | `/api/v1/auth/login` | ✅ |
-| POST | `/api/v1/auth/register` | ✅ |
-| POST | `/api/v1/auth/refresh` | ✅ |
-| POST | `/api/v1/auth/logout` | ✅ |
-| POST | `/api/v1/auth/logout-all` | ✅ |
-| GET | `/api/v1/auth/sessions` | ✅ |
-
-### User Service (Proxy → user-service:8082)
-| Method | Endpoint | Status |
-|--------|----------|--------|
-| GET | `/api/v1/users/me` | ✅ |
-| GET | `/api/v1/users/{id}` | ✅ |
-| PUT | `/api/v1/users/me` | ✅ |
-| GET | `/api/v1/users` | ✅ |
-| PATCH | `/api/v1/users/me/status` | ✅ |
-| DELETE | `/api/v1/users/{id}` | ✅ |
-
-### Documents (Proxy → knowledge-service:8083)
-| Method | Endpoint | Status |
-|--------|----------|--------|
-| GET | `/api/v1/documents` | ✅ |
-| GET | `/api/v1/documents/{id}` | ✅ |
-| POST | `/api/v1/documents/upload` | ✅ |
-| DELETE | `/api/v1/documents/{id}` | ✅ |
-
-### Analytics (Proxy → feedback-service:8085)
-| Method | Endpoint | Status |
-|--------|----------|--------|
-| GET | `/api/v1/analytics/dashboard` | ✅ |
-| GET | `/api/v1/ai/history` | ✅ |
-| POST | `/api/v1/ai/ask` | ✅ |
-| POST | `/api/v1/feedback` | ✅ |
-
-## Features
-
-### Chat AI Interface
-- Giao diện chat với AI
-- Hiển thị nguồn tham khảo
-- Like/Dislike feedback
-- Lịch sử hội thoại
-- Gợi ý câu hỏi
-
-### Knowledge Base
-- Danh sách tài liệu (grid/list view)
-- Tìm kiếm theo tên
-- Filter theo trạng thái
-- Phân trang
-- Upload tài liệu (Admin)
-
-### Analytics Dashboard
-- Stats cards (câu hỏi, satisfaction, tài liệu, users)
-- Charts placeholder
-- Top questions
-- Top documents
-- Feedback summary
-
-### Admin Panel
-- Quản lý người dùng
-- Thay đổi trạng thái tài khoản
-- Phân quyền (Admin/Manager/User)
-
-### Profile
-- Xem thông tin cá nhân
-- Cập nhật profile
-
-## Design System
-
-### Colors (CSS Variables)
-```css
---primary: #4f46e5
---primary-foreground: #ffffff
---background: #ffffff (dark: #0f172a)
---foreground: #0f172a (dark: #f8fafc)
---muted: #f1f5f9 (dark: #1e293b)
---border: #e2e8f0 (dark: #334155)
---destructive: #ef4444
---success: #10b981
-```
-
-### Icons
-Sử dụng `lucide-react` cho tất cả icons:
-- `MessageSquare` - Chat
-- `BookOpen` - Documents
-- `BarChart3` - Analytics
-- `User` - Profile
-- `Settings` - Settings
-- `Shield` - Admin
-- `LogOut` - Logout
-- `Search` - Search
-- `Upload` - Upload
-- `Download` - Download
-- ...v.v
+The image is built from `Dockerfile` (standalone `node server.js`) and needs `CORE_API_URL` and `AI_SERVICE_URL` at run time. `docker-compose.v2.yml` sets them to the compose service names.

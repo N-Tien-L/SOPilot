@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -22,6 +22,10 @@ export interface ModalProps {
   className?: string;
 }
 
+function subscribeNever(): () => void {
+  return () => {};
+}
+
 export function Modal({
   open,
   onClose,
@@ -35,11 +39,8 @@ export function Modal({
   closeOnEscape = true,
   className,
 }: ModalProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // false during server render and hydration, true in the browser: portals need `document`.
+  const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
