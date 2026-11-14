@@ -30,7 +30,7 @@ Remove only once V2 reaches parity. Remove in a separate commit so the history i
   - Every part ported per ADR-004 §4.5 has tests in the new service, and they are green.
   - The eval harness (`eval/`) and CI (`.github/workflows/ci.yml`) are green with only the V2 stack.
   - `docker compose -f docker-compose.v2.yml up` from empty volumes runs every demo UC (V2-16) without starting any V1 container.
-  - The tag `v1-final` (V2-15) exists and has been pushed to the remote; also an M1 milestone tag/branch if it is a different commit.
+  - The tag `v1-final` (V2-38) exists and has been pushed to the remote; also an M1 milestone tag/branch if it is a different commit.
 - [ ] Remove `auth-service`, `user-service`, `knowledge-service`, `metadata-service`, `feedback-service`, `api-gateway`, `ai-qa-service`, `ingestion-service`, the old `docker-compose.yml`, `docker-compose.dev.yml` and the infrastructure only V1 uses (`infrastructure/init-db/`, `infrastructure/combined_init.sql`, `infrastructure/onlyoffice/`, `infrastructure/seed*` if V2-16 does not reuse them) — only those exact paths, never recursive wildcard deletion (CLAUDE.md). Rename `docker-compose.v2.yml` to `docker-compose.yml` in the same change if the owner agrees.
 - [ ] Do not delete the V1 Docker volumes (`sopilot_postgres_data`, `sopilot_minio_data`, ...) in this ticket; only record the cleanup commands for the owner to run when they want (CLAUDE.md: no `down -v`, no prune).
 - [ ] Update `CLAUDE.md` (architecture table, commands, the drift section: remove items no longer valid), `.claude/settings.json` (remove the `ask` permissions for V1 paths), `README.md`; delete `.claude/rules/v1-frozen.md`.

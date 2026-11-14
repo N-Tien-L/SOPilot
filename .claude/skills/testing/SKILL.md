@@ -36,7 +36,7 @@ Per-stack conventions (naming, fakes, markers) are in `.claude/rules/core-api.md
 
 - A green build is not visual verification. For a UI change, open the page in a browser and check each acceptance criterion; record which browsers and viewports were **not** checked.
 - Playwright is **not installed** in this repo (`frontend/web/package.json` has no `@playwright/test`; `tests/e2e/` holds no runner config). Adding it is a new dependency: state why and get the owner's agreement first (CLAUDE.md constraint 12). Do not create `playwright.config.ts` or install browsers on your own.
-- Once agreed: specs go in `tests/e2e/*.spec.ts`, run with `pnpm --dir frontend/web exec playwright test <file> --reporter=line`. Use `pnpm`, never `npm`/`yarn`. Prefer role/label locators; UI copy is Vietnamese (`getByRole('button', { name: /đăng nhập/i })`). Mock backends with `page.route()` for UI-only tests; full flows need the V2 stack running.
+- Once agreed: specs go in `tests/e2e/*.spec.ts`, run with `pnpm --dir frontend/web exec playwright test <file> --reporter=line`. Use `pnpm`, never `npm`/`yarn`. Prefer role/label locators; UI copy is English (`getByRole('button', { name: /sign in/i })`). Mock backends with `page.route()` for UI-only tests; full flows need the V2 stack running.
 - A failing E2E test is either a test bug (selector, missing wait, locale string) or an app bug. Stop after three fix attempts and report the cause.
 
 ## Triage a failure

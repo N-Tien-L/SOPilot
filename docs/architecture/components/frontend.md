@@ -2,12 +2,14 @@
 title: "Frontend (frontend/web): current state and V2 direction"
 status: approved
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 affected_services: [web]
 affected_schemas: []
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
+  - docs/architecture/decisions/adr-010-frontend-stack.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-38-frontend-foundation.md
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-15-frontend-trim-and-citations.md
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-31-frontend-document-upload.md
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-32-frontend-source-viewer.md
@@ -16,12 +18,14 @@ refs:
 
 # Frontend (frontend/web)
 
-> **Implementation status:** the frontend is still wired to V1 (the `api-gateway`). V2-15 replaces the shell, sign-in and chat; V2-31, V2-32 and V2-33 add upload, the source viewer and administration. This page records what the code does today (checked on 2026-11-13) and the V2 constraints. The V1 description it replaces is archived at [v1-context/architecture/frontend.md](../../archive/v1-context/architecture/frontend.md).
+> **Direction (2026-11-14):** [ADR-010](../decisions/adr-010-frontend-stack.md) keeps Next.js as a client-rendered app and rebuilds the foundation in [V2-38](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-38-frontend-foundation.md) before V2-15. Planned, not implemented: sections 1 and 2 below still describe the V1 code as of 2026-11-13; the feature list and requirements are in [the inventory](frontend-feature-inventory.md) and [NFRs](frontend-nfrs.md).
+>
+> **Implementation status:** the frontend is still wired to V1 (the `api-gateway`). V2-38 replaces the foundation and V2-15 the shell, sign-in and chat; V2-31, V2-32 and V2-33 add upload, the source viewer and administration. This page records what the code does today (checked on 2026-11-13) and the V2 constraints. The V1 description it replaces is archived at [v1-context/architecture/frontend.md](../../archive/v1-context/architecture/frontend.md).
 
 ## 1. Stack and layout
 
 - Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4, Zustand 5, axios, TanStack Query (`providers/QueryProvider.tsx`). Versions are in `frontend/web/package.json`.
-- `app/`: pages for chat (`page.tsx`), `login`, `register`, `forgot-password`, `reset-password`, `documents`, `profile`, `sessions`, `analytics`, `admin`. Several of these are V1 features outside the V2 scope (passwords, sessions, analytics) and go away in V2-15.
+- `app/`: pages for chat (`page.tsx`), `login`, `register`, `forgot-password`, `reset-password`, `documents`, `profile`, `sessions`, `analytics`, `admin`. Several of these are V1 features outside the V2 scope (passwords, sessions, analytics) and go away in V2-38.
 - `components/` (`chat`, `documents`, `layout`, `ui`, …), `store/` (`auth-store`, `ui-store`, `preferences-store`), `services/` (per-domain clients on `api-client.ts`), `lib/api.ts` (the typed V1 client, about 2,800 lines), `hooks/useChat.ts`, `types/`, `interfaces/`.
 - UI work follows `.claude/rules/frontend.md` and the `frontend-delivery` skill.
 

@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-03, V2-08]
-blocks: [V2-12, V2-15, V2-23, V2-29]
+blocks: [V2-12, V2-15, V2-23, V2-29, V2-38]
 branch: "feat/user-core-api-identity"
 assignee: pair
 ---

@@ -4,7 +4,7 @@ title: "Frontend: recognized content and the citation viewer"
 type: feat
 status: todo
 created: 2026-10-24
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: web
 priority: P0
@@ -25,14 +25,16 @@ Scope split from V2-15 (XL) on 2026-10-24; the approved PRD/TECH requirements ar
 
 ## 2. Acceptance criteria
 - [ ] The "Content recognized by the system" screen ("Nội dung hệ thống nhận diện", FR-31): opens only when `currentVersion` exists (`READY`); a PDF shows the original file (signed URL) next to the canonical Markdown, and clicking a "Page N" ("Trang N") marker jumps the PDF to that page; narrow screens use two tabs; MD shows the canonical Markdown plus a download-original button. Version label: when `latestVersion` differs from `currentVersion`, show "Version N is used for Q&A; version N+1 is processing / failed" ("Phiên bản N đang dùng để hỏi đáp; phiên bản N+1 đang xử lý / xử lý lỗi"). Warnings appear only when the API returns `warnings`; removed boilerplate blocks are listed collapsed. A fixed sentence: `READY` means processing finished, not that the content has been checked. No editor and no "checked" button.
+- [ ] Changed 2026-11-14 (owner decision, frontend NFRs): the original PDF is shown in the browser's native viewer opened at `#page=N` (signed URL), loaded on demand when the user asks for the source file or follows a "Page N" marker; no PDF library. Highlighting exists only on the canonical Markdown view.
 - [ ] Safe Markdown rendering: no `rehype-raw` (unlike the old `DocumentViewerModal`); an MD fixture containing `<script>`, `<img onerror>` and an external image renders as text/links, runs no script and does not load the external image.
 - [ ] Outside read access (FR-25) or for a document not yet `READY`: the viewer reveals no content (API `404`).
 - [ ] Citation viewer: clicking `[n]` opens the right PDF page / passage and highlights the source by UTF-16 offset on the canonical Markdown (FR-14); shares the display component with the FR-31 screen.
 - [ ] Citations of an old version show only the snapshot/label; the current viewer is not called when `isCurrentVersion=false`.
 - [ ] Check on Chrome/Firefox: PDF page jumps, UTF-16 offsets with emoji, narrow screens, revoked access returning 404.
+- [ ] Changed 2026-11-14: unit tests (Vitest from V2-38) for the UTF-16 offset to range mapping, including emoji.
 
 ## 3. Guide
-1. Declare types in `frontend/web/types` and the API client in `frontend/web/lib/api.ts` per TECH-V2-core-api/ai-service.
+1. Declare types in `frontend/web/types` and the endpoint calls on the V2-38 API client (`frontend/web/lib/`) per TECH-V2-core-api/ai-service.
 2. Implement in `frontend/web/app/` and `frontend/web/components/`, using the V2-15 shell.
 3. Record browser evidence per acceptance criterion; update the frontend README.
 - Update the related contracts in `docs/architecture/` along with the change; V2-17 only consolidates and removes V1 descriptions.

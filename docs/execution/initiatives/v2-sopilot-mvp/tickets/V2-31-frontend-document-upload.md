@@ -4,7 +4,7 @@ title: "Frontend: multi-document upload and processing tracking"
 type: feat
 status: todo
 created: 2026-10-24
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: web
 priority: P0
@@ -29,9 +29,10 @@ Scope split from V2-15 (XL) on 2026-10-24; the approved PRD/TECH requirements ar
 - [ ] Show the right message for `409 DUPLICATE_DOCUMENT` (with a link to the existing document), `409 DOCUMENT_UNCHANGED` ("The file content has not changed", "Nội dung file không thay đổi"), `409 VERSION_IN_PROGRESS`, `409 QUOTA_EXCEEDED` (with the quota and the amount used), `413`, `415`.
 - [ ] Users are not made to wait: the dialog can be closed once no file is still uploading (the leave-page warning only while bytes are being sent); the document list refreshes its statuses while documents are processing and stops when none are.
 - [ ] Upload accepts only PDFs with a text layer and MD; TXT is dropped from the MVP, DOCX deferred (FR-06). Show the API's `415` error with guidance (TXT → `.md`, DOCX → PDF with a text layer); no server-side conversion flow.
+- [ ] Changed 2026-11-14: unit tests (Vitest from V2-38) for the upload queue state machine: the 3-concurrent cap, per-file retry and independent failure.
 
 ## 3. Guide
-1. Declare types in `frontend/web/types` and the API client in `frontend/web/lib/api.ts` per TECH-V2-core-api/ai-service.
+1. Declare types in `frontend/web/types` and the endpoint calls on the V2-38 API client (`frontend/web/lib/`) per TECH-V2-core-api/ai-service.
 2. Implement in `frontend/web/app/` and `frontend/web/components/`, using the V2-15 shell.
 3. Record browser evidence per acceptance criterion; update the frontend README.
 - Update the related contracts in `docs/architecture/` along with the change; V2-17 only consolidates and removes V1 descriptions.
