@@ -17,9 +17,9 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 39
-completed_tickets: 30
+completed_tickets: 31
 implemented_tickets: 31
-review_tickets: 1
+review_tickets: 0
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -277,7 +277,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 ### Phase 4: Frontend, integration, handover
 | Ticket | Title | Scope | Size | Depends on | Status |
 |---|---|---|:---:|---|:---:|
-| `V2-38` | Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal | web | L | `V2-10`, `V2-11`, `V2-29` | review |
+| `V2-38` | Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal | web | L | `V2-10`, `V2-11`, `V2-29` | done |
 | `V2-15` | Frontend: V2 shell, sign-in/workspace, chat and gaps | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30`, `V2-38` | todo |
 | `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | todo |
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | todo |
@@ -390,6 +390,8 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 > **Owner decision 2026-11-14 (frontend stack, [ADR-010](../../../architecture/decisions/adr-010-frontend-stack.md) approved):** keep Next.js 16 as a client-rendered app and rebuild the foundation. New ticket [`V2-38`](tickets/V2-38-frontend-foundation.md) (web, P0, L) delivers it; `V2-15` now also depends on `V2-38`. Vitest and TanStack Query v5 are approved (replacing the legacy `react-query` v3 package). `total_tickets` 37 → 38. `v1-final` tag moves from V2-15 to V2-38 (first branch that breaks the V1 demo). `V2-31` and `V2-32` gain unit-test criteria. Inputs: [feature inventory](../../../architecture/components/frontend-feature-inventory.md), [NFRs](../../../architecture/components/frontend-nfrs.md).
 
 > **Owner decision 2026-11-15 (V2-39 added):** the V2-38 browser run showed that reloading a tab while its refresh request is in flight ends the session (strict refresh rotation, no grace window). New ticket [`V2-39`](tickets/V2-39-core-api-refresh-grace-window.md) (core-api, P1, S, depends on `V2-29`) adds a short grace window for the immediately previous token while keeping replay detection. `total_tickets` 38 → 39; `completed_tickets`, `implemented_tickets`, `review_tickets` unchanged (`todo` is not counted).
+
+> **Owner decision 2026-11-15:** `V2-38` -> `done` (owner review of the evidence; CI on `develop` green, including the frontend job; `v1-final` pushed); `completed_tickets` 30 -> 31, `review_tickets` 1 -> 0, `implemented_tickets` unchanged at 31. The refresh-reload race it found is tracked by `V2-39`.
 
 ---
 

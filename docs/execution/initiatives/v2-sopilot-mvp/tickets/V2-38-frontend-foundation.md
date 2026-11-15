@@ -2,9 +2,9 @@
 id: V2-38
 title: "Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal"
 type: refactor
-status: review
+status: done
 created: 2026-11-14
-updated: 2026-11-14
+updated: 2026-11-15
 author: "Owner"
 scope: web
 priority: P0
@@ -38,7 +38,7 @@ Implements [ADR-010](../../../../architecture/decisions/adr-010-frontend-stack.m
 - [x] **Server state.** `@tanstack/react-query` v5 provider and conventions; the legacy `react-query` v3 package is removed (one data-fetching approach, M5).
 - [x] **Vitest.** Runner configured with `pnpm test` (owner-approved 2026-11-14, C10). Unit tests for refresh single-flight, the SSE parser, both error adapters, and cache clearing on workspace switch. V2-31 and V2-32 add their own tests (upload queue, UTF-16 mapping) on this setup.
 - [x] **V1 removal.** Delete V1 pages, components, services and stores that V2 does not use (list in ADR-010 §2.7 and the PRD §5 UI row), `lib/i18n.ts` and the language preference, and the dependencies only they use (`recharts`, `mammoth`, `sass`, `rehype-raw`, `axios`). Chat message rendering no longer uses `rehype-raw` (S2). A minimal shell stays: sign-in (dev login in `local`), a workspace-aware empty home, sign-out.
-- [ ] **Gates.** `pnpm build`, `pnpm lint` (zero errors: this ticket owns clearing the 61 V1 lint errors) and `pnpm test` pass. `scripts/validate-build.ps1` runs `pnpm test` for the web scope, and the CI frontend job runs `pnpm lint` and `pnpm test` as well as the build (it runs only the build today).
+- [x] **Gates.** `pnpm build`, `pnpm lint` (zero errors: this ticket owns clearing the 61 V1 lint errors) and `pnpm test` pass. `scripts/validate-build.ps1` runs `pnpm test` for the web scope, and the CI frontend job runs `pnpm lint` and `pnpm test` as well as the build (it runs only the build today).
 - [x] **Dependencies.** Every remaining dependency is kept on purpose. Decide `dompurify`, `mark.js`, `jwt-decode` and `react-hot-toast` (keep or remove, one line each in the Results section); remove the self-dependency `"web": "file:"` in `package.json`.
 - [x] **Browser check** (Chrome and Firefox, against core-api and ai-service from source): dev login; storage shows no token; two tabs refreshing at once keep the session; workspace switch clears the previous workspace's data; a streamed answer reaches the page incrementally through the proxy (not in one chunk); a 15 to 20 MB PDF uploaded through the proxy reaches core-api with the same SHA-256 (no truncation). State anything not checked.
 - [x] **Compose image.** Build the `web` image once (standalone `node server.js`, not `next start`) and start it with two different `CORE_API_URL` values: requests follow the run-time value, streaming stays incremental, and an upload of about 15 MB succeeds.
@@ -69,17 +69,17 @@ Plus notes on the browser flows tried by hand.
 | `docs/architecture/components/frontend.md`, `.claude/rules/frontend.md` | MODIFY |
 
 ## 6. Results
-Status `review`: **not committed yet** (the owner commits). Browser and real-stack checks were run headless with Playwright on 2026-11-15 (see below). Branch `refactor/web-v2-foundation`, based on `docs/plan-frontend-foundation` because ADR-010 and this ticket are not on `develop` yet.
+Status `done` (owner, 2026-11-15). Merged into `develop` (`4ceb04d`, branch `refactor/web-v2-foundation`). Browser and real-stack checks were run headless with Playwright on 2026-11-15 (see below).
 
 ### Commands and results
 | Check | Command | Result |
 |---|---|---|
-| Tag | `git tag v1-final develop` | local tag at `835cf28` (develop tip); **not pushed** |
+| Tag | `git tag v1-final develop` | tag at `835cf28`, pushed to `origin` on 2026-11-15 |
 | Unit tests | `pnpm test` (Vitest 5.1.0, Node env) | 5 files, 39 tests passed: refresh single-flight (same tab, two tabs with Web Locks, fallback without locks, failure propagation), SSE parser and event decoding, `streamAnswer` end states (`done`, `error`, HTTP error, `interrupted`, `cancelled`, network down), both error adapters, proxy target resolution, workspace switch clearing cache and streams, refresh failure handling (network keeps the session, 401 ends it) |
 | Lint | `pnpm lint` | exit 0, zero errors (V1 had 61) |
 | Build | `pnpm build` | exit 0 (Next 16.1.6 Turbopack, routes `/`, `/login`, `ƒ Proxy`) |
 | Image | `docker build` of `frontend/web` (standalone `node server.js`) | built; removed afterwards |
-| Gates in scripts | `scripts/validate-build.ps1` runs `pnpm test` for scope web; CI job runs `pnpm lint` and `pnpm test` for `frontend/web` | edited; the CI change has not run on GitHub |
+| Gates in scripts | `scripts/validate-build.ps1` runs `pnpm test` for scope web; CI job runs `pnpm lint` and `pnpm test` for `frontend/web` | edited; CI on `develop` (`4ceb04d`, 2026-11-15): all jobs green, including `frontend-and-gateway (frontend/web)` (build, lint, test) |
 
 ### Proxy and image evidence (mock backends, not core-api and ai-service)
 Two Node mock servers (A and B) stood in for the backends: `/api/v1/ping` returns its name, `/api/v1/upload` returns the byte count and SHA-256 of the body, `/ai/v1/conversations/*` emits 5 SSE events 0.6 s apart.
@@ -126,7 +126,6 @@ Other results: `docker compose config --quiet` exit 0; `pnpm dev` (`next dev`) a
 - Workspace switch clearing client-side state in the UI: there is no workspace switcher or cached data yet (V2-15), so only the server side (new workspace after reload) and the unit tests cover R7.
 - Per-token streaming of a long answer in a browser (finding 2).
 - The `%2e%2e` path guard and `proxyTimeout` at run time in the browser (covered by unit tests and a clean build).
-- The GitHub CI job.
 - The upload was 17.8 MB; a 19 to 20 MB file at the 20 MB limit was not tried.
 
 ### Mismatches and notes
@@ -138,4 +137,4 @@ Other results: `docker compose config --quiet` exit 0; `pnpm dev` (`next dev`) a
 - `frontend/web/.gitignore` ignored `.env*` including `.env.example`; added `!.env.example`.
 
 ### Review
-Round 1 (Opus 5.5): 1 BLOCKER (`.env.example` ignored by git), 4 should-fix (async cache clear ordering on workspace switch, Results missing, `sass` in the lock, a network failure on refresh logged the user out), several nits. All fixed or documented above. The ordering fix makes `resetWorkspaceState` synchronous and runs it before the new session is published. Round 2 (Opus 5.5): no BLOCKER; should-fix: other tabs kept a signed-out or different user's cache and token (now: cache is also dropped when the user changes, and sign-out is broadcast to other tabs, with tests), and `pnpm dev` missing from the not-verified list (added). Nits handled: `GENERATOR_NOT_FOUND` added to `RefusalReason`; the department-claim gap recorded in frontend.md §3; the 25 MB limit noted in the README; unused V1 assets removed from `public/`. Open: the `pnpm dev` and browser runs were done afterwards (see the real-stack section); the open points are listed under Not verified. **Gates** stays unticked until the CI job has run on GitHub.
+Round 1 (Opus 5.5): 1 BLOCKER (`.env.example` ignored by git), 4 should-fix (async cache clear ordering on workspace switch, Results missing, `sass` in the lock, a network failure on refresh logged the user out), several nits. All fixed or documented above. The ordering fix makes `resetWorkspaceState` synchronous and runs it before the new session is published. Round 2 (Opus 5.5): no BLOCKER; should-fix: other tabs kept a signed-out or different user's cache and token (now: cache is also dropped when the user changes, and sign-out is broadcast to other tabs, with tests), and `pnpm dev` missing from the not-verified list (added). Nits handled: `GENERATOR_NOT_FOUND` added to `RefusalReason`; the department-claim gap recorded in frontend.md §3; the 25 MB limit noted in the README; unused V1 assets removed from `public/`. Open: the `pnpm dev` and browser runs were done afterwards (see the real-stack section); the open points are listed under Not verified. **Gates** ticked 2026-11-15 after the CI frontend job passed on `develop`.
