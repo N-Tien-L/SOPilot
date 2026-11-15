@@ -9,7 +9,16 @@ public record StorageProperties(@DefaultValue("") String endpoint,
                                 @DefaultValue("") String bucket,
                                 @DefaultValue("") String accessKey,
                                 @DefaultValue("") String secretKey,
-                                @DefaultValue("us-east-1") String region) {
+                                @DefaultValue("us-east-1") String region,
+                                @DefaultValue("") String publicEndpoint) {
+
+    /**
+     * The host a browser can reach, used only to sign download URLs. Blank means the same as
+     * {@link #endpoint()}; in compose the service endpoint is the internal {@code minio:9000}.
+     */
+    public String presignEndpoint() {
+        return publicEndpoint.isBlank() ? endpoint : publicEndpoint;
+    }
 
     public boolean configured() {
         return !endpoint.isBlank() && !bucket.isBlank() && !accessKey.isBlank() && !secretKey.isBlank();
@@ -17,6 +26,6 @@ public record StorageProperties(@DefaultValue("") String endpoint,
 
     @Override
     public String toString() {
-        return "StorageProperties[endpoint=" + endpoint + ", bucket=" + bucket + ", keys=<redacted>]";
+        return "StorageProperties[endpoint=" + endpoint + ", publicEndpoint=" + publicEndpoint + ", bucket=" + bucket + ", keys=<redacted>]";
     }
 }

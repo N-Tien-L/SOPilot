@@ -45,7 +45,7 @@ class S3StorageClientIT {
             admin.createBucket(CreateBucketRequest.builder().bucket(BUCKET).build());
         }
         storage = new S3StorageClient(new StorageProperties(minio.getS3URL(), BUCKET, minio.getUserName(),
-                minio.getPassword(), "us-east-1"));
+                minio.getPassword(), "us-east-1", ""));
     }
 
     @AfterAll
@@ -92,6 +92,17 @@ class S3StorageClientIT {
     }
 
     @Test
+    void aPublicEndpointOnlyChangesTheHostOfSignedUrls() throws Exception {
+        S3StorageClient publicHost = new S3StorageClient(new StorageProperties(minio.getS3URL(), BUCKET,
+                minio.getUserName(), minio.getPassword(), "us-east-1", "http://localhost:59999"));
+        String key = key();
+        storage.put(key, new byte[] {1}, "application/pdf");
+
+        assertThat(publicHost.presignGet(key, "x.pdf", Duration.ofMinutes(1), true)).startsWith("http://localhost:59999/");
+        assertThat(storage.presignGet(key, "x.pdf", Duration.ofMinutes(1), true)).startsWith(minio.getS3URL());
+    }
+
+    @Test
     void anExpiredUrlIsRefused() throws Exception {
         String key = key();
         storage.put(key, new byte[] {1}, "application/octet-stream");
@@ -130,7 +141,7 @@ class S3StorageClientIT {
 
     @Test
     void anUnconfiguredClientFailsOnUseNotAtStartup() {
-        S3StorageClient unconfigured = new S3StorageClient(new StorageProperties("", "", "", "", "us-east-1"));
+        S3StorageClient unconfigured = new S3StorageClient(new StorageProperties("", "", "", "", "us-east-1", ""));
 
         assertThatThrownBy(() -> unconfigured.put("k", new byte[] {1}, "x"))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("SOPILOT_S3_");

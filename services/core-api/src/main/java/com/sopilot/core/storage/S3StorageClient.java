@@ -97,7 +97,7 @@ public class S3StorageClient implements StorageClient {
             synchronized (this) {
                 if (presigner == null) {
                     requireConfigured();
-                    presigner = S3Presigner.builder().endpointOverride(URI.create(properties.endpoint()))
+                    presigner = S3Presigner.builder().endpointOverride(URI.create(properties.presignEndpoint()))
                             .region(Region.of(properties.region())).credentialsProvider(credentials())
                             .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
                             .build();

@@ -76,6 +76,7 @@ Copy `.env.example` in this directory to `.env`; it lists the variables below wi
 | `SOPILOT_NONCE_HMAC_KEY` | random in `local`/`test` | ≥ 32 bytes |
 | `SOPILOT_INTERNAL_TOKEN`, `SOPILOT_AI_BASE_URL` | blank (rejects every `/internal` call), `http://ai-service:8000` | One token shared with ai-service |
 | `SOPILOT_S3_ENDPOINT`, `SOPILOT_S3_BUCKET`, `SOPILOT_S3_ACCESS_KEY`, `SOPILOT_S3_SECRET_KEY`, `SOPILOT_S3_REGION` | blank, blank, blank, blank, `us-east-1` | Unset storage fails document operations with `503`, not startup |
+| `SOPILOT_S3_PUBLIC_ENDPOINT` | blank (= `SOPILOT_S3_ENDPOINT`) | Host a browser can reach, used only to sign `download-url` links (compose sets `http://localhost:${V2_MINIO_API_PORT:-59000}` because core-api itself reaches MinIO as `minio:9000`) |
 | `SOPILOT_QUOTA_DOCS_PER_WORKSPACE`, `SOPILOT_QUOTA_BYTES_PER_WORKSPACE` | `50`, `209715200` | `0` turns a limit off |
 | `SOPILOT_OUTBOX_POLL`, `SOPILOT_OUTBOX_MAX_ATTEMPTS` | `PT5S`, `20` | Backoff `2^attempts` s, cap 10 min, jitter |
 
