@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "V2 SOPilot execution plan: eval first, local only, research handover"
 status: approved
 created: 2026-10-17
-updated: 2026-11-15
+updated: 2026-11-16
 author: "Owner"
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
@@ -17,9 +17,9 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 39
-completed_tickets: 32
-implemented_tickets: 33
-review_tickets: 1
+completed_tickets: 34
+implemented_tickets: 34
+review_tickets: 0
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -279,8 +279,8 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 |---|---|---|:---:|---|:---:|
 | `V2-38` | Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal | web | L | `V2-10`, `V2-11`, `V2-29` | done |
 | `V2-15` | Frontend: V2 shell, sign-in/workspace, chat and gaps | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30`, `V2-38` | done |
-| `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | review |
-| `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | todo |
+| `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | done |
+| `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | done |
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
@@ -418,3 +418,9 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 **Docs restructure 2026-11-13:** this plan moved from `03-plans/PLAN-V2-sopilot-mvp.md` to `docs/execution/initiatives/v2-sopilot-mvp/PLAN.md` and was translated to English; ticket ids, statuses and counters are unchanged.
 
 > **Update 2026-11-15:** `V2-31` → `review` (queue state machine with Vitest, real-stack browser run in Chromium and Firefox, fresh Opus review with no blocker; details and open items in the ticket's §5); `review_tickets` 0 → 1, `implemented_tickets` 32 → 33. Not `done`: owner acceptance needed. Found outside the ticket: a failed ingest callback is rejected with `409 INVALID_TRANSITION`, leaving the document `PROCESSING`.
+
+> **Update 2026-11-15:** `V2-32` → `review` (recognized-content screen and citation viewer; core-api `download-url?disposition=inline` approved by the owner and added, 126 unit + 249 integration tests green; Vitest incl. emoji offsets; real-stack browser runs and captioned videos in Chromium and Firefox; fresh Opus review, one blocker (inline PDF) resolved by the core-api change, four warnings fixed; details in the ticket's §5). `review_tickets` 1 → 2, `implemented_tickets` 33 → 34. Not `done`: owner acceptance needed. Open for the owner: `[n]` opens the viewer in two steps; the version label and the no-current-version state were mock-checked only.
+
+> **Owner decision 2026-11-15 ([ADR-011](../../../architecture/decisions/adr-011-modal-serving-profiles.md), amends ADR-006 §4.4):** the answer model moves from A10 to one L40S deploy with `--max-model-len 65536`, the reranker in the same container, eval sending 8 concurrent requests (latency measured separately at concurrency 1) and the demo kept warm; eval and the demo use the same ai-service context budget. Affects `V2-37` (every reported answer-level run uses the L40S deploy) and `V2-18`. The implementation is not ticketed yet; no status or counter changes.
+
+> **Update 2026-11-16:** the owner accepted `V2-31` and `V2-32` → `done`. `completed_tickets` 32 → 34, `review_tickets` 2 → 0, `implemented_tickets` unchanged (34). The open items recorded in each ticket's §5 (failed ingest callback `409`, two-step `[n]` viewer, mock-only version label) stay open outside these tickets.

@@ -2,9 +2,9 @@
 id: V2-32
 title: "Frontend: recognized content and the citation viewer"
 type: feat
-status: in_progress
+status: done
 created: 2026-10-24
-updated: 2026-11-15
+updated: 2026-11-16
 author: "Owner"
 scope: web
 priority: P0
@@ -43,9 +43,11 @@ Scope split from V2-15 (XL) on 2026-10-24; the approved PRD/TECH requirements ar
 - Browser: PDF/MD, multi-page pages/tables, emoji, XSS/external images, current/latest version, not yet READY and revoked access.
 - `./scripts/validate-build.ps1 -Scope web`; pre-commit. State which browsers were not checked.
 
-## 5. Progress notes and evidence (2026-11-15, `in_progress`, not committed)
+## 5. Progress notes and evidence (2026-11-15, `review`; commits dfc6540 and 314bbae on feat/web-v2-32, not pushed)
 
-**Built:** `/documents/[id]` (FR-31 screen), `components/viewer/{ContentViewer,SafeMarkdown,CitationViewerModal}`, `lib/viewer/{offsets,labels}.ts`, `useDocument` / `useDocumentContent`, `getDocumentContent`, the "Open in document" action under an expanded source in chat, the document title link in the list, and the duplicate-upload link now pointing at `/documents/<id>`.
+**Owner acceptance 2026-11-16:** the owner accepted the ticket; status `review` → `done`. The evidence below is unchanged.
+
+**Built:** `/documents/[id]` (FR-31 screen), `components/viewer/{ContentViewer,SafeMarkdown,CitationViewerModal}`, `lib/viewer/{offsets,labels}.ts`, `useDocument` / `useDocumentContent`, `getDocumentContent`, the "Open in document" action under an expanded source in chat, the document title link in the list, and the duplicate-upload link now pointing at `/documents/<id>`. Owner review 2026-11-15 added Markdown rendering of the citation snippet and of refusal text, and the `ReasoningBlock` dropdown for the new `reasoning` / `reasoning_done` stream events (live turn only).
 
 **Commands:** `./scripts/validate-build.ps1 -Scope web` → build, lint and 168 Vitest tests pass (offset mapping with emoji, labels, safe-Markdown fixture with `<script>` / `<img onerror>` / external image / `javascript:` link, `baseOffset` highlighting). `./scripts/docs/check-docs.ps1` → passed (13 pre-existing warnings).
 
@@ -60,7 +62,7 @@ Scope split from V2-15 (XL) on 2026-10-24; the approved PRD/TECH requirements ar
 
 **core-api change (owner approved 2026-11-15):** `GET /documents/{id}/download-url?disposition=attachment|inline` (default `attachment`, other value `400 VALIDATION_FAILED`); `inline` signs `Content-Disposition: inline` (`StorageClient.presignGet(..., inline)`, `S3StorageClient`). Content type comes from the validated file type stored at upload. Tests: `DocumentServiceTest` (flag passed through), `S3StorageClientIT` (real MinIO returns `inline; filename*=...` and `application/pdf`), `DocumentLifecycleIT` (default, `attachment`, `inline`, `evil` → 400). `./mvnw verify` in `services/core-api`: 126 unit + 249 integration tests, BUILD SUCCESS. The compose `core-api` image was rebuilt (`up -d --build --no-deps core-api`) and checked live: no param, `inline` and `attachment` → 200, `evil` → 400, and the signed URL fetched from MinIO answers `Content-Disposition: inline` with `application/pdf`. The frontend viewer asks for `inline`; the "Download original" button keeps the default. Docs: TECH-V2-core-api §5.5, `services/core-api/README.md`, `http-conventions.md`. `./scripts/run-tests.ps1 -Scope core-api` aborts on a Mockito stderr warning in this PowerShell setup (pre-existing); Maven was run directly.
 
-**Harness shim (still needed):** in compose, core-api signs URLs for `http://minio:9000`, which a host browser cannot resolve. The browser runs route that host to the published MinIO port; no header is rewritten any more. Running core-api from source with a browser-reachable `SOPILOT_S3_ENDPOINT` avoids the shim; a public presign endpoint is not implemented.
+**Public presign endpoint (2026-11-15, after the owner hit `minio's server IP address could not be found`):** core-api now signs `download-url` links with `SOPILOT_S3_PUBLIC_ENDPOINT` when set (`StorageProperties.presignEndpoint()`), and `docker-compose.v2.yml` sets it to `http://localhost:${V2_MINIO_API_PORT:-59000}` while core-api keeps reaching MinIO as `minio:9000`. `S3StorageClientIT` covers the host swap; `./mvnw verify`: 126 unit + 250 integration tests, BUILD SUCCESS. Checked live: the signed URL host is `localhost:59000` and a Chromium run **without any routing shim** opens the PDF at `#page=5`. The videos below were recorded before this change and used a host-routing shim for `minio:9000`.
 
 **Videos (not committed; `docs/quality/evidence/` is gitignored), `docs/quality/evidence/v2-32/`, Chromium (headed) and Firefox (headless), each with on-screen captions:** `v2-32-s1-recognized-content-markdown-*`, `s2-pdf-native-viewer-page-jump-*` (real inline URL, pages 5, 9, 14), `s3-citation-viewer-highlight-*` (real question, highlight, exact range), `s4-old-version-citation-*`, `s5-narrow-screen-tabs-*` (390 px), `s6-no-access-404-*`. The version label and the "no current version" state are not in the videos (mock-checked only).
 

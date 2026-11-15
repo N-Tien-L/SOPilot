@@ -2,9 +2,9 @@
 id: V2-31
 title: "Frontend: multi-document upload and processing tracking"
 type: feat
-status: review
+status: done
 created: 2026-10-24
-updated: 2026-11-15
+updated: 2026-11-16
 author: "Owner"
 scope: web
 priority: P0
@@ -42,6 +42,8 @@ Scope split from V2-15 (XL) on 2026-10-24; the approved PRD/TECH requirements ar
 - `./scripts/validate-build.ps1 -Scope web`; pre-commit. Build/lint does not replace UC-04/UC-12 evidence.
 
 ## 5. Progress notes and evidence (2026-11-15, `review`)
+
+**Owner acceptance 2026-11-16:** the owner accepted the ticket; status `review` → `done`. The evidence below is unchanged.
 
 Branch `feat/web-v2-31`, from `develop` (V2-15 had merged, PR #17). Not committed.
 
