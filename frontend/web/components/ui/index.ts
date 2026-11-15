@@ -1,5 +1,5 @@
 // ============================================================
-// Poliwise UI Component Library
+// SOPilot UI primitives (carried over from V1; frozen, retired in the polish phase)
 // ============================================================
 // Design System Components — all built on CSS variables from globals.css
 // Icons: lucide-react

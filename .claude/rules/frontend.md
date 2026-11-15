@@ -12,7 +12,7 @@ paths:
 - Server state: TanStack Query v5 only; query keys start with the workspace id (`workspaceKey`). Client state: Zustand, small (session, UI). No second data-fetching approach.
 - Errors shown to users are the API's fixed message or a local fixed string plus the `traceId` (`describeError`), never a raw exception.
 - Markdown from documents or the model renders without raw HTML (no `rehype-raw`).
-- UI work is orchestrated by the global `frontend-delivery` skill. Reuse `components/ui/*` and `lucide-react` icons before writing new ones; one styling system, chosen in V2-15 (do not grow a second one). User-facing copy is English.
+- UI work is orchestrated by the global `frontend-delivery` skill. Reuse `components/ui/*` and `lucide-react` icons before writing new ones; one styling system, chosen in V2-15: Tailwind 4 utilities on the tokens in `app/globals.css`; the carried-over CSS-module primitives in `components/ui/*` are frozen (no new CSS modules). User-facing copy is English.
 - No `any` (`eslint-config-next/typescript`), no new `console.*`, every `TODO` has a ticket id.
 - Tests: Vitest (`pnpm test`, Node environment, `**/*.test.ts`) for pure logic: refresh, SSE parser, error adapters, upload queue, offset mapping. No other test tooling without agreement.
 - Gates: `./scripts/validate-build.ps1 -Scope web` (`pnpm build`, `pnpm lint`, `pnpm test`).

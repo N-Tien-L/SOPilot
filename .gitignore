@@ -129,3 +129,6 @@ temp/
 
 # Extraction pilot corpus: source PDFs and derived text, redistribution not confirmed
 datasets/
+
+# Local screenshots kept as ticket evidence (not committed)
+/docs/quality/evidence/

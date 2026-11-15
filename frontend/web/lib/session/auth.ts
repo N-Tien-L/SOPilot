@@ -93,6 +93,28 @@ export async function devLogin(email: string, displayName?: string): Promise<voi
   getRefresher().announce(payload);
 }
 
+/** Google sign-in: the nonce cookie set by `requestNonce` must still be present (5 minutes). */
+export async function requestNonce(): Promise<string> {
+  const { nonce } = await coreRequest<{ nonce: string }>('/auth/google/nonce', { method: 'POST', anonymous: true });
+  return nonce;
+}
+
+export async function googleLogin(idToken: string): Promise<void> {
+  const payload = await coreRequest<LoginResponse>('/auth/google', {
+    method: 'POST',
+    anonymous: true,
+    body: { idToken },
+  });
+  applySession(payload);
+  getRefresher().announce(payload);
+}
+
+/** After create-workspace or accept-invitation: the response is a login payload for the new workspace. */
+export function adoptSession(payload: LoginResponse): void {
+  applySession(payload);
+  getRefresher().announce(payload);
+}
+
 export async function switchWorkspace(workspaceId: string): Promise<void> {
   const payload = await coreRequest<LoginResponse>('/auth/switch-workspace', {
     method: 'POST',
