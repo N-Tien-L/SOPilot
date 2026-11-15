@@ -71,6 +71,7 @@ Copy `.env.example` in this directory to `.env`; it lists the variables below wi
 | `SOPILOT_JWT_PRIVATE_KEY_PATH`, `SOPILOT_JWT_KID` | in-memory key in `local`/`test` | Unencrypted PKCS#8 PEM, RSA ≥ 2048; kid defaults to the key thumbprint |
 | `SOPILOT_ACCESS_TTL` | `PT15M` | Startup fails above 15 minutes |
 | `SOPILOT_REFRESH_TTL` | `P14D` | Refresh-token lifetime |
+| `SOPILOT_REFRESH_GRACE` | `PT10S` | How long an exchanged refresh token is accepted once more while its successor is unused (a reload aborted the refresh response); `0` turns it off |
 | `SOPILOT_FRONTEND_ORIGIN` | `http://localhost:3000` | The only `Origin` accepted by refresh and logout |
 | `SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH` | unset | X.509 PEM public key of the key being replaced; keep it for one access-token lifetime after rotating (`openssl pkey -in old.pem -pubout`) |
 | `SOPILOT_NONCE_HMAC_KEY` | random in `local`/`test` | ≥ 32 bytes |

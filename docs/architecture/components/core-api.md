@@ -235,6 +235,7 @@ CREATE TABLE core.refresh_tokens (
     expires_at     timestamptz NOT NULL,
     created_at     timestamptz NOT NULL DEFAULT now(),
     used_at        timestamptz,                   -- exchanged for a new token
+    successor_id   uuid REFERENCES core.refresh_tokens(id) ON DELETE SET NULL, -- V011, grace window (§5.1); cleared once spent
     revoked_at     timestamptz,
     revoked_reason text CHECK (revoked_reason IN ('LOGOUT','REUSE_DETECTED','MEMBERSHIP_LOST','SUSPENDED','EXPIRED_FAMILY'))
 );
@@ -626,9 +627,11 @@ No email or name in the token. The signing key is read from a PEM file mounted t
 **Refresh token:** a 256-bit random string, base64url, only its SHA-256 is stored. Cookie `sp_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`, lifetime `SOPILOT_REFRESH_TTL=P14D`. The rotation and reuse-detection logic is ported from the old `RefreshTokenService`:
 
 1. Find the token by hash, `FOR UPDATE`. Missing or expired → `401`.
-2. The token already has `used_at` or `revoked_at` → **reuse**: revoke the whole `family_id` (`REUSE_DETECTED`), return `401`.
+2. The token already has `used_at` or `revoked_at` → **reuse**: revoke the whole `family_id` (`REUSE_DETECTED`), return `401`. One exception, the grace window below: a token exchanged less than `SOPILOT_REFRESH_GRACE` ago (default 10 s, `0` = off) whose successor was never presented is not reuse (V2-39).
 3. Re-read the membership of `(workspace_id, user_id)`: gone → revoke the chain (`MEMBERSHIP_LOST`), `401 MEMBERSHIP_LOST`; `SUSPENDED` → revoke the chain (`SUSPENDED`), `403 MEMBERSHIP_SUSPENDED`. The frontend sends the user to pick another workspace. Suspension, removal or leaving through the API already revoked the chain when the status changed, so a later refresh stops at step 2 with `401 UNAUTHENTICATED`; step 3 is the safety net when the status changed but the chain was not revoked (V2-26).
-4. Mark the old token `used_at`, issue a new one in the same `family_id`, with an access token whose `wrole`/`wdept` are **re-read from the DB** (ADR-007 §4.5).
+4. Mark the old token `used_at` and `successor_id`, issue a new one in the same `family_id`, with an access token whose `wrole`/`wdept` are **re-read from the DB** (ADR-007 §4.5).
+
+**Grace window (V2-39).** A reload while a refresh is in flight makes the server rotate the token while the aborted response's `Set-Cookie` never reaches the browser, so the next refresh presents an already exchanged token. In step 2 such a token is accepted **once more** when all of these hold: `used_at` is younger than `SOPILOT_REFRESH_GRACE`, it is not revoked, it has a `successor_id`, and that successor is neither used nor revoked (the successor row is locked too). The membership checks of step 3 still run. The response issues a new token and the cookie it sets is the one the browser must keep; the earlier successor is retired (`used_at` set) and the old token's `successor_id` is cleared, so exactly one live token remains and the grace cannot be spent twice. Anything else keeps the reuse rule: a used token presented after the window, a third time, or after its successor (or the retired one) was presented revokes the whole family. Trade-off: a stolen token that was just rotated can be used once inside the window; the family-wide revocation on the next reuse bounds it, and the window is short and applies only to the immediately previous token. The window is measured on the database clock. The grace is spent once per exchange: a second aborted refresh in a row, or two concurrent requests that both take the grace path, end in `REUSE_DETECTED`; concurrent requests with the same cookie are only guaranteed to work sequentially (when the responses arrive out of order the browser may keep the retired token, which fails closed). `refreshTtl` and the `Origin` check are unchanged; the token value is never logged.
 
 Refresh/logout requests must carry an `Origin` header equal to the frontend origin; otherwise `403`. This is the second CSRF defense next to `SameSite=Strict`.
 

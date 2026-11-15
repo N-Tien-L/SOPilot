@@ -54,7 +54,7 @@ Added by `V006` (V2-29):
 
 | Table | RLS | Key columns / constraints |
 |---|---|---|
-| `core.refresh_tokens` | no (global, TECH §3.1) | `user_id` FK, `target_workspace_id` (no FK; not named `workspace_id` so the isolation suite lists the table as global), `family_id`, `token_hash` bytea unique (SHA-256), `expires_at`, `used_at`, `revoked_at`, `revoked_reason` (`LOGOUT`/`REUSE_DETECTED`/`MEMBERSHIP_LOST`/`SUSPENDED`/`EXPIRED_FAMILY`); indexes on `family_id` and `(user_id, target_workspace_id)` |
+| `core.refresh_tokens` | no (global, TECH §3.1) | `user_id` FK, `target_workspace_id` (no FK; not named `workspace_id` so the isolation suite lists the table as global), `family_id`, `token_hash` bytea unique (SHA-256), `expires_at`, `used_at`, `successor_id` (V011, nullable self-reference to the token issued by the exchange; grace window), `revoked_at`, `revoked_reason` (`LOGOUT`/`REUSE_DETECTED`/`MEMBERSHIP_LOST`/`SUSPENDED`/`EXPIRED_FAMILY`); indexes on `family_id` and `(user_id, target_workspace_id)` |
 | `core.workspaces` (extended) | FORCE | + `deleted_at` (soft delete; hidden from `findVisible`, `findMembership` and the workspace list) |
 
 Added by `V007` (V2-24) and `V010` (V2-25):

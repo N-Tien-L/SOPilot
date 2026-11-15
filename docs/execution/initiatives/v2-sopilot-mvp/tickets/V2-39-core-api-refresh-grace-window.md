@@ -2,9 +2,9 @@
 id: V2-39
 title: "core-api: refresh-token grace window so a reload during a refresh does not end the session"
 type: fix
-status: todo
+status: review
 created: 2026-11-15
-updated: 2026-11-15
+updated: 2026-11-16
 author: "Owner"
 scope: user
 priority: P1
@@ -12,7 +12,7 @@ size: S
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-29]
 blocks: [V2-18]
-branch: "fix/user-refresh-grace-window"
+branch: "fix/core-refresh-grace"
 assignee: pair
 refs:
   - docs/architecture/components/core-api.md
@@ -23,7 +23,7 @@ refs:
 # TICKET V2-39: Refresh-token grace window
 
 > **Scope:** `user` | **Size:** `S` | **Priority:** `P1`
-> **Parent plan:** `PLAN-V2-SOPILOT-MVP` | **Branch:** `fix/user-refresh-grace-window`
+> **Parent plan:** `PLAN-V2-SOPILOT-MVP` | **Branch:** `fix/core-refresh-grace`
 
 ## 1. Context & goal
 Found by the V2-38 browser run (2026-11-15, [V2-38 Results](V2-38-frontend-foundation.md), finding 1). `POST /auth/refresh` rotates the token under a row lock ([TECH-V2-core-api §5.1](../../../../architecture/components/core-api.md), `RefreshTokenService.rotate`): a token that was already exchanged revokes the whole family. If a tab is reloaded while its refresh request is in flight, the server has already rotated the token but the aborted response's `Set-Cookie` never reaches the browser. The next refresh presents the used token, which counts as reuse, and the user is signed out. In a Chromium test a double reload 5 ms apart lost the session on trial 2 of 12. The frontend cannot prevent it: only the server knows the rotation happened. Cross-tab merging (V2-38, C5/R1) is not affected and works.
@@ -61,4 +61,14 @@ Plus `tests/tenant-isolation` if the migration touches RLS tables (refresh token
 | TECH-V2-core-api §5.1, `identity-and-access.md`, `services/core-api/README.md`, `.env.example` | MODIFY |
 
 ## 6. Results
-*(Fill in when running: commit, command results, browser notes.)*
+Implemented on `fix/core-refresh-grace` (not committed yet, 2026-11-16).
+
+**Change.** Migration `V011__refresh_token_grace.sql` adds `refresh_tokens.successor_id`. `RefreshTokenService.rotate` accepts an exchanged token once more when its exchange is younger than `SOPILOT_REFRESH_GRACE` (default `PT10S`, `0` = off, measured on the database clock), it has a successor and that successor is unused and unrevoked; the earlier successor is retired and the grace is spent. Design: TECH-V2-core-api §5.1 (grace paragraph), `identity-and-access.md`, `core-schema.md`; env: `services/core-api/README.md`, `.env.example`.
+
+**Evidence.**
+- `./mvnw verify` in `services/core-api` (the `run-tests.ps1` wrapper aborts on the Mockito stderr warning): 255 tests, 0 failures, `BUILD SUCCESS` (before the review fix below); `SessionWorkspaceIT` re-run after it: 30 tests, 0 failures.
+- New tests in `SessionWorkspaceIT` (grace accepted once and leaves one live token, chain continues, retired successor is replay, replay after successor use, late replay, two HTTP refreshes with one cookie, membership checks on the grace path). Two existing replay tests now age the exchange first.
+- `./scripts/check-migrations.ps1` and `./scripts/docs/check-docs.ps1` passed in the reviewer run.
+- Review (fresh `v2-reviewer`, `claude-opus-5-5`): no blockers. Accepted and fixed: window decided in SQL (database clock) instead of mixing DB and JVM clocks; ticket `branch` corrected; `REUSE_DETECTED` asserted; concurrency limits written into §5.1. Left open: concurrent requests with one cookie are only guaranteed sequentially (fails closed, documented); a possible `40P01` deadlock between a grace refresh and a concurrent `revokeFamily` gives `500` while the family stays revoked; no test for `SOPILOT_REFRESH_GRACE=0`.
+
+**Not verified.** The browser re-check (V2-38 double reload, Chromium and Firefox, 12 trials) has not been run.

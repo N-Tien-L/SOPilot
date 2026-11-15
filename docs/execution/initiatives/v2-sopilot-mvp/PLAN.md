@@ -18,8 +18,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 39
 completed_tickets: 32
-implemented_tickets: 32
-review_tickets: 0
+implemented_tickets: 33
+review_tickets: 1
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -264,7 +264,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-11` | core-api: service skeleton, Google identity, JIT and personal workspace | user | L | `V2-03`, `V2-08` | done |
 | `V2-29` | core-api: workspace CRUD, workspace switching and refresh sessions | user | L | `V2-11` | done |
 | `V2-30` | core-api: invitations, members and OWNER rules | user | M | `V2-29` | done |
-| `V2-39` | core-api: refresh-token grace window so a reload during a refresh does not end the session | user | S | `V2-29` | todo |
+| `V2-39` | core-api: refresh-token grace window so a reload during a refresh does not end the session | user | S | `V2-29` | review |
 | `V2-12` | core-api: documents, upload, outbox, document quota, safe replacement, audit log | knowledge | L | `V2-09`, `V2-11` | done |
 | `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | done |
 | `V2-14` | FR-19 tenant isolation tests in CI and RQ4 | tests | M | `V2-09`, `V2-12` | done |

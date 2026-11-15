@@ -27,7 +27,9 @@ import java.util.UUID;
 /**
  * Refresh-token chains (TECH-V2-core-api §5.1). A token is 256 random bits, stored only as its
  * SHA-256. Each use exchanges it for the next token of the same family; presenting a token that was
- * already exchanged or revoked is replay, and revokes the whole family. The membership is re-read on
+ * already exchanged or revoked is replay, and revokes the whole family. One benign race is tolerated: a token
+ * exchanged less than {@code refreshGrace} ago whose successor was not presented yet is accepted once more (a
+ * reload aborted the response that carried the successor) and the earlier successor is retired. The membership is re-read on
  * every refresh, so a removed or suspended member loses the session at the next refresh and the new
  * access token carries the role and department as they are now (ADR-007 §4.5).
  * Tokens, hashes and cookie values are never logged.
@@ -43,6 +45,7 @@ public class RefreshTokenService {
     private final TenantTx tenant;
     private final TransactionTemplate tx;
     private final Duration ttl;
+    private final Duration grace;
 
     public RefreshTokenService(RefreshTokenRepository repository, WorkspaceRepository workspaces,
                                AccessTokenIssuer tokens, TenantTx tenant, TransactionTemplate tx,
@@ -53,6 +56,7 @@ public class RefreshTokenService {
         this.tenant = tenant;
         this.tx = tx;
         this.ttl = properties.auth().refreshTtl();
+        this.grace = properties.auth().refreshGrace();
     }
 
     public Duration ttl() {
@@ -61,19 +65,20 @@ public class RefreshTokenService {
 
     /** Starts a new chain and returns its first token. Call inside the transaction of the login or switch. */
     public String start(UUID userId, UUID workspaceId) {
-        return insert(userId, workspaceId, UuidV7.generate());
+        return insert(userId, workspaceId, UuidV7.generate()).raw();
     }
 
     /** Exchanges a presented token for the next one, or says why it cannot be. */
     public Rotation rotate(String presented) {
         byte[] hash = hash(presented);
         return tx.execute(status -> {
-            Optional<StoredToken> found = repository.lockByHash(hash);
+            Optional<StoredToken> found = repository.lockByHash(hash, grace);
             if (found.isEmpty() || found.get().expiresAt().isBefore(now())) {
                 return Rotation.rejected(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Sign in to continue.");
             }
             StoredToken token = found.get();
-            if (token.used() || token.revoked()) {
+            boolean graceRefresh = token.used() && !token.revoked() && withinGrace(token);
+            if (token.revoked() || (token.used() && !graceRefresh)) {
                 repository.revokeFamily(token.familyId(), "REUSE_DETECTED");
                 return Rotation.rejected(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Sign in to continue.");
             }
@@ -88,11 +93,18 @@ public class RefreshTokenService {
                 repository.revokeFamily(token.familyId(), "SUSPENDED");
                 return Rotation.rejected(HttpStatus.FORBIDDEN, "MEMBERSHIP_SUSPENDED", "Your membership is suspended.");
             }
-            repository.markUsed(token.id());
-            String next = insert(token.userId(), token.workspaceId(), token.familyId());
+            Issued next = insert(token.userId(), token.workspaceId(), token.familyId());
+            if (graceRefresh) {
+                // The earlier successor never reached the browser: retire it so one live token remains, and
+                // spend the grace so this token cannot be accepted a third time.
+                repository.retire(token.successorId());
+                repository.clearSuccessor(token.id());
+            } else {
+                repository.markUsed(token.id(), next.id());
+            }
             IssuedToken access = tokens.issue(token.userId(), token.workspaceId(), membership.role().name(),
                     membership.departmentId());
-            return Rotation.ok(token.userId(), token.workspaceId(), next, access);
+            return Rotation.ok(token.userId(), token.workspaceId(), next.raw(), access);
         });
     }
 
@@ -123,12 +135,33 @@ public class RefreshTokenService {
         repository.revokeForWorkspace(workspaceId, reason);
     }
 
-    private String insert(UUID userId, UUID workspaceId, UUID familyId) {
+    /**
+     * Grace window: an exchanged token is accepted once more while its exchange is younger than the grace and
+     * its successor was never presented. The successor row is locked so a concurrent use of it cannot slip in.
+     */
+    private boolean withinGrace(StoredToken token) {
+        if (grace.isZero() || token.successorId() == null || !token.inGrace()) {
+            return false;
+        }
+        return repository.lockUnused(token.successorId()).orElse(false);
+    }
+
+    private Issued insert(UUID userId, UUID workspaceId, UUID familyId) {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        repository.insert(UuidV7.generate(), userId, workspaceId, familyId, hash(raw), now().plus(ttl));
-        return raw;
+        UUID id = UuidV7.generate();
+        repository.insert(id, userId, workspaceId, familyId, hash(raw), now().plus(ttl));
+        return new Issued(id, raw);
+    }
+
+    /** A freshly stored token: its row id and the raw value (a secret, never logged). */
+    private record Issued(UUID id, String raw) {
+
+        @Override
+        public String toString() {
+            return "Issued[id=" + id + "]";
+        }
     }
 
     private static OffsetDateTime now() {
