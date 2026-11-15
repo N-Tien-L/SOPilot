@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-09, V2-11]
-blocks: [V2-13, V2-14, V2-16, V2-24, V2-31, V2-32]
+blocks: [V2-13, V2-14, V2-16, V2-24, V2-31, V2-32, V2-41]
 branch: "feat/knowledge-core-api-documents"
 assignee: pair
 ---

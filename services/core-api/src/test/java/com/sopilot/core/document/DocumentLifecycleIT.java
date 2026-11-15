@@ -249,6 +249,83 @@ class DocumentLifecycleIT extends ApiIT {
         assertThat(report(owner, doc, ver, "READY", 0).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
+    // V2-41: the FAILED and PROCESSING callbacks of one version are separate outbox events and can arrive reversed.
+
+    @Test
+    void aLateProcessingCallbackOfTheSameAttemptDoesNotRevertAFailedVersion() {
+        Actor owner = newTeamWorkspace("late-fail");
+        ResponseEntity<JsonNode> created = uploadDocument(owner, "sop.md", markdown("sop"));
+        UUID doc = id(created, "id");
+        UUID ver = id(created, "latestVersion", "id");
+
+        assertThat(fail(owner, doc, ver, "CORRUPT_FILE", 0).getStatusCode()).isEqualTo(HttpStatus.OK);
+        ResponseEntity<JsonNode> late = report(owner, doc, ver, "PROCESSING", 0);
+
+        assertThat(late.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(late.getBody().path("applied").asBoolean()).isFalse();
+        assertThat(versionStatus(owner, ver)).isEqualTo("FAILED");
+        JsonNode d = data(get("/api/v1/documents/" + doc, owner));
+        assertThat(d.at("/latestVersion/failureCode").asText()).isEqualTo("CORRUPT_FILE");
+    }
+
+    @Test
+    void aLateProcessingCallbackAfterReadyIsIgnoredWithSuccess() {
+        Actor owner = newTeamWorkspace("late-ready");
+        ResponseEntity<JsonNode> created = uploadDocument(owner, "sop.md", markdown("sop"));
+        UUID doc = id(created, "id");
+        UUID ver = id(created, "latestVersion", "id");
+        report(owner, doc, ver, "PROCESSING", 0);
+        report(owner, doc, ver, "READY", 0);
+
+        ResponseEntity<JsonNode> late = report(owner, doc, ver, "PROCESSING", 0);
+
+        assertThat(late.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(late.getBody().path("applied").asBoolean()).isFalse();
+        assertThat(versionStatus(owner, ver)).isEqualTo("READY");
+    }
+
+    @Test
+    void aLateProcessingCallbackForASupersededVersionIsIgnoredWithSuccess() {
+        Actor owner = newTeamWorkspace("late-super");
+        ResponseEntity<JsonNode> created = uploadDocument(owner, "sop.md", markdown("v1"));
+        UUID doc = id(created, "id");
+        UUID v1 = id(created, "latestVersion", "id");
+        report(owner, doc, v1, "PROCESSING", 0);
+        report(owner, doc, v1, "READY", 0);
+        UUID v2 = id(upload("/api/v1/documents/" + doc + "/versions", owner, "sop.md", markdown("v2")),
+                "latestVersion", "id");
+        report(owner, doc, v2, "PROCESSING", 0);
+        report(owner, doc, v2, "READY", 0);
+        assertThat(versionStatus(owner, v1)).isEqualTo("SUPERSEDED");
+
+        ResponseEntity<JsonNode> late = report(owner, doc, v1, "PROCESSING", 0);
+
+        assertThat(late.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(late.getBody().path("applied").asBoolean()).isFalse();
+        assertThat(versionStatus(owner, v1)).isEqualTo("SUPERSEDED");
+        // A real contract error is still a conflict (and so a dead letter in ai-service), never ignored.
+        ResponseEntity<JsonNode> contractError = report(owner, doc, v1, "READY", 0);
+        assertThat(contractError.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(contractError.getBody().at("/error/code").asText()).isEqualTo("INVALID_TRANSITION");
+        assertThat(versionStatus(owner, v1)).isEqualTo("SUPERSEDED");
+    }
+
+    @Test
+    void aFailedVersionStartsAgainOnlyWithANewerAttempt() {
+        Actor owner = newTeamWorkspace("newer-attempt");
+        ResponseEntity<JsonNode> created = uploadDocument(owner, "sop.md", markdown("sop"));
+        UUID doc = id(created, "id");
+        UUID ver = id(created, "latestVersion", "id");
+        report(owner, doc, ver, "PROCESSING", 0);
+        fail(owner, doc, ver, "CORRUPT_FILE", 0);
+
+        assertThat(report(owner, doc, ver, "PROCESSING", 0).getBody().path("applied").asBoolean()).isFalse();
+        assertThat(versionStatus(owner, ver)).isEqualTo("FAILED");
+
+        assertThat(report(owner, doc, ver, "PROCESSING", 1).getBody().path("applied").asBoolean()).isTrue();
+        assertThat(versionStatus(owner, ver)).isEqualTo("PROCESSING");
+    }
+
     @Test
     void invalidTransitionsAreConflictsAndInternalRoutesNeedTheToken() {
         Actor owner = newTeamWorkspace("own");

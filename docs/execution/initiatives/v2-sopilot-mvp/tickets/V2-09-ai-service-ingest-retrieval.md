@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-03, V2-06, V2-08, V2-20, V2-21, V2-22]
-blocks: [V2-10, V2-12, V2-14, V2-25, V2-35]
+blocks: [V2-10, V2-12, V2-14, V2-25, V2-35, V2-41]
 branch: "feat/ai-qa-v2-ingest-retrieval"
 assignee: pair
 ---

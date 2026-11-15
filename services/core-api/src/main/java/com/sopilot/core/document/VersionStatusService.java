@@ -15,15 +15,15 @@ import java.util.UUID;
 
 /**
  * Applies ai-service status callbacks to a version (TECH-V2-core-api §8.2). Valid moves:
- * {@code UPLOADED → PROCESSING → READY | FAILED}, {@code FAILED → PROCESSING} (ai-service's own retry),
- * and {@code FAILED → UPLOADED} which only {@code POST /retry} performs. A callback carrying an older
- * {@code attempt} is ignored with success. {@code READY} switches the document to the new version and
+ * {@code UPLOADED → PROCESSING → READY | FAILED}, {@code FAILED → PROCESSING} only with a newer
+ * {@code attempt}, and {@code FAILED → UPLOADED} which only {@code POST /retry} performs. A callback carrying
+ * an older {@code attempt}, or a PROCESSING that arrives after the version already finished, is ignored with
+ * success. {@code READY} switches the document to the new version and
  * supersedes every older one, FAILED ones included; a failing new version leaves the old one serving.
  */
 @Service
 public class VersionStatusService {
 
-    private static final Set<String> CAN_START = Set.of("UPLOADED", "FAILED");
     private static final Set<String> CAN_FINISH = Set.of("UPLOADED", "PROCESSING");
 
     private final DocumentRepository docs;
@@ -71,7 +71,9 @@ public class VersionStatusService {
                 return false;
             }
             switch (update.status()) {
-                case "PROCESSING" -> processing(wid, version);
+                case "PROCESSING" -> {
+                    return processing(wid, version, update);
+                }
                 case "READY" -> ready(wid, head, version, update);
                 case "FAILED" -> failed(wid, version, update);
                 default -> throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Request is invalid.");
@@ -80,12 +82,23 @@ public class VersionStatusService {
         });
     }
 
-    private void processing(UUID wid, VersionRow version) {
-        if (CAN_START.contains(version.status())) {
+    /**
+     * PROCESSING and FAILED are separate outbox events and can arrive reversed (V2-41), so a late PROCESSING must
+     * never move a version backwards: READY, SUPERSEDED and FAILED of the same attempt are left alone and the
+     * callback succeeds with {@code applied = false}. Only a newer attempt restarts a FAILED version.
+     * @return false when nothing changed
+     */
+    private boolean processing(UUID wid, VersionRow version, Update u) {
+        String status = version.status();
+        if ("UPLOADED".equals(status) || ("FAILED".equals(status) && u.attempt() > version.attempt())) {
             docs.setStatus(wid, version.id(), "PROCESSING");
-        } else if (!"PROCESSING".equals(version.status())) {
-            throw invalid();
+            return true;
         }
+        if ("PROCESSING".equals(status) || "READY".equals(status) || "SUPERSEDED".equals(status)
+                || "FAILED".equals(status)) {
+            return false;
+        }
+        throw invalid();
     }
 
     private void ready(UUID wid, DocumentHead head, VersionRow version, Update u) {

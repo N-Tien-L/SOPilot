@@ -16,10 +16,10 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 39
+total_tickets: 40
 completed_tickets: 32
-implemented_tickets: 32
-review_tickets: 0
+implemented_tickets: 33
+review_tickets: 1
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -117,6 +117,7 @@ flowchart TD
     V36["V2-36: core-api: document write rights by department publisher and workspace publisher"]
     V37["V2-37: Retrieval configuration matrix and answer-level eval with an independent judge"]
     V38["V2-38: Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal"]
+    V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
     V39["V2-39: core-api: refresh-token grace window so a reload during a refresh does not end the session"]
     V01 --> V03
     V01 --> V04
@@ -215,6 +216,9 @@ flowchart TD
     V35 --> V37
     V37 --> V18
     V39 --> V18
+    V09 --> V41
+    V12 --> V41
+    V41 --> V18
 ```
 
 ---
@@ -265,6 +269,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-29` | core-api: workspace CRUD, workspace switching and refresh sessions | user | L | `V2-11` | done |
 | `V2-30` | core-api: invitations, members and OWNER rules | user | M | `V2-29` | done |
 | `V2-39` | core-api: refresh-token grace window so a reload during a refresh does not end the session | user | S | `V2-29` | todo |
+| `V2-41` | core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING | knowledge | S | `V2-09`, `V2-12` | review |
 | `V2-12` | core-api: documents, upload, outbox, document quota, safe replacement, audit log | knowledge | L | `V2-09`, `V2-11` | done |
 | `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | done |
 | `V2-14` | FR-19 tenant isolation tests in CI and RQ4 | tests | M | `V2-09`, `V2-12` | done |
@@ -284,7 +289,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
-| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39` | todo |
+| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-41` | todo |
 
 ---
 
