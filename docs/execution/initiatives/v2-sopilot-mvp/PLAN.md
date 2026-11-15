@@ -16,7 +16,7 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 39
+total_tickets: 41
 completed_tickets: 34
 implemented_tickets: 34
 review_tickets: 0
@@ -118,6 +118,8 @@ flowchart TD
     V37["V2-37: Retrieval configuration matrix and answer-level eval with an independent judge"]
     V38["V2-38: Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal"]
     V39["V2-39: core-api: refresh-token grace window so a reload during a refresh does not end the session"]
+    V40["V2-40: infra: implement ADR-011 serving profile (L40S, parallel eval, context budget)"]
+    V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
     V01 --> V03
     V01 --> V04
     V05 --> V07
@@ -215,6 +217,13 @@ flowchart TD
     V35 --> V37
     V37 --> V18
     V39 --> V18
+    V10 --> V40
+    V35 --> V40
+    V40 --> V37
+    V40 --> V18
+    V09 --> V41
+    V12 --> V41
+    V41 --> V18
 ```
 
 ---
@@ -235,7 +244,7 @@ flowchart TD
 | `V2-05` | Retrieval eval harness (FR-18) | tests | M | None | done |
 | `V2-06` | Multilingual (VI, EN) corpus and reviewed question set | tests | L | None | done |
 | `V2-07` | Run RQ1–RQ3 and RQ5, write the report | tests | M | `V2-05`, `V2-06`, `V2-22` | done |
-| `V2-37` | Retrieval configuration matrix and answer-level eval with an independent judge | tests | L | `V2-07`, `V2-10`, `V2-13`, `V2-27`, `V2-35` | todo |
+| `V2-37` | Retrieval configuration matrix and answer-level eval with an independent judge | tests | L | `V2-07`, `V2-10`, `V2-13`, `V2-27`, `V2-35`, `V2-40` | todo |
 
 ### Phase 2: Foundation and ai-service
 | Ticket | Title | Scope | Size | Depends on | Status |
@@ -246,6 +255,7 @@ flowchart TD
 | `V2-10` | ai-service: 2-LLM-call Q&A pipeline, SSE, citations, refusal | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
 | `V2-27` | ai-service: semantic router (rules + embedding) measured against rules only | ai-qa | L | `V2-05`, `V2-10` | done |
 | `V2-35` | Infra + ai-service: bge-reranker-v2-m3 rerank on GPU, sharing the A10 container with vLLM | infra | L | `V2-09`, `V2-34` | done |
+| `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | todo |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
 | Ticket | Title | Scope | Size | Depends on | Status |
@@ -265,6 +275,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-29` | core-api: workspace CRUD, workspace switching and refresh sessions | user | L | `V2-11` | done |
 | `V2-30` | core-api: invitations, members and OWNER rules | user | M | `V2-29` | done |
 | `V2-39` | core-api: refresh-token grace window so a reload during a refresh does not end the session | user | S | `V2-29` | todo |
+| `V2-41` | core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING | knowledge | S | `V2-09`, `V2-12` | todo |
 | `V2-12` | core-api: documents, upload, outbox, document quota, safe replacement, audit log | knowledge | L | `V2-09`, `V2-11` | done |
 | `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | done |
 | `V2-14` | FR-19 tenant isolation tests in CI and RQ4 | tests | M | `V2-09`, `V2-12` | done |
@@ -284,7 +295,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
-| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39` | todo |
+| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41` | todo |
 
 ---
 
@@ -424,3 +435,5 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 > **Owner decision 2026-11-15 ([ADR-011](../../../architecture/decisions/adr-011-modal-serving-profiles.md), amends ADR-006 §4.4):** the answer model moves from A10 to one L40S deploy with `--max-model-len 65536`, the reranker in the same container, eval sending 8 concurrent requests (latency measured separately at concurrency 1) and the demo kept warm; eval and the demo use the same ai-service context budget. Affects `V2-37` (every reported answer-level run uses the L40S deploy) and `V2-18`. The implementation is not ticketed yet; no status or counter changes.
 
 > **Update 2026-11-16:** the owner accepted `V2-31` and `V2-32` → `done`. `completed_tickets` 32 → 34, `review_tickets` 2 → 0, `implemented_tickets` unchanged (34). The open items recorded in each ticket's §5 (failed ingest callback `409`, two-step `[n]` viewer, mock-only version label) stay open outside these tickets.
+
+> **Owner decision 2026-11-16 (V2-40 and V2-41 added):** [`V2-40`](tickets/V2-40-infra-modal-serving-profile.md) (infra/eval, P0, L, depends on `V2-10`, `V2-35`) implements the ADR-011 follow-up list: L40S server flags, reranker memory cap, `answers.py --concurrency` with a separate concurrency-1 latency run, the ai-service context budget and measurements replacing the ADR estimates; it blocks `V2-37` and `V2-18`. [`V2-41`](tickets/V2-41-core-api-version-status-callback-order.md) (core-api, P1, S, depends on `V2-09`, `V2-12`) fixes the bug found in the V2-31 run; reproduced on the local stack, the cause is out-of-order `VERSION_STATUS` delivery (a late `PROCESSING` overrides `FAILED`, or gets `409` after `READY`), not a rejected `FAILED`; it blocks `V2-18`. `total_tickets` 39 → 41; other counters unchanged (`todo` is not counted).

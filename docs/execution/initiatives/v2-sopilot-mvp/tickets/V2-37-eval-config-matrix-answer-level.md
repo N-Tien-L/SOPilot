@@ -10,7 +10,7 @@ scope: tests
 priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-07, V2-10, V2-13, V2-27, V2-35]
+depends_on: [V2-07, V2-10, V2-13, V2-27, V2-35, V2-40]
 blocks: [V2-18]
 branch: "test/eval-config-matrix"
 assignee: pair

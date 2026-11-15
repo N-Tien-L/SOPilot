@@ -109,7 +109,7 @@ The ai-service context budget (`retrieval.context.*`, `context_k`, `SOPILOT_LLM_
 
 **Negative:** L40S costs ~1.8× A10 per hour; the first cold start on L40S rebuilds the FlashInfer and torch.compile caches (~320 s), so warm it once after the switch; answer-level results from A10 are not comparable and are re-run if reported; the V2-37 judge app is also planned on an L40S, so both share the Modal budget.
 
-**Follow-up (not yet ticketed; owner decides where):**
+**Follow-up (ticketed as [V2-40](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-40-infra-modal-serving-profile.md), 2026-11-16):**
 1. `serve_vllm.py`: GPU `L40S`, the flags in §2.1, the reranker memory cap; update `infrastructure/modal/README.md`.
 2. `answers.py`: `--concurrency` with deterministic output order; a separate latency run at concurrency 1.
 3. `models.yaml`: new context budget and `SOPILOT_LLM_CONTEXT_MAX_TOKENS`; update TECH-V2-ai-service.
