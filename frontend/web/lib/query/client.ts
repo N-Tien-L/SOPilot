@@ -2,6 +2,7 @@
 // of one workspace can never be read under another, and the cache is cleared on workspace switch.
 
 import { QueryClient } from '@tanstack/react-query';
+import { clearWarnings } from '@/lib/chat/warning-store';
 import { abortAllStreams } from '@/lib/sse/registry';
 
 export function createQueryClient(): QueryClient {
@@ -37,6 +38,7 @@ export function workspaceKey(workspaceId: string, ...parts: readonly unknown[]):
 /** R7: forget everything of the previous workspace: open streams, in-flight and cached queries. */
 export function resetWorkspaceState(client: QueryClient): void {
   abortAllStreams();
+  clearWarnings();
   void client.cancelQueries(); // starts cancelling synchronously
   client.clear();
 }

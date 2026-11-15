@@ -2,7 +2,7 @@
 title: "Frontend (frontend/web): current state and V2 direction"
 status: approved
 created: 2026-11-13
-updated: 2026-11-14
+updated: 2026-11-15
 author: "Owner"
 affected_services: [web]
 affected_schemas: []
@@ -20,7 +20,7 @@ refs:
 
 > **Direction (2026-11-14):** [ADR-010](../decisions/adr-010-frontend-stack.md) keeps Next.js as a client-rendered app and rebuilds the foundation in [V2-38](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-38-frontend-foundation.md) before V2-15. The feature list and requirements are in [the inventory](frontend-feature-inventory.md) and [NFRs](frontend-nfrs.md).
 >
-> **Implementation status:** the foundation (sections 1 and 2) is implemented by V2-38 and waits for owner review. It was exercised against the real core-api and ai-service in headless Chromium and Firefox (Playwright); the ticket's Results list what was not verified, including a reload during an in-flight refresh that can end the session (strict refresh rotation, a core-api decision). The shell is minimal (dev sign-in, an empty workspace-aware home, sign-out). Google sign-in, the workspace picker, navigation and chat are V2-15 (planned); upload, source viewer and administration are V2-31, V2-32 and V2-33 (planned). The V1 UI is tagged `v1-final` in git; its description is archived at [v1-context/architecture/frontend.md](../../archive/v1-context/architecture/frontend.md).
+> **Implementation status:** the foundation (sections 1 and 2) is implemented by V2-38 and waits for owner review. The V2-15 screens (section 4) are implemented on branch `feat/web-v2-workspace-citations` and in progress. It was exercised against the real core-api and ai-service in headless Chromium and Firefox (Playwright); the ticket's Results list what was not verified, including a reload during an in-flight refresh that can end the session (strict refresh rotation, a core-api decision). V2-15 adds Google and dev sign-in, the shell and navigation, the workspace picker and settings, chat, documents (read-only), members (read-only) and knowledge gaps (section 4); upload, source viewer and administration are V2-31, V2-32 and V2-33 (planned). The V1 UI is tagged `v1-final` in git; its description is archived at [v1-context/architecture/frontend.md](../../archive/v1-context/architecture/frontend.md).
 
 ## 1. Stack and layout
 
@@ -46,3 +46,12 @@ refs:
 - **Markdown rendering:** no `rehype-raw` (removed with the V1 chat and viewer code); V2-32 renders canonical Markdown without raw HTML and turns external images into links.
 - **Workspace and role** are the token's `wid` and `wrole` (and `wdept`); the V2-38 client reads workspace and role from the login/refresh response (`LoginResponse.workspace`), which has no department yet, so V2-15/V2-33 need `GET /members/me` or a contract change for department-dependent UI. The UI hides actions the role cannot do, but the server is the authority (another workspace's object is `404`).
 - **Verification:** a green build is not visual verification. Each UI ticket records browser evidence per acceptance criterion and says which browsers were not checked.
+
+## 4. V2-15 screens and visual direction (in progress)
+
+- **Routes** (`app/`): `/login`; inside the authenticated shell `(app)`: `/chat` and `/chat/<id>` (one optional catch-all), `/documents`, `/members` (OWNER/ADMIN, read-only), `/gaps` (OWNER/ADMIN), `/settings`, `/workspaces`. `/` redirects to `/chat`. Upload, the viewer, administration and departments are V2-31 to V2-33.
+- **Code:** `lib/api/endpoints.ts` (typed calls), `lib/query/hooks.ts` (workspace-keyed queries, document polling only while something is processing), `lib/chat/` (citation linking, live turn state, labels, in-memory warnings), `components/app/` (shell, workspace switcher), `components/chat/`.
+- **Visual direction (owner, 2026-11-15):** "Ink & Teal", chosen for speed: cool slate neutrals, teal accent `#0F766E` reserved for actions and citation chips, dark ink sidebar, 8px radius, light mode only. Status colours (success, warning, danger, info blue) are separate from the accent and every status also has a word or icon. Contrast of the text pairs was checked at 4.5:1 or better.
+- **Styling system:** Tailwind 4 utilities over the CSS-variable tokens in `app/globals.css`. The carried-over `components/ui/*` primitives still use CSS modules and are frozen until a polish pass (which may adopt third-party components).
+- **Citations:** `[n]` markers become chips through `cite:` Markdown links; a citation with `isCurrentVersion = false` shows the stored passage and an "Old version" label and never opens the viewer; raw HTML is not rendered and images become links.
+- **Known API limits seen from the UI:** the knowledge-gap list has no total; `done.warnings` are not in the history response; the workspace usage endpoint has no limits.

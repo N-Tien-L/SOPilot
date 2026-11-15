@@ -14,6 +14,18 @@ export interface WorkspaceView {
   name: string;
   kind: string;
   role: WorkspaceRole;
+  /** Present on `GET /workspaces`; the login payload omits it. */
+  status?: string;
+}
+
+/** `GET|PATCH /workspaces/current`: counts only; the limits are server env and not exposed. */
+export interface WorkspaceDetail {
+  id: string;
+  name: string;
+  kind: string;
+  role: WorkspaceRole;
+  documentCount: number;
+  bytesUsed: number;
 }
 
 export interface PendingInvitationView {
@@ -81,3 +93,127 @@ export type StreamEvent =
       usage: { questionsLeftToday: number } | null;
     }
   | { type: 'error'; code: string; message: string };
+
+// ---- core-api resources (TECH-V2-core-api §5) ----
+
+export type MemberStatus = 'ACTIVE' | 'SUSPENDED' | string;
+
+export interface MemberView {
+  userId: string;
+  email: string;
+  displayName: string;
+  employeeCode: string | null;
+  jobTitle: string | null;
+  role: WorkspaceRole;
+  status: MemberStatus;
+  departmentId: string | null;
+  departmentName: string | null;
+  joinedAt: string;
+}
+
+export interface InvitationView {
+  id: string;
+  email: string;
+  role: WorkspaceRole;
+  displayName: string | null;
+  employeeCode: string | null;
+  jobTitle: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  invitedBy: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export type DocumentStatus = 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED';
+
+export interface DocumentView {
+  id: string;
+  title: string;
+  description: string | null;
+  category: { id: string; name: string } | null;
+  tags: string[];
+  language: string | null;
+  visibility: string;
+  /** Null for plain members (masked). */
+  departments: { id: string; name: string | null }[] | null;
+  status: DocumentStatus;
+  answerable: boolean;
+  latestVersion: {
+    id: string;
+    versionNo: number;
+    status: DocumentStatus;
+    failureCode: string | null;
+    failureMessage: string | null;
+  };
+  currentVersion: {
+    id: string;
+    versionNo: number;
+    originalName: string;
+    fileType: string;
+    sizeBytes: number;
+    pageCount: number | null;
+    warningCodes: string[];
+  } | null;
+  createdBy: { id: string; displayName: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CategoryView {
+  id: string;
+  name: string;
+}
+
+export interface DownloadUrl {
+  url: string;
+  expiresAt: string;
+}
+
+// ---- ai-service resources (TECH-V2-ai-service §7) ----
+
+export interface ConversationSummary {
+  id: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A citation as stored in history; the live stream's `citations` event has no `isCurrentVersion`. */
+export interface StoredCitation extends Citation {
+  isCurrentVersion: boolean;
+}
+
+export type HiddenReason = 'ACCESS_REVOKED' | 'DOCUMENT_DELETED';
+
+export type HistoryMessage =
+  | { id: string; role: 'USER'; createdAt: string; content: string }
+  | {
+      id: string;
+      role: 'ASSISTANT';
+      createdAt: string;
+      content: string;
+      outcome: string | null;
+      refusalReason: RefusalReason | string | null;
+      citations: StoredCitation[];
+    }
+  | { id: string; role: 'ASSISTANT'; createdAt: string; hidden: true; reason: HiddenReason };
+
+export interface ConversationDetail extends ConversationSummary {
+  messages: HistoryMessage[];
+}
+
+export interface KnowledgeGap {
+  messageId: string;
+  /** PII masked by the server. */
+  question: string | null;
+  outcome: string | null;
+  refusalReason: string | null;
+  askedAt: string;
+  upvotes: number;
+  downvotes: number;
+  comments: { vote: number; comment: string | null }[];
+  status: 'open' | 'resolved';
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+}
