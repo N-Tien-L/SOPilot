@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useCallback, useSyncExternalStore } from 'react';
+import React, { useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -26,6 +26,13 @@ function subscribeNever(): () => void {
   return () => {};
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function focusableIn(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null);
+}
+
 export function Modal({
   open,
   onClose,
@@ -41,6 +48,7 @@ export function Modal({
 }: ModalProps) {
   // false during server render and hydration, true in the browser: portals need `document`.
   const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -62,11 +70,49 @@ export function Modal({
     };
   }, [open, handleKeyDown]);
 
+  // Keyboard focus (U3): move into the dialog on open, keep Tab inside it (also when the focused
+  // button was removed and focus fell to <body>), and give focus back to the opener on close.
+  useEffect(() => {
+    if (!open || !mounted) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const first = focusableIn(dialog).find((el) => !el.hasAttribute('data-modal-close')) ?? dialog;
+    first.focus();
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const items = focusableIn(dialog);
+      if (items.length === 0) {
+        e.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !dialog.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? items[items.length - 1] : items[0]).focus();
+      } else if (e.shiftKey && active === items[0]) {
+        e.preventDefault();
+        items[items.length - 1].focus();
+      } else if (!e.shiftKey && active === items[items.length - 1]) {
+        e.preventDefault();
+        items[0].focus();
+      }
+    };
+    document.addEventListener('keydown', trap);
+    return () => {
+      document.removeEventListener('keydown', trap);
+      if (opener && document.contains(opener)) opener.focus();
+    };
+  }, [open, mounted]);
+
   if (!open || !mounted) return null;
 
   const modalContent = (
     <div className={styles.overlay} onClick={closeOnOverlayClick ? onClose : undefined}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className={clsx(styles.modal, styles[size], className)}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -93,6 +139,7 @@ export function Modal({
                 type="button"
                 className={styles.closeButton}
                 onClick={onClose}
+                data-modal-close
                 aria-label="Close modal"
               >
                 <X size={20} />

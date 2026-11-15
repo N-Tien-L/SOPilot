@@ -35,7 +35,7 @@ refs:
 - **Audit:** `GET /audit-logs` (OWNER).
 - **Internal callbacks from ai-service:** `PATCH /internal/documents/{id}/versions/{versionId}/status` (TECH-V2-core-api §8.2), `PUT /internal/documents/{id}/suggestions` (V2-25).
 
-Note: the quota error is `409 QUOTA_EXCEEDED` in code while TECH-V2-core-api §5.0 lists `422`; code wins (recorded in the TECH document).
+Note: the quota error is `409 QUOTA_EXCEEDED` (TECH-V2-core-api §5.0 was corrected from `422` on 2026-11-15).
 
 ## 3. ai-service (`/ai/v1`)
 

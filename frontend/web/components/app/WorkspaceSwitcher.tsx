@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { switchWorkspace } from '@/lib/session/auth';
+import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useWorkspaces } from '@/lib/query/hooks';
 import { useSessionStore } from '@/store/session-store';
 import { CreateWorkspaceModal } from './CreateWorkspaceModal';
@@ -37,6 +38,7 @@ export function WorkspaceSwitcher() {
   async function choose(id: string) {
     setOpen(false);
     if (id === workspace?.id) return;
+    if (!confirmDiscardUploads()) return;
     setSwitchError(null);
     try {
       await switchWorkspace(id);

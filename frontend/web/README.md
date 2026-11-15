@@ -2,7 +2,7 @@
 
 Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4, used as a **client-rendered app** ([ADR-010](../../docs/architecture/decisions/adr-010-frontend-stack.md)). Design and constraints: [frontend.md](../../docs/architecture/components/frontend.md). Rules for changes: [.claude/rules/frontend.md](../../.claude/rules/frontend.md).
 
-Implemented (V2-38): same-origin proxy, API client, in-memory session, SSE client, TanStack Query, Vitest. In progress (V2-15, not committed): Google and dev sign-in, shell and navigation, workspace picker and settings, chat with citations, documents list, members (read-only) and knowledge gaps. Upload, the viewer and administration are V2-31 to V2-33.
+Implemented (V2-38): same-origin proxy, API client, in-memory session, SSE client, TanStack Query, Vitest. Implemented (V2-15): Google and dev sign-in, shell and navigation, workspace picker and settings, chat with citations, documents list, members (read-only) and knowledge gaps. In review (V2-31): multi-document upload and processing tracking (below). The viewer and administration are V2-32 and V2-33.
 
 ## Run
 
@@ -48,8 +48,18 @@ Repo-level: `./scripts/validate-build.ps1 -Scope web` runs build, lint and test.
 | `store/session-store.ts` | Zustand session view (user, workspace); memory only |
 | `providers/` | `QueryProvider`, `SessionProvider` (restores the session from the HttpOnly cookie) |
 | `app/(app)/`, `components/app/`, `components/chat/`, `lib/chat/` | V2-15 screens, shell, chat and its pure logic |
+| `lib/upload/`, `store/upload-store.ts`, `components/documents/` | V2-31 upload: `queue.ts` (pure state machine: 10 files per batch, 3 in flight, per-file state and retry), `failure.ts` (API error → message and action), `validate.ts` (client type and size check), `controller.ts` (requests and polling, outside React), the store, and `UploadDialog` / `UploadManager` mounted in the `(app)` layout |
 | `lib/api/endpoints.ts`, `lib/query/hooks.ts` | typed endpoint calls and workspace-keyed queries |
 | `components/ui/` | carried-over CSS-module primitives, frozen; new UI is Tailwind 4 on the tokens in `app/globals.css` (V2-15 decision) |
+
+## Upload behaviour (V2-31)
+
+- One `POST /api/v1/documents` per file (no batch endpoint), at most 10 files per batch and 3 requests in flight. Files are checked in the browser first (PDF or Markdown, at most 20 MB); a refused file is listed as failed with its own reason and takes a slot until removed or replaced.
+- The batch lives in the `(app)` layout, not in the dialog: closing the dialog never cancels an upload, and a small button reopens it. The browser's leave-page warning is on only while a file is uploading or waiting to be sent. A workspace switch or sign-out aborts the batch (R7) and asks for confirmation first while files are still being sent.
+- After the upload only "Processing" is shown. Status polling (`GET /documents/{id}`, rounds 3 s apart, never overlapping) runs only while some file is processing and gives up after 5 failed reads (the row offers Retry). The documents list has its own 5 s refresh while any listed document is not finished.
+- Failure actions follow TECH-V2-core-api §5.5: network error → Resend; transient error → Retry; content error → Replace file or Remove. For a stored document that failed while processing, Retry calls `POST /documents/{id}/retry`, Replace file uploads a new version, Delete asks for confirmation.
+- Uploads are `WORKSPACE`-visible with no category or tags (department visibility and metadata are V2-33). The Upload button shows only for the workspace publisher (`GET /members/me` → `publisherOf.workspace`); the server stays the authority.
+- A duplicate links to `/documents?q=<title>` (title search on the list). `lib/upload/guard.ts` holds the leave prompt; the shared `Modal` traps and restores keyboard focus.
 
 ## Docker
 

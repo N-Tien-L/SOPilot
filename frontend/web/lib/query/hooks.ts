@@ -25,6 +25,12 @@ export function useMembers() {
   return useQuery({ queryKey: workspaceKey(wid, 'members'), queryFn: api.listMembers });
 }
 
+/** The caller's own membership, including what they may publish. */
+export function useMyMember() {
+  const wid = useWid();
+  return useQuery({ queryKey: workspaceKey(wid, 'member-me'), queryFn: api.getMyMember });
+}
+
 export function useInvitations() {
   const wid = useWid();
   return useQuery({ queryKey: workspaceKey(wid, 'invitations'), queryFn: api.listInvitations });

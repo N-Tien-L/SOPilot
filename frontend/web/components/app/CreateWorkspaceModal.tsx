@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Modal } from '@/components/ui';
@@ -15,6 +16,7 @@ export function CreateWorkspaceModal({ open, onClose }: { open: boolean; onClose
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!confirmDiscardUploads()) return;
     setBusy(true);
     setError(null);
     try {

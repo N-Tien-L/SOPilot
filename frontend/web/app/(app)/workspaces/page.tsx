@@ -8,6 +8,7 @@ import { ErrorNote } from '@/components/app/ErrorNote';
 import { Button, Skeleton } from '@/components/ui';
 import { useWorkspaces } from '@/lib/query/hooks';
 import { switchWorkspace } from '@/lib/session/auth';
+import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useSessionStore } from '@/store/session-store';
 
 export default function WorkspacesPage() {
@@ -19,6 +20,7 @@ export default function WorkspacesPage() {
 
   async function choose(id: string) {
     setSwitchError(null);
+    if (id !== current?.id && !confirmDiscardUploads()) return;
     try {
       if (id !== current?.id) await switchWorkspace(id);
       router.push('/chat');

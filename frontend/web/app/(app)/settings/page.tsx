@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ErrorNote } from '@/components/app/ErrorNote';
@@ -59,6 +60,7 @@ export default function SettingsPage() {
   }
 
   async function exit(action: () => Promise<void>) {
+    if (!confirmDiscardUploads()) return;
     setBusy(true);
     setExitError(null);
     try {

@@ -7,6 +7,7 @@ import { FileText, Flag, LogOut, Menu, MessageSquare, Settings, Users, X } from 
 import { Button } from '@/components/ui';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { restoreSession, signOut } from '@/lib/session/auth';
+import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useSessionStore } from '@/store/session-store';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
@@ -134,7 +135,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               size="sm"
               aria-label="Sign out"
               icon={<LogOut size={14} aria-hidden />}
-              onClick={() => void signOut()}
+              onClick={() => {
+                if (confirmDiscardUploads()) void signOut();
+              }}
             >
               <span className="hidden sm:inline">Sign out</span>
             </Button>

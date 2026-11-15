@@ -111,6 +111,11 @@ export interface MemberView {
   joinedAt: string;
 }
 
+/** `GET /members/me`: the profile plus what the caller may publish (TECH-V2-core-api §15.4). */
+export interface MyMemberView extends MemberView {
+  publisherOf: { workspace: boolean; departmentId: string | null };
+}
+
 export interface InvitationView {
   id: string;
   email: string;

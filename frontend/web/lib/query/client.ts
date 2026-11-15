@@ -4,6 +4,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { clearWarnings } from '@/lib/chat/warning-store';
 import { abortAllStreams } from '@/lib/sse/registry';
+import { resetUploadState } from '@/store/upload-store';
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -35,9 +36,10 @@ export function workspaceKey(workspaceId: string, ...parts: readonly unknown[]):
   return ['ws', workspaceId, ...parts];
 }
 
-/** R7: forget everything of the previous workspace: open streams, in-flight and cached queries. */
+/** R7: forget everything of the previous workspace: open streams, uploads, in-flight and cached queries. */
 export function resetWorkspaceState(client: QueryClient): void {
   abortAllStreams();
+  resetUploadState();
   clearWarnings();
   void client.cancelQueries(); // starts cancelling synchronously
   client.clear();

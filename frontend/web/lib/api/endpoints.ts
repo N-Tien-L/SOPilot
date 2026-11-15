@@ -13,6 +13,7 @@ import type {
   KnowledgeGap,
   LoginResponse,
   MemberView,
+  MyMemberView,
   WorkspaceDetail,
   WorkspaceView,
 } from './types';
@@ -30,13 +31,16 @@ export const leaveWorkspace = () => coreRequest<void>('/members/leave', { method
 
 // ---- members and invitations (read-only here; editing is V2-33) ----
 export const listMembers = () => coreRequest<MemberView[]>('/members');
+export const getMyMember = () => coreRequest<MyMemberView>('/members/me');
 export const listInvitations = () => coreRequest<InvitationView[]>('/invitations');
 
-// ---- documents (read-only here; upload V2-31, viewer V2-32) ----
+// ---- documents (list; upload V2-31; viewer V2-32) ----
 export interface DocumentFilters {
   status?: DocumentStatus;
   categoryId?: string;
   tag?: string;
+  /** Title search. */
+  q?: string;
   cursor?: string;
   limit?: number;
 }
@@ -45,6 +49,30 @@ export const listDocuments = (filters: DocumentFilters) =>
 export const listCategories = () => coreRequest<CategoryView[]>('/categories');
 export const getDownloadUrl = (documentId: string) =>
   coreRequest<DownloadUrl>(`/documents/${encodeURIComponent(documentId)}/download-url`);
+export const getDocument = (documentId: string, signal?: AbortSignal) =>
+  coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}`, { signal });
+
+// ---- document upload (V2-31): one multipart request per file ----
+function fileForm(file: File): FormData {
+  const form = new FormData();
+  form.append('file', file);
+  return form;
+}
+/** Creates a WORKSPACE-visible document. `201` with the new document, `409` for duplicates and quota. */
+export const uploadDocument = (file: File, signal?: AbortSignal) =>
+  coreRequest<DocumentView>('/documents', { method: 'POST', body: fileForm(file), signal });
+/** A replacement file for an existing document (a new version). */
+export const uploadDocumentVersion = (documentId: string, file: File, signal?: AbortSignal) =>
+  coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}/versions`, {
+    method: 'POST',
+    body: fileForm(file),
+    signal,
+  });
+/** Reprocess a document whose latest version is FAILED (`409 VERSION_NOT_FAILED` otherwise). */
+export const retryDocument = (documentId: string) =>
+  coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}/retry`, { method: 'POST' });
+export const deleteDocument = (documentId: string) =>
+  coreRequest<void>(`/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' });
 
 // ---- conversations, feedback, knowledge gaps (ai-service) ----
 export const listConversations = (limit = 50) =>

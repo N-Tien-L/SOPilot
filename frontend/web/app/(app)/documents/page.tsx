@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Download, Upload } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { Badge, Button, EmptyState, Select, Skeleton } from '@/components/ui';
 import { getDownloadUrl } from '@/lib/api/endpoints';
 import type { DocumentStatus, DocumentView } from '@/lib/api/types';
 import { documentStatusLabel, formatBytes } from '@/lib/chat/labels';
-import { useCategories, useDocuments } from '@/lib/query/hooks';
+import { useCategories, useDocuments, useMyMember } from '@/lib/query/hooks';
+import { useUploadStore } from '@/store/upload-store';
 
 const STATUS_OPTIONS = [
   { value: 'READY', label: 'Ready' },
@@ -47,15 +49,22 @@ function DownloadButton({ id }: { id: string }) {
   );
 }
 
-export default function DocumentsPage() {
+function DocumentsView({ initialQ }: { initialQ: string }) {
   const [status, setStatus] = useState<DocumentStatus | ''>('');
   const [categoryId, setCategoryId] = useState('');
   const [tag, setTag] = useState('');
+  const [q, setQ] = useState(initialQ);
+  const setUploadOpen = useUploadStore((s) => s.setDialogOpen);
+  const me = useMyMember();
+  // Uploads are workspace-visible here (department visibility is V2-33). The server lets only the
+  // workspace publisher create such a document (an OWNER may delete and transfer, never write content).
+  const canUpload = me.data?.publisherOf.workspace === true;
   const categories = useCategories();
   const docs = useDocuments({
     ...(status ? { status } : {}),
     ...(categoryId ? { categoryId } : {}),
     ...(tag.trim() ? { tag: tag.trim() } : {}),
+    ...(q.trim() ? { q: q.trim() } : {}),
   });
   const rows = docs.data?.pages.flatMap((p) => p.data) ?? [];
   const processing = rows.some((d) => d.status === 'UPLOADED' || d.status === 'PROCESSING');
@@ -69,9 +78,11 @@ export default function DocumentsPage() {
             {processing ? 'Some documents are still processing; this list refreshes automatically.' : 'Documents you can read in this workspace.'}
           </p>
         </div>
-        <Button variant="outline" disabled title="Uploading arrives with ticket V2-31">
-          Upload
-        </Button>
+        {canUpload ? (
+          <Button variant="primary" icon={<Upload size={16} aria-hidden />} onClick={() => setUploadOpen(true)}>
+            Upload
+          </Button>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
@@ -94,6 +105,13 @@ export default function DocumentsPage() {
           />
         </div>
         <input
+          aria-label="Search title"
+          placeholder="Search title"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="h-10 w-48 rounded-md border border-input bg-card px-3 text-sm"
+        />
+        <input
           aria-label="Tag"
           placeholder="Tag"
           value={tag}
@@ -106,7 +124,7 @@ export default function DocumentsPage() {
       {docs.isError ? <ErrorNote error={docs.error} className="mt-4" /> : null}
       {docs.data && rows.length === 0 ? (
         <div className="mt-6">
-          <EmptyState title="No documents" description={status || categoryId || tag ? 'No document matches these filters.' : 'Nothing has been uploaded to this workspace yet.'} />
+          <EmptyState title="No documents" description={status || categoryId || tag || q ? 'No document matches these filters.' : 'Nothing has been uploaded to this workspace yet.'} />
         </div>
       ) : null}
 
@@ -167,4 +185,21 @@ export default function DocumentsPage() {
       ) : null}
     </div>
   );
+}
+
+/**
+ * The upload dialog links a duplicate here with `?q=<title>`. The view is keyed by that value, so
+ * following the link while already on this page re-applies the filter.
+ */
+export default function DocumentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <DocumentsRoute />
+    </Suspense>
+  );
+}
+
+function DocumentsRoute() {
+  const initialQ = useSearchParams().get('q') ?? '';
+  return <DocumentsView key={initialQ} initialQ={initialQ} />;
 }

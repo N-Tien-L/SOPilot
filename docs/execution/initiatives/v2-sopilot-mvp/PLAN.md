@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "V2 SOPilot execution plan: eval first, local only, research handover"
 status: approved
 created: 2026-10-17
-updated: 2026-11-14
+updated: 2026-11-15
 author: "Owner"
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
@@ -18,8 +18,8 @@ refs:
 milestone: "V2: SOPilot MVP"
 total_tickets: 39
 completed_tickets: 32
-implemented_tickets: 32
-review_tickets: 0
+implemented_tickets: 33
+review_tickets: 1
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -279,7 +279,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 |---|---|---|:---:|---|:---:|
 | `V2-38` | Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal | web | L | `V2-10`, `V2-11`, `V2-29` | done |
 | `V2-15` | Frontend: V2 shell, sign-in/workspace, chat and gaps | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30`, `V2-38` | done |
-| `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | todo |
+| `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | review |
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | todo |
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
@@ -416,3 +416,5 @@ Moved from the top of `docs/README.md` on 2026-11-08 so the README keeps only st
 Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/04-reports/AUDIT-google-admission-2026-10-15.md), [policy ADR-003](../../../architecture/decisions/adr-003-google-identity-and-roster-admission.md). This adds the checkpoint below; it does not turn the whole-project audit's conclusion into release-ready.
 
 **Docs restructure 2026-11-13:** this plan moved from `03-plans/PLAN-V2-sopilot-mvp.md` to `docs/execution/initiatives/v2-sopilot-mvp/PLAN.md` and was translated to English; ticket ids, statuses and counters are unchanged.
+
+> **Update 2026-11-15:** `V2-31` → `review` (queue state machine with Vitest, real-stack browser run in Chromium and Firefox, fresh Opus review with no blocker; details and open items in the ticket's §5); `review_tickets` 0 → 1, `implemented_tickets` 32 → 33. Not `done`: owner acceptance needed. Found outside the ticket: a failed ingest callback is rejected with `409 INVALID_TRANSITION`, leaving the document `PROCESSING`.
