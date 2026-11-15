@@ -14,7 +14,8 @@ description: Implement a planned SOPilot ticket (docs/execution/initiatives/<ini
 
 ## 2. Plan
 
-- More than one service, or any contract/schema change: write a short plan first. List files, migration (skill `flyway-migration`), endpoints, the tenant-isolation impact, the tests that prove each acceptance criterion, and the docs to update.
+- Always write a short plan before coding and show it: files, tests per acceptance criterion, risks, docs to update (for multi-service, contract or schema changes also: migration via skill `flyway-migration`, endpoints, tenant-isolation impact). Stop for owner approval before adding a dependency that is not already approved or changing a contract.
+- Subagent models: always the latest Haiku and Opus. Pass the aliases `model: "haiku"` / `"opus"` (they track the latest; at the time of writing `claude-haiku-5-5` and `claude-opus-5-5`) and never pin an older id. If a subagent reports an older model, tell the owner.
 - Order: migration → core-api → ai-service → frontend → docs. Cross-service calls follow the existing pattern: core-api → ai-service via outbox (`OutboxDispatcher`), ai-service → core-api via `/internal/**` callbacks with `X-Internal-Token`, browser → each service with the core-api access token (ai-service verifies through JWKS).
 
 ## 3. Branch and status
@@ -40,18 +41,21 @@ description: Implement a planned SOPilot ticket (docs/execution/initiatives/<ini
 | retrieval ranking | `cd eval; uv run pytest -q` |
 | before proposing a commit | `./scripts/pre-commit-check.ps1` |
 
+Long or noisy commands (build, lint, test, docker logs, repo-wide search) may go to a `general-purpose` subagent with `model: "haiku"`. Its prompt names the exact command and requires this reply only: (1) command, (2) exit code, (3) failing items verbatim (file:line, test name, message), (4) last 20 lines, (5) one line `unverified:`. It must not edit files, run other commands, open `.env`, or give opinions. You decide pass/fail from the exit code, re-read the raw output yourself for any failure or surprise, and record in the ticket only evidence from real command output, never a Haiku summary alone. Do not use it for short commands, edits, judgments or reviews.
+
 Use skill `testing` for writing tests and triaging failures.
 
 ## 6. Self-review
 
 - `git diff`: scope creep, debug output, secrets, TODO without a ticket id, edits to V1 paths.
-- For non-trivial diffs, delegate to the `v2-reviewer` agent (read-only) and address BLOCKERs.
+- For non-trivial diffs, spawn a **fresh** `v2-reviewer` (new agent each time, never resumed) with `model: "opus"`. Give it only: the ticket path, the diff scope (`git diff <base>..HEAD` plus untracked files), the rules to check, and "form your own judgment; do not assume the implementer is right". Do not paste your own conclusions. Ask it to state its model id first and tell the owner if it is not the latest Opus.
+- Fix every BLOCKER and WARNING you accept. If there was a BLOCKER, run a second fresh reviewer on the new diff. At most two rounds; list anything left open in the report. The reviewer cannot run `uv` scripts, so run `./scripts/docs/check-docs.ps1` and the plan check yourself.
 
 ## 7. Docs and status
 
 - Reconcile docs with what was built (`docs/README.md`, "Which document, if any"). Endpoint, schema, RBAC or flow changed → update the design section, `docs/architecture/domain/identity-and-access.md`, `docs/architecture/data/{core,rag}-schema.md` or `docs/architecture/api/http-conventions.md` as relevant, and the `services/<svc>/README.md` endpoint/env tables. Mark anything still planned as planned. Skill `project-docs` for ids and validation.
 - Ticket → `review` when code is committed and the evidence is listed in its "Evidence" section. Update the PLAN status table and the counters `review_tickets` and `implemented_tickets` in the same edit (definitions in `docs/README.md`), then run `./scripts/docs/check-docs.ps1` and `cd eval; uv run pytest -q tests/test_review_regressions.py -k plan`. **Never set `done`.** That needs owner review of the evidence.
-- Commit only when asked: Conventional Commits `<type>(<scope>): <summary> (<ticket id>)`, no AI attribution.
+- Do not commit or push until the owner asks. Then: Conventional Commits `<type>(<scope>): <summary> (<ticket id>)`, no AI attribution. The final report adds reviewer findings and how each was resolved, risks, and a proposed commit message.
 
 ## Done when
 
