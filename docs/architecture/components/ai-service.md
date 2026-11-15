@@ -872,7 +872,9 @@ The question's language is detected with a light rule (the share of Vietnamese c
 | Event | Data | When |
 |---|---|---|
 | `meta` | `{conversationId, messageId, mode, lang}` | First |
-| `delta` | `{text}` | Each text fragment |
+| `reasoning` | `{text}` | Each fragment of the model's reasoning, before the first `delta`; only while thinking is on (`SOPILOT_LLM_THINKING`, default `true` since 2026-11-15). Own output guard: a canary or echo in the reasoning withholds the reasoning (`checks.reasoningWithheld`), it never refuses the answer. Not persisted yet |
+| `reasoning_done` | `{durationMs}` | Once, when the reasoning ends (first `delta`, or the end of the stream); `durationMs` runs from the request. Timings `firstReasoning` and `reasoning` land in `latency_ms` |
+| `delta` | `{text}` | Each text fragment of the answer (`firstDelta` now includes the thinking time) |
 | `replace` | `{text, reason: "GUARD"}` | A canary/echo is detected midway |
 | `refusal` | `{text, reason: "NO_EVIDENCE" \| "OUT_OF_SCOPE" \| "INPUT_INVALID" \| "GUARD", nearestDocuments: [{documentId, title}]}` | A refusal, instead of `delta`. `nearestDocuments` exists (possibly empty) only for `NO_EVIDENCE`; other reasons carry no documents |
 | `citations` | `[{n, documentId, versionId, title, page, charStart, charEnd, snippet}]` | After generation finishes |
@@ -1015,6 +1017,7 @@ The contract is defined in TECH-V2-core-api §8. On the ai-service side:
 | `EMBEDDING_REVISION`, `RERANK_REVISION`, `RERANK_ENABLED` | —, —, `false` | |
 | `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_MODEL`, `SOPILOT_LLM_API_KEY` | —, —, — | The Modal endpoint (OpenAI-compatible); the model id comes from `GET /models`. Missing → a startup error (no default) |
 | `SOPILOT_LLM_RPM`, `SOPILOT_LLM_TPM`, `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | `60`, `200000`, empty | Placeholders, measured on the endpoint; an empty ceiling = not declared |
+| `SOPILOT_LLM_THINKING`, `SOPILOT_LLM_MAX_OUTPUT_TOKENS` | `true`, `3000` | Answer task only (rewrite stays off). Reasoning shares the output ceiling with the answer; the server has no reasoning parser, so `llm.py` splits `<think>` itself. Measure with `infrastructure/modal/bench_thinking.py` |
 | `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY`, `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY` | `0`, `0` | FR-09, `0` = off (research phase) |
 | `SOPILOT_INGEST_MAX_ATTEMPTS`, `SOPILOT_SUGGEST_TIMEOUT`, `SOPILOT_SUGGEST_MAX_INPUT_TOKENS` | `3`, `20s`, `1500` | |
 | `SOPILOT_MAX_QUESTION_CHARS` | `1000` | §7.1 step 2: longer is refused, not truncated (D4); code points after NFC |

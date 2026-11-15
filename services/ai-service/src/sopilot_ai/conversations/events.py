@@ -10,7 +10,8 @@ PING = ": ping\n\n"  # comment line every 15 s so a proxy does not close an idle
 
 @dataclass(frozen=True)
 class Event:
-    name: str  # meta | delta | replace | refusal | citations | done | error
+    name: str  # meta | reasoning | reasoning_done | delta | replace | refusal | citations | done
+    #      | error
     data: Any
 
     def sse(self) -> str:

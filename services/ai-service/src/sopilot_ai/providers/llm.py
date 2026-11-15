@@ -7,6 +7,8 @@ and key come from ``config/models.yaml`` and the environment; no model id is wri
 - :class:`RateLimiter` enforces RPM and TPM over a sliding minute.
 - :class:`LLMChain` tries providers in order. It falls back only before the first ``delta``;
   after that a failure is ``LLM_UNAVAILABLE`` and nothing is switched.
+- :class:`Thought` marks a streamed delta that is the model's reasoning, not the answer. It is a
+  ``str`` subclass, so a consumer that does not know about it treats it as answer text.
 - :func:`check_model` reads ``/models`` at startup and warns when the configured model is missing.
 """
 from __future__ import annotations
@@ -14,6 +16,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import threading
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -37,6 +40,12 @@ class LLMError(Exception):
         self.code = code
 
 
+class Thought(str):
+    """A streamed delta that belongs to the model's reasoning (kept out of the answer)."""
+
+    __slots__ = ()
+
+
 @dataclass(frozen=True)
 class LLMSpec:
     provider: str  # key under ``providers`` in models.yaml, e.g. "modal"
@@ -49,6 +58,82 @@ class LLMSpec:
     temperature: float
     max_output_tokens: int
     extra_body: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def thinking(self) -> bool:
+        """True when ``extra_body`` turns the model's reasoning on (the Qwen chat-template flag)."""
+        kwargs = self.extra_body.get("chat_template_kwargs")
+        return isinstance(kwargs, dict) and kwargs.get("enable_thinking") is True
+
+
+_THINK_OPEN, _THINK_CLOSE = "<think>", "</think>"
+_THINK_PREFIX = re.compile(r"^.*?</think>", re.DOTALL)
+
+
+def _partial_tail(buf: str, tag: str) -> int:
+    """Length of the longest proper prefix of ``tag`` that ``buf`` ends with (held back)."""
+    for k in range(min(len(buf), len(tag) - 1), 0, -1):
+        if buf.endswith(tag[:k]):
+            return k
+    return 0
+
+
+class ThinkSplitter:
+    """Splits one content stream into reasoning (:class:`Thought`) and answer text.
+
+    With thinking on, the Qwen template ends the prompt with ``<think>``, so the stream starts
+    inside the reasoning and only ``</think>`` appears: ``thinking=True`` starts in that state.
+    An explicit ``<think>`` opens it again. When the server parses reasoning itself (a
+    ``reasoning_content`` field), call :meth:`server_parsed`: the content is then all answer.
+    """
+
+    def __init__(self, thinking: bool) -> None:
+        self._thinking = thinking
+        self._buf = ""
+        self._thought_seen = False
+        self._answer_seen = False
+
+    def server_parsed(self) -> None:
+        self._thinking = False
+
+    def feed(self, text: str) -> list[str]:
+        self._buf += text
+        out: list[str] = []
+        while True:
+            tag = _THINK_CLOSE if self._thinking else _THINK_OPEN
+            at = self._buf.find(tag)
+            if at >= 0:
+                self._emit(out, self._buf[:at])
+                self._buf = self._buf[at + len(tag):]
+                self._thinking = not self._thinking
+                continue
+            keep = _partial_tail(self._buf, tag)
+            cut = len(self._buf) - keep
+            self._emit(out, self._buf[:cut])
+            self._buf = self._buf[cut:]
+            return out
+
+    def flush(self) -> list[str]:
+        out: list[str] = []
+        self._emit(out, self._buf)
+        self._buf = ""
+        return out
+
+    def _emit(self, out: list[str], text: str) -> None:
+        if not text:
+            return
+        if self._thinking:
+            if not self._thought_seen:
+                text = text.lstrip()
+            if text:
+                self._thought_seen = True
+                out.append(Thought(text))
+            return
+        if not self._answer_seen:
+            text = text.lstrip()
+        if text:
+            self._answer_seen = True
+            out.append(text)
 
 
 def estimate_tokens(text: str) -> int:
@@ -124,15 +209,20 @@ class OpenAICompatibleLLM:
                                      json=self._body(messages, stream=False,
                                                      temperature=temperature))
             _raise_for_status(resp.status_code)
-            return str(resp.json()["choices"][0]["message"]["content"] or "")
+            content = str(resp.json()["choices"][0]["message"]["content"] or "")
+            if _THINK_CLOSE in content:
+                content = _THINK_PREFIX.sub("", content, count=1).strip()
+            return content
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError,
                 AttributeError) as exc:
             raise LLMError("LLM_UNAVAILABLE") from exc
 
     def stream(self, messages: Sequence[Message]) -> Iterator[str]:
-        """Yield text deltas. Errors before the first delta are raised as :class:`LLMError`."""
+        """Yield text deltas; reasoning deltas are :class:`Thought`. Errors before the first
+        delta are raised as :class:`LLMError`."""
         import httpx
 
+        splitter = ThinkSplitter(self.spec.thinking)
         try:
             with self._client.stream("POST", "/chat/completions",
                                      json=self._body(messages, stream=True)) as resp:
@@ -142,10 +232,14 @@ class OpenAICompatibleLLM:
                         continue
                     payload = line[5:].strip()
                     if payload == "[DONE]":
-                        return
-                    text = _delta_text(payload)
-                    if text:
-                        yield text
+                        break
+                    reasoning, content = _delta_parts(payload)
+                    if reasoning:
+                        splitter.server_parsed()
+                        yield Thought(reasoning)
+                    if content:
+                        yield from splitter.feed(content)
+                yield from splitter.flush()
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError,
                 AttributeError) as exc:
             raise LLMError("LLM_UNAVAILABLE") from exc
@@ -161,8 +255,10 @@ class OpenAICompatibleLLM:
             raise LLMError("LLM_UNAVAILABLE") from exc
 
 
-def _delta_text(payload: str) -> str:
-    """Text of one SSE ``data:`` event; a malformed event is ``LLM_UNAVAILABLE``."""
+def _delta_parts(payload: str) -> tuple[str, str]:
+    """``(reasoning, content)`` of one SSE ``data:`` event; a malformed event is
+    ``LLM_UNAVAILABLE``. vLLM names the reasoning field ``reasoning_content`` (older builds
+    ``reasoning``) when a reasoning parser runs; without one it is empty."""
     obj = json.loads(payload)
     if not isinstance(obj, dict):
         raise LLMError("LLM_UNAVAILABLE")
@@ -171,10 +267,11 @@ def _delta_text(payload: str) -> str:
         raise LLMError("LLM_UNAVAILABLE")
     delta = choices[0].get("delta")
     if delta is None:
-        return ""
+        return "", ""
     if not isinstance(delta, dict):
         raise LLMError("LLM_UNAVAILABLE")
-    return str(delta.get("content") or "")
+    reasoning = delta.get("reasoning_content") or delta.get("reasoning") or ""
+    return str(reasoning), str(delta.get("content") or "")
 
 
 def _raise_for_status(status: int) -> None:

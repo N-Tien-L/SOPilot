@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from sopilot_ai.conversations import repository as conv_repo
 from sopilot_ai.db.engine import tenant_tx
-from sopilot_ai.providers.llm import LLMError, estimate_tokens
+from sopilot_ai.providers.llm import LLMError, Thought, estimate_tokens
 from sopilot_ai.qa import checks as qa_checks
 from sopilot_ai.qa import citations as qa_citations
 from sopilot_ai.qa import prompt as qa_prompt
@@ -361,6 +361,51 @@ class BuildPromptStep:
         return CONTINUE
 
 
+class _ThoughtStream:
+    """Forwards the model's reasoning as ``reasoning`` events and times it.
+
+    ``timings``: ``firstReasoning`` (ms to the first reasoning text) and ``reasoning`` (ms from
+    the request to the end of the reasoning). ``reasoning_done`` carries the same duration so the
+    client can show "Thought for N s".
+    """
+
+    def __init__(self, c: QAContext, guard: OutputGuard, start: float) -> None:
+        self.c, self.guard, self.start = c, guard, start
+        self.active = False
+        self.withheld = False
+
+    def feed(self, text: str) -> None:
+        if "firstReasoning" not in self.c.timings:
+            self.c.timings["firstReasoning"] = _ms(self.start)
+        self.active = True
+        if self.withheld:
+            return
+        verdict = self.guard.feed(text)
+        if verdict.violation:
+            self._withhold()
+        elif verdict.text:
+            self.c.emit("reasoning", {"text": verdict.text})
+
+    def close(self) -> None:
+        """Called at the first answer text and at the end of the stream; only the first counts."""
+        if not self.active:
+            return
+        self.active = False
+        if not self.withheld:
+            verdict = self.guard.finish()
+            if verdict.violation:
+                self._withhold()
+            elif verdict.text:
+                self.c.emit("reasoning", {"text": verdict.text})
+        ms = _ms(self.start)
+        self.c.timings["reasoning"] = ms
+        self.c.emit("reasoning_done", {"durationMs": ms})
+
+    def _withhold(self) -> None:
+        self.withheld = True
+        self.c.checks["reasoningWithheld"] = True
+
+
 class GenerateStep:
     """Step 11: stream the answer through the output guard (canary and prompt echo)."""
 
@@ -379,12 +424,19 @@ class GenerateStep:
         def started(model: str) -> None:
             c.model = model
 
+        # Reasoning has its own guard. A thinking model often quotes its instructions, so a hit
+        # here withholds the reasoning (never the answer); the answer guard below stays strict.
         start = time.monotonic()
+        thought = _ThoughtStream(c, OutputGuard(bundle.canary, bundle.protected), start)
         c.llm_calls += 1
         gen = self.chain.stream(bundle.messages, tokens=tokens, on_start=started)
         stop = threading.Event()
         try:
             async for delta in _pump(gen, stop):
+                if isinstance(delta, Thought):
+                    thought.feed(str(delta))
+                    continue
+                thought.close()
                 if "firstDelta" not in c.timings:
                     c.timings["firstDelta"] = _ms(start)
                 verdict = guard.feed(delta)
@@ -393,6 +445,7 @@ class GenerateStep:
                 if verdict.text:
                     c.emit("delta", {"text": verdict.text})
                     c.answer_text = guard.released  # what the client has, kept if the client leaves
+            thought.close()
             verdict = guard.finish()
             if verdict.violation:
                 return self._withdraw(c, verdict)

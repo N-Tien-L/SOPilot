@@ -294,7 +294,7 @@ def test_build_chain_reads_the_model_and_key_from_the_environment(monkeypatch):
     assert client.spec.base_url == "https://llm.test/v1"
     assert client.spec.api_key == "secret-value"
     assert client.spec.context_max_tokens is None  # not declared: no ceiling yet
-    assert client.spec.temperature == 0.2 and client.spec.max_output_tokens == 800
+    assert client.spec.temperature == 0.2 and client.spec.max_output_tokens == 3000
     assert (limiter.rpm, limiter.tpm) == (60, 200_000)
 
 
@@ -394,3 +394,92 @@ def test_on_start_is_not_called_when_every_provider_fails():
 def test_chain_exposes_its_clients_for_the_startup_model_check():
     a, b = FakeLLM("a"), FakeLLM("b")
     assert chain_of(a, b).clients == [a, b]
+
+
+# --- reasoning (thinking on) -------------------------------------------------------------------
+
+
+def _split(thinking: bool, *pieces: str) -> list[tuple[str, str]]:
+    from sopilot_ai.providers.llm import ThinkSplitter, Thought
+
+    splitter = ThinkSplitter(thinking)
+    out: list[str] = []
+    for piece in pieces:
+        out += splitter.feed(piece)
+    out += splitter.flush()
+    return [("thought" if isinstance(x, Thought) else "answer", str(x)) for x in out]
+
+
+def test_reasoning_ends_at_the_closing_tag_when_the_template_opened_it():
+    tail = "Annual leave is 12 days [1]."
+    got = _split(True, "Look at the sources. ", "Rule 4.</think>\n\n", tail)
+    assert [k for k, _ in got] == ["thought", "thought", "answer"]
+    assert "".join(t for k, t in got if k == "thought") == "Look at the sources. Rule 4."
+    assert "".join(t for k, t in got if k == "answer") == "Annual leave is 12 days [1]."
+
+
+def test_a_closing_tag_split_across_deltas_is_not_leaked():
+    got = _split(True, "idea</thi", "nk>The answer")
+    assert ("answer", "The answer") in got
+    assert all("<" not in t for _, t in got)
+
+
+def test_an_explicit_open_tag_with_thinking_off_is_reasoning_too():
+    got = _split(False, "<think>hmm</think>Final")
+    assert got == [("thought", "hmm"), ("answer", "Final")]
+
+
+def test_without_thinking_text_passes_through_untouched():
+    got = _split(False, "Plain ", "answer with <b> and 1 < 2")
+    assert "".join(t for k, t in got if k == "answer") == "Plain answer with <b> and 1 < 2"
+    assert all(k == "answer" for k, _ in got)
+
+
+def test_a_truncated_reasoning_never_becomes_answer_text():
+    got = _split(True, "still thinking when max_tokens hit")
+    assert got and all(k == "thought" for k, _ in got)
+
+
+def test_stream_marks_server_parsed_reasoning_and_keeps_content_as_answer():
+    def handler(_: httpx.Request) -> httpx.Response:
+        events = [{"reasoning_content": "weigh the rules"}, {"content": "12 days [1]"}]
+        body = "".join(f"data: {json.dumps({'choices': [{'delta': d}]})}\n\n" for d in events)
+        return httpx.Response(200, content=(body + "data: [DONE]\n\n").encode())
+
+    from sopilot_ai.providers.llm import Thought
+
+    on = {"chat_template_kwargs": {"enable_thinking": True}}
+    out = list(client_with(handler, extra_body=on).stream([{"role": "user", "content": "q"}]))
+    assert [type(x) is Thought for x in out] == [True, False]
+    assert out == ["weigh the rules", "12 days [1]"]
+
+
+def test_stream_splits_inline_think_tags_when_thinking_is_on():
+    on = {"chat_template_kwargs": {"enable_thinking": True}}
+    body = sse("plan ", "it</think>", "Done")
+    client = client_with(lambda _: httpx.Response(200, content=body), extra_body=on)
+    out = list(client.stream([{"role": "user", "content": "q"}]))
+    from sopilot_ai.providers.llm import Thought
+
+    kinds = [(type(x) is Thought, str(x)) for x in out]
+    assert kinds == [(True, "plan "), (True, "it"), (False, "Done")]
+
+
+def test_complete_drops_the_reasoning_before_the_closing_tag():
+    body = {"choices": [{"message": {"content": "thinking...</think>\n\nOnly this"}}]}
+    client = client_with(lambda _: httpx.Response(200, json=body))
+    out = client.complete([{"role": "user", "content": "q"}])
+    assert out == "Only this"
+
+
+def test_the_answer_task_turns_thinking_on_and_leaves_room_for_it(monkeypatch):
+    monkeypatch.setenv("SOPILOT_LLM_BASE_URL", "http://llm.test/v1")
+    monkeypatch.setenv("SOPILOT_LLM_MODEL", "qwen-test")
+    monkeypatch.delenv("SOPILOT_LLM_THINKING", raising=False)
+    monkeypatch.delenv("SOPILOT_LLM_MAX_OUTPUT_TOKENS", raising=False)
+    config = ModelsConfig.load(MODELS)
+    generate = build_chain(config, "generate").clients[0].spec
+    assert generate.thinking is True and generate.max_output_tokens >= 2000
+    assert build_chain(config, "rewrite").clients[0].spec.thinking is False
+    monkeypatch.setenv("SOPILOT_LLM_THINKING", "false")
+    assert build_chain(ModelsConfig.load(MODELS), "generate").clients[0].spec.thinking is False

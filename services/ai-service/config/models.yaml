@@ -30,9 +30,11 @@ llm:
         rpm: "${SOPILOT_LLM_RPM:60}"
         tpm: "${SOPILOT_LLM_TPM:200000}"
         context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:}"
-        extra_body: {chat_template_kwargs: {enable_thinking: false}}
+        # Thinking is on for answers (owner decision 2026-11-15); SOPILOT_LLM_THINKING=false turns it
+        # off. The reasoning shares max_output_tokens with the answer, hence the larger ceiling.
+        extra_body: {chat_template_kwargs: {enable_thinking: "${SOPILOT_LLM_THINKING:true}"}}
     temperature: 0.2
-    max_output_tokens: 800
+    max_output_tokens: ${SOPILOT_LLM_MAX_OUTPUT_TOKENS:3000}
   rewrite:
     chain:
       - provider: modal
