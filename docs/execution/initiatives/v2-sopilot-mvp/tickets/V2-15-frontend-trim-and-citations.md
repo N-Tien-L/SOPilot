@@ -2,7 +2,7 @@
 id: V2-15
 title: "Frontend: V2 shell, sign-in/workspace, chat and gaps"
 type: feat
-status: review
+status: done
 created: 2026-10-17
 updated: 2026-11-15
 author: "Owner"
@@ -48,7 +48,7 @@ Keep the chat components; remove the system admin pages, analytics, roster, the 
 ```
 Plus notes on the flows tried by hand in the browser.
 
-## 5. Progress notes and evidence (2026-11-15, `review`)
+## 5. Progress notes and evidence (2026-11-15, `done`: owner accepted 2026-11-15, PR #17, CI green)
 
 Branch `feat/web-v2-workspace-citations`, from `develop` (V2-38 was `review` when this started and is `done` since 2026-11-15).
 
