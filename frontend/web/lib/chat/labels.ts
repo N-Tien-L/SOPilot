@@ -78,3 +78,10 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** Header of the reasoning block: live while thinking, then the time it took. */
+export function thoughtLabel(durationMs: number | null, thinking: boolean): string {
+  if (thinking) return 'Thinking…';
+  if (durationMs === null) return 'Reasoning';
+  return `Thought for ${Math.max(1, Math.round(durationMs / 1000))} s`;
+}

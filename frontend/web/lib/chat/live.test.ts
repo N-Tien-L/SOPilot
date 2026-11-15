@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyEvent, endTurn, startTurn } from './live';
+import { thoughtLabel } from './labels';
 
 describe('live turn', () => {
   it('streams deltas, then replace overrides the text and done.finalText is authoritative', () => {
@@ -53,5 +54,24 @@ describe('live turn', () => {
       phase: 'error',
       errorMessage: 'Try later.',
     });
+  });
+
+  it('keeps reasoning out of the answer text and records how long it took', () => {
+    let t = startTurn('q');
+    t = applyEvent(t, { type: 'reasoning', text: 'Look at ' });
+    t = applyEvent(t, { type: 'reasoning', text: 'the table.' });
+    expect(t.answer).toMatchObject({ reasoning: 'Look at the table.', reasoningMs: null, text: '' });
+    t = applyEvent(t, { type: 'reasoning_done', durationMs: 9400 });
+    t = applyEvent(t, { type: 'delta', text: 'Answer' });
+    expect(t.answer).toMatchObject({ reasoning: 'Look at the table.', reasoningMs: 9400, text: 'Answer' });
+  });
+});
+
+describe('thoughtLabel', () => {
+  it('is live while thinking, then rounds to seconds (at least 1)', () => {
+    expect(thoughtLabel(null, true)).toBe('Thinking…');
+    expect(thoughtLabel(9400, false)).toBe('Thought for 9 s');
+    expect(thoughtLabel(120, false)).toBe('Thought for 1 s');
+    expect(thoughtLabel(null, false)).toBe('Reasoning');
   });
 });

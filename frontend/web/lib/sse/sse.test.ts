@@ -41,6 +41,8 @@ describe('decodeStreamEvent', () => {
   it('decodes every event type', () => {
     const cases: [string, unknown, StreamEvent['type']][] = [
       ['meta', { conversationId: 'c', messageId: 'm', mode: 'rag', lang: 'en' }, 'meta'],
+      ['reasoning', { text: 'check the table' }, 'reasoning'],
+      ['reasoning_done', { durationMs: 9000 }, 'reasoning_done'],
       ['delta', { text: 'x' }, 'delta'],
       ['replace', { text: 'y', reason: 'GUARD' }, 'replace'],
       ['refusal', { text: 'no', reason: 'NO_EVIDENCE', nearestDocuments: [] }, 'refusal'],
@@ -56,6 +58,7 @@ describe('decodeStreamEvent', () => {
   it('returns null for unknown events and malformed JSON', () => {
     expect(decodeStreamEvent({ event: 'weird', data: '{}' })).toBeNull();
     expect(decodeStreamEvent({ event: 'delta', data: '{not json' })).toBeNull();
+    expect(decodeStreamEvent({ event: 'reasoning_done', data: '{}' })).toBeNull();
   });
 });
 

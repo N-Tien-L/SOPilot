@@ -86,6 +86,12 @@ export function decodeStreamEvent(raw: RawSseEvent): StreamEvent | null {
         mode: str(data.mode),
         lang: str(data.lang),
       };
+    case 'reasoning':
+      return isRecord(data) ? { type: 'reasoning', text: str(data.text) } : null;
+    case 'reasoning_done':
+      return isRecord(data) && typeof data.durationMs === 'number'
+        ? { type: 'reasoning_done', durationMs: data.durationMs }
+        : null;
     case 'delta':
       return isRecord(data) ? { type: 'delta', text: str(data.text) } : null;
     case 'replace':

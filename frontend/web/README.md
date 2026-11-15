@@ -68,7 +68,7 @@ Repo-level: `./scripts/validate-build.ps1 -Scope web` runs build, lint and test.
 - The original PDF is the browser's native viewer in an iframe at `#page=N`, loaded **on demand** (the first "Show original PDF" or "Page N" click asks core-api for a signed URL; it is reused until about 20 s before it expires). No PDF library. On a narrow screen the PDF and the text are two tabs and a "Page N" click switches to the PDF.
 - The citation viewer (`Open in document` under an expanded source in chat) is the same `ContentViewer` in a dialog. It converts the citation's code point offsets to UTF-16 on the canonical Markdown (`citationRange`) and marks the covered blocks in the formatted view and the exact range in the "Markdown source" view. An old-version citation shows only the stored passage and the label and never calls the viewer.
 - No access, an unknown id, a document not `READY` and a replaced version all end in one "not available" screen (the API answers `404`).
-- The viewer asks for `download-url?disposition=inline` (the "Download original" button keeps the default attachment). Known limit: in compose, core-api signs URLs for `http://minio:9000`, which a host browser cannot resolve; run core-api from source (`SOPILOT_S3_ENDPOINT` reachable from the browser) or map the host. A public presign endpoint is not implemented.
+- The viewer asks for `download-url?disposition=inline` (the "Download original" button keeps the default attachment). In compose core-api reaches MinIO as `minio:9000`, so it signs download links with `SOPILOT_S3_PUBLIC_ENDPOINT` (compose sets `http://localhost:59000`, or `V2_MINIO_API_PORT`); a core-api run from source with `SOPILOT_S3_ENDPOINT=http://localhost:59000` needs no extra setting.
 
 ## Docker
 

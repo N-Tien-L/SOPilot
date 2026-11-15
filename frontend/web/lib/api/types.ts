@@ -75,6 +75,9 @@ export interface AnswerWarning {
 
 export type StreamEvent =
   | { type: 'meta'; conversationId: string; messageId: string; mode: string; lang: string }
+  // The model's reasoning, before the first `delta` (TECH-V2-ai-service §7.2). Absent when thinking is off.
+  | { type: 'reasoning'; text: string }
+  | { type: 'reasoning_done'; durationMs: number }
   | { type: 'delta'; text: string }
   | { type: 'replace'; text: string; reason: string }
   | {

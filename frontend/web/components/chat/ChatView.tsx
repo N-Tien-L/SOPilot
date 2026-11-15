@@ -175,6 +175,8 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
               refusal={live.refusal}
               warnings={live.warnings}
               streaming={live.phase === 'streaming'}
+              reasoning={live.answer.reasoning}
+              reasoningMs={live.answer.reasoningMs}
               messageId={live.phase === 'done' ? live.messageId : null}
             >
               {live.phase === 'interrupted' ? (
