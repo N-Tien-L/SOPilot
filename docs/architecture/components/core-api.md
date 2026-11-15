@@ -702,7 +702,7 @@ A department move takes effect at the next refresh (≤ 15 minutes). Deactivatin
 | `POST /api/v1/documents/{id}/retry` | OWNER, ADMIN | Only when the latest version is `FAILED`; increments `attempt`, moves the version back to `UPLOADED`, creates an `INGEST_REQUESTED` outbox event carrying the new `attempt`. Calling it again once the version has left `FAILED` → `409 VERSION_NOT_FAILED` (a double click does not create two jobs) |
 | `GET /api/v1/documents` | Member | Read-access filter (§5.6), filter by `status`, `categoryId`, `tag`, `q` (title) |
 | `GET /api/v1/documents/{id}` | Member with read access | `404` if outside access |
-| `GET /api/v1/documents/{id}/download-url` | Member with read access | `{url, expiresAt}`, a pre-signed S3 URL valid `≤ 300 s`, `Content-Disposition` with the original name |
+| `GET /api/v1/documents/{id}/download-url` | Member with read access | `{url, expiresAt}`, a pre-signed S3 URL valid `≤ 300 s`, `Content-Disposition` with the original name. Optional `?disposition=attachment\|inline` (default `attachment`; any other value `400 VALIDATION_FAILED`): `inline` signs `Content-Disposition: inline` so the frontend can show the PDF in the browser's native viewer (V2-32); the content type is the one core-api stored for the validated file type |
 | `GET /api/v1/documents/{id}/versions` | OWNER, ADMIN | Version history and `FAILED` reasons |
 | `DELETE /api/v1/documents/{id}` | OWNER, ADMIN | Soft delete, outbox `DOCUMENT_DELETED`; the S3 file and the row are deleted once ai-service confirms |
 

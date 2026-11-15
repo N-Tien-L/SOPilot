@@ -147,6 +147,13 @@ class DocumentLifecycleIT extends ApiIT {
         JsonNode url = data(get("/api/v1/documents/" + doc + "/download-url", member));
         assertThat(url.path("url").asText()).startsWith("http://storage.test/workspaces/");
         assertThat(url.path("expiresAt").asText()).isNotBlank();
+        assertThat(url.path("url").asText()).doesNotContain("inline=true");
+        assertThat(data(get("/api/v1/documents/" + doc + "/download-url?disposition=attachment", member))
+                .path("url").asText()).doesNotContain("inline=true");
+        assertThat(data(get("/api/v1/documents/" + doc + "/download-url?disposition=inline", member))
+                .path("url").asText()).contains("inline=true");
+        assertThat(get("/api/v1/documents/" + doc + "/download-url?disposition=evil", member).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test

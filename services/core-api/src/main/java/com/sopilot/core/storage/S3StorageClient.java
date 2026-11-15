@@ -49,8 +49,8 @@ public class S3StorageClient implements StorageClient {
     }
 
     @Override
-    public String presignGet(String key, String downloadName, Duration ttl) {
-        String disposition = "attachment; filename*=UTF-8''"
+    public String presignGet(String key, String downloadName, Duration ttl, boolean inline) {
+        String disposition = (inline ? "inline" : "attachment") + "; filename*=UTF-8''"
                 + URLEncoder.encode(downloadName, StandardCharsets.UTF_8).replace("+", "%20");
         GetObjectRequest get = GetObjectRequest.builder().bucket(properties.bucket()).key(key)
                 .responseContentDisposition(disposition).build();

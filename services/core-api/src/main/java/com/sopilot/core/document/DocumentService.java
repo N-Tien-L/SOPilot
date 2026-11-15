@@ -538,13 +538,13 @@ public class DocumentService {
     public record DownloadUrl(String url, Instant expiresAt) {
     }
 
-    public DownloadUrl downloadUrl(AuthPrincipal principal, UUID documentId) {
+    public DownloadUrl downloadUrl(AuthPrincipal principal, UUID documentId, boolean inline) {
         VersionRow version = tenant.run(principal, () -> {
             DocumentDetail d = docs.findVisible(principal, documentId).orElseThrow(DocumentService::notFound);
             return d.current() != null ? d.current() : d.latest();
         });
         Instant expires = Instant.now().plus(DOWNLOAD_TTL);
-        return new DownloadUrl(presign(version), expires);
+        return new DownloadUrl(presign(version, inline), expires);
     }
 
     /** OWNER/ADMIN and the publisher responsible for the document; other readers get {@code 403}. */
@@ -674,9 +674,9 @@ public class DocumentService {
         }
     }
 
-    private String presign(VersionRow version) {
+    private String presign(VersionRow version, boolean inline) {
         try {
-            return storage.presignGet(version.objectKey(), version.originalName(), DOWNLOAD_TTL);
+            return storage.presignGet(version.objectKey(), version.originalName(), DOWNLOAD_TTL, inline);
         } catch (RuntimeException e) {
             log.error("Pre-signing failed: {}", e.getClass().getSimpleName());
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE",

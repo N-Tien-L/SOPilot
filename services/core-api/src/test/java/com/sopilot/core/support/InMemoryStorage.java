@@ -31,8 +31,8 @@ public class InMemoryStorage implements StorageClient {
     }
 
     @Override
-    public String presignGet(String key, String downloadName, Duration ttl) {
-        return "http://storage.test/" + key + "?ttl=" + ttl.toSeconds();
+    public String presignGet(String key, String downloadName, Duration ttl, boolean inline) {
+        return "http://storage.test/" + key + "?ttl=" + ttl.toSeconds() + (inline ? "&inline=true" : "");
     }
 
     @Override

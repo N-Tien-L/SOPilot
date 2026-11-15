@@ -79,6 +79,19 @@ class S3StorageClientIT {
     }
 
     @Test
+    void anInlineUrlIsSignedWithInlineDisposition() throws Exception {
+        String key = key();
+        storage.put(key, "%PDF-1.4 test".getBytes(StandardCharsets.UTF_8), "application/pdf");
+
+        HttpResponse<byte[]> response = fetch(storage.presignGet(key, "Quy trình.pdf", Duration.ofMinutes(5), true));
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Content-Disposition").orElse(""))
+                .startsWith("inline; filename*=UTF-8''Quy%20tr%C3%ACnh.pdf");
+        assertThat(response.headers().firstValue("Content-Type").orElse("")).isEqualTo("application/pdf");
+    }
+
+    @Test
     void anExpiredUrlIsRefused() throws Exception {
         String key = key();
         storage.put(key, new byte[] {1}, "application/octet-stream");

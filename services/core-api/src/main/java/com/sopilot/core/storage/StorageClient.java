@@ -18,7 +18,15 @@ public interface StorageClient {
     void delete(String key);
 
     /** Pre-signed GET URL; {@code downloadName} becomes the {@code Content-Disposition} file name. */
-    String presignGet(String key, String downloadName, Duration ttl);
+    default String presignGet(String key, String downloadName, Duration ttl) {
+        return presignGet(key, downloadName, ttl, false);
+    }
+
+    /**
+     * Pre-signed GET URL. With {@code inline} the response is signed {@code Content-Disposition: inline}
+     * so a browser may show it (the PDF viewer in an iframe); otherwise it is {@code attachment}.
+     */
+    String presignGet(String key, String downloadName, Duration ttl, boolean inline);
 
     /** Objects under {@code prefix} (at most {@code max}), for the orphan janitor. */
     List<StoredObject> list(String prefix, int max);

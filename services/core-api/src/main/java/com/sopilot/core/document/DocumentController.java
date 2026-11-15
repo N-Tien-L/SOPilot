@@ -118,8 +118,14 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}/download-url")
-    public ApiResponse<DownloadUrl> downloadUrl(AuthPrincipal principal, @PathVariable UUID id) {
-        return ApiResponse.of(service.downloadUrl(principal, id));
+    public ApiResponse<DownloadUrl> downloadUrl(AuthPrincipal principal, @PathVariable UUID id,
+                                                @RequestParam(required = false) String disposition) {
+        boolean inline = "inline".equals(disposition);
+        if (disposition != null && !inline && !"attachment".equals(disposition)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                    "disposition must be attachment or inline.");
+        }
+        return ApiResponse.of(service.downloadUrl(principal, id, inline));
     }
 
     @GetMapping("/{id}/versions")

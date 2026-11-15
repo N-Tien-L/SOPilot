@@ -142,7 +142,8 @@ class DocumentServiceTest {
                     || (p.departmentId() != null && documentDepartments.contains(p.departmentId()));
             return allowed ? Optional.of(detail) : Optional.empty();
         });
-        when(storage.presignGet(anyString(), anyString(), any())).thenReturn("https://download");
+        when(storage.presignGet(anyString(), anyString(), any(), eq(false))).thenReturn("https://download");
+        when(storage.presignGet(anyString(), anyString(), any(), eq(true))).thenReturn("https://inline");
     }
 
     private static void assertApi(Runnable call, HttpStatus status, String code) {
@@ -184,7 +185,7 @@ class DocumentServiceTest {
 
         for (AuthPrincipal viewer : List.of(owner, admin, memberA, memberB, memberNoDept)) {
             assertThat(service.get(viewer, docId).id()).isEqualTo(docId);
-            assertThat(service.downloadUrl(viewer, docId).url()).isEqualTo("https://download");
+            assertThat(service.downloadUrl(viewer, docId, false).url()).isEqualTo("https://download");
         }
     }
 
@@ -194,11 +195,12 @@ class DocumentServiceTest {
 
         for (AuthPrincipal allowed : List.of(owner, admin, memberA)) {
             assertThat(service.get(allowed, docId).id()).isEqualTo(docId);
-            assertThat(service.downloadUrl(allowed, docId).url()).isEqualTo("https://download");
+            assertThat(service.downloadUrl(allowed, docId, false).url()).isEqualTo("https://download");
+            assertThat(service.downloadUrl(allowed, docId, true).url()).isEqualTo("https://inline");
         }
         for (AuthPrincipal denied : List.of(memberB, memberNoDept)) {
             assertApi(() -> service.get(denied, docId), HttpStatus.NOT_FOUND, "NOT_FOUND");
-            assertApi(() -> service.downloadUrl(denied, docId), HttpStatus.NOT_FOUND, "NOT_FOUND");
+            assertApi(() -> service.downloadUrl(denied, docId, false), HttpStatus.NOT_FOUND, "NOT_FOUND");
         }
     }
 
