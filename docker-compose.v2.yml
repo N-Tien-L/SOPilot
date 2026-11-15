@@ -226,13 +226,17 @@ services:
     build:
       context: ./frontend/web
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: http://localhost:${V2_CORE_API_PORT:-8080}
     container_name: sopilot-v2-web
+    environment:
+      # Read at run time by proxy.ts (ADR-010); the browser only talks to this origin.
+      CORE_API_URL: http://core-api:8080
+      AI_SERVICE_URL: http://ai-service:8000
     ports:
       - "127.0.0.1:${V2_WEB_PORT:-3000}:3000"
     depends_on:
       core-api:
+        condition: service_healthy
+      ai-service:
         condition: service_healthy
     networks: [sopilot-v2]
 

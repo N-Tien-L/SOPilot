@@ -4,7 +4,7 @@ title: "Frontend: members, departments and document metadata"
 type: feat
 status: todo
 created: 2026-10-24
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 scope: web
 priority: P0
@@ -28,10 +28,11 @@ Scope split from V2-15 (XL) on 2026-10-24; the approved PRD/TECH requirements ar
 - [ ] Documents: edit metadata, choose the `WORKSPACE`/`DEPARTMENTS` scope, view and accept/edit metadata suggestions; the suggestion status does not block other actions.
   - The suggestion form follows the owner decision of 2026-11-12 in V2-25 §2a: one editable form, `doc_code`/revision/effective date read-only, the create-suggested-category button only for OWNER/ADMIN.
 - [ ] UI to create/revoke/accept invitation links; OWNER/ADMIN actions by permission, with API errors shown in context.
-- [ ] Browser check of admin/member permissions, suspended status, suggestions running/failed and changed read access.
+- [ ] Changed 2026-11-14 (owner decision, frontend inventory gaps): OWNER-only screen to assign and change the workspace publisher and each department's publisher (ADR-009, API in V2-36), and an OWNER-only audit log view (`GET /audit-logs`, FR-20).
+- [ ] Browser check of admin/member permissions, suspended status, suggestions running/failed, changed read access, publisher assignment and the audit log view.
 
 ## 3. Guide
-1. Declare types in `frontend/web/types` and the API client in `frontend/web/lib/api.ts` per TECH-V2-core-api/ai-service.
+1. Declare types in `frontend/web/types` and the endpoint calls on the V2-38 API client (`frontend/web/lib/`) per TECH-V2-core-api/ai-service.
 2. Implement in `frontend/web/app/` and `frontend/web/components/`, using the V2-15 shell.
 3. Record browser evidence per acceptance criterion; update the frontend README.
 - Update the related contracts in `docs/architecture/` along with the change; V2-17 only consolidates and removes V1 descriptions.

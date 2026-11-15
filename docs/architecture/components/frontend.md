@@ -2,12 +2,14 @@
 title: "Frontend (frontend/web): current state and V2 direction"
 status: approved
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 author: "Owner"
 affected_services: [web]
 affected_schemas: []
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
+  - docs/architecture/decisions/adr-010-frontend-stack.md
+  - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-38-frontend-foundation.md
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-15-frontend-trim-and-citations.md
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-31-frontend-document-upload.md
   - docs/execution/initiatives/v2-sopilot-mvp/tickets/V2-32-frontend-source-viewer.md
@@ -16,25 +18,31 @@ refs:
 
 # Frontend (frontend/web)
 
-> **Implementation status:** the frontend is still wired to V1 (the `api-gateway`). V2-15 replaces the shell, sign-in and chat; V2-31, V2-32 and V2-33 add upload, the source viewer and administration. This page records what the code does today (checked on 2026-11-13) and the V2 constraints. The V1 description it replaces is archived at [v1-context/architecture/frontend.md](../../archive/v1-context/architecture/frontend.md).
+> **Direction (2026-11-14):** [ADR-010](../decisions/adr-010-frontend-stack.md) keeps Next.js as a client-rendered app and rebuilds the foundation in [V2-38](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-38-frontend-foundation.md) before V2-15. The feature list and requirements are in [the inventory](frontend-feature-inventory.md) and [NFRs](frontend-nfrs.md).
+>
+> **Implementation status:** the foundation (sections 1 and 2) is implemented by V2-38 and waits for owner review. It was exercised against the real core-api and ai-service in headless Chromium and Firefox (Playwright); the ticket's Results list what was not verified, including a reload during an in-flight refresh that can end the session (strict refresh rotation, a core-api decision). The shell is minimal (dev sign-in, an empty workspace-aware home, sign-out). Google sign-in, the workspace picker, navigation and chat are V2-15 (planned); upload, source viewer and administration are V2-31, V2-32 and V2-33 (planned). The V1 UI is tagged `v1-final` in git; its description is archived at [v1-context/architecture/frontend.md](../../archive/v1-context/architecture/frontend.md).
 
 ## 1. Stack and layout
 
-- Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4, Zustand 5, axios, TanStack Query (`providers/QueryProvider.tsx`). Versions are in `frontend/web/package.json`.
-- `app/`: pages for chat (`page.tsx`), `login`, `register`, `forgot-password`, `reset-password`, `documents`, `profile`, `sessions`, `analytics`, `admin`. Several of these are V1 features outside the V2 scope (passwords, sessions, analytics) and go away in V2-15.
-- `components/` (`chat`, `documents`, `layout`, `ui`, …), `store/` (`auth-store`, `ui-store`, `preferences-store`), `services/` (per-domain clients on `api-client.ts`), `lib/api.ts` (the typed V1 client, about 2,800 lines), `hooks/useChat.ts`, `types/`, `interfaces/`.
-- UI work follows `.claude/rules/frontend.md` and the `frontend-delivery` skill.
+- Next.js 16 (App Router, client-rendered, no server data fetching), React 19, TypeScript strict, Tailwind 4, Zustand 5 (session view only), `@tanstack/react-query` v5, Vitest. Versions are in `frontend/web/package.json`.
+- `app/`: `layout.tsx` (providers), `page.tsx` (empty home), `login/page.tsx` (dev login). All V1-only pages (passwords, sessions, analytics, admin, documents, chat) and the i18n layer were removed, together with `rehype-raw`, `axios`, `recharts`, `mammoth`, `sass`, `jwt-decode`, `dompurify`, `mark.js`, `react-hot-toast` and the legacy `react-query` v3 package.
+- `lib/api/` (the only `fetch` caller; core-api and ai-service adapters, contract types), `lib/session/` (token in memory, refresh single-flight, login, switch workspace, sign-out), `lib/sse/` (parser, `streamAnswer`, answer reducer, stream registry), `lib/query/` (client, workspace-scoped keys, `resetWorkspaceState`), `lib/server/proxy-target.ts`, `store/session-store.ts`, `providers/`, and the carried-over `components/ui/*` primitives (their styling is decided in V2-15).
+- `react-markdown` and `remark-gfm` stay for the Markdown views of V2-15 and V2-32 (no `rehype-raw`).
+- UI work follows `.claude/rules/frontend.md` and the `frontend-delivery` skill. Run and env: [frontend/web/README.md](../../../frontend/web/README.md).
 
-## 2. How it talks to the backend today
+## 2. How it talks to the backend
 
-- `next.config.ts` rewrites `/api/v1/*` to `http://api-gateway:3001/api/v1/*` (V1). There is no route to core-api or ai-service yet.
-- `lib/api.ts` keeps the access and refresh tokens in `localStorage` and sends `Authorization: Bearer`; on `401` it refreshes once with the stored refresh token and retries.
-- There is **no** `frontend/web/middleware.ts`; routes are not protected server-side. Older context docs described one as a target design.
+- **Same origin only.** The client uses relative URLs (`/api/v1/**` to core-api, `/ai/v1/**` to ai-service). `proxy.ts` (Next 16 proxy) rewrites them to `CORE_API_URL` and `AI_SERVICE_URL`, read at run time (`rewrites()` would freeze them at build time). `next.config.ts` sets `compress: false` so SSE is not buffered and raises `experimental.proxyClientMaxBodySize` above core-api's 20 MB upload limit (ADR-010 §4.3).
+- **Client.** `lib/api/http.ts` attaches the Bearer token and, on `401`, refreshes once and retries. core-api responses are unwrapped from `{data, traceId}`; errors become `ApiError` with the API's fixed message, `code` and `traceId`; ai-service errors use `{detail}`. Unknown shapes get a local fixed message.
+- **Session.** The access token lives in a module variable (`lib/session/token.ts`). On load, `SessionProvider` refreshes through the `HttpOnly` cookie. Refreshes are merged: one promise per tab, a Web Lock across tabs (a tab that waited re-uses the result the other tab broadcast), and a `BroadcastChannel` claim when Web Locks are missing. The broadcast carries the new session between same-origin tabs and is not persisted.
+- **Workspace switch.** `POST /auth/switch-workspace`, then every open stream is aborted and the TanStack Query cache cleared; other tabs do the same when they receive the new session (R7).
+- **Streaming.** `streamAnswer` reads `POST /ai/v1/conversations/{id|new}/messages` with `fetch` and ends as `done`, `error`, `cancelled` or `interrupted`. `reduceAnswer` applies `delta`, `replace`, `refusal` and `done.finalText`.
+- There is no `middleware.ts` route protection; pages redirect client-side when the session is anonymous. The server stays the authority (another workspace's object is `404`).
 
-## 3. V2 constraints the rewrite must meet
+## 3. V2 constraints
 
 - **Sessions:** the V2 refresh token is an `HttpOnly; SameSite=Strict` cookie on `/api/v1/auth` (see [identity and access](../domain/identity-and-access.md)); the access token (≤ 15 minutes) stays in memory, not `localStorage`. Refresh rotation is strict, so concurrent refreshes from several tabs must be merged into one request, otherwise the second one counts as reuse and revokes the session (V2-29 review note).
 - **APIs:** core-api under `/api/v1/**` with the `{"data", "traceId"}` envelope; ai-service under `/ai/v1/**` with plain JSON and SSE for answers. See [HTTP conventions](../api/http-conventions.md).
-- **Markdown rendering:** `components/chat/ChatMessage.tsx` and `components/documents/DocumentViewerModal.tsx` currently render with `rehype-raw`, which executes raw HTML from model output or documents. V2-32 requires rendering without `rehype-raw`; external images become links.
-- **Workspace and role** come from the token claims (`wid`, `wrole`, `wdept`); the UI hides actions the role cannot do, but the server is the authority (another workspace's object is `404`).
+- **Markdown rendering:** no `rehype-raw` (removed with the V1 chat and viewer code); V2-32 renders canonical Markdown without raw HTML and turns external images into links.
+- **Workspace and role** are the token's `wid` and `wrole` (and `wdept`); the V2-38 client reads workspace and role from the login/refresh response (`LoginResponse.workspace`), which has no department yet, so V2-15/V2-33 need `GET /members/me` or a contract change for department-dependent UI. The UI hides actions the role cannot do, but the server is the authority (another workspace's object is `404`).
 - **Verification:** a green build is not visual verification. Each UI ticket records browser evidence per acceptance criterion and says which browsers were not checked.

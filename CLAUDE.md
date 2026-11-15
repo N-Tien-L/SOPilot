@@ -6,7 +6,7 @@ Entry point for Claude Code in this repo. Path-scoped rules load from `.claude/r
 
 - SOPilot: multi-tenant Q&A over company SOPs with verified citations (hybrid RAG). University research project (NCKH) and portfolio. **Local only, no deployment** (ADR-006). The old codename *Poliwise* survives in V1 code; do not rename it in unrelated work.
 - **V2 is the product.** The V1 stack (8 services, `services/api-gateway`, `docker-compose.yml`, `infrastructure/init-db/`) is frozen: read and port from it, never extend it. Ticket V2-17 deletes it (`.claude/rules/v1-frozen.md`).
-- All documentation, code, comments, identifiers and commit messages are in English. User-facing UI copy is Vietnamese. Archived docs keep their original language.
+- All documentation, code, comments, identifiers and commit messages are in English. User-facing UI copy is English (owner decision 2026-11-14); documents and questions stay multilingual. Archived docs keep their original language.
 
 ## Architecture (V2)
 

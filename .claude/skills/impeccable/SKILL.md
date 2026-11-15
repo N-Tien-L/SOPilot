@@ -12,7 +12,7 @@ This skill gives you the tools and permission to make design that earns the name
 > [!IMPORTANT]
 > **SOPilot Project Constraints & Conventions**:
 > - **Scope & Stack**: Frontend lives in `frontend/web` (Next.js 16 App Router, React 19, Tailwind CSS v4, TypeScript strict).
-> - **Copywriting & Language**: All client-facing UI copy, labels, placeholders, and error messages **MUST be in Vietnamese** (enforced by `.claude/rules/frontend.md`). Do not replace Vietnamese UI copy with English.
+> - **Copywriting & Language**: All client-facing UI copy, labels, placeholders, and error messages **MUST be in English** (owner decision 2026-11-14, enforced by `.claude/rules/frontend.md`). Documents and questions stay multilingual; the UI does not.
 > - **Design Tokens & UI Primitives**: Style with Tailwind 4 and CSS tokens in `frontend/web/app/globals.css`. Reuse `frontend/web/components/ui/*` and `lucide-react` icons before writing new ones.
 > - **Windows Shell**: On Windows/PowerShell, invoke the CLI via `.claude/skills/impeccable/scripts/impeccable.cmd` or run `.claude/skills/impeccable/scripts/bin/windows-x64/impeccable.exe detect frontend/web` for direct anti-pattern scanning.
 

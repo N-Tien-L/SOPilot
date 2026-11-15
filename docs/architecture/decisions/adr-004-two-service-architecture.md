@@ -88,7 +88,7 @@ Each service writes only its own schema. ai-service does not read `core`; everyt
 - Write the new services in `services/core-api` and `services/ai-service`, next to the old ones. Old code is only a reference to port from; it is not developed further.
 - Port selectively: Google token verification and `(issuer, sub)` binding (ADR-003), refresh-token rotation, extraction/chunking/embedding, the hybrid retrieval SQL, the frontend chat components.
 - Every ported part needs its own tests in the new service that run without the old services (port the old tests if any, then adapt them to the V2 contract). Record the port source (old file) in the ticket so V2-17 knows which parts have been replaced.
-- During the transition the two stacks are fully separate: the V2 compose has its own project name, containers and volumes, and non-overlapping host ports; only one stack runs at a time (V2-08). The last working V1 build is tagged `v1-final` before the frontend moves to V2 (V2-15).
+- During the transition the two stacks are fully separate: the V2 compose has its own project name, containers and volumes, and non-overlapping host ports; only one stack runs at a time (V2-08). The last working V1 build is tagged `v1-final` before the frontend moves to V2 (V2-15). *Note 2026-11-14: the tag is now created by V2-38, the first frontend branch that breaks the V1 demo ([ADR-010](adr-010-frontend-stack.md)).*
 - When V2 reaches parity with PRD-V2, remove the old services in a separate commit (git history keeps them), then update `CLAUDE.md`, `.claude/`, the scripts and the architecture docs.
 
 ## 5. Impact and consequences

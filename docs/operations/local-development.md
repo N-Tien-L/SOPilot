@@ -61,7 +61,7 @@ With the `local` profile and no `SOPILOT_JWT_PRIVATE_KEY_PATH`, core-api creates
 
 ### Alternative: everything in containers
 
-`docker-compose.v2.yml` also defines `core-api`, `ai-service`, `ai-worker` and `web`. `docker compose -f docker-compose.v2.yml up -d --build` starts all of it. The `web` image is still wired to V1 until ticket V2-15; use the APIs, not the web UI. Do not run the container and the from-source copy of the same service together (same ports).
+`docker-compose.v2.yml` also defines `core-api`, `ai-service`, `ai-worker` and `web`. `docker compose -f docker-compose.v2.yml up -d --build` starts all of it. The `web` image is the V2-38 foundation: a same-origin proxy to core-api and ai-service (`CORE_API_URL`, `AI_SERVICE_URL`), dev sign-in and an empty home; the real screens arrive with V2-15, so use the APIs for everything else. From source: `cd frontend/web; pnpm dev` (http://localhost:3000; core-api's `SOPILOT_FRONTEND_ORIGIN` must match). Do not run the container and the from-source copy of the same service together (same ports).
 
 ### 3. Seed demo data (optional)
 

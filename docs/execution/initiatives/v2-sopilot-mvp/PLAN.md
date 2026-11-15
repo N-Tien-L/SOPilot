@@ -16,10 +16,10 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 37
+total_tickets: 39
 completed_tickets: 30
-implemented_tickets: 30
-review_tickets: 0
+implemented_tickets: 31
+review_tickets: 1
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -116,6 +116,8 @@ flowchart TD
     V35["V2-35: Infra + ai-service: bge-reranker-v2-m3 rerank on GPU, sharing the A10 container with vLLM"]
     V36["V2-36: core-api: document write rights by department publisher and workspace publisher"]
     V37["V2-37: Retrieval configuration matrix and answer-level eval with an independent judge"]
+    V38["V2-38: Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal"]
+    V39["V2-39: core-api: refresh-token grace window so a reload during a refresh does not end the session"]
     V01 --> V03
     V01 --> V04
     V05 --> V07
@@ -145,6 +147,11 @@ flowchart TD
     V13 --> V15
     V29 --> V15
     V30 --> V15
+    V10 --> V38
+    V11 --> V38
+    V29 --> V38
+    V29 --> V39
+    V38 --> V15
     V10 --> V16
     V12 --> V16
     V21 --> V16
@@ -207,6 +214,7 @@ flowchart TD
     V27 --> V37
     V35 --> V37
     V37 --> V18
+    V39 --> V18
 ```
 
 ---
@@ -256,6 +264,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-11` | core-api: service skeleton, Google identity, JIT and personal workspace | user | L | `V2-03`, `V2-08` | done |
 | `V2-29` | core-api: workspace CRUD, workspace switching and refresh sessions | user | L | `V2-11` | done |
 | `V2-30` | core-api: invitations, members and OWNER rules | user | M | `V2-29` | done |
+| `V2-39` | core-api: refresh-token grace window so a reload during a refresh does not end the session | user | S | `V2-29` | todo |
 | `V2-12` | core-api: documents, upload, outbox, document quota, safe replacement, audit log | knowledge | L | `V2-09`, `V2-11` | done |
 | `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | done |
 | `V2-14` | FR-19 tenant isolation tests in CI and RQ4 | tests | M | `V2-09`, `V2-12` | done |
@@ -268,13 +277,14 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 ### Phase 4: Frontend, integration, handover
 | Ticket | Title | Scope | Size | Depends on | Status |
 |---|---|---|:---:|---|:---:|
-| `V2-15` | Frontend: V2 shell, sign-in/workspace, chat and gaps | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30` | todo |
+| `V2-38` | Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal | web | L | `V2-10`, `V2-11`, `V2-29` | review |
+| `V2-15` | Frontend: V2 shell, sign-in/workspace, chat and gaps | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30`, `V2-38` | todo |
 | `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | todo |
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | todo |
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | todo |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
-| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37` | todo |
+| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39` | todo |
 
 ---
 
@@ -372,6 +382,14 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 > **Update 2026-11-13 (closing Wave 1):** `V2-13`, `V2-16`, `V2-25`, `V2-27`, `V2-28` move `todo` → `review` (code and tests committed on branch `feat/wave1-closeout`; not yet owner-accepted). `review_tickets` 0 → 5, `implemented_tickets` 25 → 30. Each ticket's open items are in its section 2a: `V2-13` waits for owner review; `V2-16` a clean-machine test, end-to-end TTFT with the real provider, the V2 frontend (`V2-15`); `V2-25` p50/p95 with an empty cache on the V2-19 corpus; `V2-27` owner review of the routing set and example sentences, threshold tuning, `feedback_in_chat`, `followup` measured through the pipeline, flag kept `false` ([AUDIT-routing](../../../research/audit-routing-guard-eval-2026-11-13.md)); `V2-28` owner review of the 37-question set and licenses, a real run ([AUDIT-vi-sop](../../../quality/test-reports/audit-vi-sop-system-check-2026-11-13.md)).
 
 > **Owner decision 2026-11-14:** `V2-13`, `V2-16`, `V2-25`, `V2-27`, `V2-28` → `done` (owner review of the Wave 1 closeout; CI on PR #14 green). The open items listed in the 2026-11-13 update stay recorded in each ticket's section 2a and are not closed by this decision. `completed_tickets` 25 → 30, `review_tickets` 5 → 0, `implemented_tickets` stays 30. The unmet criteria of `V2-16`, `V2-25`, `V2-27`, `V2-28` are listed in `V2-18` §2b ("Carried over from closed tickets").
+
+> **Owner decision 2026-11-14 (frontend scope gaps):** from the frontend feature inventory ([frontend-feature-inventory](../../../architecture/components/frontend-feature-inventory.md)): `V2-15` gains the conversation list (FR-15), answer feedback (FR-16) and workspace create/rename/delete (FR-03); `V2-33` gains publisher assignment (ADR-009) and the OWNER audit log view (FR-20). Domain join (FR-05) and CSV import (FR-24) stay P1 with no frontend ticket. No ticket size or dependency changes.
+
+> **Owner decision 2026-11-14 (frontend NFRs, [frontend-nfrs](../../../architecture/components/frontend-nfrs.md) §5):** the UI language is English (replaces the Vietnamese UI copy rule; the Vietnamese strings quoted in PRD FR-31/UC-12 and tickets V2-15, V2-31, V2-32, V2-33 are to be rewritten in English when each ticket is implemented); a unit test runner is allowed for the frontend (tool chosen in the stack ADR, added by a ticket); original PDFs use the browser's native viewer at `#page=N` with no PDF library (`V2-32`); Chrome and Firefox first; dark mode deferred to the polish phase.
+
+> **Owner decision 2026-11-14 (frontend stack, [ADR-010](../../../architecture/decisions/adr-010-frontend-stack.md) approved):** keep Next.js 16 as a client-rendered app and rebuild the foundation. New ticket [`V2-38`](tickets/V2-38-frontend-foundation.md) (web, P0, L) delivers it; `V2-15` now also depends on `V2-38`. Vitest and TanStack Query v5 are approved (replacing the legacy `react-query` v3 package). `total_tickets` 37 → 38. `v1-final` tag moves from V2-15 to V2-38 (first branch that breaks the V1 demo). `V2-31` and `V2-32` gain unit-test criteria. Inputs: [feature inventory](../../../architecture/components/frontend-feature-inventory.md), [NFRs](../../../architecture/components/frontend-nfrs.md).
+
+> **Owner decision 2026-11-15 (V2-39 added):** the V2-38 browser run showed that reloading a tab while its refresh request is in flight ends the session (strict refresh rotation, no grace window). New ticket [`V2-39`](tickets/V2-39-core-api-refresh-grace-window.md) (core-api, P1, S, depends on `V2-29`) adds a short grace window for the immediately previous token while keeping replay detection. `total_tickets` 38 → 39; `completed_tickets`, `implemented_tickets`, `review_tickets` unchanged (`todo` is not counted).
 
 ---
 

@@ -5,11 +5,15 @@ paths:
 
 # frontend/web (Next.js 16 App Router, React 19, TypeScript strict, Tailwind 4)
 
-- Current state: still wired to V1. `next.config.ts` rewrites `/api/v1/*` to `api-gateway:3001`, and `lib/api.ts` keeps Bearer tokens in `localStorage`. V2-15 (then V2-31..33) changes it in place to talk to core-api/ai-service. Follow the ticket and TECH-V2-core-api for V2 auth/session. Do not extend the V1 token handling.
-- UI work is orchestrated by the global `frontend-delivery` skill (see the global CLAUDE.md).
-- New HTTP calls go through the `ApiClient` in `lib/api.ts` (streaming chat uses `fetch` + `ReadableStream` inside it). Baseline exceptions, not to be copied: a second axios client in `services/api-client.ts`, and direct `fetch` in `app/documents/page.tsx`, `components/documents/PreviewModal.tsx` and `services/document.service.ts`. Not machine-checked.
-- Server state: `react-query` v3 hooks in `hooks/`. Client state: Zustand 5 in `store/`. Types: `types/` and `interfaces/`; extend the shared type, do not redeclare it in a component.
-- UI primitives: reuse `components/ui/*` (barrel `components/ui/index.ts`) and `lucide-react` icons before writing new ones. Style with Tailwind and the tokens in `app/globals.css`.
-- No `any` (`eslint-config-next/typescript`). User-facing copy is Vietnamese.
-- Gates: `./scripts/validate-build.ps1 -Scope web` (`pnpm build`, which type-checks under `strict`, then `pnpm lint`). There is no test runner. Do not add one without a ticket.
+- Foundation: [ADR-010](../../docs/architecture/decisions/adr-010-frontend-stack.md), implemented by V2-38. Client-rendered Next.js; screens are client components; no server-side data fetching, Server Actions or BFF.
+- Same origin only: use relative URLs (`/api/v1/**`, `/ai/v1/**`); `proxy.ts` reads `CORE_API_URL` / `AI_SERVICE_URL` at run time. Never add `NEXT_PUBLIC_*` backend URLs or `rewrites()`; keep `compress: false` (SSE).
+- HTTP: only `lib/api/http.ts` calls `fetch` (`coreRequest`, `coreRequestPage`, `aiRequest`, `authorizedFetch`; streaming is `lib/sse/stream.ts`). No axios, no direct `fetch` in components. Contract types are declared once in `lib/api/types.ts`; extend them, do not redeclare them in a component.
+- Session: the access token stays in memory (`lib/session/token.ts`); never in `localStorage`, `sessionStorage`, URLs or logs. Refresh goes through `lib/session/refresh.ts` (single-flight across tabs). A workspace switch must go through `switchWorkspace` so caches and streams are cleared.
+- Server state: TanStack Query v5 only; query keys start with the workspace id (`workspaceKey`). Client state: Zustand, small (session, UI). No second data-fetching approach.
+- Errors shown to users are the API's fixed message or a local fixed string plus the `traceId` (`describeError`), never a raw exception.
+- Markdown from documents or the model renders without raw HTML (no `rehype-raw`).
+- UI work is orchestrated by the global `frontend-delivery` skill. Reuse `components/ui/*` and `lucide-react` icons before writing new ones; one styling system, chosen in V2-15 (do not grow a second one). User-facing copy is English.
+- No `any` (`eslint-config-next/typescript`), no new `console.*`, every `TODO` has a ticket id.
+- Tests: Vitest (`pnpm test`, Node environment, `**/*.test.ts`) for pure logic: refresh, SSE parser, error adapters, upload queue, offset mapping. No other test tooling without agreement.
+- Gates: `./scripts/validate-build.ps1 -Scope web` (`pnpm build`, `pnpm lint`, `pnpm test`).
 - A green build is not visual verification. Report whether the page was opened in a browser. If it was not, say so.
