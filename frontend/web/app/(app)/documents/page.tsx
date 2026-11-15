@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Download, Upload } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
@@ -149,7 +150,13 @@ function DocumentsView({ initialQ }: { initialQ: string }) {
                 return (
                   <tr key={d.id} className="border-t border-border align-top">
                     <td className="px-3 py-2">
-                      <div className="font-medium">{d.title}</div>
+                      {d.currentVersion ? (
+                        <Link href={`/documents/${d.id}`} className="font-medium text-primary-strong underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+                          {d.title}
+                        </Link>
+                      ) : (
+                        <div className="font-medium">{d.title}</div>
+                      )}
                       {d.tags.length > 0 ? <div className="text-xs text-muted-foreground">{d.tags.join(', ')}</div> : null}
                       {d.status === 'FAILED' && d.latestVersion.failureMessage ? (
                         <div className="text-xs text-danger-foreground">{d.latestVersion.failureMessage}</div>

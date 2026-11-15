@@ -6,6 +6,7 @@ import type {
   CategoryView,
   ConversationDetail,
   ConversationSummary,
+  DocumentContent,
   DocumentStatus,
   DocumentView,
   DownloadUrl,
@@ -47,8 +48,11 @@ export interface DocumentFilters {
 export const listDocuments = (filters: DocumentFilters) =>
   coreRequestPage<DocumentView>('/documents', { query: { limit: 20, ...filters } });
 export const listCategories = () => coreRequest<CategoryView[]>('/categories');
-export const getDownloadUrl = (documentId: string) =>
-  coreRequest<DownloadUrl>(`/documents/${encodeURIComponent(documentId)}/download-url`);
+/** `inline` signs the URL so a browser may show the file (the PDF viewer); the default downloads it. */
+export const getDownloadUrl = (documentId: string, options: { inline?: boolean } = {}) =>
+  coreRequest<DownloadUrl>(`/documents/${encodeURIComponent(documentId)}/download-url`, {
+    query: options.inline ? { disposition: 'inline' } : undefined,
+  });
 export const getDocument = (documentId: string, signal?: AbortSignal) =>
   coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}`, { signal });
 
@@ -73,6 +77,13 @@ export const retryDocument = (documentId: string) =>
   coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}/retry`, { method: 'POST' });
 export const deleteDocument = (documentId: string) =>
   coreRequest<void>(`/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' });
+
+// ---- recognized content and the citation viewer (V2-32; the active version only, else 404) ----
+export const getDocumentContent = (documentId: string, versionId: string, signal?: AbortSignal) =>
+  aiRequest<DocumentContent>(
+    `/documents/${encodeURIComponent(documentId)}/versions/${encodeURIComponent(versionId)}/content`,
+    { signal },
+  );
 
 // ---- conversations, feedback, knowledge gaps (ai-service) ----
 export const listConversations = (limit = 50) =>

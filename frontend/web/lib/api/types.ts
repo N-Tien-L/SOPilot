@@ -177,6 +177,40 @@ export interface DownloadUrl {
 
 // ---- ai-service resources (TECH-V2-ai-service §7) ----
 
+/** `GET /ai/v1/documents/{id}/versions/{versionId}/content` (§7.3), active version only. */
+export interface ContentPage {
+  page: number;
+  /** Unicode code points (Python indexes). */
+  charStart: number;
+  charEnd: number;
+  /** UTF-16 code units: the ones a browser string uses. */
+  charStart16: number;
+  charEnd16: number;
+}
+
+export interface ContentWarning {
+  code: string;
+  pages?: number[];
+  count?: number;
+}
+
+export interface RemovedBlock {
+  kind: string | null;
+  page: number | null;
+  text: string | null;
+}
+
+export interface DocumentContent {
+  documentId: string;
+  versionId: string;
+  fileType: string;
+  normalizerVersion: string;
+  markdown: string;
+  pages: ContentPage[];
+  warnings: ContentWarning[];
+  removedBlocks: RemovedBlock[];
+}
+
 export interface ConversationSummary {
   id: string;
   title: string | null;

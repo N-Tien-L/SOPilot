@@ -93,11 +93,11 @@ function UploadRow({ item }: { item: UploadItem }) {
             <>
               {' '}
               <Link
-                href={`/documents?q=${encodeURIComponent(failure.existing.title)}`}
+                href={`/documents/${encodeURIComponent(failure.existing.documentId)}`}
                 className="underline"
                 onClick={() => useUploadStore.getState().setDialogOpen(false)}
               >
-                Show in documents
+                Open document
               </Link>
             </>
           ) : null}

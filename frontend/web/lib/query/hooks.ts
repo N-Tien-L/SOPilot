@@ -57,6 +57,35 @@ export function useDocuments(filters: Omit<DocumentFilters, 'cursor'>) {
   });
 }
 
+/** One document with its current and latest version (404 when outside access). */
+export function useDocument(id: string) {
+  const wid = useWid();
+  return useQuery({
+    queryKey: workspaceKey(wid, 'document', id),
+    queryFn: ({ signal }) => api.getDocument(id, signal),
+    retry: false,
+    // A newer version may be processing: keep the label fresh until it settles.
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      return d && (d.latestVersion.status === 'UPLOADED' || d.latestVersion.status === 'PROCESSING') ? 5000 : false;
+    },
+  });
+}
+
+/** The canonical Markdown of the active version. No retry: a 404 is the answer (FR-25). */
+export function useDocumentContent(documentId: string, versionId: string | null) {
+  const wid = useWid();
+  return useQuery({
+    queryKey: workspaceKey(wid, 'content', documentId, versionId),
+    queryFn: ({ signal }) => api.getDocumentContent(documentId, versionId as string, signal),
+    enabled: versionId !== null,
+    retry: false,
+    // Never serve cached content without asking: access may have been revoked (FR-25).
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+}
+
 export function useConversations() {
   const wid = useWid();
   return useQuery({ queryKey: workspaceKey(wid, 'conversations'), queryFn: () => api.listConversations() });

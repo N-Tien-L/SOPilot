@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui';
+import { Badge, Button } from '@/components/ui';
 import type { AnswerWarning, Citation } from '@/lib/api/types';
 import { refusalCopy, warningText } from '@/lib/chat/labels';
 import { canOpenViewer } from '@/lib/chat/citations';
+import { CitationViewerModal } from '@/components/viewer/CitationViewerModal';
 import { AnswerMarkdown } from './AnswerMarkdown';
 import { FeedbackBar } from './FeedbackBar';
 
@@ -24,6 +25,7 @@ export interface AnswerBlockProps {
 
 export function AnswerBlock({ text, citations, refusal, warnings, streaming, messageId, children }: AnswerBlockProps) {
   const [openN, setOpenN] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<AnswerCitation | null>(null);
   const known = useMemo(() => new Set(citations.map((c) => c.n)), [citations]);
 
   if (refusal) {
@@ -93,7 +95,14 @@ export function AnswerBlock({ text, citations, refusal, warnings, streaming, mes
                   </Badge>
                 ) : null}
                 {openN === c.n ? (
-                  <blockquote className="mt-2 border-l-2 border-primary pl-2 text-xs text-muted-foreground">{c.snippet}</blockquote>
+                  <>
+                    <blockquote className="mt-2 border-l-2 border-primary pl-2 text-xs text-muted-foreground">{c.snippet}</blockquote>
+                    {!old ? (
+                      <Button size="sm" variant="outline" className="mt-2" onClick={() => setViewing(c)}>
+                        Open in document
+                      </Button>
+                    ) : null}
+                  </>
                 ) : null}
               </li>
             );
@@ -102,6 +111,7 @@ export function AnswerBlock({ text, citations, refusal, warnings, streaming, mes
       ) : null}
       {children}
       {messageId && !streaming ? <FeedbackBar messageId={messageId} /> : null}
+      <CitationViewerModal citation={viewing && canOpenViewer(viewing) ? viewing : null} onClose={() => setViewing(null)} />
     </div>
   );
 }
