@@ -2,7 +2,7 @@
 id: V2-39
 title: "core-api: refresh-token grace window so a reload during a refresh does not end the session"
 type: fix
-status: review
+status: done
 created: 2026-11-15
 updated: 2026-11-16
 author: "Owner"
@@ -31,12 +31,12 @@ Found by the V2-38 browser run (2026-11-15, [V2-38 Results](V2-38-frontend-found
 Goal: tolerate this one benign race without weakening replay detection. The owner approved the approach on 2026-11-15 (accept the immediately previous token for a few seconds); the exact mechanism is part of this ticket and needs the design update below.
 
 ## 2. Acceptance criteria
-- [ ] **Grace.** A refresh token that was exchanged less than a short, configurable time ago (default 10 s, `SOPILOT_REFRESH_GRACE`; `0` turns it off) and whose successor has **not** been presented yet is accepted once more and answered with a new session, instead of triggering `REUSE_DETECTED`. The cookie in that response is the token the browser must use from then on.
-- [ ] **Replay stays detected.** A used token presented after the window, or presented again inside it after the successor was used, still revokes the whole family (`REUSE_DETECTED`). The refresh token value is never logged.
-- [ ] **No fork.** After a grace refresh exactly one live token exists per family (the earlier successor is retired), so two browsers cannot each hold a valid chain.
-- [ ] **Race test.** An integration test sends two refresh requests with the same cookie value in quick succession (and one after the window) and asserts: first accepted, second accepted inside the window and returns a usable session, a replay after the window revokes the family, and the membership checks (`MEMBERSHIP_LOST`, `MEMBERSHIP_SUSPENDED`) still apply on the grace path.
-- [ ] **Design and docs.** [TECH-V2-core-api §5.1](../../../../architecture/components/core-api.md) step 2 and [identity and access](../../../../architecture/domain/identity-and-access.md) describe the window (append, never renumber sections); `services/core-api/README.md` lists the new variable; `services/core-api/.env.example` documents it with a dummy value.
-- [ ] **Browser re-check.** Repeat the V2-38 double-reload trial (Chromium and Firefox, 12 trials) and record that the session survives.
+- [x] **Grace.** A refresh token that was exchanged less than a short, configurable time ago (default 10 s, `SOPILOT_REFRESH_GRACE`; `0` turns it off) and whose successor has **not** been presented yet is accepted once more and answered with a new session, instead of triggering `REUSE_DETECTED`. The cookie in that response is the token the browser must use from then on.
+- [x] **Replay stays detected.** A used token presented after the window, or presented again inside it after the successor was used, still revokes the whole family (`REUSE_DETECTED`). The refresh token value is never logged.
+- [x] **No fork.** After a grace refresh exactly one live token exists per family (the earlier successor is retired), so two browsers cannot each hold a valid chain.
+- [x] **Race test.** An integration test sends two refresh requests with the same cookie value in quick succession (and one after the window) and asserts: first accepted, second accepted inside the window and returns a usable session, a replay after the window revokes the family, and the membership checks (`MEMBERSHIP_LOST`, `MEMBERSHIP_SUSPENDED`) still apply on the grace path.
+- [x] **Design and docs.** [TECH-V2-core-api §5.1](../../../../architecture/components/core-api.md) step 2 and [identity and access](../../../../architecture/domain/identity-and-access.md) describe the window (append, never renumber sections); `services/core-api/README.md` lists the new variable; `services/core-api/.env.example` documents it with a dummy value.
+- [x] **Browser re-check.** Repeat the V2-38 double-reload trial (Chromium and Firefox, 12 trials) and record that the session survives.
 
 ## 3. Guide
 - Code: `identity/RefreshTokenService.rotate`, `RefreshTokenRepository` (the row already stores `used`; it needs the time it was used and a pointer to its successor, so a migration in the `core` chain is likely: skill `flyway-migration`; additive only).
@@ -61,14 +61,19 @@ Plus `tests/tenant-isolation` if the migration touches RLS tables (refresh token
 | TECH-V2-core-api §5.1, `identity-and-access.md`, `services/core-api/README.md`, `.env.example` | MODIFY |
 
 ## 6. Results
-Implemented on `fix/core-refresh-grace` (not committed yet, 2026-11-16).
+Implemented on `fix/core-refresh-grace` (commit d98e090 plus this evidence, 2026-11-16).
 
 **Change.** Migration `V011__refresh_token_grace.sql` adds `refresh_tokens.successor_id`. `RefreshTokenService.rotate` accepts an exchanged token once more when its exchange is younger than `SOPILOT_REFRESH_GRACE` (default `PT10S`, `0` = off, measured on the database clock), it has a successor and that successor is unused and unrevoked; the earlier successor is retired and the grace is spent. Design: TECH-V2-core-api §5.1 (grace paragraph), `identity-and-access.md`, `core-schema.md`; env: `services/core-api/README.md`, `.env.example`.
 
 **Evidence.**
-- `./mvnw verify` in `services/core-api` (the `run-tests.ps1` wrapper aborts on the Mockito stderr warning): 255 tests, 0 failures, `BUILD SUCCESS` (before the review fix below); `SessionWorkspaceIT` re-run after it: 30 tests, 0 failures.
+- `./mvnw verify` in `services/core-api` (the `run-tests.ps1` wrapper aborts on the Mockito stderr warning): 255 tests, 0 failures, `BUILD SUCCESS` (before the review fix below); re-run on the final code (2026-11-16): `./mvnw -B verify` exit 0, `SessionWorkspaceIT` 30 tests, 0 failures.
 - New tests in `SessionWorkspaceIT` (grace accepted once and leaves one live token, chain continues, retired successor is replay, replay after successor use, late replay, two HTTP refreshes with one cookie, membership checks on the grace path). Two existing replay tests now age the exchange first.
 - `./scripts/check-migrations.ps1` and `./scripts/docs/check-docs.ps1` passed in the reviewer run.
 - Review (fresh `v2-reviewer`, `claude-opus-5-5`): no blockers. Accepted and fixed: window decided in SQL (database clock) instead of mixing DB and JVM clocks; ticket `branch` corrected; `REUSE_DETECTED` asserted; concurrency limits written into §5.1. Left open: concurrent requests with one cookie are only guaranteed sequentially (fails closed, documented); a possible `40P01` deadlock between a grace refresh and a concurrent `revokeFamily` gives `500` while the family stays revoked; no test for `SOPILOT_REFRESH_GRACE=0`.
 
-**Not verified.** The browser re-check (V2-38 double reload, Chromium and Firefox, 12 trials) has not been run.
+**Browser re-check (2026-11-16, headless Playwright against `pnpm dev` on :3000 and the rebuilt core-api container with `V011` applied).** The trial signs in with dev login, reloads the page, waits until the refresh request of the reloaded page is in flight, reloads again 5 ms later, and holds each refresh response back 400 ms while discarding its `Set-Cookie` if the reload aborts it (the lost-response case; a plain double reload did not reproduce the race, 12 of 12 survived even on the old code). Then it loads `/chat` and checks that it is not redirected to `/login`.
+- Before (old core-api, no grace): Chromium 0 of 12 sessions survived, Firefox 0 of 12.
+- After (this branch, `SOPILOT_REFRESH_GRACE` default 10 s): Chromium 12 of 12, Firefox 12 of 12.
+- The "before" run is a deterministic, harsher form of the race than the 1 in 12 seen in V2-38; it proves the grace path, not the real-world frequency.
+
+**Not verified.** Safari/WebKit: it never sends a `Secure` cookie over `http://localhost`, so every reload signs out there regardless of this ticket (see `docs/operations/local-development.md`). A person using a real browser by hand was not tried.
