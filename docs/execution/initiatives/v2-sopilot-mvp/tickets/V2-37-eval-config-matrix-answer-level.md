@@ -87,6 +87,10 @@ Owner decision 2026-11-11 (note in [PLAN-V2](../PLAN.md)). RQ1–RQ5 retrieval n
 - Reuse `sopilot_eval.run`, `analyze_v2_07`, `answers`, `service_parity`. Do not copy pipeline logic into the harness.
 - No new dependency. `httpx` is already available through the `services/ai-service` path dependency.
 - Order: A → B (in the background) → C → D → E → F → G.
+- **Inherited from [V2-40](V2-40-infra-modal-serving-profile.md) (owner decision 2026-11-16, ADR-011 §5):**
+  - The answer model runs on the L40S deploy with a 64K context; `answers.py --concurrency N` exists (quality from concurrent runs, latency only at concurrency 1 or with `infrastructure/modal/bench_context.py`) and raises its client limits itself.
+  - **`answers.py` takes the number of hit chunks from `models.yaml` `retrieval.context_k` (8), not from the config's `k` (5).** The "k = 5" above applies to the retrieval metrics of `run.py`; for the answer level decide `k` explicitly, use another `--models` file to ablate it, and record the value in the report (`provenance.context.context_k`).
+  - Still to do here because V2-40 deferred it: the `multi_passage` group with the new context budget (`context_k` 8, `context.max_tokens` 16000), a dev-split run at `--concurrency 8` to confirm no failed request and no `preempt`/OOM in the Modal log, and the cost and duration of one eval run (replacing the ~$1 and 25–40 min estimates of ADR-011 §2.2). Ask the owner before each run.
 
 ## 4. Testing
 

@@ -17,8 +17,8 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 41
-completed_tickets: 34
-implemented_tickets: 34
+completed_tickets: 35
+implemented_tickets: 35
 review_tickets: 0
 ---
 
@@ -255,7 +255,7 @@ flowchart TD
 | `V2-10` | ai-service: 2-LLM-call Q&A pipeline, SSE, citations, refusal | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
 | `V2-27` | ai-service: semantic router (rules + embedding) measured against rules only | ai-qa | L | `V2-05`, `V2-10` | done |
 | `V2-35` | Infra + ai-service: bge-reranker-v2-m3 rerank on GPU, sharing the A10 container with vLLM | infra | L | `V2-09`, `V2-34` | done |
-| `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | in_progress |
+| `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | done |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
 | Ticket | Title | Scope | Size | Depends on | Status |
@@ -439,3 +439,5 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 > **Owner decision 2026-11-16 (V2-40 and V2-41 added):** [`V2-40`](tickets/V2-40-infra-modal-serving-profile.md) (infra/eval, P0, L, depends on `V2-10`, `V2-35`) implements the ADR-011 follow-up list: L40S server flags, reranker memory cap, `answers.py --concurrency` with a separate concurrency-1 latency run, the ai-service context budget and measurements replacing the ADR estimates; it blocks `V2-37` and `V2-18`. [`V2-41`](tickets/V2-41-core-api-version-status-callback-order.md) (core-api, P1, S, depends on `V2-09`, `V2-12`) fixes the bug found in the V2-31 run; reproduced on the local stack, the cause is out-of-order `VERSION_STATUS` delivery (a late `PROCESSING` overrides `FAILED`, or gets `409` after `READY`), not a rejected `FAILED`; it blocks `V2-18`. `total_tickets` 39 → 41; other counters unchanged (`todo` is not counted).
 
 > **Progress 2026-11-16 (V2-40 `in_progress`):** the ADR-011 profile is deployed on one L40S and measured ([ADR-011 §5](../../../architecture/decisions/adr-011-modal-serving-profiles.md)); `answers.py --concurrency`, the `bench_context.py` tool and the 64K context budget (`context_k` 8, `context.max_tokens` 16000, prompt ceiling 60000) are in. Still open: the `multi_passage` and `dev` eval runs at concurrency 8, a warm-cache start time and the cost of one eval run. Counters unchanged.
+
+> **Owner decision 2026-11-16 (V2-40 done):** [`V2-40`](tickets/V2-40-infra-modal-serving-profile.md) → `done` on the owner's acceptance of the evidence. `completed_tickets` 34 → 35, `implemented_tickets` 34 → 35, `review_tickets` unchanged (0). The ADR-011 profile runs on one L40S and is measured ([ADR-011 §5](../../../architecture/decisions/adr-011-modal-serving-profiles.md)); the 64K context budget is set. The full eval runs (`multi_passage` with the new budget, the dev-split run at concurrency 8) and the cost of one eval run are **deferred to [`V2-37`](tickets/V2-37-eval-config-matrix-answer-level.md)** because the AI pipeline still has pending fixes; `V2-37` §3 lists them and the `k` change in `answers.py`. `V2-18` and `V2-37` are no longer blocked by `V2-40`.
