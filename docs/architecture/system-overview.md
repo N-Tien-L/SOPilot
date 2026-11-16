@@ -16,7 +16,7 @@ refs:
 
 # SOPilot V2 system overview
 
-> **Implementation status:** core-api, ai-service, both schemas, the eval harness and the V2 web app exist; `docker-compose.v2.yml` runs the infrastructure and can also run the four apps (V2-16), while day-to-day work runs the apps from source. The V1 stack (eight services, gateway, RabbitMQ, Redis, `infrastructure/init-db/`) was removed in V2-17; it is preserved at git tag `v1-final` and described in [archive/v1-context](../archive/v1-context/architecture/system-overview.md).
+> **Implementation status:** core-api, ai-service, both schemas, the eval harness and the V2 web app exist; `docker-compose.yml` runs the infrastructure and can also run the four apps (V2-16), while day-to-day work runs the apps from source. The V1 stack (eight services, gateway, RabbitMQ, Redis, `infrastructure/init-db/`) was removed in V2-17; it is preserved at git tag `v1-final` and described in [archive/v1-context](../archive/v1-context/architecture/system-overview.md).
 
 ## 1. Components and ownership
 
@@ -52,4 +52,4 @@ Two layers, both mandatory: Postgres RLS on `<schema>.current_workspace()` (boun
 
 ## 5. Environments
 
-Local only, no deployment (ADR-006). `docker-compose.v2.yml` (project `sopilot-v2`) runs Postgres on `127.0.0.1:55432`, MinIO on `59000/59001`, one-shot Flyway/MinIO init jobs and, as optional container images, `core-api`, `ai-service`, `ai-worker` and `web`; day to day the apps run from source. Run commands: [local development](../operations/local-development.md).
+Local only, no deployment (ADR-006). `docker-compose.yml` (project `sopilot-v2`) runs Postgres on `127.0.0.1:55432`, MinIO on `59000/59001`, one-shot Flyway/MinIO init jobs and, as optional container images, `core-api`, `ai-service`, `ai-worker` and `web`; day to day the apps run from source. Run commands: [local development](../operations/local-development.md).

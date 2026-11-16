@@ -28,8 +28,8 @@ Run the narrowest check first, then the suite of the touched scope.
 
 1. Lists the changed files.
 2. Scans added lines (outside `scripts/`, `docs/` and `*.md`) for debug output (`console.log`, `System.out.println`, `print(`), hard-coded secrets, committed `.env` files, and `TODO`/`FIXME` without a ticket-style id.
-3. For every touched `services/<name>/` and for `frontend/web/`, calls `run-tests.ps1` with the default `-Type all`. For `core-api` that is `mvnw verify`, so **Docker is needed** when core-api changed. For `ai-service` it runs all of `tests/`, integration included; without Docker those tests skip and the step still passes. A touched `services/<name>/` that is not a V2 service fails the step. For `frontend/web/` it runs `validate-build.ps1 -Scope web` (`pnpm build`, `pnpm lint`, `pnpm test`).
-4. Validates `docker-compose.v2.yml` with `docker compose config` against `.env.example` (never `.env`); the frozen V1 `docker-compose.yml` only if the change touched it.
+3. For every touched `services/<name>/` and for `frontend/web/`, calls `run-tests.ps1` with the default `-Type all`. For `core-api` that is `mvnw verify`, so **Docker is needed** when core-api changed. For `ai-service` it runs all of `tests/`, integration included; without Docker those tests skip and the step still passes. A touched (not deleted) `services/<name>/` that is not a V2 service fails the step. For `frontend/web/` it runs `validate-build.ps1 -Scope web` (`pnpm build`, `pnpm lint`, `pnpm test`).
+4. Validates `docker-compose.yml` with `docker compose config` against `.env.example` (never `.env`).
 5. Runs `check-migrations.ps1`.
 6. Runs the docs check (`scripts/docs/check-docs.ps1`, strict mode).
 7. Prints the summary and exits non-zero if any step failed.

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Seeds demo data for SOPilot V2 (Ticket V2-16).
 .DESCRIPTION
@@ -50,7 +50,7 @@ try {
         Write-Success "core-api is UP and healthy."
     }
 } catch {
-    Write-Error "Cannot reach core-api at $CoreApiUrl. Make sure the service is running (e.g. docker compose -f docker-compose.v2.yml up -d)."
+    Write-Error "Cannot reach core-api at $CoreApiUrl. Make sure the service is running (e.g. docker compose up -d)."
     exit 1
 }
 

@@ -16,7 +16,7 @@ Commands are PowerShell from the repository root unless stated. Never open or pr
 
 | File | Read by | Variable names |
 |---|---|---|
-| `.env` (copy of [`.env.example`](../../.env.example)) | `docker-compose.v2.yml`; `eval/provider_check` (`--env-file`). `tests/tenant-isolation` reads no env file | Postgres passwords, MinIO accounts and S3 users, `SOPILOT_INTERNAL_TOKEN`, `SOPILOT_LLM_*`, optional `SOPILOT_GROQ_API_KEY`, `EMBEDDING_REVISION` |
+| `.env` (copy of [`.env.example`](../../.env.example)) | `docker-compose.yml`; `eval/provider_check` (`--env-file`). `tests/tenant-isolation` reads no env file | Postgres passwords, MinIO accounts and S3 users, `SOPILOT_INTERNAL_TOKEN`, `SOPILOT_LLM_*`, optional `SOPILOT_GROQ_API_KEY`, `EMBEDDING_REVISION` |
 | `services/core-api/.env` (copy of [`.env.example`](../../services/core-api/.env.example)) | core-api run from source | `GOOGLE_CLIENT_ID`, `SOPILOT_DB_*`, `SOPILOT_S3_*`, `SOPILOT_AI_BASE_URL`, `SOPILOT_INTERNAL_TOKEN` |
 | `services/ai-service/.env` (copy of [`.env.example`](../../services/ai-service/.env.example)) | ai-service and worker run from source | `SOPILOT_DB_URL`, `SOPILOT_INTERNAL_TOKEN`, `SOPILOT_CORE_*`, `SOPILOT_S3_*`, `SOPILOT_LLM_*`, `EMBEDDING_REVISION` |
 
@@ -27,12 +27,12 @@ Values that must match across files are marked "same as" in the examples. Spring
 ### 1. Start the infrastructure
 
 ```powershell
-docker compose -f docker-compose.v2.yml up -d postgres flyway-core flyway-rag minio minio-init
+docker compose up -d postgres flyway-core flyway-rag minio minio-init
 ```
 
 The root `.env` must also set `SOPILOT_INTERNAL_TOKEN`, `SOPILOT_LLM_BASE_URL` and `SOPILOT_LLM_API_KEY` (any value) even for infrastructure only: compose checks the required variables of every service in the file, so a start of only these services still fails without them.
 
-Expected: `postgres` and `minio` become healthy; `flyway-core`, `flyway-rag` and `minio-init` are one-shot and exit with code 0 (`docker compose -f docker-compose.v2.yml ps -a`). Host ports are bound to `127.0.0.1`: Postgres `55432` (`V2_POSTGRES_PORT`), MinIO API `59000` and console `59001` (`V2_MINIO_API_PORT`, `V2_MINIO_CONSOLE_PORT`). Flyway applies `infrastructure/db/migrations/core` and `rag`; `minio-init` creates the bucket `sopilot-v2-documents` and two users (core-api read/write, ai-service read-only).
+Expected: `postgres` and `minio` become healthy; `flyway-core`, `flyway-rag` and `minio-init` are one-shot and exit with code 0 (`docker compose ps -a`). Host ports are bound to `127.0.0.1`: Postgres `55432` (`V2_POSTGRES_PORT`), MinIO API `59000` and console `59001` (`V2_MINIO_API_PORT`, `V2_MINIO_CONSOLE_PORT`). Flyway applies `infrastructure/db/migrations/core` and `rag`; `minio-init` creates the bucket `sopilot-v2-documents` and two users (core-api read/write, ai-service read-only).
 
 ### 2. Run the services from source
 
@@ -61,7 +61,7 @@ With the `local` profile and no `SOPILOT_JWT_PRIVATE_KEY_PATH`, core-api creates
 
 ### Alternative: everything in containers
 
-`docker-compose.v2.yml` also defines `core-api`, `ai-service`, `ai-worker` and `web`. `docker compose -f docker-compose.v2.yml up -d --build` starts all of it. The `web` image serves the V2 screens (sign-in, chat with citations, documents, members, knowledge gaps, settings) behind a same-origin proxy to core-api and ai-service (`CORE_API_URL`, `AI_SERVICE_URL`); Google sign-in needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build time, otherwise only dev sign-in is offered. From source: `cd frontend/web; pnpm dev` (http://localhost:3000; core-api's `SOPILOT_FRONTEND_ORIGIN` must match). Do not run the container and the from-source copy of the same service together (same ports).
+`docker-compose.yml` also defines `core-api`, `ai-service`, `ai-worker` and `web`. `docker compose up -d --build` starts all of it. The `web` image serves the V2 screens (sign-in, chat with citations, documents, members, knowledge gaps, settings) behind a same-origin proxy to core-api and ai-service (`CORE_API_URL`, `AI_SERVICE_URL`); Google sign-in needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build time, otherwise only dev sign-in is offered. From source: `cd frontend/web; pnpm dev` (http://localhost:3000; core-api's `SOPILOT_FRONTEND_ORIGIN` must match). Do not run the container and the from-source copy of the same service together (same ports).
 
 Use Chrome, Edge or Firefox for the web app. Safari never sends the `Secure` auth cookie over plain `http://localhost`, so every reload signs you out there.
 
@@ -75,7 +75,7 @@ Needs core-api running, plus ai-service and the worker so documents can reach `R
 
 ## Verify
 
-- `docker compose -f docker-compose.v2.yml ps -a`: `postgres`, `minio` healthy; the three one-shot services exited 0.
+- `docker compose ps -a`: `postgres`, `minio` healthy; the three one-shot services exited 0.
 - `GET http://localhost:8080/actuator/health` returns `UP` (no details).
 - `GET http://localhost:8000/health` returns `{"status":"ok"}`. `{"status":"degraded","staleVersions":N}` means chunks were embedded by another model or revision: see [reindex](reindex.md).
 - MinIO console on `http://127.0.0.1:59001` (root account from the root `.env`).
@@ -87,7 +87,7 @@ Services not reachable: [troubleshooting](troubleshooting.md).
 Stop, keep the data:
 
 ```powershell
-docker compose -f docker-compose.v2.yml down
+docker compose down
 ```
 
 Stop the from-source processes with Ctrl+C. Never add `-v`. Resetting data is an owner decision (the reset script is not run unless asked).

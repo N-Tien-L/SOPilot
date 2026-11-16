@@ -52,10 +52,10 @@ Code wins over docs. When they disagree, report the mismatch; do not silently al
 | Docs | `./scripts/docs/check-docs.ps1` (strict) · `-Mode audit` (report-only, includes archive) |
 | Eval harness | `cd eval; uv sync --extra dev; uv run pytest -q` |
 | Before proposing a commit | `./scripts/pre-commit-check.ps1` |
-| V2 infra | `docker compose -f docker-compose.v2.yml up -d postgres flyway-core flyway-rag minio minio-init` · stop with `down` (**never** `-v`) |
+| V2 infra | `docker compose up -d postgres flyway-core flyway-rag minio minio-init` · stop with `down` (**never** `-v`) |
 | Hook self-test | `python .claude/hooks/test_guard.py` |
 
-`docker-compose.v2.yml` defines the infrastructure (Postgres `127.0.0.1:55432` by default, overridable with `V2_POSTGRES_PORT`; MinIO `59000/59001`, one-shot Flyway/MinIO init) and also `core-api`, `ai-service`, `ai-worker` and `web`; the day-to-day way is infrastructure in compose and the apps from source. Running services from source: `docs/operations/local-development.md`. CI: `ci.yml` (gitleaks, migrations, docs check, core-api tests, ai-service ruff + unit tests, `frontend` build + lint + Vitest) and `tenant-isolation.yml` (DB suite, RLS-disabled negative control, `TenantIsolation*IT`, retrieval isolation).
+`docker-compose.yml` (compose project `sopilot-v2`) defines the infrastructure (Postgres `127.0.0.1:55432` by default, overridable with `V2_POSTGRES_PORT`; MinIO `59000/59001`, one-shot Flyway/MinIO init) and also `core-api`, `ai-service`, `ai-worker` and `web`; the day-to-day way is infrastructure in compose and the apps from source. Running services from source: `docs/operations/local-development.md`. CI: `ci.yml` (gitleaks, migrations, docs check, core-api tests, ai-service ruff + unit tests, `frontend` build + lint + Vitest) and `tenant-isolation.yml` (DB suite, RLS-disabled negative control, `TenantIsolation*IT`, retrieval isolation).
 
 ## Engineering constraints
 

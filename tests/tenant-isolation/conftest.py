@@ -1,6 +1,6 @@
 """Disposable V2 Postgres with the production roles, both Flyway chains and three seeded tenants.
 
-Same recipe as ``docker-compose.v2.yml`` and the service tests: ``pgvector/pgvector:0.8.0-pg16`` on tmpfs,
+Same recipe as ``docker-compose.yml`` and the service tests: ``pgvector/pgvector:0.8.0-pg16`` on tmpfs,
 the real ``infrastructure/db/init`` scripts (roles, extension), then ``infrastructure/db/migrations/core``
 and ``.../rag`` in order as ``sopilot_migrator``. No ``.env`` is read and no named volume is touched.
 

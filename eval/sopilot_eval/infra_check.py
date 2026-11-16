@@ -142,7 +142,7 @@ def verify() -> dict:
     env_file.write_text("", encoding="utf-8")
     compose = directory / "compose.json"
     source = yaml.safe_load(
-        (ROOT / "docker-compose.v2.yml").read_text(encoding="utf-8")
+        (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     )
     compose.write_text(
         json.dumps(disposable_config(source, project, directory)), encoding="utf-8"
@@ -219,7 +219,7 @@ def verify() -> dict:
                     "--env-file",
                     str(env_file),
                     "-f",
-                    str(ROOT / "docker-compose.v2.yml"),
+                    str(ROOT / "docker-compose.yml"),
                     "config",
                     "--format",
                     "json",

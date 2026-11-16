@@ -91,7 +91,7 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
 2. **Start the Entire V2 Stack:**
    One command builds and runs Postgres (with pgvector), Flyway migrations, MinIO object storage, `core-api` (Spring Boot), `ai-service` (FastAPI), `ai-worker`, and the `web` image:
    ```bash
-   docker compose -f docker-compose.v2.yml up -d --build
+   docker compose up -d --build
    ```
    > [!NOTE]
    > The `web` image serves the V2 screens on `http://localhost:3000` (dev sign-in; Google sign-in needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build time). The APIs are on `http://localhost:8080` (core-api) and `http://localhost:8000` (ai-service).

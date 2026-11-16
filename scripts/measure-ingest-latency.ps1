@@ -11,7 +11,7 @@
     t_suggest_ms    : rag.suggestion_jobs.timings (suggest job run time), plus llm_ms, method.
     t_suggest_wait_ms: suggestion_jobs.updated_at - core processed_at (queue wait + run time after READY).
 
-    Needs the V2 stack running (docker-compose.v2.yml) and a core-api with the dev-login profile.
+    Needs the V2 stack running (docker-compose.yml) and a core-api with the dev-login profile.
     Reads only the local database through `docker exec sopilot-v2-postgres psql`.
     Files named nb-*.md are gitignored and never used. The result is a small sample: report n with it.
 .PARAMETER CoreApiUrl

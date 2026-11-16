@@ -10,7 +10,7 @@ Rule: no fix without a confirmed cause. Write down the hypothesis, the evidence 
 ## 1. Reproduce and capture
 
 - Exact request (method, path, which workspace/role), response body and status, and `traceId` from the error envelope (`{"error":{...},"traceId"}`).
-- The state of the stack: `docker compose -f docker-compose.v2.yml ps -a` (Postgres 55432, MinIO 59000/59001). The apps run locally (`mvnw spring-boot:run -Dspring-boot.run.profiles=local`, `uv run uvicorn --app-dir src sopilot_ai.api.app:create_app --factory`, `PYTHONPATH=src uv run python -m sopilot_ai.worker`). V2-16 has not added them to compose yet.
+- The state of the stack: `docker compose ps -a` (Postgres 55432, MinIO 59000/59001). The apps run locally (`mvnw spring-boot:run -Dspring-boot.run.profiles=local`, `uv run uvicorn --app-dir src sopilot_ai.api.app:create_app --factory`, `PYTHONPATH=src uv run python -m sopilot_ai.worker`). V2-16 has not added them to compose yet.
 - `git log --oneline -15` for recent changes in the touched area.
 
 ## 2. Locate by symptom

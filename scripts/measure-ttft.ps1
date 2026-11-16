@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Measures end-to-end time to first token (TTFT) of the V2 answer API (V2-16, PRD-V2 NFR: P95 < 3 s).
 .DESCRIPTION
@@ -154,7 +154,7 @@ $result = [ordered]@{
     measured_at = (Get-Date).ToString("o")
     conditions = [ordered]@{
         hardware = "$($cpu.Name.Trim()), $($cpu.NumberOfLogicalProcessors) logical CPUs, $ram GB RAM"
-        stack = "docker-compose.v2.yml (core-api, ai-service, ai-worker local); answer LLM = SOPILOT_LLM_* endpoint"
+        stack = "docker-compose.yml (core-api, ai-service, ai-worker local); answer LLM = SOPILOT_LLM_* endpoint"
         runs = $Runs; warmup = $Warmup; questions_per_run = $pairs.Count * 2
         ttft = "client-side, POST until the first delta or refusal event"
     }

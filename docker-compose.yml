@@ -1,6 +1,6 @@
-# SOPilot V2 local infrastructure (ADR-004 §4.4, ticket V2-08).
-# Separate compose project and volumes: never touches the legacy stack in docker-compose.yml.
-#   docker compose -f docker-compose.v2.yml up -d
+# SOPilot V2 local stack (ADR-004 §4.4; tickets V2-08, V2-16; renamed from docker-compose.v2.yml in V2-17).
+# The project name stays sopilot-v2 so existing volumes (sopilot-v2_*) keep matching.
+#   docker compose up -d
 # Secrets come from .env (see the "V2" block in .env.example). Never run `down -v` on this project.
 name: sopilot-v2
 

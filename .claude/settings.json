@@ -31,10 +31,10 @@
       "Bash(pnpm build *)",
       "PowerShell(pnpm lint *)",
       "PowerShell(pnpm build *)",
-      "PowerShell(docker compose -f docker-compose.v2.yml ps *)",
-      "PowerShell(docker compose -f docker-compose.v2.yml logs *)",
-      "PowerShell(docker compose -f docker-compose.v2.yml up -d *)",
-      "PowerShell(docker compose -f docker-compose.v2.yml down)"
+      "PowerShell(docker compose ps *)",
+      "PowerShell(docker compose logs *)",
+      "PowerShell(docker compose up -d *)",
+      "PowerShell(docker compose down)"
     ],
     "deny": [
       "Read(./.env)",
@@ -78,7 +78,6 @@
       "Edit(./.claude/settings.local.json)",
       "Edit(./.claude/hooks/**)",
       "Edit(./.claude/agents/v2-reviewer.md)",
-      "Edit(./docker-compose.v2.yml)",
       "Edit(./docker-compose.yml)",
       "Edit(./.github/workflows/**)"
     ]
