@@ -48,6 +48,8 @@ sopilot:
     allow-ephemeral-nonce-key: false
     cookie-secure: true
     refresh-ttl: ${SOPILOT_REFRESH_TTL:P14D}
+    # An exchanged refresh token is accepted once more for this long while its successor is unused (0 = off).
+    refresh-grace: ${SOPILOT_REFRESH_GRACE:PT10S}
     # The only Origin accepted by /auth/refresh and /auth/logout.
     frontend-origin: ${SOPILOT_FRONTEND_ORIGIN:http://localhost:3000}
 

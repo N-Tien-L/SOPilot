@@ -46,6 +46,7 @@ class SessionWorkspaceIT extends ApiIT {
     void replayingAnExchangedTokenRevokesTheWholeChain() {
         var session = identity.loginWithSession(claims("replay"));
         Rotation next = refresh.rotate(session.refreshToken());
+        ageExchanges(session.response().user().id());
 
         Rotation replay = refresh.rotate(session.refreshToken());
 
@@ -142,6 +143,126 @@ class SessionWorkspaceIT extends ApiIT {
 
     // ---- HTTP: cookie, Origin, logout -------------------------------------------------------------
 
+    // ---- refresh grace window (V2-39) ---------------------------------------------------------------
+
+    @Test
+    void aTokenExchangedJustNowIsAcceptedOnceMoreAndLeavesOneLiveToken() {
+        var session = identity.loginWithSession(claims("grace"));
+        UUID userId = session.response().user().id();
+        Rotation first = refresh.rotate(session.refreshToken());
+
+        Rotation again = refresh.rotate(session.refreshToken());
+
+        assertThat(first.accepted()).isTrue();
+        assertThat(again.accepted()).as("second use inside the grace window").isTrue();
+        assertThat(again.refreshToken()).isNotIn(first.refreshToken(), session.refreshToken());
+        assertThat(verifier.verify(again.access().value())).isPresent();
+        assertThat(liveTokens(userId)).as("no fork: exactly one live token per family").isEqualTo(1);
+        // The grace is spent: a third use is replay, and it ends the family including the newest token.
+        assertThat(refresh.rotate(session.refreshToken()).accepted()).isFalse();
+        assertThat(refresh.rotate(again.refreshToken()).accepted()).as("family revoked").isFalse();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM core.refresh_tokens WHERE user_id = ? "
+                + "AND revoked_reason = 'REUSE_DETECTED'", Integer.class, userId)).isPositive();
+    }
+
+    @Test
+    void theGraceTokenContinuesTheChain() {
+        var session = identity.loginWithSession(claims("grace-chain"));
+        refresh.rotate(session.refreshToken());
+        Rotation again = refresh.rotate(session.refreshToken());
+
+        Rotation next = refresh.rotate(again.refreshToken());
+
+        assertThat(next.accepted()).isTrue();
+    }
+
+    @Test
+    void theSuccessorThatNeverArrivedIsDeadOnceTheGraceTokenWasIssued() {
+        var session = identity.loginWithSession(claims("grace-retired"));
+        Rotation lost = refresh.rotate(session.refreshToken());
+        refresh.rotate(session.refreshToken());
+
+        // The retired successor counts as used: presenting it is replay and revokes the family.
+        assertThat(refresh.rotate(lost.refreshToken()).accepted()).isFalse();
+        assertThat(liveTokens(session.response().user().id())).isZero();
+    }
+
+    @Test
+    void presentingTheOldTokenAfterItsSuccessorWasUsedRevokesTheFamilyEvenInsideTheWindow() {
+        var session = identity.loginWithSession(claims("grace-used"));
+        Rotation next = refresh.rotate(session.refreshToken());
+        assertThat(refresh.rotate(next.refreshToken()).accepted()).isTrue();
+
+        Rotation replay = refresh.rotate(session.refreshToken());
+
+        assertThat(replay.accepted()).isFalse();
+        assertThat(liveTokens(session.response().user().id())).isZero();
+    }
+
+    @Test
+    void aTokenExchangedLongerAgoThanTheWindowIsReplay() {
+        var session = identity.loginWithSession(claims("grace-late"));
+        Rotation next = refresh.rotate(session.refreshToken());
+        ageExchanges(session.response().user().id());
+
+        assertThat(refresh.rotate(session.refreshToken()).accepted()).isFalse();
+        assertThat(refresh.rotate(next.refreshToken()).accepted()).as("family revoked").isFalse();
+    }
+
+    @Test
+    void twoHttpRefreshesWithTheSameCookieBothGetAUsableSession() {
+        var session = devLogin("grace-http");
+
+        ResponseEntity<JsonNode> first = cookiePost("/api/v1/auth/refresh", session.cookie, ORIGIN, null);
+        ResponseEntity<JsonNode> second = cookiePost("/api/v1/auth/refresh", session.cookie, ORIGIN, null);
+
+        assertThat(first.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(second.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(second.getBody().path("data").path("accessToken").asText()).isNotBlank();
+        assertThat(refreshCookie(second)).isNotEqualTo(refreshCookie(first));
+        // The cookie of the second response is the one the browser keeps, and it works.
+        assertThat(cookiePost("/api/v1/auth/refresh", refreshCookie(second), ORIGIN, null).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void theGraceDoesNotSkipTheMembershipChecks() {
+        Actor owner = newTeamWorkspace("grace-owner");
+        Actor member = addMember(owner.workspaceId(), "MEMBER", "grace-member");
+        String token = startChain(member);
+        assertThat(refresh.rotate(token).accepted()).isTrue();
+        migrator("UPDATE core.memberships SET status = 'SUSPENDED', suspended_at = now() WHERE user_id = ? "
+                + "AND workspace_id = ?", member.userId(), member.workspaceId());
+
+        Rotation suspended = refresh.rotate(token);
+
+        assertThat(suspended.status()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(suspended.code()).isEqualTo("MEMBERSHIP_SUSPENDED");
+        assertThat(liveTokens(member.userId())).isZero();
+
+        Actor other = addMember(owner.workspaceId(), "MEMBER", "grace-lost");
+        String lostToken = startChain(other);
+        assertThat(refresh.rotate(lostToken).accepted()).isTrue();
+        migrator("DELETE FROM core.memberships WHERE user_id = ? AND workspace_id = ?",
+                other.userId(), other.workspaceId());
+
+        Rotation lost = refresh.rotate(lostToken);
+
+        assertThat(lost.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(lost.code()).isEqualTo("MEMBERSHIP_LOST");
+    }
+
+    /** Moves every exchange into the past, beyond the grace window. */
+    private static void ageExchanges(UUID userId) {
+        migrator("UPDATE core.refresh_tokens SET used_at = now() - interval '1 hour' WHERE user_id = ? "
+                + "AND used_at IS NOT NULL", userId);
+    }
+
+    private int liveTokens(UUID userId) {
+        return jdbc.queryForObject("SELECT count(*) FROM core.refresh_tokens WHERE user_id = ? AND used_at IS NULL "
+                + "AND revoked_at IS NULL", Integer.class, userId);
+    }
+
     @Test
     void refreshOverHttpRequiresTheFrontendOriginAndRotatesTheCookie() {
         var session = devLogin("http-refresh");
@@ -161,7 +282,8 @@ class SessionWorkspaceIT extends ApiIT {
         assertThat(ok.getHeaders().getFirst(HttpHeaders.SET_COOKIE)).contains("HttpOnly").contains("SameSite=Strict")
                 .contains("Path=/api/v1/auth");
 
-        // Replaying the old cookie is rejected and clears the cookie.
+        // Replaying the old cookie after the grace window is rejected and clears the cookie.
+        ageExchanges(session.userId);
         ResponseEntity<JsonNode> replay = cookiePost("/api/v1/auth/refresh", cookie, ORIGIN, null);
         assertThat(replay.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(replay.getHeaders().getFirst(HttpHeaders.SET_COOKIE)).contains("Max-Age=0");
