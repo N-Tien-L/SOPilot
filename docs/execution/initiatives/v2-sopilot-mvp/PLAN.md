@@ -255,7 +255,7 @@ flowchart TD
 | `V2-10` | ai-service: 2-LLM-call Q&A pipeline, SSE, citations, refusal | ai-qa | L | `V2-02`, `V2-09`, `V2-34` | done |
 | `V2-27` | ai-service: semantic router (rules + embedding) measured against rules only | ai-qa | L | `V2-05`, `V2-10` | done |
 | `V2-35` | Infra + ai-service: bge-reranker-v2-m3 rerank on GPU, sharing the A10 container with vLLM | infra | L | `V2-09`, `V2-34` | done |
-| `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | todo |
+| `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | in_progress |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
 | Ticket | Title | Scope | Size | Depends on | Status |
