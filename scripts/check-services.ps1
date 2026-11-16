@@ -1,24 +1,30 @@
 #!/usr/bin/env pwsh
-# Description: Checks health of all SOPilot services and infrastructure
+# Description: Checks the health of the SOPilot V2 stack (core-api, ai-service, ai-worker, web,
+# Postgres, MinIO). Ports follow the V2_*_PORT variables when set, as in the compose file.
+# Exits 1 if any check is red.
+
+param(
+    # Compose project of the stack to check (the compose file sets name: sopilot-v2).
+    [string]$Project = "sopilot-v2"
+)
+
+function Port($name, [int]$default) {
+    $value = [Environment]::GetEnvironmentVariable($name)
+    if ($value) { return [int]$value } else { return $default }
+}
 
 $services = @(
-    @{ Name = "auth-service"; Port = 8081; Path = "/actuator/health"; Type = "Spring Boot" },
-    @{ Name = "user-service"; Port = 8082; Path = "/actuator/health"; Type = "Spring Boot" },
-    @{ Name = "knowledge-service"; Port = 8083; Path = "/actuator/health"; Type = "Spring Boot" },
-    @{ Name = "metadata-service"; Port = 8084; Path = "/actuator/health"; Type = "Spring Boot" },
-    @{ Name = "feedback-service"; Port = 8085; Path = "/actuator/health"; Type = "Spring Boot" },
-    @{ Name = "ai-qa-service"; Port = 8086; Path = "/health"; Type = "Python FastAPI" },
-    @{ Name = "ingestion-service"; Port = 8088; Path = "/health"; Type = "Python FastAPI" },
-    @{ Name = "api-gateway"; Port = 3001; Path = "/health"; Type = "NestJS" },
-    @{ Name = "frontend/web"; Port = 3000; Path = "/"; Type = "Next.js" }
+    @{ Name = "core-api"; Port = (Port "V2_CORE_API_PORT" 8080); Path = "/actuator/health" },
+    @{ Name = "ai-service"; Port = (Port "V2_AI_SERVICE_PORT" 8000); Path = "/health" },
+    @{ Name = "web"; Port = (Port "V2_WEB_PORT" 3000); Path = "/" }
 )
 
 $infrastructure = @(
-    @{ Name = "PostgreSQL"; Port = 5432 },
-    @{ Name = "RabbitMQ"; Port = 15672 },
-    @{ Name = "Redis"; Port = 6379 },
-    @{ Name = "MinIO"; Port = 9000 }
+    @{ Name = "PostgreSQL"; Port = (Port "V2_POSTGRES_PORT" 55432) },
+    @{ Name = "MinIO"; Port = (Port "V2_MINIO_API_PORT" 59000) }
 )
+
+$red = 0
 
 function Test-TcpConnection {
     param([int]$Port)
@@ -32,41 +38,59 @@ function Test-TcpConnection {
     }
 }
 
-Write-Host "Checking SOPilot Services Health..." -ForegroundColor Cyan
+Write-Host "Checking SOPilot V2 services..." -ForegroundColor Cyan
 Write-Host "====================================" -ForegroundColor Cyan
 
 foreach ($svc in $services) {
     $url = "http://localhost:$($svc.Port)$($svc.Path)"
     try {
-        $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
         if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
-            Write-Host "[GREEN] $($svc.Name) ($($svc.Type)) is healthy on port $($svc.Port)" -ForegroundColor Green
+            Write-Host "[GREEN] $($svc.Name) is healthy on port $($svc.Port)" -ForegroundColor Green
         } else {
-            Write-Host "[RED] $($svc.Name) ($($svc.Type)) returned status $($response.StatusCode) on port $($svc.Port)" -ForegroundColor Red
+            Write-Host "[RED] $($svc.Name) returned status $($response.StatusCode) on port $($svc.Port)" -ForegroundColor Red
+            $red++
         }
     } catch {
-        Write-Host "[RED] $($svc.Name) ($($svc.Type)) is UNREACHABLE on port $($svc.Port)" -ForegroundColor Red
+        Write-Host "[RED] $($svc.Name) is UNREACHABLE on port $($svc.Port)" -ForegroundColor Red
+        $red++
     }
 }
 
+# ai-worker has no HTTP port: check its container when the stack runs in compose.
+$worker = $null
+try {
+    $worker = docker ps --filter "label=com.docker.compose.project=$Project" `
+        --filter "label=com.docker.compose.service=ai-worker" --format "{{.Status}}" 2>$null
+} catch {
+    $worker = $null
+}
+if ($worker -match "^Up") {
+    Write-Host "[GREEN] ai-worker container is running ($worker)" -ForegroundColor Green
+} elseif ($worker) {
+    Write-Host "[RED] ai-worker container is not up ($worker)" -ForegroundColor Red
+    $red++
+} else {
+    Write-Host "[YELLOW] ai-worker not checked: no '$Project' ai-worker container (run from source, or another project name)" -ForegroundColor Yellow
+}
+
 Write-Host ""
-Write-Host "Checking Infrastructure Health..." -ForegroundColor Cyan
+Write-Host "Checking infrastructure..." -ForegroundColor Cyan
 Write-Host "====================================" -ForegroundColor Cyan
 
 foreach ($infra in $infrastructure) {
-    $isUp = Test-TcpConnection -Port $infra.Port
-    if ($isUp) {
+    if (Test-TcpConnection -Port $infra.Port) {
         Write-Host "[GREEN] $($infra.Name) is accessible on port $($infra.Port)" -ForegroundColor Green
     } else {
         Write-Host "[RED] $($infra.Name) is UNREACHABLE on port $($infra.Port)" -ForegroundColor Red
+        $red++
     }
 }
 
 Write-Host ""
-Write-Host "Docker Container Status (docker ps)..." -ForegroundColor Cyan
-Write-Host "====================================" -ForegroundColor Cyan
-try {
-    docker ps --format "table {{.Names}}`t{{.Status}}`t{{.Ports}}"
-} catch {
-    Write-Host "[YELLOW] Docker daemon not running or not accessible." -ForegroundColor Yellow
+if ($red -gt 0) {
+    Write-Host "$red check(s) red." -ForegroundColor Red
+    exit 1
 }
+Write-Host "All checks green." -ForegroundColor Green
+exit 0

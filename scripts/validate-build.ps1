@@ -1,5 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
+    [ValidateSet("core", "ai", "web")]
     [string]$Scope
 )
 
@@ -11,54 +12,29 @@ if (-not $repoRoot -or -not (Test-Path $repoRoot)) {
 }
 Set-Location $repoRoot
 
-$springBootScopes = @("auth", "user", "knowledge", "metadata", "feedback")
-$pythonScopes = @("ai-qa", "ingestion", "ai")
-
-if ($springBootScopes -contains $Scope) {
-    Write-Host "Validating Spring Boot service: $Scope"
-    $serviceDir = "services\$Scope-service"
-    if (Test-Path $serviceDir) {
+switch ($Scope) {
+    "core" {
+        Write-Host "Validating Spring Boot service: core-api"
+        $serviceDir = "services\core-api"
+        if (-not (Test-Path $serviceDir)) { throw "Directory $serviceDir not found." }
         Set-Location $serviceDir
         .\mvnw compile -q
         if ($LASTEXITCODE -ne 0) { throw "Maven compilation failed." }
-    } else { throw "Directory $serviceDir not found." }
-}
-elseif ($Scope -eq "core") {
-    # V2 core-api (Spring Boot, Java 21). Directory is services\core-api, not core-service.
-    Write-Host "Validating Spring Boot service: core-api"
-    $serviceDir = "services\core-api"
-    if (Test-Path $serviceDir) {
+    }
+    "ai" {
+        Write-Host "Validating Python service: ai-service"
+        $serviceDir = "services\ai-service"
+        if (-not (Test-Path $serviceDir)) { throw "Directory $serviceDir not found." }
         Set-Location $serviceDir
-        .\mvnw compile -q
-        if ($LASTEXITCODE -ne 0) { throw "Maven compilation failed." }
-    } else { throw "Directory $serviceDir not found." }
-}
-elseif ($pythonScopes -contains $Scope) {
-    Write-Host "Validating Python service: $Scope"
-    $serviceDir = "services\$Scope-service"
-    if (Test-Path $serviceDir) {
-        Set-Location $serviceDir
-        python -m compileall src
+        python -m compileall -q src
         if ($LASTEXITCODE -ne 0) { throw "Python compilation failed." }
         uv run ruff check
         if ($LASTEXITCODE -ne 0) { throw "Ruff linting failed." }
-    } else { throw "Directory $serviceDir not found." }
-}
-elseif ($Scope -eq "gateway") {
-    Write-Host "Validating NestJS API Gateway"
-    $serviceDir = "services\api-gateway"
-    if (Test-Path $serviceDir) {
-        Set-Location $serviceDir
-        pnpm build
-        if ($LASTEXITCODE -ne 0) { throw "NestJS build failed." }
-        pnpm exec eslint "{src,apps,libs,test}/**/*.ts"
-        if ($LASTEXITCODE -ne 0) { throw "NestJS linting failed." }
-    } else { throw "Directory $serviceDir not found." }
-}
-elseif ($Scope -eq "web") {
-    Write-Host "Validating Next.js Frontend"
-    $serviceDir = "frontend\web"
-    if (Test-Path $serviceDir) {
+    }
+    "web" {
+        Write-Host "Validating Next.js frontend"
+        $serviceDir = "frontend\web"
+        if (-not (Test-Path $serviceDir)) { throw "Directory $serviceDir not found." }
         Set-Location $serviceDir
         pnpm build
         if ($LASTEXITCODE -ne 0) { throw "Next.js build failed." }
@@ -66,11 +42,7 @@ elseif ($Scope -eq "web") {
         if ($LASTEXITCODE -ne 0) { throw "Next.js linting failed." }
         pnpm test
         if ($LASTEXITCODE -ne 0) { throw "Next.js tests failed." }
-    } else { throw "Directory $serviceDir not found." }
-}
-else {
-    Write-Host "Unknown scope: $Scope"
-    exit 1
+    }
 }
 
 Write-Host "Validation successful for scope $Scope."

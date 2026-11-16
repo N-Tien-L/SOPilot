@@ -80,16 +80,7 @@
       "Edit(./.claude/agents/v2-reviewer.md)",
       "Edit(./docker-compose.v2.yml)",
       "Edit(./docker-compose.yml)",
-      "Edit(./.github/workflows/**)",
-      "Edit(./services/auth-service/**)",
-      "Edit(./services/user-service/**)",
-      "Edit(./services/knowledge-service/**)",
-      "Edit(./services/metadata-service/**)",
-      "Edit(./services/feedback-service/**)",
-      "Edit(./services/ai-qa-service/**)",
-      "Edit(./services/ingestion-service/**)",
-      "Edit(./services/api-gateway/**)",
-      "Edit(./infrastructure/init-db/**)"
+      "Edit(./.github/workflows/**)"
     ]
   },
   "hooks": {

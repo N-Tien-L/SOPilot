@@ -16,7 +16,7 @@ refs:
 
 # SOPilot V2 system overview
 
-> **Implementation status:** core-api, ai-service, both schemas and the eval harness exist; the frontend is still V1-wired until V2-15; apps run from source (`docker-compose.v2.yml` runs only infrastructure until V2-16). The frozen V1 stack (eight services, gateway, RabbitMQ, Redis, `infrastructure/init-db/`) is described in [archive/v1-context](../archive/v1-context/architecture/system-overview.md) and removed by V2-17.
+> **Implementation status:** core-api, ai-service, both schemas, the eval harness and the V2 web app exist; `docker-compose.v2.yml` runs the infrastructure and can also run the four apps (V2-16), while day-to-day work runs the apps from source. The V1 stack (eight services, gateway, RabbitMQ, Redis, `infrastructure/init-db/`) was removed in V2-17; it is preserved at git tag `v1-final` and described in [archive/v1-context](../archive/v1-context/architecture/system-overview.md).
 
 ## 1. Components and ownership
 

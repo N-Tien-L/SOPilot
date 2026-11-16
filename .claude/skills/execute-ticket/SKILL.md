@@ -47,7 +47,7 @@ Use skill `testing` for writing tests and triaging failures.
 
 ## 6. Self-review
 
-- `git diff`: scope creep, debug output, secrets, TODO without a ticket id, edits to V1 paths.
+- `git diff`: scope creep, debug output, secrets, TODO without a ticket id.
 - For non-trivial diffs, spawn a **fresh** `v2-reviewer` (new agent each time, never resumed) with `model: "opus"`. Give it only: the ticket path, the diff scope (`git diff <base>..HEAD` plus untracked files), the rules to check, and "form your own judgment; do not assume the implementer is right". Do not paste your own conclusions. Ask it to state its model id first and tell the owner if it is not the latest Opus.
 - Fix every BLOCKER and WARNING you accept. If there was a BLOCKER, run a second fresh reviewer on the new diff. At most two rounds; list anything left open in the report. The reviewer cannot run `uv` scripts, so run `./scripts/docs/check-docs.ps1` and the plan check yourself.
 

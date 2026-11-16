@@ -35,7 +35,7 @@ affected_schemas: [core]
 
 ## 0. Scope and conventions
 
-- core-api is a Spring Boot 3.x, Java 21 (PRD §8.1) service, written from scratch in `services/core-api`. The old code (`auth-service`, `user-service`, `knowledge-service`, `metadata-service`, `feedback-service`) is only a reference to port from selectively (ADR-004 §4.5).
+- core-api is a Spring Boot 3.x, Java 21 (PRD §8.1) service, written from scratch in `services/core-api`. The old code (`auth-service`, `user-service`, `knowledge-service`, `metadata-service`, `feedback-service`, removed in V2-17 and preserved at tag `v1-final`) was only a reference to port from selectively (ADR-004 §4.5).
 - core-api is the sole owner of schema `core` and the only service that writes `core.users` (fix A7).
 - Every business table has `workspace_id` and enables RLS (ADR-005, ADR-007). The global tables (`users`, `external_identities`) have no `workspace_id` and no RLS.
 - There is no gateway, RabbitMQ or Redis (ADR-004). Asynchronous work goes through a Postgres outbox.
@@ -105,7 +105,7 @@ services/core-api/src/main/java/com/sopilot/core/
 └── audit/         # AuditLog, AuditService
 ```
 
-The new Java package is `com.sopilot.core`. New code does not reuse `com.poliwise.*`; the old code keeps its package names until it is removed (V2-17).
+The new Java package is `com.sopilot.core`. New code does not reuse `com.poliwise.*`; the old packages were removed with V1 in V2-17 (tag `v1-final`).
 
 ---
 
@@ -214,7 +214,7 @@ CREATE TABLE core.users (
 );
 -- email is not unique: identity is (issuer, subject); email is only an attribute (ADR-005 §4.1).
 
-CREATE TABLE core.external_identities (          -- ported from init-db/012_google_identities.sql
+CREATE TABLE core.external_identities (          -- ported from init-db/012_google_identities.sql (tag v1-final)
     id            uuid PRIMARY KEY,
     user_id       uuid NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
     issuer        text NOT NULL CHECK (length(trim(issuer)) > 0),

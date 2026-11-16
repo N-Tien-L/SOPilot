@@ -8,8 +8,8 @@ It is a personal project, built to learn and demonstrate backend engineering: se
 
 ## Current status
 
-- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Per the [PLAN](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md) (37 tickets: 25 `done`, 5 `review`, the rest `todo`): specifications ([PRD](docs/product/prd-v2-sopilot-mvp.md), [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md) and others), a retrieval-evaluation harness, local database/storage infrastructure, and both services (core-api identity, workspaces, departments, documents and outbox; ai-service ingestion, extraction, chunking, retrieval and the question-answering pipeline). Not yet built: the V2 frontend (V2-15 is `todo`; the web image is still wired to V1). Nothing here has been verified end to end by a reviewer. Ticket counts are not a completion measure; status per capability is in [implementation evidence](docs/portfolio/implementation-evidence.md).
-- **V1 (frozen):** eight services, from a course project built with a classmate. I audited it and found problems on its question-answering path (below); those findings drive V2.
+- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Per the [PLAN](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md) (37 tickets: 25 `done`, 5 `review`, the rest `todo`): specifications ([PRD](docs/product/prd-v2-sopilot-mvp.md), [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md) and others), a retrieval-evaluation harness, local database/storage infrastructure, and both services (core-api identity, workspaces, departments, documents and outbox; ai-service ingestion, extraction, chunking, retrieval and the question-answering pipeline). The V2 web app (sign-in, chat with citations, documents, members, knowledge gaps) is built; the V2-17 parity record ([TEST-REPORT-001](docs/quality/test-reports/parity-v2-17-2026-11-16.md)) checks every use case and P0 requirement against tests and a throwaway stack. Nothing here has been verified end to end by an outside reviewer. Ticket counts are not a completion measure; status per capability is in [implementation evidence](docs/portfolio/implementation-evidence.md).
+- **V1 (removed in V2-17, kept at tag [`v1-final`](https://github.com/N-Tien-L/SOPilot/tree/v1-final)):** eight services, from a course project built with a classmate. I audited it and found problems on its question-answering path (below); those findings drove V2.
 - **Source is public** at [N-Tien-L/SOPilot](https://github.com/N-Tien-L/SOPilot). There is no live demo or screenshot set.
 - No evidence of real users, deployment or measured performance exists.
 
@@ -27,25 +27,28 @@ I own V2 and am building it alone. In V1 I wrote the AI module (full RAG path), 
 
 These are design goals; [implementation evidence](docs/portfolio/implementation-evidence.md) shows what exists.
 
-## Current architecture (V1, frozen; V2 is in the case study)
+## Architecture (V2)
 
 ```mermaid
 flowchart LR
-    W["Next.js web app<br/>(not inspected)"] --> G["API gateway<br/>NestJS: JWT, role guards"]
-    G --> K["knowledge-service<br/>upload, versions"]
-    G --> A["ai-qa-service<br/>query pipeline"]
-    G --> O["auth, user, metadata,<br/>feedback services"]
-    K --> S[("MinIO")]
-    K -- "ingestion.requested" --> Q{{"RabbitMQ"}}
-    Q --> I["ingestion-service<br/>dedupe, chunk, embed"]
-    I --> S
-    I --> P[("PostgreSQL + pgvector")]
+    B["Browser"] --> W["web (Next.js)<br/>same-origin proxy"]
+    W -- "/api/v1" --> C["core-api<br/>identity, workspaces, documents"]
+    W -- "/ai/v1" --> A["ai-service<br/>retrieval, answers"]
+    C -- "outbox" --> A
+    A -- "/internal callbacks" --> C
+    C --> P[("Postgres + pgvector<br/>schemas core, rag (RLS)")]
     A --> P
-    A -.-> R["reranker<br/>coded, not wired"]
-    A -.-> B["build_sources<br/>import not resolved"]
+    C --> S[("MinIO")]
+    K["ai-worker<br/>ingest, embed"] --> P
+    K --> S
+    A -.-> M["answer model<br/>vLLM on Modal"]
 ```
 
-The edges show only the paths covered in the case study; the other services own their schemas but were not traced in detail. Redis is part of the stack and is not drawn.
+Details: [system overview](docs/architecture/system-overview.md) and [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md).
+
+### History: V1
+
+V1 had eight services behind a NestJS API gateway, with RabbitMQ between upload and ingestion and Redis. It was removed in ticket V2-17 and is preserved at git tag [`v1-final`](https://github.com/N-Tien-L/SOPilot/tree/v1-final). The audit of its question-answering path is the motivation for V2; the findings are in the [engineering case study](docs/portfolio/engineering-case-study.md) and summarised under "Known limitations" below.
 
 ## Engineering highlights
 
@@ -90,8 +93,8 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
    ```bash
    docker compose -f docker-compose.v2.yml up -d --build
    ```
-   > [!WARNING]
-   > The `web` image is still wired to the V1 gateway (`api-gateway:3001`, Bearer token in `localStorage`) until ticket V2-15. Use the API on `http://localhost:8080` and `http://localhost:8000` for the V2 demo, not the web UI.
+   > [!NOTE]
+   > The `web` image serves the V2 screens on `http://localhost:3000` (dev sign-in; Google sign-in needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build time). The APIs are on `http://localhost:8080` (core-api) and `http://localhost:8000` (ai-service).
    >
    > The embedding model `BAAI/bge-m3` is downloaded from Hugging Face on the first ingest and cached in the container; the first upload is slow and needs network access.
 3. **Seed Demo Data:**
@@ -119,14 +122,11 @@ Each highlight pairs the V1 finding with the proposed V2 design. For the V2 cons
 ### Evaluation Harness & Development
 
 - **Evaluation harness:** `cd eval && uv sync --extra dev && uv run pytest -q`, per [eval/README.md](eval/README.md).
-- **V1 legacy stack (frozen):** `docker compose up -d --build` (runs legacy 8 services, ports 3000/3001).
 - Build, lint and test commands per service are in [CLAUDE.md](CLAUDE.md); running the stack from source: [local development](docs/operations/local-development.md).
 
 ## Known limitations and next steps
 
-- V1 answer generation path: `pipeline_orchestrator.py` imports a `build_sources` function I could not find; the reranker is not connected; document/category filters appear unreachable from the chat request. Runtime behavior is unconfirmed.
-- Document access rules are copied onto chunks at ingestion; no update path was found when visibility changes.
-- Configuration drift (bucket names, exchange names, a retired-model list) is recorded in [the V1-frozen rule](.claude/rules/v1-frozen.md#known-v1-drift-found-2026-10-1617-not-fixed-port-carefully). V1 is frozen, so these items are documented and not fixed.
+- V1 audit findings (history, at tag `v1-final`): its answer path imported a `build_sources` function I could not find, the reranker was not connected, document/category filters looked unreachable from the chat request, and document access rules were copied onto chunks with no update path when visibility changed. V2 rebuilt these parts instead of fixing them. The configuration drift found in V1 (bucket names, exchange names, a retired-model list) is listed in the [V1-frozen rule at `v1-final`](https://github.com/N-Tien-L/SOPilot/blob/v1-final/.claude/rules/v1-frozen.md).
 - No official retrieval results exist; the evaluation datasets are drafts.
 - Next: first official retrieval results (BM25 vs dense vs hybrid on a reviewed dataset), then the two V2 services ([PLAN-V2](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md)).
 

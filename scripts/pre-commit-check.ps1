@@ -88,8 +88,13 @@ if ($AffectedServices.Count -eq 0) {
             $ScriptPath = Join-Path $repoRoot "scripts\run-tests.ps1"
         }
 
+        if ($Service -notin @("core-api", "ai-service", "frontend")) {
+            Write-Host "❌ services/$Service is not a V2 service; run-tests.ps1 has no scope for it" -ForegroundColor Red
+            $FailedChecks++
+            continue
+        }
         if ($Service -eq "frontend") {
-            # The frontend has no test script yet (run-tests.ps1 would always fail): build + lint instead.
+            # validate-build.ps1 -Scope web runs pnpm build, lint and the Vitest suite (pnpm test).
             $global:LASTEXITCODE = 0
             try {
                 & (Join-Path $PSScriptRoot "validate-build.ps1") -Scope "web"

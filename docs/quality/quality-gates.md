@@ -28,7 +28,7 @@ Run the narrowest check first, then the suite of the touched scope.
 
 1. Lists the changed files.
 2. Scans added lines (outside `scripts/`, `docs/` and `*.md`) for debug output (`console.log`, `System.out.println`, `print(`), hard-coded secrets, committed `.env` files, and `TODO`/`FIXME` without a ticket-style id.
-3. For every touched `services/<name>/` and for `frontend/web/`, calls `run-tests.ps1` with the default `-Type all`. For `core-api` that is `mvnw verify`, so **Docker is needed** when core-api changed. For `ai-service` it runs all of `tests/`, integration included; without Docker those tests skip and the step still passes. Any touched frozen V1 service is tested too. For `frontend` the call errors because there is no `test` script (see the note below).
+3. For every touched `services/<name>/` and for `frontend/web/`, calls `run-tests.ps1` with the default `-Type all`. For `core-api` that is `mvnw verify`, so **Docker is needed** when core-api changed. For `ai-service` it runs all of `tests/`, integration included; without Docker those tests skip and the step still passes. A touched `services/<name>/` that is not a V2 service fails the step. For `frontend/web/` it runs `validate-build.ps1 -Scope web` (`pnpm build`, `pnpm lint`, `pnpm test`).
 4. Validates `docker-compose.v2.yml` with `docker compose config` against `.env.example` (never `.env`); the frozen V1 `docker-compose.yml` only if the change touched it.
 5. Runs `check-migrations.ps1`.
 6. Runs the docs check (`scripts/docs/check-docs.ps1`, strict mode).
@@ -36,15 +36,13 @@ Run the narrowest check first, then the suite of the touched scope.
 
 It does **not** run `ruff` or `validate-build.ps1`, the eval harness, the tenant-isolation suite or the browser checks.
 
-Note on step 3 for the frontend: `run-tests.ps1 -Scope frontend` raises an error when `package.json` has no `test` script, so a frontend change does not get through this step today. Run `validate-build.ps1 -Scope web` separately and record that the pre-commit step could not pass.
-
 ## 3. Continuous integration
 
 `ci.yml` runs on pull requests and pushes to `main`/`develop`; `tenant-isolation.yml` runs on every pull request and on pushes to `main`/`develop`.
 
 | Workflow | Jobs that gate V2 |
 |---|---|
-| `ci.yml` | `secret-scan`, `migrations`, `docs`, `core-api-unit`, `ai-service-unit`; the frozen V1 jobs `backend-java`, `backend-python`, `frontend-and-gateway` (V1 until V2-17) |
+| `ci.yml` | `secret-scan`, `migrations`, `docs`, `guard-selftest`, `core-api-unit`, `ai-service-unit`, `frontend` (`pnpm install --frozen-lockfile`, build, lint, Vitest) |
 | `tenant-isolation.yml` | `database`, `negative-control`, `core-api`, `ai-service`, `department-authorization` |
 
 CI proves unit-level behaviour and the isolation claims (FR-19, FR-29). The `docs` job runs `./scripts/docs/check-docs.ps1` under `pwsh` (errors fail, warnings do not), then `eval/sopilot_eval/plan_check.py` (PLAN table, Mermaid DAG, handover closure); the check-docs step first passed on GitHub on PR #14, which is the evidence that the checker works under pwsh 7 on Linux. CI does not run the full core-api IT set, the full ai-service integration set, the eval harness, a browser, or any live provider. See the table in [testing strategy](testing-strategy.md#what-runs-where).

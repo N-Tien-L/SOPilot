@@ -40,7 +40,7 @@ affected_schemas: [rag]
 
 ## 0. Scope and conventions
 
-- ai-service is a FastAPI, Python ≥ 3.11 service, written from scratch in `services/ai-service`. It replaces `ai-qa-service` and `ingestion-service` (removed in V2-17). The old code is only a reference.
+- ai-service is a FastAPI, Python ≥ 3.11 service, written from scratch in `services/ai-service`. It replaces `ai-qa-service` and `ingestion-service` (removed in V2-17, preserved at tag `v1-final`). The old code was only a reference.
 - ai-service is the sole owner of schema `rag` and does not read schema `core` (ADR-004 §4.3). Everything about documents and access arrives through jobs and `rag.document_access`.
 - Each question calls the generation LLM **at most once**; rewriting the question (only when there is history) is the second and only other call. The guard runs on rules; routing uses rules and then an embedding-based semantic router, with no LLM call (PRD FR-13, ADR-006 §4.4).
 - Every model goes through a provider interface and is declared in **one** file, `config/models.yaml`; no model id is hard-coded (ADR-006 §4.1).
