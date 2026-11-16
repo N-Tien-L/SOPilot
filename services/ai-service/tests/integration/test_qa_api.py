@@ -37,6 +37,7 @@ from sopilot_ai.api.app import create_app
 from sopilot_ai.auth.jwt import TokenVerifier
 from sopilot_ai.config import Settings
 from sopilot_ai.conversations.service import QAService
+from sopilot_ai.providers.llm import Thought
 from sopilot_ai.providers.registry import RetrievalConfig
 from sopilot_ai.qa import templates
 from sopilot_ai.quota.counters import QuotaCounter
@@ -170,6 +171,27 @@ async def test_answerable_question_streams_a_cited_answer_and_stores_the_turn(
     assert in_context[0] >= 1 and in_context[1] >= in_context[0]
     title = sql(database, "SELECT title FROM rag.conversations WHERE id = %s", conv)[0][0]
     assert title == QUESTION
+
+
+async def test_the_models_reasoning_goes_out_as_reasoning_never_as_answer_text(
+        harness: Harness, database, corpus: Corpus) -> None:  # noqa: ANN001
+    # What the provider yields for a thinking model: reasoning pieces marked Thought, then text.
+    harness.generate._answer = (Thought("Rules: use only the sources. "),
+                                Thought("Source 1 says two days."),
+                                "Trưởng phòng duyệt trong hai ngày làm việc [1].")
+    _, events = await harness.ask(corpus.principal(), QUESTION, lang="vi")
+    reasoning = "".join(d["text"] for n, d in events if n == "reasoning")
+    answer = "".join(d["text"] for n, d in events if n == "delta")
+    assert reasoning == "Rules: use only the sources. Source 1 says two days."
+    assert names(events).count("reasoning_done") == 1
+    assert names(events).index("reasoning_done") < names(events).index("delta")
+    assert "Rules" not in answer and "Source 1 says" not in answer
+    done = data(events, "done")
+    assert done["outcome"] == "ANSWERED"
+    assert done["finalText"] == "Trưởng phòng duyệt trong hai ngày làm việc [1]."
+    stored = sql(database, "SELECT content FROM rag.messages WHERE id = %s",
+                 UUID(data(events, "meta")["messageId"]))[0][0]
+    assert "Rules" not in stored
 
 
 async def test_invalid_citation_markers_are_removed_from_the_final_text(
