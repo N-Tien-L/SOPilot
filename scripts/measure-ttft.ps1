@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Measures end-to-end time to first token (TTFT) of the V2 answer API (V2-16, PRD-V2 NFR: P95 < 3 s).
 .DESCRIPTION
