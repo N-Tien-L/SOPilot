@@ -3,8 +3,11 @@
 
 import { aiRequest, coreRequest, coreRequestPage } from './http';
 import type {
+  AuditEntry,
   CategoryView,
   ConversationDetail,
+  CreatedInvitation,
+  DepartmentView,
   ConversationSummary,
   DocumentContent,
   DocumentStatus,
@@ -15,6 +18,10 @@ import type {
   LoginResponse,
   MemberView,
   MyMemberView,
+  OwnershipResponse,
+  PublishersOverview,
+  TagView,
+  VisibilityResponse,
   WorkspaceDetail,
   WorkspaceView,
 } from './types';
@@ -30,10 +37,83 @@ export const createWorkspace = (name: string) =>
   coreRequest<LoginResponse>('/workspaces', { method: 'POST', body: { name } });
 export const leaveWorkspace = () => coreRequest<void>('/members/leave', { method: 'POST' });
 
-// ---- members and invitations (read-only here; editing is V2-33) ----
+// ---- members and invitations (V2-33) ----
 export const listMembers = () => coreRequest<MemberView[]>('/members');
 export const getMyMember = () => coreRequest<MyMemberView>('/members/me');
 export const listInvitations = () => coreRequest<InvitationView[]>('/invitations');
+
+/** Patchable keys: displayName, employeeCode, jobTitle, departmentId, role. `null` clears a field. */
+export interface MemberPatch {
+  displayName?: string | null;
+  employeeCode?: string | null;
+  jobTitle?: string | null;
+  departmentId?: string | null;
+  role?: string;
+}
+const member = (userId: string) => `/members/${encodeURIComponent(userId)}`;
+export const updateMember = (userId: string, patch: MemberPatch) =>
+  coreRequest<MemberView>(member(userId), { method: 'PATCH', body: patch });
+export const suspendMember = (userId: string) => coreRequest<void>(`${member(userId)}/suspend`, { method: 'POST' });
+export const reactivateMember = (userId: string) =>
+  coreRequest<void>(`${member(userId)}/reactivate`, { method: 'POST' });
+export const removeMember = (userId: string) => coreRequest<void>(member(userId), { method: 'DELETE' });
+
+export interface InvitationInput {
+  email: string;
+  role: string;
+  displayName?: string;
+  employeeCode?: string;
+  jobTitle?: string;
+  departmentId?: string;
+}
+export const createInvitation = (input: InvitationInput) =>
+  coreRequest<CreatedInvitation>('/invitations', { method: 'POST', body: input });
+export const revokeInvitation = (id: string) =>
+  coreRequest<void>(`/invitations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+/** Exactly one of the two: the secret token from the link, or the id of a pending invitation for this account. */
+export const acceptInvitation = (input: { invitationToken: string } | { invitationId: string }) =>
+  coreRequest<LoginResponse>('/invitations/accept', { method: 'POST', body: input });
+
+// ---- departments, categories, tags (flat lists) ----
+export const listDepartments = (includeArchived = false) =>
+  coreRequest<DepartmentView[]>('/departments', { query: { includeArchived } });
+export const createDepartment = (name: string) =>
+  coreRequest<DepartmentView>('/departments', { method: 'POST', body: { name } });
+export const updateDepartment = (id: string, patch: { name?: string; status?: 'ACTIVE' | 'ARCHIVED' }) =>
+  coreRequest<DepartmentView>(`/departments/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch });
+/** `409` while members, invitations or documents still reference it: archive instead. */
+export const deleteDepartment = (id: string) =>
+  coreRequest<void>(`/departments/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+export const createCategory = (name: string) =>
+  coreRequest<CategoryView>('/categories', { method: 'POST', body: { name } });
+export const updateCategory = (id: string, patch: { name?: string; status?: 'ACTIVE' | 'ARCHIVED' }) =>
+  coreRequest<CategoryView>(`/categories/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch });
+export const deleteCategory = (id: string) =>
+  coreRequest<void>(`/categories/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const listTags = () => coreRequest<TagView[]>('/tags');
+
+// ---- publishers (OWNER, ADR-009) and the audit log (OWNER, FR-20) ----
+export const getPublishers = (includeArchived = false) =>
+  coreRequest<PublishersOverview>('/publishers', { query: { includeArchived } });
+export const assignWorkspacePublisher = (userId: string) =>
+  coreRequest<void>('/publishers/workspace', { method: 'PUT', body: { userId } });
+export const unassignWorkspacePublisher = () => coreRequest<void>('/publishers/workspace', { method: 'DELETE' });
+export const assignDepartmentPublisher = (departmentId: string, userId: string) =>
+  coreRequest<void>(`/departments/${encodeURIComponent(departmentId)}/publisher`, { method: 'PUT', body: { userId } });
+export const unassignDepartmentPublisher = (departmentId: string) =>
+  coreRequest<void>(`/departments/${encodeURIComponent(departmentId)}/publisher`, { method: 'DELETE' });
+
+export interface AuditFilters {
+  action?: string;
+  actorId?: string;
+  from?: string;
+  to?: string;
+  cursor?: string;
+  limit?: number;
+}
+export const listAuditLogs = (filters: AuditFilters) =>
+  coreRequestPage<AuditEntry>('/audit-logs', { query: { limit: 50, ...filters } });
 
 // ---- documents (list; upload V2-31; viewer V2-32) ----
 export interface DocumentFilters {
@@ -47,7 +127,8 @@ export interface DocumentFilters {
 }
 export const listDocuments = (filters: DocumentFilters) =>
   coreRequestPage<DocumentView>('/documents', { query: { limit: 20, ...filters } });
-export const listCategories = () => coreRequest<CategoryView[]>('/categories');
+export const listCategories = (includeArchived = false) =>
+  coreRequest<CategoryView[]>('/categories', { query: { includeArchived } });
 /** `inline` signs the URL so a browser may show the file (the PDF viewer); the default downloads it. */
 export const getDownloadUrl = (documentId: string, options: { inline?: boolean } = {}) =>
   coreRequest<DownloadUrl>(`/documents/${encodeURIComponent(documentId)}/download-url`, {
@@ -75,6 +156,35 @@ export const uploadDocumentVersion = (documentId: string, file: File, signal?: A
 /** Reprocess a document whose latest version is FAILED (`409 VERSION_NOT_FAILED` otherwise). */
 export const retryDocument = (documentId: string) =>
   coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}/retry`, { method: 'POST' });
+/** Only the keys that changed: title, description, language, categoryId (null clears), tags. */
+export interface DocumentPatch {
+  title?: string;
+  description?: string | null;
+  language?: string | null;
+  categoryId?: string | null;
+  tags?: string[];
+}
+export const updateDocument = (documentId: string, patch: DocumentPatch) =>
+  coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}`, { method: 'PATCH', body: patch });
+/** `departmentIds` is required for `DEPARTMENTS`. `accessSync: PENDING` = still reaching ai-service. */
+export const updateDocumentVisibility = (
+  documentId: string,
+  visibility: 'WORKSPACE' | 'DEPARTMENTS',
+  departmentIds: string[],
+) =>
+  coreRequest<VisibilityResponse>(`/documents/${encodeURIComponent(documentId)}/visibility`, {
+    method: 'PUT',
+    body: { visibility, departmentIds },
+  });
+/** OWNER only (ADR-009 decision 8): another scope or owner department; keeps content and history. */
+export const transferDocumentOwnership = (
+  documentId: string,
+  input: { visibility: 'WORKSPACE' | 'DEPARTMENTS'; ownerDepartmentId: string | null; departmentIds: string[] },
+) =>
+  coreRequest<OwnershipResponse>(`/documents/${encodeURIComponent(documentId)}/ownership`, {
+    method: 'PUT',
+    body: input,
+  });
 export const deleteDocument = (documentId: string) =>
   coreRequest<void>(`/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' });
 

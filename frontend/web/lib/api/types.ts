@@ -142,9 +142,14 @@ export interface DocumentView {
   category: { id: string; name: string } | null;
   tags: string[];
   language: string | null;
-  visibility: string;
+  visibility: DocumentVisibility | string;
   /** Null for plain members (masked). */
   departments: { id: string; name: string | null }[] | null;
+  /** Managers and the responsible publisher only; null for other readers. */
+  ownerDepartment?: { id: string; name: string | null } | null;
+  /** Null for readers without the administrative view: its presence marks who may edit. */
+  fieldSources?: FieldSources | null;
+  suggestions?: DocumentSuggestions | null;
   status: DocumentStatus;
   answerable: boolean;
   latestVersion: {
@@ -161,6 +166,10 @@ export interface DocumentView {
     fileType: string;
     sizeBytes: number;
     pageCount: number | null;
+    /** Extracted automatically; may be wrong (V2-25), read-only in the UI. */
+    docCode?: string | null;
+    revisionLabel?: string | null;
+    effectiveDate?: string | null;
     warningCodes: string[];
   } | null;
   createdBy: { id: string; displayName: string };
@@ -168,9 +177,83 @@ export interface DocumentView {
   updatedAt: string;
 }
 
+export type ArchiveStatus = 'ACTIVE' | 'ARCHIVED';
+
+/** `GET /categories` (core-api CategoryController). `{id, name}` is all a document carries. */
 export interface CategoryView {
   id: string;
   name: string;
+  status?: ArchiveStatus;
+}
+
+export interface DepartmentView {
+  id: string;
+  name: string;
+  status: ArchiveStatus;
+  createdAt: string;
+}
+
+export interface TagView {
+  id: string;
+  name: string;
+}
+
+/** `POST /invitations`: `inviteUrl` carries the secret token and is returned once only. */
+export interface CreatedInvitation {
+  id: string;
+  expiresAt: string;
+  inviteUrl: string;
+}
+
+export interface PublisherRef {
+  userId: string;
+  displayName: string;
+}
+
+/** `GET /publishers` (ADR-009): who publishes for the whole workspace and for each department. */
+export interface PublishersOverview {
+  workspace: PublisherRef | null;
+  departments: { departmentId: string; name: string; publisher: PublisherRef | null }[];
+}
+
+export interface AuditEntry {
+  id: string;
+  actorId: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  details: Record<string, unknown> | null;
+  traceId: string | null;
+  createdAt: string;
+}
+
+/** How a metadata field got its value (`DocumentView.fieldSources`). */
+export type FieldSource = 'USER' | 'SUGGESTED' | 'SYSTEM' | string;
+
+export interface FieldSources {
+  title: FieldSource;
+  description: FieldSource;
+  category: FieldSource;
+  tags: FieldSource;
+  language: FieldSource;
+}
+
+/** Stored suggestions that are never applied automatically (V2-25). */
+export interface DocumentSuggestions {
+  title: string | null;
+  proposedCategoryName: string | null;
+}
+
+export type DocumentVisibility = 'WORKSPACE' | 'DEPARTMENTS';
+
+/** `PUT /documents/{id}/visibility`: `PENDING` while the change is still reaching ai-service. */
+export interface VisibilityResponse {
+  accessSync: 'APPLIED' | 'PENDING' | string;
+}
+
+/** `PUT /documents/{id}/ownership`: `publisherAssigned` is false when nobody can write in the new scope. */
+export interface OwnershipResponse extends VisibilityResponse {
+  publisherAssigned: boolean;
 }
 
 export interface DownloadUrl {

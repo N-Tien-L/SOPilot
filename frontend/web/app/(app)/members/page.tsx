@@ -1,93 +1,62 @@
 'use client';
 
 import { useState } from 'react';
-import { ErrorNote } from '@/components/app/ErrorNote';
-import { Badge, EmptyState, Skeleton } from '@/components/ui';
-import { useInvitations, useMembers } from '@/lib/query/hooks';
+import { InvitationsPanel } from '@/components/admin/InvitationsPanel';
+import { MembersPanel } from '@/components/admin/MembersPanel';
+import { NamedListPanel } from '@/components/admin/NamedListPanel';
+import { PublishersPanel } from '@/components/admin/PublishersPanel';
+import { EmptyState } from '@/components/ui';
+import {
+  createCategory,
+  createDepartment,
+  deleteCategory,
+  deleteDepartment,
+  updateCategory,
+  updateDepartment,
+} from '@/lib/api/endpoints';
+import { showDepartments } from '@/lib/admin/members';
+import { useCategories, useDepartments, useMembers } from '@/lib/query/hooks';
 import { useSessionStore } from '@/store/session-store';
 
-function daysLeft(iso: string): number {
-  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
-}
+type TabId = 'members' | 'invitations' | 'departments' | 'categories' | 'publishers';
 
-function Members() {
-  const { data, isLoading, isError, error } = useMembers();
-  if (isLoading) return <Skeleton count={4} height={40} />;
-  if (isError) return <ErrorNote error={error} />;
-  if (!data || data.length === 0) return <EmptyState title="No members" />;
+function Departments() {
+  const { data, isLoading, error } = useDepartments(true);
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
-      <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
-        <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th scope="col" className="px-3 py-2">Name</th>
-            <th scope="col" className="px-3 py-2">Email</th>
-            <th scope="col" className="px-3 py-2">Employee ID</th>
-            <th scope="col" className="px-3 py-2">Job title</th>
-            <th scope="col" className="px-3 py-2">Department</th>
-            <th scope="col" className="px-3 py-2">Role</th>
-            <th scope="col" className="px-3 py-2">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((m) => (
-            <tr key={m.userId} className="border-t border-border">
-              <td className="px-3 py-2 font-medium">{m.displayName}</td>
-              <td className="px-3 py-2">{m.email}</td>
-              <td className="px-3 py-2">{m.employeeCode ?? '-'}</td>
-              <td className="px-3 py-2">{m.jobTitle ?? '-'}</td>
-              <td className="px-3 py-2">{m.departmentName ?? '-'}</td>
-              <td className="px-3 py-2">{m.role}</td>
-              <td className="px-3 py-2">
-                <Badge variant={m.status === 'ACTIVE' ? 'success' : 'neutral'}>{m.status === 'ACTIVE' ? 'Active' : 'Suspended'}</Badge>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <NamedListPanel
+      noun="department"
+      items={data}
+      loading={isLoading}
+      error={error}
+      api={{ create: createDepartment, update: updateDepartment, remove: deleteDepartment }}
+      invalidate={['departments', 'members', 'publishers', 'invitations']}
+      emptyHint="Departments group members and can limit who reads a document."
+      note="Flat list. Archive a department to stop new assignments; delete works only while nothing uses it."
+    />
   );
 }
 
-function Invitations() {
-  const { data, isLoading, isError, error } = useInvitations();
-  if (isLoading) return <Skeleton count={3} height={40} />;
-  if (isError) return <ErrorNote error={error} />;
-  if (!data || data.length === 0) return <EmptyState title="No pending invitations" />;
+function Categories() {
+  const { data, isLoading, error } = useCategories(true);
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
-      <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
-        <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th scope="col" className="px-3 py-2">Email</th>
-            <th scope="col" className="px-3 py-2">Role</th>
-            <th scope="col" className="px-3 py-2">Department</th>
-            <th scope="col" className="px-3 py-2">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((i) => {
-            const left = daysLeft(i.expiresAt);
-            return (
-              <tr key={i.id} className="border-t border-border">
-                <td className="px-3 py-2 font-medium">{i.email}</td>
-                <td className="px-3 py-2">{i.role}</td>
-                <td className="px-3 py-2">{i.departmentName ?? '-'}</td>
-                <td className="px-3 py-2">
-                  {left > 0 ? <Badge variant="info">Pending, {left}d left</Badge> : <Badge variant="neutral">Expired</Badge>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <NamedListPanel
+      noun="category"
+      items={data}
+      loading={isLoading}
+      error={error}
+      api={{ create: createCategory, update: updateCategory, remove: deleteCategory }}
+      invalidate={['categories', 'documents', 'document']}
+      emptyHint="Categories organise documents and appear in the document form."
+      note="Flat list. Archive a category to stop new use; delete works only while no document uses it."
+    />
   );
 }
 
 export default function MembersPage() {
-  const role = useSessionStore((s) => s.workspace?.role);
-  const [tab, setTab] = useState<'members' | 'invitations'>('members');
+  const workspace = useSessionStore((s) => s.workspace);
+  const role = workspace?.role;
+  const members = useMembers(role === 'OWNER' || role === 'ADMIN');
+  const [tab, setTab] = useState<TabId>('members');
 
   if (role !== 'OWNER' && role !== 'ADMIN') {
     return (
@@ -97,27 +66,64 @@ export default function MembersPage() {
     );
   }
 
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'members', label: 'Members' },
+    { id: 'invitations', label: 'Invitations' },
+    ...(showDepartments(workspace?.kind, members.data ? members.data.length : null)
+      ? [{ id: 'departments' as const, label: 'Departments' }]
+      : []),
+    { id: 'categories', label: 'Categories' },
+    ...(role === 'OWNER' ? [{ id: 'publishers' as const, label: 'Publishers' }] : []),
+  ];
+  // A tab that disappeared (the last colleague left) falls back to the first one.
+  const current = tabs.some((t) => t.id === tab) ? tab : 'members';
+
   return (
     <div className="mx-auto max-w-6xl p-6">
       <h1 className="text-2xl font-semibold">Members</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Read-only for now. Inviting, editing and suspending members arrive with ticket V2-33.
+        People, invitations, departments, categories{role === 'OWNER' ? ' and publishers' : ''} of this workspace.
       </p>
-      <div role="tablist" aria-label="Members and invitations" className="mt-4 flex gap-1 border-b border-border">
-        {(['members', 'invitations'] as const).map((t) => (
+      <div role="tablist" aria-label="Workspace administration" className="mt-4 flex flex-wrap gap-1 border-b border-border">
+        {tabs.map((t) => (
           <button
-            key={t}
+            key={t.id}
+            id={`tab-${t.id}`}
             role="tab"
             type="button"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm ${tab === t ? 'border-b-2 border-primary font-semibold text-primary-strong' : 'text-muted-foreground'}`}
+            aria-selected={current === t.id}
+            aria-controls={`panel-${t.id}`}
+            tabIndex={current === t.id ? 0 : -1}
+            onClick={() => setTab(t.id)}
+            onKeyDown={(e) => {
+              // WAI-ARIA tabs: arrows move between tabs (wrapping), Home and End jump to the ends.
+              const i = tabs.findIndex((x) => x.id === t.id);
+              const next =
+                e.key === 'ArrowRight' ? (i + 1) % tabs.length
+                : e.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length
+                : e.key === 'Home' ? 0
+                : e.key === 'End' ? tabs.length - 1
+                : -1;
+              if (next < 0) return;
+              e.preventDefault();
+              setTab(tabs[next].id);
+              document.getElementById(`tab-${tabs[next].id}`)?.focus();
+            }}
+            className={`px-4 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring ${
+              current === t.id ? 'border-b-2 border-primary font-semibold text-primary-strong' : 'text-muted-foreground'
+            }`}
           >
-            {t === 'members' ? 'Members' : 'Invitations'}
+            {t.label}
           </button>
         ))}
       </div>
-      <div className="mt-4">{tab === 'members' ? <Members /> : <Invitations />}</div>
+      <div className="mt-4" role="tabpanel" id={`panel-${current}`} aria-labelledby={`tab-${current}`}>
+        {current === 'members' ? <MembersPanel /> : null}
+        {current === 'invitations' ? <InvitationsPanel /> : null}
+        {current === 'departments' ? <Departments /> : null}
+        {current === 'categories' ? <Categories /> : null}
+        {current === 'publishers' ? <PublishersPanel /> : null}
+      </div>
     </div>
   );
 }

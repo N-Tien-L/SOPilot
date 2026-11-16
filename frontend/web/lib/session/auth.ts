@@ -1,6 +1,7 @@
 // Session lifecycle: dev login, restore from the HttpOnly cookie, refresh, switch workspace,
 // sign out. The access token stays in memory (token.ts); the refresh token never reaches JS.
 
+import { clearInviteToken } from '@/lib/admin/invite';
 import { isApiError } from '@/lib/api/errors';
 import { coreRequest, setAuthHooks } from '@/lib/api/http';
 import type { LoginResponse } from '@/lib/api/types';
@@ -129,6 +130,9 @@ export async function signOut(): Promise<void> {
   try {
     await coreRequest<void>('/auth/logout', { method: 'POST', anonymous: true });
   } finally {
+    // Only an explicit sign-out drops a held invitation token; restoring a session on a signed-out
+    // page also ends the local session and must keep it (the token waits for the sign-in).
+    clearInviteToken();
     endLocalSession();
     getRefresher().announceSignedOut();
   }
