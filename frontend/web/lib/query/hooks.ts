@@ -20,9 +20,10 @@ export function useWorkspaceDetail() {
   return useQuery({ queryKey: workspaceKey(wid, 'workspace'), queryFn: api.getWorkspace });
 }
 
-export function useMembers() {
+/** OWNER/ADMIN only on the server (`403` for others): pass `enabled = false` for a plain publisher. */
+export function useMembers(enabled = true) {
   const wid = useWid();
-  return useQuery({ queryKey: workspaceKey(wid, 'members'), queryFn: api.listMembers });
+  return useQuery({ queryKey: workspaceKey(wid, 'members'), queryFn: api.listMembers, enabled });
 }
 
 /** The caller's own membership, including what they may publish. */
@@ -36,9 +37,47 @@ export function useInvitations() {
   return useQuery({ queryKey: workspaceKey(wid, 'invitations'), queryFn: api.listInvitations });
 }
 
-export function useCategories() {
+export function useCategories(includeArchived = false) {
   const wid = useWid();
-  return useQuery({ queryKey: workspaceKey(wid, 'categories'), queryFn: api.listCategories });
+  return useQuery({
+    queryKey: workspaceKey(wid, 'categories', includeArchived),
+    queryFn: () => api.listCategories(includeArchived),
+  });
+}
+
+export function useDepartments(includeArchived = false, enabled = true) {
+  const wid = useWid();
+  return useQuery({
+    queryKey: workspaceKey(wid, 'departments', includeArchived),
+    queryFn: () => api.listDepartments(includeArchived),
+    enabled,
+  });
+}
+
+export function useTags(enabled = true) {
+  const wid = useWid();
+  return useQuery({ queryKey: workspaceKey(wid, 'tags'), queryFn: api.listTags, enabled });
+}
+
+export function usePublishers(enabled = true) {
+  const wid = useWid();
+  return useQuery({
+    queryKey: workspaceKey(wid, 'publishers'),
+    queryFn: () => api.getPublishers(),
+    enabled,
+  });
+}
+
+/** OWNER only; the cursor pages are appended. */
+export function useAuditLogs(filters: Omit<api.AuditFilters, 'cursor'>) {
+  const wid = useWid();
+  return useInfiniteQuery({
+    queryKey: workspaceKey(wid, 'audit', filters),
+    queryFn: ({ pageParam }) => api.listAuditLogs({ ...filters, ...(pageParam ? { cursor: pageParam } : {}) }),
+    initialPageParam: '' as string,
+    getNextPageParam: (last) => (last.page.hasMore && last.page.cursor ? last.page.cursor : undefined),
+    retry: false,
+  });
 }
 
 /** R3: polls only while some loaded document is still UPLOADED or PROCESSING. */

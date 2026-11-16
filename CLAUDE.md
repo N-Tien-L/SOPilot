@@ -93,3 +93,8 @@ UI work also follows the global `frontend-delivery` skill. A green build is not 
 ## Known drift (verify before relying on older notes)
 
 - Answer and judge LLM: self-hosted on Modal since the 2026-11-01 owner decision (ADR-006 §4.4, `infrastructure/modal/`). Notes naming Groq `gpt-oss` or Gemini for generation are outdated.
+
+<!-- claude-reflect: learned rules (saved from the band; edit freely) -->
+## Learned rules
+- When telling the user to view an Excalidraw file, include the full localhost:3001/#url=<encoded-file-url> viewer link in the response.
+<!-- end claude-reflect -->

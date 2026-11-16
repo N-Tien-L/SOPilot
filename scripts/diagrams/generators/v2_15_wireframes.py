@@ -71,8 +71,8 @@ def table(pid, x, y, cols, rows, rh=38, fs=14, tint=None):
 
 # ---- Row 2: main shell + chat ----
 Y2 = Y1 + H1 + 90
-CW, CH = 1000, 560
-frame("c0", 0, Y2, CW, CH, "5. Main shell + chat (core screen)")
+CW, CH = 1000, 1010
+frame("c0", 0, Y2, CW, CH, "5. Main shell + chat (core screen; V2-32 redesign: reasoning dropdown, rendered citation chunks)")
 b.add_box("cbar", 0, Y2, CW, 44, "SOPilot   |   Workspace: Acme Ops  v                          Avatar  v", **VIOLET)
 b.add_box("cnav", 0, Y2 + 44, 140, CH - 44, "", **GAY)
 for i, n in enumerate(["Chat", "Documents", "Members", "Gaps", "Settings"]):
@@ -85,20 +85,81 @@ for i, n in enumerate(["PPE policy ...", "Leave request ...", "Fire drill steps 
 b.add_text("clh", 250, Y2 + CH - 50, "rename / delete per chat\nvisible to creator only", 14, MUTED, align="center")
 
 MX = 380
+LIGHT = "#f8f9fa"
 b.add_box("u1", 690, Y2 + 62, 290, 42, "What is the PPE policy?", **BLUE)
-b.add_box("a1", MX, Y2 + 120, 580, 150, "", bg_color="#ffffff")
-b.add_text("a1t", MX + 15, Y2 + 132, "Answer streams in here, with inline markers [1] [2] [3]", 16)
-b.add_box("a1c1", MX + 15, Y2 + 190, 150, 36, "[1] SOP-Safety p.4", font_size=14, **GREEN)
-b.add_box("a1c2", MX + 175, Y2 + 190, 150, 36, "[2] Handbook p.12", font_size=14, **GREEN)
-b.add_box("a1c3", MX + 335, Y2 + 190, 230, 36, "[3] Old version (no viewer)", font_size=14, **ORANGE)
-b.add_text("a1f", MX + 15, Y2 + 238, "thumbs up  /  thumbs down  /  optional comment", 14, MUTED)
-b.add_box("w1", MX, Y2 + 285, 580, 36, "Check the figures against the source  (done.warnings)", font_size=14, **YELLOW)
-b.add_box("r1", MX, Y2 + 335, 580, 110, "", **ORANGE)
-b.add_text("r1t", MX + 15, Y2 + 347,
-           "Refusal NO_EVIDENCE: nothing found in your SOPs\nClosest documents:  [SOP-Safety]  [Onboarding]\n"
+
+# Assistant card: reasoning dropdown (open) -> answer -> sources -> feedback
+AY = Y2 + 118
+b.add_box("a1", MX, AY, 580, 635, "", bg_color="#ffffff")
+b.add_box("rh", MX + 15, AY + 12, 270, 30, "v  Thought for 9 s  -  4 steps", font_size=14, bg_color=LIGHT)
+b.add_text("rhn", MX + 295, AY + 18, "<- click to open / close (closed by default)", 12, MUTED)
+b.add_box("rp", MX + 15, AY + 50, 550, 190, "", bg_color=LIGHT, stroke_color="#ced4da")
+b.add_box("rpb", MX + 15, AY + 50, 5, 190, "", rounded=False, **VIOLET)
+b.add_text("rps", MX + 32, AY + 58,
+           "(o)  Searched 3 documents for \"PPE policy\"            done\n"
+           "(o)  Read 5 passages, kept 3                              done\n"
+           "(o)  Checked the passages cover the question        done\n"
+           "(o)  Wrote the answer with sources                      done", 13)
+b.add_text("rpd", MX + 32, AY + 140, "Model notes (markdown, rendered):", 12, MUTED)
+b.add_text("rpn", MX + 32, AY + 160,
+           "The question asks about required PPE (bold), so I looked for:\n"
+           "   *  hard hat and gloves (SOP-Safety p.4)\n"
+           "   *  exceptions for visitors (Handbook p.12)", 13, MUTED)
+b.add_text("a1t", MX + 15, AY + 256,
+           "PPE is required in the warehouse: hard hat and gloves [1], visitors\n"
+           "need a vest [2].   Answer streams in here as rendered markdown\n"
+           "(lists, tables, bold), with inline markers [1] [2] [3]", 14)
+b.add_text("a1s", MX + 15, AY + 318, "Sources (3)", 12, MUTED)
+b.add_box("a1c1", MX + 15, AY + 338, 150, 34, "[1] SOP-Safety p.4  ^", font_size=13, **GREEN)
+b.add_box("a1c2", MX + 175, AY + 338, 150, 34, "[2] Handbook p.12", font_size=13, **GREEN)
+b.add_box("a1c3", MX + 335, AY + 338, 230, 34, "[3] Old version (no viewer)", font_size=13, **ORANGE)
+# Expanded citation chunk, markdown rendered (heading, text, table), not raw text
+b.add_box("cc", MX + 15, AY + 384, 550, 200, "", bg_color=LIGHT, stroke_color="#ced4da")
+b.add_box("ccb", MX + 15, AY + 384, 5, 200, "", rounded=False, **GREEN)
+b.add_text("cct", MX + 32, AY + 392, "[1] quy-trinh-nghi-phep      page 2", 14)
+b.add_text("cch", MX + 32, AY + 416, "4. Leave days by seniority", 16)
+b.add_text("ccp", MX + 32, AY + 442, "Annual leave grows with years at the company, as below. Minimum is 12 days.", 12, MUTED)
+b.add_box("ct0", MX + 32, AY + 464, 150, 24, "Seniority", font_size=12, rounded=False, **VIOLET)
+b.add_box("ct0b", MX + 182, AY + 464, 110, 24, "Days", font_size=12, rounded=False, **VIOLET)
+for i, (a, d) in enumerate([("Under 5 years", "12"), ("5 to 10 years", "14"), ("Over 10 years", "16")]):
+    b.add_box(f"ct{i + 1}", MX + 32, AY + 488 + i * 24, 150, 24, a, font_size=12, rounded=False)
+    b.add_box(f"ct{i + 1}b", MX + 182, AY + 488 + i * 24, 110, 24, d, font_size=12, rounded=False)
+b.add_box("ccbtn", MX + 400, AY + 540, 150, 30, "Open in document", font_size=13, **BLUE)
+b.add_text("ccn", MX + 320, AY + 478, "table, headings, lists render\nlong chunks clamp, Show more", 12, MUTED)
+b.add_text("a1f", MX + 15, AY + 597, "thumbs up  /  thumbs down  /  optional comment", 14, MUTED)
+
+WY = AY + 635 + 12
+b.add_box("w1", MX, WY, 580, 32, "Check the figures against the source  (done.warnings)", font_size=14, **YELLOW)
+b.add_box("r1", MX, WY + 44, 580, 110, "", **ORANGE)
+b.add_text("r1t", MX + 15, WY + 54,
+           "Refusal NO_EVIDENCE: nothing found in your SOPs  (rendered markdown)\nClosest documents:  [SOP-Safety]  [Onboarding]\n"
            "OUT_OF_SCOPE / INPUT_INVALID: same card, no document list", 14)
 b.add_box("ci", MX, Y2 + CH - 70, 480, 46, "Ask a question about your SOPs...")
 b.add_box("cs", MX + 490, Y2 + CH - 70, 90, 46, "Send", **BLUE)
+
+# ---- 5b: reasoning block states + data contract (proposal) ----
+RX = CW + 40
+BY = Y2 + 520
+frame("c5", RX, BY, 720, 470, "5b. Reasoning block states + data contract (proposal)")
+states = [
+    ("1. While thinking: open, live steps, pulsing dot", "(*)  Thinking ...   Searching 3 documents   [^]", YELLOW),
+    ("2. First answer text arrives: auto-collapses", ">  Thought for 9 s  -  4 steps", {}),
+    ("3. Reloaded from history: not available until reasoning is stored", ">  Thought for 9 s  -  4 steps", {}),
+    ("4. No reasoning (thinking off, or reloaded history): nothing is drawn", "(no dropdown, no empty box)", {"stroke_style": "dashed"}),
+]
+for i, (lbl, box, kw) in enumerate(states):
+    b.add_text(f"c5l{i}", RX + 20, BY + 14 + i * 54, lbl, 13, MUTED)
+    b.add_box(f"c5s{i}", RX + 20, BY + 32 + i * 54, 420, 30, box, font_size=13, **kw)
+b.add_text("c5n", RX + 20, BY + 238,
+           "Data contract (ai-service + frontend built 2026-11-15; persistence in core-api not built):\n"
+           "  - ai-service: SOPILOT_LLM_THINKING=true by default; <think> is split from the answer.\n"
+           "  - Built: SSE `reasoning` { text } and `reasoning_done` { durationMs }.\n"
+           "  - Not built: the step list drawn above (needs server step events).\n"
+           "  - Notes are rendered by SafeMarkdown (clamped, scrolls); history shows no dropdown yet.\n"
+           "  - To do: persist reasoning on the message so a reloaded chat keeps the dropdown.\n"
+           "Rendering rules (built):\n"
+           "  - Citation chunks and refusal text use SafeMarkdown: no raw HTML, links open in a new tab.\n"
+           "  - Dropdown is a button with aria-expanded; the pulse stops under reduced motion.", 13, MUTED)
 
 # ---- Row 2 right: knowledge gaps ----
 RX = CW + 40

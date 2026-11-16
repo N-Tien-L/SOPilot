@@ -1,14 +1,17 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
-import { Skeleton } from '@/components/ui';
+import { MetadataDialog } from '@/components/documents/MetadataDialog';
+import { Button, Skeleton } from '@/components/ui';
 import { ContentViewer, NotAvailable } from '@/components/viewer/ContentViewer';
 import { ApiError } from '@/lib/api/errors';
+import { canEditDetails } from '@/lib/admin/metadata';
 import { documentStatusLabel } from '@/lib/chat/labels';
-import { useDocument } from '@/lib/query/hooks';
+import { useDocument, useMyMember } from '@/lib/query/hooks';
+import { useSessionStore } from '@/store/session-store';
 import { versionNotice } from '@/lib/viewer/labels';
 
 // FR-31: "Content recognized by the system". It opens only when the document has a current
@@ -17,6 +20,9 @@ import { versionNotice } from '@/lib/viewer/labels';
 function DocumentContentPage({ id }: { id: string }) {
   const doc = useDocument(id);
   const d = doc.data;
+  const [editing, setEditing] = useState(false);
+  const me = useMyMember();
+  const role = useSessionStore((s) => s.workspace?.role);
 
   let body: React.ReactNode;
   if (doc.isLoading) body = <Skeleton count={4} height={32} />;
@@ -42,7 +48,15 @@ function DocumentContentPage({ id }: { id: string }) {
       <Link href="/documents" className="inline-flex items-center gap-1 text-sm text-primary-strong underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
         <ArrowLeft size={14} aria-hidden /> Documents
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold [overflow-wrap:anywhere]">{d ? d.title : 'Content recognized by the system'}</h1>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-2xl font-semibold [overflow-wrap:anywhere]">{d ? d.title : 'Content recognized by the system'}</h1>
+        {d && canEditDetails(me.data?.publisherOf, role, d) ? (
+          <Button size="sm" variant="outline" icon={<Pencil size={14} aria-hidden />} onClick={() => setEditing(true)}>
+            Edit details
+          </Button>
+        ) : null}
+      </div>
+      {d && editing ? <MetadataDialog doc={d} onClose={() => setEditing(false)} /> : null}
       <p className="mb-4 mt-1 text-sm text-muted-foreground">
         Content recognized by the system{d?.currentVersion ? ` · version ${d.currentVersion.versionNo}` : ''}
       </p>

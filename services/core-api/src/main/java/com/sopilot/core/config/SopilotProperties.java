@@ -45,9 +45,11 @@ public record SopilotProperties(@Valid @NotNull Google google,
      * @param allowEphemeralNonceKey local/test only: generate a random key when none is set
      * @param cookieSecure          set the Secure attribute on auth cookies
      * @param refreshTtl            refresh-token lifetime (TECH §5.1, 14 days)
+     * @param refreshGrace          how long after an exchange the old refresh token is accepted once more; zero = off (V2-39)
      * @param frontendOrigin        the only {@code Origin} accepted by refresh and logout (CSRF second layer)
      */
     public record Auth(String nonceHmacKey, @NotNull Duration nonceTtl, boolean allowEphemeralNonceKey,
-                       boolean cookieSecure, @NotNull Duration refreshTtl, @NotNull String frontendOrigin) {
+                       boolean cookieSecure, @NotNull Duration refreshTtl,
+                       @NotNull Duration refreshGrace, @NotNull String frontendOrigin) {
     }
 }

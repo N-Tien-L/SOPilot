@@ -54,7 +54,7 @@ S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/
 | `GET /api/v1/documents`, `GET /documents/{id}`, `GET /documents/{id}/download-url` | Member (read scope) | Cursor paging, filters `categoryId`, `tag`; `download-url` takes optional `?disposition=attachment\|inline` (default `attachment`, other values `400`); another workspace's id or unpermitted department doc is `404`; members see masked `departments`/`fieldSources` |
 | `GET /api/v1/documents/{id}/versions` | OWNER/ADMIN, responsible publisher | History, failure reasons, `uploadedBy`, `uploadedAt` |
 | `GET /api/v1/audit-logs` | OWNER | Filters `action`, `actorId`, `from`, `to`, `cursor` |
-| `PATCH /internal/documents/{id}/versions/{versionId}/status` | `X-Internal-Token` | ai-service callback; stale `attempt` is ignored with `200 {applied:false}` |
+| `PATCH /internal/documents/{id}/versions/{versionId}/status` | `X-Internal-Token` | ai-service callback; a stale `attempt`, or a `PROCESSING` for a version that is already `PROCESSING`, `READY`, `SUPERSEDED` or `FAILED` (same attempt), is ignored with `200 {applied:false}` (V2-41) |
 
 ## Configuration
 
@@ -71,6 +71,7 @@ Copy `.env.example` in this directory to `.env`; it lists the variables below wi
 | `SOPILOT_JWT_PRIVATE_KEY_PATH`, `SOPILOT_JWT_KID` | in-memory key in `local`/`test` | Unencrypted PKCS#8 PEM, RSA ≥ 2048; kid defaults to the key thumbprint |
 | `SOPILOT_ACCESS_TTL` | `PT15M` | Startup fails above 15 minutes |
 | `SOPILOT_REFRESH_TTL` | `P14D` | Refresh-token lifetime |
+| `SOPILOT_REFRESH_GRACE` | `PT10S` | How long an exchanged refresh token is accepted once more while its successor is unused (a reload aborted the refresh response); `0` turns it off |
 | `SOPILOT_FRONTEND_ORIGIN` | `http://localhost:3000` | The only `Origin` accepted by refresh and logout |
 | `SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH` | unset | X.509 PEM public key of the key being replaced; keep it for one access-token lifetime after rotating (`openssl pkey -in old.pem -pubout`) |
 | `SOPILOT_NONCE_HMAC_KEY` | random in `local`/`test` | ≥ 32 bytes |

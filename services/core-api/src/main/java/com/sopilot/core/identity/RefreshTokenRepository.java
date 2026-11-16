@@ -27,19 +27,46 @@ public class RefreshTokenRepository {
                 + "VALUES (?, ?, ?, ?, ?, ?)", id, userId, workspaceId, familyId, tokenHash, expiresAt);
     }
 
-    public Optional<StoredToken> lockByHash(byte[] tokenHash) {
-        return jdbc.query("SELECT id, user_id, target_workspace_id, family_id, expires_at, used_at, revoked_at "
+    /** {@code grace} is the window measured on the database clock, the one that wrote {@code used_at}. */
+    public Optional<StoredToken> lockByHash(byte[] tokenHash, java.time.Duration grace) {
+        return jdbc.query("SELECT id, user_id, target_workspace_id, family_id, expires_at, used_at, revoked_at, "
+                        + "successor_id, (used_at IS NOT NULL AND used_at > now() - make_interval(secs => ?)) AS in_grace "
                         + "FROM core.refresh_tokens WHERE token_hash = ? FOR UPDATE",
                 (rs, i) -> new StoredToken(rs.getObject("id", UUID.class), rs.getObject("user_id", UUID.class),
                         rs.getObject("target_workspace_id", UUID.class), rs.getObject("family_id", UUID.class),
                         rs.getObject("expires_at", OffsetDateTime.class),
-                        rs.getObject("used_at", OffsetDateTime.class) != null,
-                        rs.getObject("revoked_at", OffsetDateTime.class) != null),
-                tokenHash).stream().findFirst();
+                        rs.getObject("used_at", OffsetDateTime.class),
+                        rs.getObject("revoked_at", OffsetDateTime.class) != null,
+                        rs.getObject("successor_id", UUID.class), rs.getBoolean("in_grace")),
+                grace.toMillis() / 1000.0, tokenHash).stream().findFirst();
     }
 
-    public void markUsed(UUID id) {
-        jdbc.update("UPDATE core.refresh_tokens SET used_at = now() WHERE id = ?", id);
+    public Optional<StoredToken> lockByHash(byte[] tokenHash) {
+        return lockByHash(tokenHash, java.time.Duration.ZERO);
+    }
+
+    /** Marks a token as exchanged and records the token issued in exchange. */
+    public void markUsed(UUID id, UUID successorId) {
+        jdbc.update("UPDATE core.refresh_tokens SET used_at = now(), successor_id = ? WHERE id = ?", successorId, id);
+    }
+
+    /**
+     * Locks a token row and says whether it is still untouched (not used, not revoked). Empty when it is gone.
+     * Always taken after the predecessor's lock, so concurrent grace refreshes serialize on the predecessor.
+     */
+    public Optional<Boolean> lockUnused(UUID id) {
+        return jdbc.query("SELECT used_at IS NULL AND revoked_at IS NULL AS unused FROM core.refresh_tokens "
+                + "WHERE id = ? FOR UPDATE", (rs, i) -> rs.getBoolean("unused"), id).stream().findFirst();
+    }
+
+    /** Retires a token that was never delivered: it counts as used, so presenting it later is replay. */
+    public void retire(UUID id) {
+        jdbc.update("UPDATE core.refresh_tokens SET used_at = now() WHERE id = ? AND used_at IS NULL", id);
+    }
+
+    /** Clears the successor pointer of an exchanged token once its grace was spent. */
+    public void clearSuccessor(UUID id) {
+        jdbc.update("UPDATE core.refresh_tokens SET successor_id = NULL WHERE id = ?", id);
     }
 
     /** Revokes every still-live token of the chain. */
@@ -61,6 +88,10 @@ public class RefreshTokenRepository {
     }
 
     public record StoredToken(UUID id, UUID userId, UUID workspaceId, UUID familyId, OffsetDateTime expiresAt,
-                              boolean used, boolean revoked) {
+                              OffsetDateTime usedAt, boolean revoked, UUID successorId, boolean inGrace) {
+
+        public boolean used() {
+            return usedAt != null;
+        }
     }
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, Flag, LogOut, Menu, MessageSquare, Settings, Users, X } from 'lucide-react';
+import { FileText, Flag, LogOut, Menu, MessageSquare, ScrollText, Settings, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { restoreSession, signOut } from '@/lib/session/auth';
@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
   { href: '/documents', label: 'Documents', icon: <FileText size={16} aria-hidden /> },
   { href: '/members', label: 'Members', icon: <Users size={16} aria-hidden />, roles: ['OWNER', 'ADMIN'] },
   { href: '/gaps', label: 'Knowledge gaps', icon: <Flag size={16} aria-hidden />, roles: ['OWNER', 'ADMIN'] },
+  { href: '/audit', label: 'Audit log', icon: <ScrollText size={16} aria-hidden />, roles: ['OWNER'] },
   { href: '/settings', label: 'Settings', icon: <Settings size={16} aria-hidden /> },
 ];
 
@@ -33,6 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const status = useSessionStore((s) => s.status);
   const user = useSessionStore((s) => s.user);
   const workspace = useSessionStore((s) => s.workspace);
+  const pendingInvites = useSessionStore((s) => s.pendingInvitations.length);
   const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
@@ -124,6 +126,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <WorkspaceSwitcher />
           </div>
           <div className="flex items-center gap-3 text-sm">
+            {pendingInvites > 0 ? (
+              <Link href="/invite" className="rounded-full bg-info-soft px-2.5 py-0.5 text-xs font-semibold text-info-foreground">
+                {pendingInvites} invitation{pendingInvites === 1 ? '' : 's'}
+              </Link>
+            ) : null}
             <span className="hidden rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground sm:inline">
               {workspace.role}
             </span>
