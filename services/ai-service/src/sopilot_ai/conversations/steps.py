@@ -133,7 +133,7 @@ async def _pump(gen: Iterator[str], stop: threading.Event) -> AsyncIterator[str]
     while True:
         kind, value = await queue.get()
         if kind == "delta":
-            yield str(value)
+            yield value  # unchanged: a Thought must stay a Thought for GenerateStep (V2-42)
         elif kind == "error":
             raise value
         else:
