@@ -2,9 +2,9 @@
 id: V2-17
 title: "Parity check, remove the 8 old services, update guidance docs"
 type: chore
-status: todo
+status: in_progress
 created: 2026-10-17
-updated: 2026-11-16
+updated: 2026-11-17
 author: "Owner"
 scope: platform
 priority: P1
@@ -204,7 +204,7 @@ Re-run the two `git` checks at the start of execution and paste the output into 
 `./scripts/pre-commit-check.ps1`, `./scripts/check-services.ps1` (2-service stack, with a positive and a negative run), `./scripts/docs/check-docs.ps1`, `plan_check.py`, `./scripts/check-migrations.ps1`, `python .claude/hooks/test_guard.py`, `./scripts/validate-build.ps1 -Scope core|ai|web`, `./scripts/run-tests.ps1 -Scope core-api|ai-service|frontend -Type unit`, `cd eval; uv run pytest -q`, `cd tests/tenant-isolation; uv run pytest -v` (Docker), and CI on the PR (`ci.yml` + `tenant-isolation.yml`). Browser: the UC rows of the parity record that need the UI are run in a browser on the throwaway stack; say which ones.
 
 ## 6. Results
-**Status 2026-11-16: blocked at the parity step.** The parity record [TEST-REPORT-001](../../../../quality/test-reports/parity-v2-17-2026-11-16.md) has verdict **FAILED**: UC-04 and FR-11 are `not passed` (the answer model's reasoning was streamed as answer text; Finding F1). Cause confirmed: `_pump` (`services/ai-service/src/sopilot_ai/conversations/steps.py:136`) turned the `Thought` deltas into plain `str`. The owner chose a separate fix ticket, `V2-42` (branch `fix/ai-reasoning-pump`, worktree `.claude/worktrees/v2-42`, not committed yet), which adds `V2-42` to this ticket's `depends_on` on that branch. With V2-42 both rows pass on the throwaway stack (record, "Re-run with V2-42"). Per §4 step 3 nothing was removed, renamed or edited outside `docs/`. The ticket stays `todo` and the PLAN is untouched on this branch. Next: merge V2-42 into `develop`, rebase this branch, re-run UC-04 / FR-11 on `develop`, then Commit A.
+**Status 2026-11-17: parity passed; removal in progress.** The parity record [TEST-REPORT-001](../../../../quality/test-reports/parity-v2-17-2026-11-16.md) has verdict **PASSED_WITH_WARNINGS**. The first run (2026-11-16) failed UC-04 and FR-11 (reasoning streamed as answer text, Finding F1; cause `_pump` in `services/ai-service/src/sopilot_ai/conversations/steps.py:136`). The owner chose a separate fix, [`V2-42`](V2-42-ai-service-reasoning-leaks-into-answer.md), committed as `88c66ef`, merged into `develop` locally (`25e83cb`), and merged into this branch (`9809f5e`; a rebase was not possible because the working tree holds the owner's uncommitted edits to `CLAUDE.md` and two skills, which were left alone). The full throwaway-stack run then passed on this branch (record, "Re-run on the merged branch").
 
 **Preconditions (§2.0), run on `develop` (345f1c8)**
 - `git ls-remote --tags origin v1-final` → `835cf28c1bedbcbb89cdd20d0cf4cbe73f93d8b6 refs/tags/v1-final`.
@@ -230,7 +230,7 @@ Re-run the two `git` checks at the start of execution and paste the output into 
 - FR-13: the reasoning stays visible in the "Thought for N s" block; paraphrased rules inside it are accepted, no extra guard.
 
 **Pending**
-- Merge V2-42 into `develop`, rebase this branch, re-run UC-04 / FR-11 on `develop`; then the remaining parity rows' browser checks if the owner wants them (none was run in V2-17).
+- Browser checks of the parity rows, if the owner wants them (none was run in V2-17).
 - `check-docs` after removal, CI green on the PR, the §2.9 gate, `v2-reviewer` pass.
 - The §2.2 clean bring-up is repeated on the renamed `docker-compose.yml` after Commit C. The 2026-11-16 throwaway project was removed with the owner's approval (`down -v` on `-p sopilot-parity`: volumes `sopilot-parity_postgres_data`, `sopilot-parity_minio_data` and network `sopilot-parity-network`); the owner's `sopilot-v2_*` and the V1 `sopilot_*` volumes were not touched.
 - Not yet recorded because removal has not started: removed-path list, leftover untracked files, V1 volume cleanup commands.
