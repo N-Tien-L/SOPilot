@@ -110,10 +110,10 @@ The ai-service context budget (`retrieval.context.*`, `context_k`, `SOPILOT_LLM_
 **Negative:** L40S costs ~1.8× A10 per hour; the first cold start on L40S rebuilds the FlashInfer and torch.compile caches (~320 s), so warm it once after the switch; answer-level results from A10 are not comparable and are re-run if reported; the V2-37 judge app is also planned on an L40S, so both share the Modal budget.
 
 **Follow-up (ticketed as [V2-40](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-40-infra-modal-serving-profile.md), 2026-11-16):**
-1. `serve_vllm.py`: GPU `L40S`, the flags in §2.1, the reranker memory cap; update `infrastructure/modal/README.md`.
-2. `answers.py`: `--concurrency` with deterministic output order; a separate latency run at concurrency 1.
-3. `models.yaml`: new context budget and `SOPILOT_LLM_CONTEXT_MAX_TOKENS`; update TECH-V2-ai-service.
-4. Measure and replace the estimates in this ADR: startup `GPU KV cache size`, VRAM, cold start, TTFT at 8K/32K/64K, tok/s, cost per eval run (`infrastructure/modal/bench_thinking.py`, `test_endpoint.py`).
+1. ~~`serve_vllm.py`: GPU `L40S`, the flags in §2.1, the reranker memory cap; update `infrastructure/modal/README.md`.~~ Done 2026-11-16 (deployed, §5).
+2. ~~`answers.py`: `--concurrency` with deterministic output order; a separate latency run at concurrency 1.~~ Done 2026-11-16 (`--concurrency`; the latency run at concurrency 1 is a separate invocation, `bench_context.py ttft`).
+3. ~~`models.yaml`: new context budget and `SOPILOT_LLM_CONTEXT_MAX_TOKENS`; update TECH-V2-ai-service.~~ Done 2026-11-16 (values in §5; the `multi_passage` run with them is still open).
+4. Measure and replace the estimates in this ADR: startup `GPU KV cache size`, VRAM, cold start, TTFT at 8K/32K/64K, tok/s, cost per eval run (`infrastructure/modal/bench_context.py`, `bench_thinking.py`, `test_endpoint.py`). Mostly done 2026-11-16 (§5); open: a start with every cache warm, the cost of one eval run.
 5. ~~Fix the "dense 9B" wording in ADR-006 §4.4 (§1.1 mismatch).~~ Done 2026-11-15.
 
 ## 5. Measured results (V2-40, 2026-11-16)
@@ -142,3 +142,14 @@ Each TTFT prompt starts with a random nonce, so the prefix cache cannot serve it
 - Modal's price for L40S was not checked; no cost is quoted.
 
 **What stays an estimate:** the A10 figures in §1, the H100 figures, and the cost and duration of an eval run (§2.2).
+
+**Context budget chosen (§2.4), owner decision 2026-11-16.** Eval and the demo share one budget, declared in [`models.yaml`](../../../services/ai-service/config/models.yaml); the harness reads `context_k` from it instead of the eval config's `k`.
+
+| Setting | Before | Now | Why |
+|---|---|---|---|
+| `retrieval.context_k` | 5 | **8** | more hit chunks for multi-page questions |
+| `retrieval.context.section_max_tokens` | 1,200 | **3,000** | whole sections of several pages |
+| `retrieval.context.max_tokens` | 3,000 | **16,000** | about 16K prompt tokens: TTFT interpolates to roughly 2.5–3 s between the measured 1.64 s (8K) and 3.89 s (32K); not measured at 16K |
+| `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | empty | **60,000** | 65,536 served − 3,000 output tokens − margin |
+
+The V2-40 rule holds with room: 8 × (60,000 + 3,000) = 504,000 ≤ 784,931 KV tokens, and the measured TTFT at 65K is 7.36 s (limit 10 s). The working budget (16K) is far below the ceiling on purpose: a 9B model can miss evidence in the middle of a long prompt, and a larger source budget raises TTFT and eval cost. **Not yet evaluated:** the `multi_passage` group of `answers.py` with these values (needs a Modal run); until then the budget is a choice, not a result.
