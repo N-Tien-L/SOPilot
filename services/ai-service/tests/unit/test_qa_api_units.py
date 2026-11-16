@@ -14,7 +14,7 @@ from sopilot_ai.config import Settings
 from sopilot_ai.conversations.events import PING, Event
 from sopilot_ai.conversations.service import QAService, make_title
 from sopilot_ai.conversations.steps import _pump
-from sopilot_ai.providers.llm import LLMError
+from sopilot_ai.providers.llm import LLMError, Thought
 from sopilot_ai.providers.registry import ModelsConfig, RetrievalConfig
 from sopilot_ai.qa.pipeline import STEP_ORDER
 from sopilot_ai.quota.counters import QuotaCounter, QuotaState, Reservation
@@ -176,6 +176,17 @@ async def test_pump_yields_deltas_in_order_and_closes_the_generator() -> None:
 
     assert [d async for d in _pump(gen(), threading.Event())] == ["a", "b", "c"]
     assert closed == [True]
+
+
+async def test_pump_keeps_reasoning_marked_as_reasoning() -> None:
+    # GenerateStep tells reasoning from answer text by the Thought type; str() would erase it.
+    def gen():  # noqa: ANN202
+        yield Thought("weigh the sources")
+        yield "Twelve days [1]."
+
+    out = [d async for d in _pump(gen(), threading.Event())]
+    assert [type(d) is Thought for d in out] == [True, False]
+    assert out == ["weigh the sources", "Twelve days [1]."]
 
 
 async def test_pump_raises_the_llm_error_of_the_generator() -> None:
