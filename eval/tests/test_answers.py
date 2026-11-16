@@ -5,6 +5,9 @@ model download or an endpoint. The numbers of a real run come from ``sopilot_eva
 """
 from __future__ import annotations
 
+import threading
+import time
+
 import pytest
 from sopilot_ai.retrieval.context import ContextConfig
 
@@ -17,6 +20,7 @@ from sopilot_eval.answers import (
     judge_messages,
     parse_verdict,
     retrieve,
+    run_ordered,
 )
 from sopilot_eval.corpus import Chunk
 from sopilot_eval.embedders import HashEmbedder
@@ -228,3 +232,52 @@ def test_coverage_says_how_many_questions_the_gate_lets_through() -> None:
     s = setup("dense", {"dense": 2.0})  # nothing passes
     report = coverage_report(s, [question()])
     assert report["gate_pass_rate"] == 0.0 and report["n_questions"] == 1  # coverage ignores it
+
+
+# -- concurrency (V2-40, ADR-011 §2.2) ----------------------------------------------------------
+
+def test_results_keep_the_input_order_when_calls_finish_in_another_order() -> None:
+    finished: list[int] = []
+
+    def slow_first(i: int) -> int:
+        time.sleep((5 - i) * 0.02)  # the later the item, the sooner it finishes
+        finished.append(i)
+        return i * 10
+
+    assert run_ordered(slow_first, list(range(6)), 6) == [0, 10, 20, 30, 40, 50]
+    assert finished != sorted(finished)  # the completion order really was shuffled
+
+
+def test_a_concurrent_run_writes_the_same_report_and_rows_as_a_sequential_one() -> None:
+    qs = [question(f"q{i}") for i in range(3)]
+    sequential, seq_rows = answers_report(setup(), qs, say("Được nghỉ [1]."), None, [])
+    barrier = threading.Barrier(3, timeout=10)  # passes only if 3 requests are in flight together
+
+    def together(messages):
+        barrier.wait()
+        return "Được nghỉ [1]."
+
+    concurrent, con_rows = answers_report(setup(), qs, together, None, [], concurrency=3)
+    assert [r["id"] for r in con_rows] == ["q0", "q1", "q2"] * 2  # expand on, then off
+    assert con_rows == seq_rows
+    assert {**concurrent, "concurrency": 1} == sequential and concurrent["concurrency"] == 3
+
+
+def test_a_failure_stops_the_calls_that_have_not_started() -> None:
+    started: list[int] = []
+
+    def fail_on_first(i: int) -> int:
+        started.append(i)
+        time.sleep(0.05)
+        if i == 0:
+            raise RuntimeError("endpoint down")
+        return i
+
+    with pytest.raises(RuntimeError, match="endpoint down"):
+        run_ordered(fail_on_first, list(range(50)), 2)
+    assert len(started) < 50
+
+
+def test_concurrency_below_one_is_refused() -> None:
+    with pytest.raises(ValueError, match="at least 1"):
+        run_ordered(lambda i: i, [1], 0)

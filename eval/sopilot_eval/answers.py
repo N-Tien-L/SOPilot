@@ -27,6 +27,7 @@ import sys
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
@@ -323,25 +324,49 @@ def summarize(rows: Sequence[AnswerRow]) -> dict[str, Any]:
     }
 
 
+def run_ordered(fn: Callable[[Any], Any], items: Sequence[Any], concurrency: int) -> list[Any]:
+    """``[fn(i) for i in items]`` with up to ``concurrency`` calls in flight, results in input order.
+
+    The order of the results never depends on which call finishes first, so a concurrent run writes
+    the same ``per_question.jsonl`` as a sequential one (ADR-011 §2.2). A failure cancels the calls
+    that have not started and is raised as in the sequential loop."""
+    if concurrency < 1:
+        raise ValueError("concurrency must be at least 1")
+    if concurrency == 1:
+        return [fn(i) for i in items]
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        futures = [pool.submit(fn, i) for i in items]
+        try:
+            return [f.result() for f in futures]
+        except BaseException:
+            for f in futures:
+                f.cancel()
+            raise
+
+
 def answers_report(setup: Setup, questions: Sequence[dict], generate: Complete, judge: Complete | None,
-                   subset: Sequence[str]) -> tuple[dict[str, Any], list[dict]]:
-    """Run every question for ``expand`` on and off; judge only the fixed ``subset``."""
+                   subset: Sequence[str], concurrency: int = 1) -> tuple[dict[str, Any], list[dict]]:
+    """Run every question for ``expand`` on and off; judge only the fixed ``subset``.
+
+    ``concurrency`` > 1 sends that many questions at once. Quality metrics do not depend on it;
+    latency does (requests share the GPU), so time a run only at ``concurrency`` 1."""
     chosen = set(subset)
     retrieved = {q["id"]: retrieve(setup, q) for q in questions}
     out: dict[str, Any] = {"n_questions": len(questions), "judged_subset": sorted(chosen),
-                           "by_expand": {}}
+                           "concurrency": concurrency, "by_expand": {}}
     per_question: list[dict] = []
     verdicts: dict[bool, dict[str, str]] = {}
     for expand in (True, False):
-        rows = []
-        for q in questions:
+        def one(q: dict, expand: bool = expand) -> AnswerRow:
             row, _sources, texts = answer_one(setup, q, generate, expand=expand,
                                               retrieved=retrieved[q["id"]])
             if judge is not None and q["id"] in chosen and row.outcome == "ANSWERED":
                 row.judge_attempted = True
                 row.verdict = parse_verdict(judge(judge_messages(q["question"], texts, row.answer)))
-            rows.append(row)
-            per_question.append({"expand": expand, **row.__dict__})
+            return row
+
+        rows = run_ordered(one, questions, concurrency)
+        per_question.extend({"expand": expand, **row.__dict__} for row in rows)
         entry = {"all": summarize(rows)}
         for name in GROUPS:
             sub = [r for r in rows if name in r.groups]
@@ -422,6 +447,9 @@ def main() -> None:
             p.add_argument("--subset-seed", default="v2-10-faithfulness")
             p.add_argument("--judge", choices=["judge", "generate", "none"], default="judge",
                            help="`generate` = the answer model judges itself (stated in the report)")
+            p.add_argument("--concurrency", type=int, default=1,
+                           help="requests in flight (ADR-011 §2.2). Quality metrics come from a "
+                                "concurrent run; time latency only with 1")
     a = ap.parse_args()
     setup, questions, provenance = _build_setup(a)
     out = a.out / f"answers-{a.command}-{a.name}-{a.split}"
@@ -432,8 +460,10 @@ def main() -> None:
         answerable_ids = [q["id"] for q in questions if q["answerable"]]
         subset = fixed_subset(answerable_ids, a.subset_size, a.subset_seed)
         judge = None if a.judge == "none" else _chain_fn(a.models, a.judge)
+        if a.concurrency < 1:
+            ap.error("--concurrency must be at least 1")
         report, rows = answers_report(setup, questions, _chain_fn(a.models, "generate"), judge,
-                                      subset)
+                                      subset, a.concurrency)
         report["judge"] = a.judge
         report["judge_is_the_answer_model"] = a.judge == "generate"
         (out / "per_question.jsonl").write_text(
