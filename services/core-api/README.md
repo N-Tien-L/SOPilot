@@ -54,7 +54,7 @@ S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/
 | `GET /api/v1/documents`, `GET /documents/{id}`, `GET /documents/{id}/download-url` | Member (read scope) | Cursor paging, filters `categoryId`, `tag`; `download-url` takes optional `?disposition=attachment\|inline` (default `attachment`, other values `400`); another workspace's id or unpermitted department doc is `404`; members see masked `departments`/`fieldSources` |
 | `GET /api/v1/documents/{id}/versions` | OWNER/ADMIN, responsible publisher | History, failure reasons, `uploadedBy`, `uploadedAt` |
 | `GET /api/v1/audit-logs` | OWNER | Filters `action`, `actorId`, `from`, `to`, `cursor` |
-| `PATCH /internal/documents/{id}/versions/{versionId}/status` | `X-Internal-Token` | ai-service callback; stale `attempt` is ignored with `200 {applied:false}` |
+| `PATCH /internal/documents/{id}/versions/{versionId}/status` | `X-Internal-Token` | ai-service callback; a stale `attempt`, or a `PROCESSING` for a version that is already `PROCESSING`, `READY`, `SUPERSEDED` or `FAILED` (same attempt), is ignored with `200 {applied:false}` (V2-41) |
 
 ## Configuration
 

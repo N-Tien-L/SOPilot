@@ -276,6 +276,12 @@ public class DocumentRepository {
                 attempt, workspaceId, versionId);
     }
 
+    /** PROCESSING for a newer attempt of a FAILED version: the attempt is stored so a duplicate cannot restart it again. */
+    public void restartProcessing(UUID workspaceId, UUID versionId, int attempt) {
+        jdbc.update("UPDATE core.document_versions SET status = 'PROCESSING', attempt = ?, failure_code = NULL, "
+                + "failure_message = NULL WHERE workspace_id = ? AND id = ?", attempt, workspaceId, versionId);
+    }
+
     public void setStatus(UUID workspaceId, UUID versionId, String status) {
         jdbc.update("UPDATE core.document_versions SET status = ?, failure_code = NULL, failure_message = NULL "
                 + "WHERE workspace_id = ? AND id = ?", status, workspaceId, versionId);

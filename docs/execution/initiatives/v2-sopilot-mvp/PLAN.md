@@ -17,8 +17,8 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 41
-completed_tickets: 35
-implemented_tickets: 36
+completed_tickets: 36
+implemented_tickets: 37
 review_tickets: 1
 ---
 
@@ -117,6 +117,7 @@ flowchart TD
     V36["V2-36: core-api: document write rights by department publisher and workspace publisher"]
     V37["V2-37: Retrieval configuration matrix and answer-level eval with an independent judge"]
     V38["V2-38: Frontend foundation: API client, session, SSE client, TanStack Query, Vitest, V1 removal"]
+    V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
     V39["V2-39: core-api: refresh-token grace window so a reload during a refresh does not end the session"]
     V40["V2-40: infra: implement ADR-011 serving profile (L40S, parallel eval, context budget)"]
     V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
@@ -275,7 +276,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-29` | core-api: workspace CRUD, workspace switching and refresh sessions | user | L | `V2-11` | done |
 | `V2-30` | core-api: invitations, members and OWNER rules | user | M | `V2-29` | done |
 | `V2-39` | core-api: refresh-token grace window so a reload during a refresh does not end the session | user | S | `V2-29` | done |
-| `V2-41` | core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING | knowledge | S | `V2-09`, `V2-12` | todo |
+| `V2-41` | core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING | knowledge | S | `V2-09`, `V2-12` | done |
 | `V2-12` | core-api: documents, upload, outbox, document quota, safe replacement, audit log | knowledge | L | `V2-09`, `V2-11` | done |
 | `V2-13` | Answer feedback and the knowledge-gap list | ai-qa | M | `V2-10`, `V2-12` | done |
 | `V2-14` | FR-19 tenant isolation tests in CI and RQ4 | tests | M | `V2-09`, `V2-12` | done |
