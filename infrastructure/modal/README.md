@@ -13,7 +13,7 @@ Deployment and test scripts for the OpenAI-compatible endpoint that serves the o
 2. **Standard interface:** OpenAI-compatible `/v1/chat/completions` and `/v1/models`, consumed over HTTP by `services/ai-service/src/sopilot_ai/providers/llm.py`.
 3. **Cost control:**
    - Modal **Starter** plan ($30 of free compute credits per month).
-   - GPU **NVIDIA L40S** (48 GB, about $1.95 per hour; check Modal's Pricing page before quoting a cost). It replaced the A10 under ADR-011 for faster prefill on long prompts and native FP8 (W8A8; the A10 ran weight-only W8A16). **Results from the two GPUs are not mixed in the thesis.**
+   - GPU **NVIDIA L40S** (48 GB, about $1.95 per hour from the ADR-006 §4.4 price list; not re-checked on Modal's Pricing page, so check it before quoting a cost). It replaced the A10 under ADR-011 for faster prefill on long prompts and native FP8 (W8A8; the A10 ran weight-only W8A16). **Results from the two GPUs are not mixed in the thesis.**
    - **Scale-to-zero** after 300 s idle (`scaledown_window`), long enough that a dev run and a test run back to back do not cold-start twice.
    - One container at most (`max_containers=1`): beyond 8 concurrent requests (`@modal.concurrent(max_inputs=8)`) requests queue in Modal instead of booting a second GPU container.
    - No pinned region (avoids the ×1.15–1.75 surcharge), not non-preemptible.
@@ -93,11 +93,11 @@ https://<workspace-name>--sopilot-vllm-rerank.modal.run   # POST /v1/rerank
 
 ## 4. Warm-up
 
-A cold start takes about 160 s when the FlashInfer cache is on its volume and about 320 s the first time (ADR-011 §1; being re-measured on L40S under V2-40). That is longer than the ai-service's 30 s rerank timeout and its 120 s answer timeout, so warm the container before a run.
+The first request after the L40S deploy took 268 s from the client (vLLM healthy 114 s after the container hook began; ADR-011 §5). Older A10 figures were about 160 s with the FlashInfer cache and 320 s without. A start with every cache warm on L40S has not been measured. Any of these is longer than the ai-service's 30 s rerank timeout and its 120 s answer timeout, so warm the container before a run.
 
 - **After switching GPU type (once):** the first start on L40S rebuilds the FlashInfer and `torch.compile` caches. Send one request and wait for it; later starts reuse the volumes.
 - **Before an eval run:** send one request (for example `python infrastructure/modal/test_endpoint.py ...`) and wait for the answer. The 300 s `scaledown_window` then covers back-to-back runs.
-- **Before the demo (ADR-011 §2.3):** about 10 minutes ahead, keep one container up with a longer idle window, then restore scale-to-zero afterwards. A warm hour costs about $1.95.
+- **Before the demo (ADR-011 §2.3):** about 10 minutes ahead, keep one container up with a longer idle window, then restore scale-to-zero afterwards. A warm hour costs about $1.95 (ADR-006 §4.4 price list; Modal's L40S price has not been checked).
 
   ```python
   import modal

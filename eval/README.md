@@ -40,6 +40,10 @@ uv run --extra local python -m sopilot_eval.answers coverage --dataset datasets/
 uv run --extra local python -m sopilot_eval.answers answers --dataset datasets/sop-main --config configs/rq1-rq3-bge-m3.yaml --name hybrid --split test --judge judge
 ```
 
+`answers` and `coverage` take the number of hit chunks from the service's `retrieval.context_k` in `services/ai-service/config/models.yaml` (8 since V2-40), not from the config's `k` (which still drives the retrieval metrics of `run.py`); `report.json` records `context_k` and `config_k` under `provenance.context`. To ablate `k`, pass another file with `--models`. A rerun therefore differs from older `answers-*` results made with `k = 5`: use another `--out` to keep both.
+
+`answers --concurrency N` (default 1) sends up to N questions at once and writes `per_question.jsonl` in question order. Quality metrics come from the concurrent run; time latency only with `--concurrency 1` or with `infrastructure/modal/bench_context.py`, because concurrent requests share the GPU. With N > 1 the harness raises its client-side limits for the run (600 rpm, 10M tpm, 900 s timeout, never lowering a higher value) and records them as `client_limits_raised`: the service defaults (60 rpm, 200K tpm, 120 s) would abort a run of long prompts. Every reported answer-level run uses the L40S deploy (ADR-011 §2.2).
+
 Output: `results/answers-<command>-<config>-<split>/report.json` (+ `per_question.jsonl` for `answers`). `--judge generate` lets the answer model judge itself; `report.json` then says `judge_is_the_answer_model: true`. Not measured here: the access filter (one in-memory workspace), the output guard, and the `code`/`rev`/`effective` attributes of `<source>` (the frozen corpus keeps no extracted metadata).
 
 ## What it measures

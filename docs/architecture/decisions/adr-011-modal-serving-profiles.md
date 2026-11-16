@@ -111,8 +111,8 @@ The ai-service context budget (`retrieval.context.*`, `context_k`, `SOPILOT_LLM_
 
 **Follow-up (ticketed as [V2-40](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-40-infra-modal-serving-profile.md), 2026-11-16):**
 1. ~~`serve_vllm.py`: GPU `L40S`, the flags in §2.1, the reranker memory cap; update `infrastructure/modal/README.md`.~~ Done 2026-11-16 (deployed, §5).
-2. ~~`answers.py`: `--concurrency` with deterministic output order; a separate latency run at concurrency 1.~~ Done 2026-11-16 (`--concurrency`; the latency run at concurrency 1 is a separate invocation, `bench_context.py ttft`).
-3. ~~`models.yaml`: new context budget and `SOPILOT_LLM_CONTEXT_MAX_TOKENS`; update TECH-V2-ai-service.~~ Done 2026-11-16 (values in §5; the `multi_passage` run with them is still open).
+2. ~~`answers.py`: `--concurrency` with deterministic output order; a separate latency run at concurrency 1.~~ `--concurrency` done 2026-11-16. The separate latency run is `bench_context.py ttft` on synthetic prompts at fixed sizes, not a run over an eval sample; `answers.py` records no latency.
+3. ~~`models.yaml`: new context budget and `SOPILOT_LLM_CONTEXT_MAX_TOKENS`; update TECH-V2-ai-service.~~ Values set 2026-11-16 (§5). Open: the `multi_passage` run with them.
 4. Measure and replace the estimates in this ADR: startup `GPU KV cache size`, VRAM, cold start, TTFT at 8K/32K/64K, tok/s, cost per eval run (`infrastructure/modal/bench_context.py`, `bench_thinking.py`, `test_endpoint.py`). Mostly done 2026-11-16 (§5); open: a start with every cache warm, the cost of one eval run.
 5. ~~Fix the "dense 9B" wording in ADR-006 §4.4 (§1.1 mismatch).~~ Done 2026-11-15.
 
@@ -140,6 +140,9 @@ Each TTFT prompt starts with a random nonce, so the prefix cache cannot serve it
 - The 268 s figure is a first start after switching GPU type; a start with every cache warm needs a second cold start (container idle for more than 300 s, then one request) and was not measured.
 - The 1,000-token request used to time the first start, the calibration calls and the benchmark all hit the same container, so the log's 45 requests include them.
 - Modal's price for L40S was not checked; no cost is quoted.
+- TTFT is to the first **content** token with thinking off. The demo runs with thinking on, so the wait for the first answer token includes the reasoning; the 10 s limit of the V2-40 rule is met for prefill, not for a thinking answer. `bench_thinking.py` measures that.
+- `@modal.concurrent(max_inputs=8)` is on the class, so the rerank web server probably shares the 8 slots with chat. With 8 long chat requests streaming, a rerank call may queue behind them (ai-service's rerank timeout is 30 s). How Modal counts inputs across the two `web_server` methods was not verified; check it before a parallel demo.
+- A concurrent eval run needs client-side limits above the service defaults (`answers.py` raises them itself, see `eval/README.md`); the dev-split run at concurrency 8 has not been executed.
 
 **What stays an estimate:** the A10 figures in §1, the H100 figures, and the cost and duration of an eval run (§2.2).
 
