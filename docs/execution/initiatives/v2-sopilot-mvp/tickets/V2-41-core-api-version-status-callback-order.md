@@ -2,7 +2,7 @@
 id: V2-41
 title: "core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"
 type: fix
-status: review
+status: done
 created: 2026-11-16
 updated: 2026-11-16
 author: "Owner"
@@ -41,11 +41,11 @@ Found by the V2-31 browser run ([V2-31 §5](V2-31-frontend-document-upload.md), 
 Goal: a version never moves backwards because of a stale callback, and a stale callback is not a dead letter.
 
 ## 2. Acceptance criteria
-- [ ] **Failing test first.** An integration test applies `FAILED` then `PROCESSING` for the same version and attempt, and today ends `PROCESSING`; it must end `FAILED` (core-api `VersionStatusService`, and/or an ai-service dispatcher test if the fix is there).
-- [ ] **Stale callbacks are ignored with success, not rejected.** `PROCESSING` for a version already `READY`, `FAILED` (same attempt) or `SUPERSEDED` returns `2xx` and changes nothing (same rule as "an older `attempt` is ignored with success", TECH-V2-core-api §8.2). A real retry must still work: `FAILED → PROCESSING` only when the callback carries a **newer** `attempt`.
-- [ ] **No new dead letters** from this race: after a corrupt-file upload and a normal upload on the compose stack, `rag.outbox_events` has no `DEAD` row and the corrupt document shows `FAILED` with its code in the UI.
+- [x] **Failing test first.** An integration test applies `FAILED` then `PROCESSING` for the same version and attempt, and today ends `PROCESSING`; it must end `FAILED` (core-api `VersionStatusService`, and/or an ai-service dispatcher test if the fix is there).
+- [x] **Stale callbacks are ignored with success, not rejected.** `PROCESSING` for a version already `READY`, `FAILED` (same attempt) or `SUPERSEDED` returns `2xx` and changes nothing (same rule as "an older `attempt` is ignored with success", TECH-V2-core-api §8.2). A real retry must still work: `FAILED → PROCESSING` only when the callback carries a **newer** `attempt`.
+- [x] **No new dead letters** from this race: after a corrupt-file upload and a normal upload on the compose stack, `rag.outbox_events` has no `DEAD` row and the corrupt document shows `FAILED` with its code in the UI.
 - [ ] If delivery order is also fixed in ai-service (per-aggregate order in `claim_outbox_batch`), that is a new `rag` migration (skill `flyway-migration`) and a test; if the core-api rule alone is enough, say so and do not touch the outbox.
-- [ ] TECH-V2-core-api §8.2 states the rule (append, never renumber); `V2-31` §5 note points here.
+- [ ] TECH-V2-core-api §8.2 states the rule (append, never renumber); `V2-31` §5 note points here (the V2-31 pointer is not added on this branch: that section exists only on `feat/web-v2-32`; owner to add it there).
 - [ ] The 12 existing `DEAD` events and the two stuck versions are left alone by the code change; the owner decides whether to repair them by hand.
 
 ## 3. Guide
@@ -70,7 +70,7 @@ Then a corrupt 15-byte `%PDF-` upload on the compose stack, looking at the docum
 
 ## 6. Results
 
-Implemented on `fix/core-ingest-failed-callback` (not committed yet, 2026-11-16).
+Implemented on `fix/core-ingest-failed-callback` (commit 1e748fd plus this evidence, 2026-11-16).
 
 **Reproduction first.** Four new tests in `DocumentLifecycleIT` ran against the unchanged state machine and failed: 4 of 22 (`FAILED` then `PROCESSING` of the same attempt ended `PROCESSING`; `PROCESSING` after `READY` and after `SUPERSEDED` returned `409`; a same-attempt `PROCESSING` restarted a `FAILED` version).
 
@@ -78,13 +78,16 @@ Implemented on `fix/core-ingest-failed-callback` (not committed yet, 2026-11-16)
 
 **Ordering in ai-service.** Not touched: no `rag` migration and no outbox change. The core-api rule makes delivery order irrelevant for the version status. The cause (separate transactions and unordered claim of events of one version) was taken from the ticket's data, not re-confirmed by logging claim order.
 
-**Review.** Fresh `v2-reviewer` (`claude-opus-5-5`): no blockers. Fixed: a test that `READY` for a `SUPERSEDED` version is still `409 INVALID_TRANSITION`, the missing `applied` assertion, the README endpoint row. Left open and out of scope here: the same reversal on the `READY`/`FAILED` paths (a `RETRY_EXHAUSTED` `FAILED` from an expired lease followed by a `READY` of the original worker gives `409` and a dead letter; the reverse order is harmless noise), not checked against `jobs.finish`/`activate_version`; `FAILED → PROCESSING` with a newer attempt does not store the new `attempt` (ai-service never takes that path, core-api's retry goes through `resetForRetry`); the PLAN has no "Owner decision" log entry for the V2-41 counters.
+**Review.** Fresh `v2-reviewer` (`claude-opus-5-5`): no blockers. Fixed: a test that `READY` for a `SUPERSEDED` version is still `409 INVALID_TRANSITION`, the missing `applied` assertion, the README endpoint row. Left open and out of scope here: the same reversal on the `READY`/`FAILED` paths (see the second round below).
 
 **Evidence.**
-- `./mvnw verify` in `services/core-api` (the `run-tests.ps1` wrapper aborts on the Mockito stderr warning): 252 tests, 0 failures, `BUILD SUCCESS`; `DocumentLifecycleIT` 22 tests.
+- `./mvnw verify` in `services/core-api` (the `run-tests.ps1` wrapper aborts on the Mockito stderr warning): 252 tests, 0 failures, `BUILD SUCCESS` at the first review; final code: `./mvnw -B verify` exit 0, `DocumentLifecycleIT` 22 tests, 0 failures.
+
+**Second review round (fresh `v2-reviewer`, `claude-opus-5-5`, 2026-11-16).** No blockers. Fixed: the newer-attempt restart now stores the attempt (`DocumentRepository.restartProcessing`), so a duplicate `PROCESSING` of that attempt cannot restart a failed version again (test extended); §8.2 lists `PROCESSING` on a `PROCESSING` version. Not fixed, out of scope: the `READY`/`FAILED` pair after a lease expiry on the last attempt gives `409` and a dead letter (not harmless in either order); it needs its own ticket. `./mvnw -B verify` re-run on the final code: exit 0.
+
+**Stack check (2026-11-16, core-api rebuilt from this branch in compose, ai-service and worker unchanged, dev sign-in).** Uploaded a 15-byte `%PDF-` file, a `%PDF-1.4` header plus random bytes, and a small Markdown file. After the worker finished: the two PDFs are `FAILED` with `CORRUPT_FILE`, the Markdown is `READY`. `rag.outbox_events` was `DEAD` 213 / `DELIVERED` 899 before and `DEAD` 213 / `DELIVERED` 906 after: no new dead letter. The race happened in this run: for the first PDF, `FAILED` was delivered (07:53:41.351) before `PROCESSING` (.363) and the version still ended `FAILED`. core-api logged no `INVALID_TRANSITION`. The documents page (Chromium, `pnpm dev`, headless) lists the two as `Failed`, the Markdown as `Ready`. The code `CORRUPT_FILE` was read from the API (`latestVersion.failureCode`); the list does not print it, and the "Processing failed" dialog text was not opened in the browser here.
 
 **Not verified.**
-- The compose-stack check (corrupt `%PDF-` upload plus a normal upload, no `DEAD` row in `rag.outbox_events`, `FAILED` with its code in the UI) has not been run.
 - The ai-service unit suite was not run (no ai-service change).
 - The `V2-31` §5 note pointing here was not added: that section exists only on `feat/web-v2-32`.
 - The 12 `DEAD` events and the two stuck versions were not touched.

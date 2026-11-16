@@ -324,6 +324,11 @@ class DocumentLifecycleIT extends ApiIT {
 
         assertThat(report(owner, doc, ver, "PROCESSING", 1).getBody().path("applied").asBoolean()).isTrue();
         assertThat(versionStatus(owner, ver)).isEqualTo("PROCESSING");
+
+        // The new attempt is stored: after it fails, a duplicate PROCESSING of that attempt must not restart it.
+        fail(owner, doc, ver, "CORRUPT_FILE", 1);
+        assertThat(report(owner, doc, ver, "PROCESSING", 1).getBody().path("applied").asBoolean()).isFalse();
+        assertThat(versionStatus(owner, ver)).isEqualTo("FAILED");
     }
 
     @Test

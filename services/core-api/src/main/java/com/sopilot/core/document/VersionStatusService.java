@@ -90,8 +90,12 @@ public class VersionStatusService {
      */
     private boolean processing(UUID wid, VersionRow version, Update u) {
         String status = version.status();
-        if ("UPLOADED".equals(status) || ("FAILED".equals(status) && u.attempt() > version.attempt())) {
+        if ("UPLOADED".equals(status)) {
             docs.setStatus(wid, version.id(), "PROCESSING");
+            return true;
+        }
+        if ("FAILED".equals(status) && u.attempt() > version.attempt()) {
+            docs.restartProcessing(wid, version.id(), u.attempt());
             return true;
         }
         if ("PROCESSING".equals(status) || "READY".equals(status) || "SUPERSEDED".equals(status)
