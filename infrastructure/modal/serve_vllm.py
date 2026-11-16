@@ -1,11 +1,12 @@
 """Modal deployment script for SOPilot V2 LLM endpoint.
 
-Hosts Qwen/Qwen3.5-9B with vLLM on an NVIDIA A10 GPU (FP8 online quantization),
+Hosts Qwen/Qwen3.5-9B with vLLM on an NVIDIA L40S GPU (FP8 online quantization),
 exposing OpenAI-compatible /v1/chat/completions and /v1/models endpoints.
 
 References:
 - Ticket: V2-34 (PLAN-V2-SOPILOT-MVP)
-- ADR: ADR-006 §4.4 (Free tier providers & self-hosted open models on Modal)
+- ADR: ADR-006 §4.4 (Free tier providers & self-hosted open models on Modal), amended by
+  ADR-011 (L40S, 64K context, 8 concurrent requests)
 - Design: TECH-V2-ai-service §4.2, §4.3
 """
 
@@ -38,9 +39,22 @@ MODEL_REVISION = "c202236235762e1c871ad0ccb60c8ee5ba337b9a"
 VLLM_VERSION = "0.33.0"
 CUDA_IMAGE = "nvidia/cuda:13.0.2-devel-ubuntu22.04"
 
-# GPU type. A10 (24 GB, ~600 GB/s) replaces L4 (24 GB, ~300 GB/s): decode is
-# memory-bound and L4 measured 24.3 tokens/s (V2-34 §5). ADR-006 §4.4 allows A10.
-GPU = "A10"
+# GPU type (ADR-011 §2.1). L40S (48 GB, ~864 GB/s, native FP8) replaces A10 (24 GB, ~600 GB/s):
+# faster prefill for long prompts and room for 8 x 64K requests. A10 measured ~48 tokens/s
+# (V2-34 §5, V2-10); results from the two GPUs are not mixed (W8A16 on A10, W8A8 here).
+GPU = "L40S"
+
+# Context and concurrency (ADR-011 §2.1). The model is hybrid (24 of 32 layers are linear
+# attention), so KV is ~32 KiB per token and 64K tokens are cheap in memory; prefill compute is
+# what grows with length. max_num_seqs equals the Modal concurrency so extra requests queue in Modal.
+MAX_MODEL_LEN = "65536"
+MAX_NUM_SEQS = "8"
+MAX_NUM_BATCHED_TOKENS = "16384"  # chunked prefill: decoding requests keep going during a prefill
+SCALEDOWN_WINDOW_S = 300  # back-to-back eval runs do not cold-start twice
+
+# Cap on what the reranker process may allocate with PyTorch, outside vLLM's share, so its
+# allocator cannot grow into the memory vLLM sized its KV cache from.
+RERANK_GPU_MEMORY_GIB = 4.0
 
 # Port exposed by vLLM web server.
 PORT = 8000
@@ -55,7 +69,7 @@ RERANK_MAX_PASSAGES = 64
 RERANK_MAX_BODY_BYTES = 4 * 1024 * 1024
 SENTENCE_TRANSFORMERS_VERSION = "6.2.0"  # same as services/ai-service/uv.lock
 
-# vLLM share of GPU memory; the rest of the 24 GB A10 holds the reranker and its activations.
+# vLLM share of GPU memory; the rest of the 48 GB L40S holds the reranker and its activations.
 GPU_MEMORY_UTILIZATION = "0.85"
 
 # Modal secret holding the Bearer key; it must define VLLM_API_KEY.
@@ -225,8 +239,8 @@ def _launch_vllm(api_key: str) -> subprocess.Popen:
         "0.0.0.0",
         "--port",
         str(PORT),
-        # BF16 weights are ~19.3 GB; FP8 leaves room for KV cache. A10 (Ampere)
-        # has no FP8 tensor cores, so vLLM runs weight-only FP8 (Marlin, W8A16).
+        # BF16 weights are ~19.3 GB; FP8 halves that. L40S (Ada) has FP8 tensor cores, so vLLM
+        # runs W8A8 (the old A10 ran weight-only Marlin W8A16).
         "--quantization",
         "fp8",
         # Text-only RAG: skip the vision encoder to save VRAM.
@@ -234,7 +248,15 @@ def _launch_vllm(api_key: str) -> subprocess.Popen:
         "--gpu-memory-utilization",
         GPU_MEMORY_UTILIZATION,
         "--max-model-len",
-        "8192",
+        MAX_MODEL_LEN,
+        # bf16 KV (the default, spelled out): FP8 KV would add numerical noise to the
+        # faithfulness metrics for little gain, the KV cache is already small (ADR-011 §2.1).
+        "--kv-cache-dtype",
+        "auto",
+        "--max-num-seqs",
+        MAX_NUM_SEQS,
+        "--max-num-batched-tokens",
+        MAX_NUM_BATCHED_TOKENS,
         # The template defaults to thinking ON when the flag is absent.
         "--default-chat-template-kwargs",
         '{"enable_thinking": false}',
@@ -248,8 +270,8 @@ def _launch_vllm(api_key: str) -> subprocess.Popen:
 @app.cls(
     image=vllm_image,
     gpu=GPU,
-    scaledown_window=60,  # Scale-to-zero: idle for 60s -> terminate GPU container
-    # One GPU at most: past 32 concurrent inputs requests queue instead of booting
+    scaledown_window=SCALEDOWN_WINDOW_S,  # Scale-to-zero after this many idle seconds
+    # One GPU at most: past 8 concurrent inputs requests queue instead of booting
     # (and billing) a second container with its own cold start.
     max_containers=1,
     timeout=15 * 60,
@@ -262,9 +284,9 @@ def _launch_vllm(api_key: str) -> subprocess.Popen:
     # the public modal.run URL is never served without authentication.
     secrets=[modal.Secret.from_name(SECRET_NAME, required_keys=["VLLM_API_KEY"])],
 )
-@modal.concurrent(max_inputs=32)
+@modal.concurrent(max_inputs=int(MAX_NUM_SEQS))
 class Serve:
-    """One container, one A10: reranker on port 8001, vLLM on port 8000 (V2-35)."""
+    """One container, one L40S: reranker on port 8001, vLLM on port 8000 (V2-35, ADR-011)."""
 
     @modal.enter()
     def start(self):
@@ -275,6 +297,8 @@ class Serve:
         import torch
         from sentence_transformers import CrossEncoder
 
+        total_gib = torch.cuda.get_device_properties(0).total_memory / 2**30
+        torch.cuda.set_per_process_memory_fraction(min(1.0, RERANK_GPU_MEMORY_GIB / total_gib))
         started = time.monotonic()
         flashinfer_dir = "/root/.cache/flashinfer"
         cached = sum(len(files) for _, _, files in os.walk(flashinfer_dir))
