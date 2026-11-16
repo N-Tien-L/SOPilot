@@ -26,7 +26,7 @@ description: Implement a planned SOPilot ticket (docs/execution/initiatives/<ini
 
 ## 4. Implement
 
-- Make the smallest change that meets each acceptance criterion. No drive-by refactors or renames of `poliwise` legacy names.
+- Make the smallest change that meets each acceptance criterion. No drive-by refactors or renames.
 - Every tenant-scoped path: core-api `tenant.run(principal, ...)`, ai-service `tenant_tx(...)`, plus an isolation test case.
 - New env var: add it to `.env.example` with a dummy value. Never read `.env`.
 

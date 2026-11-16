@@ -1,6 +1,6 @@
 ---
 name: flyway-migration
-description: Add a V2 Flyway migration to infrastructure/db/migrations/core or /rag (new table, column, index, policy, function or grant), with RLS, grants, verification and doc updates. Use whenever a V2 ticket changes the core or rag schema. Not for V1 infrastructure/init-db (frozen).
+description: Add a V2 Flyway migration to infrastructure/db/migrations/core or /rag (new table, column, index, policy, function or grant), with RLS, grants, verification and doc updates. Use whenever a V2 ticket changes the core or rag schema.
 ---
 
 # Add a V2 Flyway migration
