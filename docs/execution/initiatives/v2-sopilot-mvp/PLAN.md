@@ -17,9 +17,9 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 41
-completed_tickets: 36
+completed_tickets: 37
 implemented_tickets: 37
-review_tickets: 1
+review_tickets: 0
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -293,7 +293,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-15` | Frontend: V2 shell, sign-in/workspace, chat and gaps | web | L | `V2-10`, `V2-11`, `V2-13`, `V2-29`, `V2-30`, `V2-38` | done |
 | `V2-31` | Frontend: multi-document upload and processing tracking | web | L | `V2-12`, `V2-15`, `V2-36` | done |
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | done |
-| `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | review |
+| `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | done |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33` | todo |
 | `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41` | todo |
@@ -440,3 +440,5 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 > **Owner decision 2026-11-16 (V2-40 and V2-41 added):** [`V2-40`](tickets/V2-40-infra-modal-serving-profile.md) (infra/eval, P0, L, depends on `V2-10`, `V2-35`) implements the ADR-011 follow-up list: L40S server flags, reranker memory cap, `answers.py --concurrency` with a separate concurrency-1 latency run, the ai-service context budget and measurements replacing the ADR estimates; it blocks `V2-37` and `V2-18`. [`V2-41`](tickets/V2-41-core-api-version-status-callback-order.md) (core-api, P1, S, depends on `V2-09`, `V2-12`) fixes the bug found in the V2-31 run; reproduced on the local stack, the cause is out-of-order `VERSION_STATUS` delivery (a late `PROCESSING` overrides `FAILED`, or gets `409` after `READY`), not a rejected `FAILED`; it blocks `V2-18`. `total_tickets` 39 → 41; other counters unchanged (`todo` is not counted).
 
 > **Update 2026-11-16:** `V2-33` -> `review` (members, invitations, departments, categories, publishers, audit log and the document metadata and access dialog; Vitest, build and lint green, real-stack browser runs in Chromium and Firefox, 74 of 74 checks each, re-run after the review fixes, plus 20 of 20 fix-path checks and a Google sign-in run in the owner's Chrome; fresh Opus review, one blocker (edit gated on write rights) and two warnings fixed; details and open items in the ticket's section 5). `implemented_tickets` 34 -> 35, `review_tickets` 0 -> 1. Not `done`: owner acceptance needed. Open for the owner: a real FAILED document could not be produced (V2-41), the suggestion form's new-category and title branches were checked with mocked data, and a scope switch or owner-department change is OWNER-only (ADR-009 decision 8).
+
+> **Owner decision 2026-11-16:** the owner accepted `V2-33` → `done` (visual evidence and screenshots reviewed across Chromium, Firefox, Edge, WebKit; open items acknowledged). `completed_tickets` 36 → 37, `review_tickets` 1 → 0, `implemented_tickets` unchanged at 37. Unblocks `V2-17`.

@@ -2,7 +2,7 @@
 id: V2-33
 title: "Frontend: members, departments and document metadata"
 type: feat
-status: review
+status: done
 created: 2026-10-24
 updated: 2026-11-16
 author: "Owner"
@@ -83,3 +83,6 @@ Branch `feat/web-v2-33`, from `develop` after V2-31 and V2-32 were fast-forwarde
 - FAILED: a corrupt PDF accepted by the API (201) stays `PROCESSING` after two minutes, which is the V2-41 behaviour (a late `PROCESSING` callback overrides `FAILED`; fixed in V2-41), so a real FAILED row still cannot be produced here. That dialog state stays mock-assisted.
 - Keyboard and accessibility (Chromium, 20 of 20): Enter on Edit opens the dialog with focus inside; 55 Tab and Shift+Tab presses never leave it; Escape closes it and focus returns to the Edit button; the Remove confirmation opens with focus inside and Escape cancels it; arrows move across the tabs; every control in the dialog and on the five `/members` tabs and `/audit` has an accessible name; the dialog is `aria-modal` and named; the accessibility tree exposes the form, the radio group and the buttons. This is the accessibility tree and keyboard behaviour, **not** a run with a real screen reader (NVDA, Narrator, VoiceOver), which an agent cannot drive.
 **Not verified:** Safari itself (only its engine, WebKit, ran), a real FAILED document, a real screen reader (NVDA, Narrator, VoiceOver), and visual acceptance (the owner judges the look; the screens use the existing "Ink & Teal" tokens and the frozen UI primitives). The same tablist keyboard gap exists on `/gaps` (not changed here).
+
+**Owner acceptance (2026-11-16):**
+The owner reviewed visual evidence and browser screenshots across all sections (members, roles, categories, publishers, metadata dialog, audit log) and accepted V2-33 -> `done`. Unblocks `V2-17`.
