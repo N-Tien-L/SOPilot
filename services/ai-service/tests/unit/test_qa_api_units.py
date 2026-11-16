@@ -118,7 +118,19 @@ def test_questions_left_counts_a_given_back_question() -> None:
 
 def test_models_yaml_declares_the_context_assembly_settings() -> None:
     cfg = ModelsConfig.load(MODELS).context()
-    assert cfg == ContextConfig(expand=True, section_max_tokens=1200, max_tokens=3000)
+    assert cfg == ContextConfig(expand=True, section_max_tokens=3000, max_tokens=16000)
+
+
+def test_models_yaml_sizes_the_prompt_for_the_64k_deploy(monkeypatch) -> None:  # noqa: ANN001
+    """ADR-011 section 2.4: eight hits, a 16K source budget, and a prompt ceiling that leaves the
+    3000 output tokens inside the served 65536 context."""
+    for var in ("SOPILOT_LLM_CONTEXT_MAX_TOKENS", "SOPILOT_LLM_MAX_OUTPUT_TOKENS"):
+        monkeypatch.delenv(var, raising=False)
+    models = ModelsConfig.load(MODELS)
+    ceiling = int(models.raw["llm"]["generate"]["chain"][0]["context_max_tokens"])
+    assert models.retrieval().context_k == 8 and ceiling == 60000
+    assert ceiling + models.raw["llm"]["generate"]["max_output_tokens"] <= 65536
+    assert models.context().max_tokens < ceiling
 
 
 def test_context_config_falls_back_to_defaults_when_the_section_is_missing() -> None:

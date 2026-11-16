@@ -293,7 +293,7 @@ def test_build_chain_reads_the_model_and_key_from_the_environment(monkeypatch):
     assert client.spec.model == "served-model"
     assert client.spec.base_url == "https://llm.test/v1"
     assert client.spec.api_key == "secret-value"
-    assert client.spec.context_max_tokens is None  # not declared: no ceiling yet
+    assert client.spec.context_max_tokens == 60000  # the default under the 65536 deploy (ADR-011)
     assert client.spec.temperature == 0.2 and client.spec.max_output_tokens == 3000
     assert (limiter.rpm, limiter.tpm) == (60, 200_000)
 
