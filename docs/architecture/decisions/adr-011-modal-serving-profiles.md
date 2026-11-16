@@ -3,7 +3,7 @@ id: ADR-011
 title: "Answer model serving on Modal: one L40S deploy, 64K context, parallel eval and a warm demo"
 status: approved
 created: 2026-11-15
-updated: 2026-11-15
+updated: 2026-11-16
 author: "Owner"
 deciders: ["Owner"]
 amends: [ADR-006]
@@ -22,7 +22,7 @@ refs:
 
 # ADR-011: Answer model serving on Modal: one L40S deploy, 64K context, parallel eval and a warm demo
 
-Amends [ADR-006 §4.4](adr-006-free-tier-providers-and-environments.md) (answer-generation row: GPU and context). Approved by the owner on 2026-11-15; nothing below is implemented or measured yet. Figures marked *estimate* come from arithmetic on the model config and GPU specifications (tool-assisted analysis, 2026-11-15), not from runs.
+Amends [ADR-006 §4.4](adr-006-free-tier-providers-and-environments.md) (answer-generation row: GPU and context). Approved by the owner on 2026-11-15; the profile was deployed and measured on 2026-11-16 under V2-40 (§5). Figures marked *estimate* come from arithmetic on the model config and GPU specifications (tool-assisted analysis, 2026-11-15), not from runs; §5 says which of them a measurement has replaced.
 
 ## 1. Context
 
@@ -48,8 +48,8 @@ The pinned config (`Qwen/Qwen3.5-9B`, revision `c202236…`, read 2026-11-15) is
 
 ### 1.2 What does limit it
 
-- **Prefill compute.** TTFT grows linearly with prompt length. *Estimate* for a 64K prompt: ~20 s on A10, ~6–8 s on L40S, ~2–3 s on H100.
-- **Decode bandwidth.** Single-stream speed follows memory bandwidth: A10 600 GB/s (~40–50 tok/s, extrapolated from the 24.3 tok/s measured on L4 in V2-34 §5), L40S 864 GB/s (~60–70 tok/s), H100 3.35 TB/s.
+- **Prefill compute.** TTFT grows linearly with prompt length. *Estimate* for a 64K prompt: ~20 s on A10, ~6–8 s on L40S (**measured 7.4 s, §5**), ~2–3 s on H100.
+- **Decode bandwidth.** Single-stream speed follows memory bandwidth: A10 600 GB/s (~40–50 tok/s, extrapolated from the 24.3 tok/s measured on L4 in V2-34 §5), L40S 864 GB/s (~60–70 tok/s; **measured 52–61, §5**), H100 3.35 TB/s.
 - **The ai-service context budget.** `retrieval.context.max_tokens` (3000), `context_k` (5), `section_max_tokens` (1200) and `SOPILOT_LLM_CONTEXT_MAX_TOKENS` in [`models.yaml`](../../../services/ai-service/config/models.yaml) cap the prompt before it reaches vLLM. Raising `--max-model-len` alone changes nothing.
 - **The eval loop is sequential.** `answers_report` in [`answers.py`](../../../eval/sopilot_eval/answers.py) calls the model one question at a time, so vLLM's continuous batching is never used and the GPU is billed while it idles between tokens.
 
@@ -61,7 +61,7 @@ Serve the answer model from **one L40S deploy** used for both eval and the demo,
 
 | Setting | Value | Reason |
 |---|---|---|
-| GPU | `L40S` (48 GB, Ada, native FP8) | Faster prefill and decode than A10 for long prompts; ~25 GiB KV pool (*estimate*, ~800K tokens), so 8 × 64K requests fit without preemption |
+| GPU | `L40S` (48 GB, Ada, native FP8) | Faster prefill and decode than A10 for long prompts; ~25 GiB KV pool (*estimate*, ~800K tokens; **measured 784,931 tokens, §5**), so 8 × 64K requests fit without preemption |
 | `--max-model-len` | `65536` | Covers multi-page SOP questions; vLLM allocates KV by actual length, so short prompts cost nothing extra |
 | `--gpu-memory-utilization` | `0.85` (unchanged) | The reranker keeps its ~2.5–3 GiB outside vLLM's share |
 | `--kv-cache-dtype` | `auto` (bf16) | KV is already small; FP8 KV would add numerical noise to faithfulness metrics for little gain |
@@ -115,3 +115,30 @@ The ai-service context budget (`retrieval.context.*`, `context_k`, `SOPILOT_LLM_
 3. `models.yaml`: new context budget and `SOPILOT_LLM_CONTEXT_MAX_TOKENS`; update TECH-V2-ai-service.
 4. Measure and replace the estimates in this ADR: startup `GPU KV cache size`, VRAM, cold start, TTFT at 8K/32K/64K, tok/s, cost per eval run (`infrastructure/modal/bench_thinking.py`, `test_endpoint.py`).
 5. ~~Fix the "dense 9B" wording in ADR-006 §4.4 (§1.1 mismatch).~~ Done 2026-11-15.
+
+## 5. Measured results (V2-40, 2026-11-16)
+
+One deploy of [`serve_vllm.py`](../../../infrastructure/modal/serve_vllm.py) with the §2.1 profile (vLLM 0.33.0, `Qwen/Qwen3.5-9B` FP8, reranker in the same container), Modal workspace `n-tien-l`, region as assigned (not pinned). The launch line in the Modal log carries `--max-model-len 65536 --kv-cache-dtype auto --max-num-seqs 8 --max-num-batched-tokens 16384 --gpu-memory-utilization 0.85`. Tools: [`bench_context.py`](../../../infrastructure/modal/bench_context.py) (`ttft`, `smoke`), the Modal app log (`modal app logs sopilot-vllm`).
+
+| Item | §1–§2 estimate | Measured |
+|---|---|---|
+| `GPU KV cache size` at startup | ~800K tokens (~25 GiB) | **784,931 tokens**; vLLM reports 11.98× concurrency at 65,536 tokens per request |
+| GPU memory, reranker loaded | reranker ~2.5–3 GiB outside vLLM | 41,130 of 46,068 MiB in use (`nvidia-smi`); reranker process 2.12 GiB allocated / 2.13 GiB reserved |
+| TTFT, 8K prompt | not estimated | median **1.64 s** (8,024–8,029 prompt tokens, 3 runs) |
+| TTFT, 32K prompt | not estimated | median **3.89 s** (32,238–32,243 tokens, 3 runs) |
+| TTFT, 64K prompt | 6–8 s | median **7.36 s** (65,492–65,494 tokens, 3 runs; range 7.31–8.58 s) |
+| Decode, single stream | 60–70 tok/s | median **61.5** tok/s at 8K, **56.9** at 32K, **51.9** at 64K (see the caveat below) |
+| First request after deploy (client wall clock) | ~320 s without caches | **268 s**; vLLM was healthy 114 s after the container hook began, the rest is Modal scheduling and mounting. `torch.compile` took 18.8 s; the FlashInfer volume held 18 files before launch |
+| Cost of one test run | ~$1 | **not measured** (the dev eval at concurrency 8 was not run) |
+
+Each TTFT prompt starts with a random nonce, so the prefix cache cannot serve it. TTFT is client-side, from the request to the first content token, thinking off.
+
+**Concurrency smoke (8 requests of about 32K tokens at once).** 8 of 8 completed in 25.4 s wall clock; per-request TTFT ranged 4.9–20.1 s because vLLM prefills them in chunks of 16,384 tokens while others decode. At 8 running requests the KV cache usage peaked at **33.5%**. In the log of the L40S run: 0 lines with `preempt`, 0 with OOM or `out of memory`, 0 tracebacks, and 45 of 45 chat completions answered `200 OK`. This meets the V2-40 smoke criterion; the dev-split eval at `--concurrency 8` was not run.
+
+**Caveats.**
+- The 64K prompts left 42–44 tokens of output (the context limit is 65,536 in total), so the 64K decode figure rests on very short outputs; read it as indicative. The 8K and 32K figures come from 154–223 output tokens.
+- The 268 s figure is a first start after switching GPU type; a start with every cache warm needs a second cold start (container idle for more than 300 s, then one request) and was not measured.
+- The 1,000-token request used to time the first start, the calibration calls and the benchmark all hit the same container, so the log's 45 requests include them.
+- Modal's price for L40S was not checked; no cost is quoted.
+
+**What stays an estimate:** the A10 figures in §1, the H100 figures, and the cost and duration of an eval run (§2.2).
