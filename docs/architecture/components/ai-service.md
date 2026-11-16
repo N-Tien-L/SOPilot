@@ -499,7 +499,7 @@ llm:
         model: "${SOPILOT_LLM_MODEL:}"
         rpm: "${SOPILOT_LLM_RPM:60}"        # placeholder, measure on the real endpoint
         tpm: "${SOPILOT_LLM_TPM:200000}"
-        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:}"   # empty = no declared ceiling
+        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:60000}"   # prompt ceiling under the 65536 served context (ADR-011)
         extra_body: {chat_template_kwargs: {enable_thinking: false}}
     temperature: 0.2
     max_output_tokens: 800
@@ -512,15 +512,15 @@ providers:
 retrieval:
   candidate_pool: 50      # per dense / lexical branch
   rerank_pool: 25
-  context_k: 5            # number of hit chunks fed into context assembly (§6.4a)
+  context_k: 8            # number of hit chunks fed into context assembly (§6.4a); 5 before V2-40 (ADR-011 §2.4)
   rrf_k: 60
   rrf_weights: [1.0, 1.0]
   doc_code_boost: 0.02    # added to the fusion_score of chunks whose docCode matches a code in the question (§6.4); starting value, not calibrated (V2-28)
   cross_lingual_bm25_factor: 1.0   # multiplies the BM25 weight when the question language ≠ chunks.lang (§6.4); 1.0 = off, changed after RQ1b (V2-07)
   context:                # small-to-big context assembly (§6.4a)
     expand: true          # false = only the hit chunks, the old way (V2-10 ablation)
-    section_max_tokens: 1200   # a same-section group below this is sent whole
-    max_tokens: 3000      # total context ceiling, counted with the chunks' token_count
+    section_max_tokens: 3000   # a same-section group below this is sent whole; 1200 before V2-40
+    max_tokens: 16000     # total context ceiling, counted with the chunks' token_count; 3000 before V2-40
   thresholds:             # refusal gate; calibrated on the V2-06 dev set (RQ3)
     dense: 0.45
     bm25: null            # BM25 has no common scale across questions; bm25 mode never refuses by itself
@@ -789,7 +789,7 @@ Why a hand-written BM25 instead of `ts_rank` or an extension: (1) the scores mat
 
 **`dense_score` is always present (owner decision 2026-10-21, D2/P0-1).** A candidate found only by the lexical branch has no dense score from the dense branch. After RRF, for every candidate in `rerank_pool` missing a `dense_score`, the cosine is computed directly with a query by id (`SELECT id, 1 - (embedding <=> :qvec) FROM rag.chunks WHERE id = ANY(:missing) AND embedding_model = :active AND embedding_revision = :active_rev`, through the same §6.1 access filter). So the gate never compares a `NULL`, and `retrieval_results.dense_score` is complete for all 25 candidates. The function `fusion.gate_score` is single and imported by `eval/`; a test uses a candidate with only a BM25 score. No extra model call: the question vector already exists.
 
-5. Above the threshold → the top `context_k = 5` chunks are the **hit chunks**, fed into context assembly (§6.4a). All 25 candidates with their four scores are written to `rag.retrieval_results` (`in_context` marks the 5 hit chunks). The frontend receives `rank` and (optionally for display) the gate score, not a `similarity_score` whose scale changes with configuration (R5).
+5. Above the threshold → the top `context_k = 8` chunks are the **hit chunks**, fed into context assembly (§6.4a). All 25 candidates with their four scores are written to `rag.retrieval_results` (`in_context` marks the `context_k` hit chunks). The frontend receives `rank` and (optionally for display) the gate score, not a `similarity_score` whose scale changes with configuration (R5).
 
 ### 6.4a Context assembly: search with small chunks, read by same-section group (owner decision 2026-10-21)
 
@@ -1016,7 +1016,7 @@ The contract is defined in TECH-V2-core-api §8. On the ai-service side:
 | `SOPILOT_MODELS_CONFIG` | `config/models.yaml` | |
 | `EMBEDDING_REVISION`, `RERANK_REVISION`, `RERANK_ENABLED` | —, —, `false` | |
 | `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_MODEL`, `SOPILOT_LLM_API_KEY` | —, —, — | The Modal endpoint (OpenAI-compatible); the model id comes from `GET /models`. Missing → a startup error (no default) |
-| `SOPILOT_LLM_RPM`, `SOPILOT_LLM_TPM`, `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | `60`, `200000`, empty | Placeholders, measured on the endpoint; an empty ceiling = not declared |
+| `SOPILOT_LLM_RPM`, `SOPILOT_LLM_TPM`, `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | `60`, `200000`, `60000` | RPM/TPM are placeholders. The ceiling is the prompt budget under the served `--max-model-len 65536` minus the 3000 output tokens, with margin; the context budget above (`context_k`, `context.*`) is the one evaluated and the one demoed (ADR-011 §2.4, §5) |
 | `SOPILOT_LLM_THINKING`, `SOPILOT_LLM_MAX_OUTPUT_TOKENS` | `true`, `3000` | Answer task only (rewrite stays off). Reasoning shares the output ceiling with the answer; the server has no reasoning parser, so `llm.py` splits `<think>` itself. Measure with `infrastructure/modal/bench_thinking.py` |
 | `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY`, `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY` | `0`, `0` | FR-09, `0` = off (research phase) |
 | `SOPILOT_INGEST_MAX_ATTEMPTS`, `SOPILOT_SUGGEST_TIMEOUT`, `SOPILOT_SUGGEST_MAX_INPUT_TOKENS` | `3`, `20s`, `1500` | |

@@ -101,7 +101,7 @@ def test_models_yaml_retrieval_and_rerank_sections() -> None:
     config = ModelsConfig.load(SERVICE_ROOT / "config" / "models.yaml")
     r = config.retrieval()
     assert (r.mode, r.candidate_pool, r.rerank_pool, r.context_k, r.rrf_k) == (
-        "hybrid", 50, 25, 5, 60)
+        "hybrid", 50, 25, 8, 60)  # context_k 8 since V2-40 (ADR-011)
     assert r.rrf_weights == (1.0, 1.0)
     assert r.doc_code_boost == 0.02 and r.cross_lingual_bm25_factor == 1.0
     assert r.thresholds == {"dense": 0.45, "bm25": None, "hybrid": 0.45, "hybrid_rerank": 0.30}

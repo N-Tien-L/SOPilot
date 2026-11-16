@@ -274,7 +274,7 @@ def main() -> int:
     ap.add_argument("--repeat", type=int, default=2, help="runs per case and mode")
     ap.add_argument("--max-tokens", type=int, default=3000,
                     help="output ceiling, reasoning included (models.yaml uses 3000; try 6000 for "
-                         "the hard set, the server context is 8192)")
+                         "the hard set; the server context is 65536, ADR-011)")
     ap.add_argument("--set", dest="case_set", choices=sorted(CASE_SETS), default="all",
                     help="easy = lookups, hard = multi-step / exceptions / versions")
     ap.add_argument("--timeout", type=float, default=900.0)
