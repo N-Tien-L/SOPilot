@@ -21,13 +21,14 @@ guard (a canary leak is tested in ai-service, not measured here).
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import sys
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_EXCEPTION, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
@@ -328,8 +329,8 @@ def run_ordered(fn: Callable[[Any], Any], items: Sequence[Any], concurrency: int
     """``[fn(i) for i in items]`` with up to ``concurrency`` calls in flight, results in input order.
 
     The order of the results never depends on which call finishes first, so a concurrent run writes
-    the same ``per_question.jsonl`` as a sequential one (ADR-011 §2.2). A failure cancels the calls
-    that have not started and is raised as in the sequential loop."""
+    the same ``per_question.jsonl`` as a sequential one (ADR-011 §2.2). The first failure, wherever it
+    is in the list, cancels the calls that have not started and is raised as in the sequential loop."""
     if concurrency < 1:
         raise ValueError("concurrency must be at least 1")
     if concurrency == 1:
@@ -337,6 +338,7 @@ def run_ordered(fn: Callable[[Any], Any], items: Sequence[Any], concurrency: int
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         futures = [pool.submit(fn, i) for i in items]
         try:
+            wait(futures, return_when=FIRST_EXCEPTION)  # a failure anywhere stops the queue
             return [f.result() for f in futures]
         except BaseException:
             for f in futures:
@@ -420,11 +422,34 @@ def _build_setup(args: argparse.Namespace) -> tuple[Setup, list[dict], dict[str,
     return setup, questions, provenance
 
 
-def _chain_fn(models_path: Path, task: str) -> Complete:
+# Client-side limits for a concurrent eval run against our own endpoint. The service defaults
+# (60 rpm, 200K tpm, 120 s) fit one chat user, not eight long prompts at once: the limiter counts
+# two characters per token, so eight ~16K-token prompts exceed 200K at once and the limiter raises
+# RATE_LIMITED, and a non-streamed answer under load can take longer than 120 s.
+EVAL_RPM = 600
+EVAL_TPM = 10_000_000
+EVAL_TIMEOUT_S = 900.0
+
+
+def relax_client_limits(raw: dict[str, Any], task: str) -> dict[str, Any]:
+    """A copy of ``raw`` whose ``llm.<task>`` limits are at least the eval values (never lower)."""
+    out = copy.deepcopy(raw)
+    section = out["llm"][task]
+    section["timeout_s"] = max(float(section.get("timeout_s") or 120.0), EVAL_TIMEOUT_S)
+    for entry in section["chain"]:
+        entry["rpm"] = max(int(entry.get("rpm") or 60), EVAL_RPM)
+        entry["tpm"] = max(int(entry.get("tpm") or 200_000), EVAL_TPM)
+    return out
+
+
+def _chain_fn(models_path: Path, task: str, concurrency: int = 1) -> Complete:
     from sopilot_ai.providers.llm import build_chain, estimate_tokens
     from sopilot_ai.providers.registry import ModelsConfig
 
-    chain = build_chain(ModelsConfig.load(models_path), task)
+    models = ModelsConfig.load(models_path)
+    if concurrency > 1:
+        models = ModelsConfig(raw=relax_client_limits(models.raw, task))
+    chain = build_chain(models, task)
 
     def call(messages: Sequence[dict[str, str]]) -> str:
         tokens = estimate_tokens(" ".join(m["content"] for m in messages))
@@ -455,6 +480,8 @@ def main() -> None:
                            help="requests in flight (ADR-011 §2.2). Quality metrics come from a "
                                 "concurrent run; time latency only with 1")
     a = ap.parse_args()
+    if a.command == "answers" and a.concurrency < 1:
+        ap.error("--concurrency must be at least 1")
     setup, questions, provenance = _build_setup(a)
     out = a.out / f"answers-{a.command}-{a.name}-{a.split}"
     out.mkdir(parents=True, exist_ok=True)
@@ -463,11 +490,11 @@ def main() -> None:
     else:
         answerable_ids = [q["id"] for q in questions if q["answerable"]]
         subset = fixed_subset(answerable_ids, a.subset_size, a.subset_seed)
-        judge = None if a.judge == "none" else _chain_fn(a.models, a.judge)
-        if a.concurrency < 1:
-            ap.error("--concurrency must be at least 1")
-        report, rows = answers_report(setup, questions, _chain_fn(a.models, "generate"), judge,
-                                      subset, a.concurrency)
+        judge = None if a.judge == "none" else _chain_fn(a.models, a.judge, a.concurrency)
+        report, rows = answers_report(setup, questions, _chain_fn(a.models, "generate", a.concurrency),
+                                      judge, subset, a.concurrency)
+        report["client_limits_raised"] = ({"rpm": EVAL_RPM, "tpm": EVAL_TPM, "timeout_s": EVAL_TIMEOUT_S}
+                                          if a.concurrency > 1 else None)
         report["judge"] = a.judge
         report["judge_is_the_answer_model"] = a.judge == "generate"
         (out / "per_question.jsonl").write_text(

@@ -110,7 +110,7 @@ def cmd_ttft(args: argparse.Namespace) -> int:
                 continue
             rows.append(res)
             tps = "-" if res["decode_tps"] is None else f"{res['decode_tps']:.1f}"
-            out(f"{target:>8} {res['prompt_tokens']:>8} {res['ttft'] or 0:>8.2f} {tps:>13} "
+            out(f"{target:>8} {res['prompt_tokens'] or 0:>8} {res['ttft'] or 0:>8.2f} {tps:>13} "
                 f"{res['completion_tokens']:>8}")
         ttfts = [r["ttft"] for r in rows if r["ttft"] is not None]
         if ttfts:
@@ -139,7 +139,7 @@ def cmd_smoke(args: argparse.Namespace) -> int:
     wall = time.perf_counter() - t0
     bad = [r for r in results if "error" in r or not r.get("completion_tokens")]
     for i, r in enumerate(results):
-        out(f"[{i}] " + (f"error {r['error']}" if "error" in r else
+        out(f"[{i}] " + (f"error {r.get('error', 'no result')}" if "error" in r or not r else
                          f"prompt {r['prompt_tokens']} ttft {r['ttft'] or 0:.1f}s "
                          f"total {r['total']:.1f}s out {r['completion_tokens']}"))
     out(f"{args.concurrency - len(bad)}/{args.concurrency} completed in {wall:.1f} s wall clock")

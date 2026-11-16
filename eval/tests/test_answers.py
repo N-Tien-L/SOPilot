@@ -19,6 +19,7 @@ from sopilot_eval.answers import (
     fixed_subset,
     judge_messages,
     parse_verdict,
+    relax_client_limits,
     retrieve,
     run_ordered,
 )
@@ -276,6 +277,33 @@ def test_a_failure_stops_the_calls_that_have_not_started() -> None:
     with pytest.raises(RuntimeError, match="endpoint down"):
         run_ordered(fail_on_first, list(range(50)), 2)
     assert len(started) < 50
+
+
+def test_a_failure_late_in_the_list_stops_the_queue_while_an_earlier_call_is_still_running() -> None:
+    started: list[int] = []
+
+    def work(i: int) -> int:
+        started.append(i)
+        if i == 0:
+            time.sleep(0.5)  # the head of the list is slow, the failure comes from item 1
+            return 0
+        if i == 1:
+            raise RuntimeError("endpoint down")
+        time.sleep(0.05)
+        return i
+
+    with pytest.raises(RuntimeError, match="endpoint down"):
+        run_ordered(work, list(range(40)), 2)
+    assert len(started) < 40
+
+
+def test_a_concurrent_run_raises_the_client_limits_but_never_lowers_them() -> None:
+    raw = {"llm": {"generate": {"timeout_s": 2000, "chain": [{"rpm": "60", "tpm": "200000"},
+                                                              {"rpm": 9999, "tpm": 5}]}}}
+    out = relax_client_limits(raw, "generate")["llm"]["generate"]
+    assert out["timeout_s"] == 2000 and [e["rpm"] for e in out["chain"]] == [600, 9999]
+    assert [e["tpm"] for e in out["chain"]] == [10_000_000, 10_000_000]
+    assert raw["llm"]["generate"]["chain"][0]["rpm"] == "60"  # the input is not changed
 
 
 def test_concurrency_below_one_is_refused() -> None:
