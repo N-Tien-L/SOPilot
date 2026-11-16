@@ -204,4 +204,33 @@ Re-run the two `git` checks at the start of execution and paste the output into 
 `./scripts/pre-commit-check.ps1`, `./scripts/check-services.ps1` (2-service stack, with a positive and a negative run), `./scripts/docs/check-docs.ps1`, `plan_check.py`, `./scripts/check-migrations.ps1`, `python .claude/hooks/test_guard.py`, `./scripts/validate-build.ps1 -Scope core|ai|web`, `./scripts/run-tests.ps1 -Scope core-api|ai-service|frontend -Type unit`, `cd eval; uv run pytest -q`, `cd tests/tenant-isolation; uv run pytest -v` (Docker), and CI on the PR (`ci.yml` + `tenant-isolation.yml`). Browser: the UC rows of the parity record that need the UI are run in a browser on the throwaway stack; say which ones.
 
 ## 6. Results
-_Empty until execution: precondition output, safety-check results, parity record link, removed-path list, leftover untracked files for the owner, V1 volume cleanup commands, gate output, review findings._
+**Status 2026-11-16: blocked at the parity step.** The parity record [TEST-REPORT-001](../../../../quality/test-reports/parity-v2-17-2026-11-16.md) has verdict **FAILED**: UC-04 and FR-11 are `not passed` (the answer model's reasoning was streamed as answer text; Finding F1). Cause confirmed: `_pump` (`services/ai-service/src/sopilot_ai/conversations/steps.py:136`) turned the `Thought` deltas into plain `str`. The owner chose a separate fix ticket, `V2-42` (branch `fix/ai-reasoning-pump`, worktree `.claude/worktrees/v2-42`, not committed yet), which adds `V2-42` to this ticket's `depends_on` on that branch. With V2-42 both rows pass on the throwaway stack (record, "Re-run with V2-42"). Per §4 step 3 nothing was removed, renamed or edited outside `docs/`. The ticket stays `todo` and the PLAN is untouched on this branch. Next: merge V2-42 into `develop`, rebase this branch, re-run UC-04 / FR-11 on `develop`, then Commit A.
+
+**Preconditions (§2.0), run on `develop` (345f1c8)**
+- `git ls-remote --tags origin v1-final` → `835cf28c1bedbcbb89cdd20d0cf4cbe73f93d8b6 refs/tags/v1-final`.
+- `v1-final` is an ancestor of `develop` (345f1c8).
+- `git diff --stat v1-final develop -- <§2.3 paths>` → empty.
+- `662eac2..345f1c8` = 10 V2-40 commits, none touches a V1 path.
+
+**Safety checks (§2.2)**
+- Grep baseline: 52 hits in 13 files, equal to the list in the ticket.
+- Not run yet (removal has not started): grep after removal, `check-docs` after removal, CI on the PR.
+- Ported parts (ADR-004 §4.5), run in this work: `GoogleIdTokenVerifierTest` 18/18; `SessionWorkspaceIT` 30/30; ai-service `test_pdf`, `test_markdown`, `test_chunk`, `test_ingest_units`, `test_ingest_worker`, `test_retrieval_units` and integration `test_retrieval` "122 passed".
+- Suites: core-api `mvnw verify` unit "Tests run: 126, Failures: 0", IT "Tests run: 261, Failures: 0", BUILD SUCCESS; ai-service `run-tests -Type all` "766 passed, 15 xfailed"; frontend `pnpm test` "206 passed (15 files)"; eval `uv run pytest -q` "157 passed"; `tests/tenant-isolation` "31 passed".
+
+**Bring-up on a throwaway project (`-p sopilot-parity`)**
+- `docker-compose.v2.yml` hard-codes `container_name` and `networks.sopilot-v2.name`, so `-p sopilot-parity` alone collides with the owner's stack. Workaround: a scratch override file (`container_name: !reset null` on all 9 services, network renamed `sopilot-parity-network`), ports 15432/19000/19001/18080/18000/13000, `SOPILOT_FRONTEND_ORIGIN=http://localhost:13000`, `RERANK_ENABLED=false` for the first run (the owner's `SOPILOT_RERANK_BASE_URL` used the `sopilot-vllm-serve` label and returned 404; the `sopilot-vllm-rerank` URL returns 200 and was used, with rerank on, for the V2-42 re-run). The override file is not in the repo.
+- `docker ps` showed only `sopilot-parity-*` containers from the project and 0 V1 containers. Unrelated `github-mcp-server` containers were also running; the owner accepted the scoped check.
+- Environment findings: the Docker VM had 5 GB, so the worker was OOM-killed (raised to 10 GB in `.wslconfig`); `ai-worker` has no restart policy; a stalled Hugging Face Hub download hung the first question (pings only, nothing logged) until the container was restarted.
+
+**Owner decisions (2026-11-16)**
+- UC-03, FR-05 and FR-24 are `deferred (recorded)` (TECH-V2-core-api §16).
+- F1 is fixed in a separate ticket, `V2-42`.
+- F3: keep the code; `docs/architecture/components/core-api.md:501` now says `LOGIN` is recorded in the user's personal workspace (corrected on this branch).
+- FR-13: the reasoning stays visible in the "Thought for N s" block; paraphrased rules inside it are accepted, no extra guard.
+
+**Pending**
+- Merge V2-42 into `develop`, rebase this branch, re-run UC-04 / FR-11 on `develop`; then the remaining parity rows' browser checks if the owner wants them (none was run in V2-17).
+- `check-docs` after removal, CI green on the PR, the §2.9 gate, `v2-reviewer` pass.
+- The §2.2 clean bring-up is repeated on the renamed `docker-compose.yml` after Commit C. The 2026-11-16 throwaway project was removed with the owner's approval (`down -v` on `-p sopilot-parity`: volumes `sopilot-parity_postgres_data`, `sopilot-parity_minio_data` and network `sopilot-parity-network`); the owner's `sopilot-v2_*` and the V1 `sopilot_*` volumes were not touched.
+- Not yet recorded because removal has not started: removed-path list, leftover untracked files, V1 volume cleanup commands.

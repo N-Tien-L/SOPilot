@@ -498,7 +498,7 @@ CREATE TABLE core.audit_logs (
 CREATE INDEX ix_audit_workspace_time ON core.audit_logs(workspace_id, created_at DESC);
 ```
 
-`LOGIN` is recorded in the workspace chosen at sign-in. Audit is written in the same transaction as the change. The table is INSERT-only: the application role has no `UPDATE` or `DELETE` on `core.audit_logs`.
+`LOGIN` is recorded in the signing-in user's personal workspace, which is where every sign-in lands (`IdentityService.authenticate`); a team workspace's log therefore shows no sign-ins of its members (owner decision 2026-11-16, found in V2-17). Audit is written in the same transaction as the change. The table is INSERT-only: the application role has no `UPDATE` or `DELETE` on `core.audit_logs`.
 
 ---
 
