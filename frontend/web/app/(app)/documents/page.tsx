@@ -3,13 +3,16 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Download, Upload } from 'lucide-react';
+import { Download, Pencil, Upload } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
+import { MetadataDialog } from '@/components/documents/MetadataDialog';
 import { Badge, Button, EmptyState, Select, Skeleton } from '@/components/ui';
 import { getDownloadUrl } from '@/lib/api/endpoints';
 import type { DocumentStatus, DocumentView } from '@/lib/api/types';
 import { documentStatusLabel, formatBytes } from '@/lib/chat/labels';
+import { canEditDetails, hasOpenSuggestion } from '@/lib/admin/metadata';
 import { useCategories, useDocuments, useMyMember } from '@/lib/query/hooks';
+import { useSessionStore } from '@/store/session-store';
 import { useUploadStore } from '@/store/upload-store';
 
 const STATUS_OPTIONS = [
@@ -55,8 +58,10 @@ function DocumentsView({ initialQ }: { initialQ: string }) {
   const [categoryId, setCategoryId] = useState('');
   const [tag, setTag] = useState('');
   const [q, setQ] = useState(initialQ);
+  const [editing, setEditing] = useState<DocumentView | null>(null);
   const setUploadOpen = useUploadStore((s) => s.setDialogOpen);
   const me = useMyMember();
+  const role = useSessionStore((s) => s.workspace?.role);
   // Uploads are workspace-visible here (department visibility is V2-33). The server lets only the
   // workspace publisher create such a document (an OWNER may delete and transfer, never write content).
   const canUpload = me.data?.publisherOf.workspace === true;
@@ -130,7 +135,7 @@ function DocumentsView({ initialQ }: { initialQ: string }) {
       ) : null}
 
       {rows.length > 0 ? (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card">
+        <div className="relative mt-4 overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[56rem] border-collapse text-left text-sm">
             <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -158,6 +163,7 @@ function DocumentsView({ initialQ }: { initialQ: string }) {
                         <div className="font-medium">{d.title}</div>
                       )}
                       {d.tags.length > 0 ? <div className="text-xs text-muted-foreground">{d.tags.join(', ')}</div> : null}
+                      {hasOpenSuggestion(d) ? <div className="mt-1"><Badge variant="info">Suggestions to review</Badge></div> : null}
                       {d.status === 'FAILED' && d.latestVersion.failureMessage ? (
                         <div className="text-xs text-danger-foreground">{d.latestVersion.failureMessage}</div>
                       ) : null}
@@ -175,7 +181,16 @@ function DocumentsView({ initialQ }: { initialQ: string }) {
                       {d.createdBy.displayName}
                       <div className="text-xs text-muted-foreground">{new Date(d.createdAt).toLocaleDateString()}</div>
                     </td>
-                    <td className="px-3 py-2">{d.currentVersion ? <DownloadButton id={d.id} /> : null}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {canEditDetails(me.data?.publisherOf, role, d) ? (
+                          <Button size="sm" variant="ghost" icon={<Pencil size={14} aria-hidden />} onClick={() => setEditing(d)}>
+                            Edit
+                          </Button>
+                        ) : null}
+                        {d.currentVersion ? <DownloadButton id={d.id} /> : null}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -183,6 +198,7 @@ function DocumentsView({ initialQ }: { initialQ: string }) {
           </table>
         </div>
       ) : null}
+      {editing ? <MetadataDialog key={editing.id} doc={editing} onClose={() => setEditing(null)} /> : null}
       {docs.hasNextPage ? (
         <div className="mt-4">
           <Button variant="outline" loading={docs.isFetchingNextPage} onClick={() => void docs.fetchNextPage()}>

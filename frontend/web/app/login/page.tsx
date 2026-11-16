@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, Input } from '@/components/ui';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { devLogin, googleLogin, requestNonce } from '@/lib/session/auth';
+import { peekInviteToken } from '@/lib/admin/invite';
 import { googleClientId, loadGoogle } from '@/lib/session/google';
 import { useSessionStore } from '@/store/session-store';
 
@@ -20,7 +21,8 @@ export default function LoginPage() {
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/chat');
+    // A visitor who came from an invitation link goes back to accept it.
+    if (status === 'authenticated') router.replace(peekInviteToken() ? '/invite' : '/chat');
   }, [status, router]);
 
   useEffect(() => {
