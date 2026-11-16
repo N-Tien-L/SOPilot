@@ -403,13 +403,17 @@ def _build_setup(args: argparse.Namespace) -> tuple[Setup, list[dict], dict[str,
     from sopilot_ai.docproc.tokens import HFTokenizer
 
     counter = HFTokenizer(tok["model"], tok.get("revision"), local_files_only=True).count
-    setup = Setup(chunks, index, conf, models.retrieval().thresholds, models.context(), counter,
+    # The service's own ``context_k`` decides how many hits reach the prompt, so eval and the demo
+    # cannot drift apart (ADR-011 section 2.4); the config's ``k`` stays for the retrieval metrics.
+    retrieval = {**conf, "k": models.retrieval().context_k}
+    setup = Setup(chunks, index, retrieval, models.retrieval().thresholds, models.context(), counter,
                   spans)
     provenance = {"git": _git_state(), "dataset": str(args.dataset),
                   "dataset_info": data_info, "chunking": chunk_info, "split": args.split,
                   "allow_draft": bool(args.allow_draft),
                   "reviewed": bool(data_info.get("reviewed", False)),
                   "context": {"expand_default": setup.context.expand,
+                              "context_k": setup.retrieval["k"], "config_k": conf.get("k"),
                               "section_max_tokens": setup.context.section_max_tokens,
                               "max_tokens": setup.context.max_tokens},
                   "token_count": "index_text (title path + content), as ai-service stores it"}
