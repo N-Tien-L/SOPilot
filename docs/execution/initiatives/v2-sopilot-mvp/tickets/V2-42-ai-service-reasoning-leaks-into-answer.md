@@ -11,7 +11,7 @@ priority: P0
 size: S
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-10, V2-32]
-blocks: [V2-17]
+blocks: [V2-17, V2-43]
 branch: "fix/ai-reasoning-pump"
 assignee: pair
 refs:

@@ -20,6 +20,7 @@ from typing import Any, Protocol
 from uuid import UUID
 
 import numpy as np
+import structlog
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from sopilot_ai.conversations import repository as conv_repo
@@ -44,6 +45,8 @@ from sopilot_ai.retrieval.context import ContextConfig, Source, build_sources, g
 from sopilot_ai.retrieval.retriever import RetrievalResult, Retriever
 
 NEAREST_DOCUMENTS = 3
+
+log = structlog.get_logger(__name__)
 
 
 class ChatChain(Protocol):
@@ -431,9 +434,11 @@ class GenerateStep:
         c.llm_calls += 1
         gen = self.chain.stream(bundle.messages, tokens=tokens, on_start=started)
         stop = threading.Event()
+        reasoning_chars = 0
         try:
             async for delta in _pump(gen, stop):
                 if isinstance(delta, Thought):
+                    reasoning_chars += len(delta)
                     thought.feed(str(delta))
                     continue
                 thought.close()
@@ -458,6 +463,13 @@ class GenerateStep:
         finally:
             stop.set()  # the reader thread stops after its current read and closes the stream
             c.timings["generate"] = _ms(start)
+        if not guard.output.strip():
+            # V2-43: the output ceiling ran out inside the reasoning (or the model said nothing).
+            # No answer is not an answer: end as an error, never ANSWERED with empty text.
+            log.warning("answer_empty", reasoning_chars=reasoning_chars, model=c.model)
+            c.checks["emptyAnswer"] = True
+            c.error_code = "LLM_UNAVAILABLE"
+            return refuse("ERROR", rule_id="llm.empty_answer")
         c.answer_text = guard.output
         return CONTINUE
 
