@@ -10,7 +10,7 @@ scope: platform
 priority: P1
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
-depends_on: [V2-14, V2-15, V2-16, V2-26, V2-31, V2-32, V2-33, V2-42]
+depends_on: [V2-14, V2-15, V2-16, V2-26, V2-31, V2-32, V2-33, V2-42, V2-43]
 blocks: [V2-18]
 branch: "chore/platform-remove-legacy"
 assignee: pair
