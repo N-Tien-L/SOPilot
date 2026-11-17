@@ -17,9 +17,9 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 43
-completed_tickets: 40
+completed_tickets: 41
 implemented_tickets: 41
-review_tickets: 1
+review_tickets: 0
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -265,7 +265,7 @@ flowchart TD
 | `V2-27` | ai-service: semantic router (rules + embedding) measured against rules only | ai-qa | L | `V2-05`, `V2-10` | done |
 | `V2-35` | Infra + ai-service: bge-reranker-v2-m3 rerank on GPU, sharing the A10 container with vLLM | infra | L | `V2-09`, `V2-34` | done |
 | `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | done |
-| `V2-42` | ai-service: the model's reasoning is streamed as answer text | ai-qa | S | `V2-10`, `V2-32` | review |
+| `V2-42` | ai-service: the model's reasoning is streamed as answer text | ai-qa | S | `V2-10`, `V2-32` | done |
 | `V2-43` | ai-service: an answer that ends inside the reasoning is stored as an empty ANSWERED | ai-qa | S | `V2-10`, `V2-42` | done |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
@@ -441,7 +441,9 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 
 > **Update 2026-11-15:** `V2-31` → `review` (queue state machine with Vitest, real-stack browser run in Chromium and Firefox, fresh Opus review with no blocker; details and open items in the ticket's §5); `review_tickets` 0 → 1, `implemented_tickets` 32 → 33. Not `done`: owner acceptance needed.
 
-> **Owner decision 2026-11-17 (V2-43 and V2-17 accepted):** the owner asked to mark both `done` and merge them if the reviews were clean. `v2-reviewer` found no blocker in either; the findings that belonged to each ticket were fixed (V2-43 §6, V2-17 §6). The live re-run on the throwaway stack with V2-43 passed 3 of 3 (UC-04 owner question: 1,791, 3,380 and 2,291 `reasoning` events, then `delta`, `citations`, `ANSWERED`; no `llm_output_truncated` or `answer_empty` in the log). `V2-43` → `done`, `V2-17` → `done`. `completed_tickets` 38 → 40, `implemented_tickets` 40 → 41, `review_tickets` 2 → 1 (`V2-42` stays `review`). Found outside the ticket: a failed ingest callback is rejected with `409 INVALID_TRANSITION`, leaving the document `PROCESSING`.
+> **Owner decision 2026-11-17 (V2-43 and V2-17 accepted):** the owner asked to mark both `done` and merge them if the reviews were clean. `v2-reviewer` found no blocker in either; the findings that belonged to each ticket were fixed (V2-43 §6, V2-17 §6). The live re-run on the throwaway stack with V2-43 passed 3 of 3 (UC-04 owner question: 1,791, 3,380 and 2,291 `reasoning` events, then `delta`, `citations`, `ANSWERED`; no `llm_output_truncated` or `answer_empty` in the log). `V2-43` → `done`, `V2-17` → `done`. `completed_tickets` 38 → 40, `implemented_tickets` 40 → 41, `review_tickets` 2 → 1 (`V2-42` stays `review`).
+
+> **Owner decision 2026-11-17 (V2-42 accepted):** the owner marked `V2-42` `done`. Evidence: the V2-17 re-runs on the merged branch never streamed reasoning as answer text (parity record). `completed_tickets` 40 → 41, `review_tickets` 1 → 0. Found outside the ticket: a failed ingest callback is rejected with `409 INVALID_TRANSITION`, leaving the document `PROCESSING`.
 
 > **Update 2026-11-15:** `V2-32` → `review` (recognized-content screen and citation viewer; core-api `download-url?disposition=inline` approved by the owner and added, 126 unit + 249 integration tests green; Vitest incl. emoji offsets; real-stack browser runs and captioned videos in Chromium and Firefox; fresh Opus review, one blocker (inline PDF) resolved by the core-api change, four warnings fixed; details in the ticket's §5). `review_tickets` 1 → 2, `implemented_tickets` 33 → 34. Not `done`: owner acceptance needed. Open for the owner: `[n]` opens the viewer in two steps; the version label and the no-current-version state were mock-checked only.
 

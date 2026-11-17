@@ -2,7 +2,7 @@
 id: V2-42
 title: "ai-service: the model's reasoning is streamed as answer text"
 type: fix
-status: review
+status: done
 created: 2026-11-16
 updated: 2026-11-17
 author: "Owner"
@@ -36,7 +36,7 @@ Goal: reasoning reaches the client only as `reasoning` / `reasoning_done` events
 - [x] **Fix.** `_pump` yields each delta unchanged; both tests pass.
 - [x] **No regression.** The ai-service suite and ruff pass.
 - [x] **Live.** On the throwaway parity stack with this branch's ai-service, answerable questions send `reasoning` events and a clean `finalText` with citations.
-- [ ] Owner review; then V2-17 re-runs UC-04 and FR-11 on `develop` after the merge.
+- [x] Owner review; then V2-17 re-runs UC-04 and FR-11 on `develop` after the merge.
 
 ## 3. Guide
 - Code: `services/ai-service/src/sopilot_ai/conversations/steps.py` (`_pump`, `GenerateStep`), `providers/llm.py` (`Thought`, `ThinkSplitter`).
@@ -59,7 +59,7 @@ uv run --extra dev --extra pdf pytest tests/ -q   # Docker for tests/integration
 | `eval/tests/test_review_regressions.py` (pinned ticket count 41 → 42) | MODIFY |
 
 ## 6. Results
-Implemented on `fix/ai-reasoning-pump` (from `develop` 345f1c8), committed 2026-11-17 and merged into `develop` locally on the owner's request; not pushed. Status `review`: owner acceptance moves it to `done`.
+Implemented on `fix/ai-reasoning-pump` (from `develop` 345f1c8), committed 2026-11-17 and merged into `develop` locally on the owner's request; not pushed. **Status `done` (owner decision 2026-11-17).** V2-17 re-ran UC-04 and FR-11 on the merged branch: no reasoning in any `finalText` across the 2026-11-17 runs, including 3 runs with V2-43 (parity record, "Re-run on the renamed `docker-compose.yml`").
 
 **Reproduction first.** Both new tests failed on the unchanged code: `assert [False, False] == [True, False]` (`test_qa_api_units.py`) and `assert '' == 'Rules: use o...ays two days.'` (`test_qa_api.py`): no `reasoning` event, the reasoning was in the answer.
 
@@ -71,4 +71,6 @@ Implemented on `fix/ai-reasoning-pump` (from `develop` 345f1c8), committed 2026-
 - `uv run --extra dev --extra pdf pytest tests/ -q`: "767 passed, 1 skipped, 15 xfailed". The skip is `test_guard_cases.py:172` ("eval/datasets is git-ignored"), absent in a fresh worktree.
 - Live (2026-11-16, throwaway `sopilot-parity` stack, ai-service built from this branch, Modal answer model, rerank on): owner question "Buddy program là gì?" → 1500 `reasoning` events, `reasoning_done`, 299 `delta`, `citations`, `finalText` starts "Theo tài liệu, \"GitLab Buddy Program\" là…" with `[1]`; engineer question on the department-restricted SOP → 1106 `reasoning` events, `finalText` "Báo cáo tai nạn lao động phải được gửi cho trưởng bộ phận trong vòng 24 giờ kể từ khi xảy ra tai nạn [1]." citing that SOP; HR member and an uncovered question → `REFUSED_NO_EVIDENCE`. No `finalText` contained "Thinking Process", "Analyze the Request" or `<source>`.
 
-**Not verified.** A browser view of the reasoning block with this fix; a `v2-reviewer` pass (skipped: one-line code change plus tests). In this worktree `eval` shows 23 failures that need the gitignored `eval/datasets` and `datasets/extraction`; a clean `develop` worktree shows the same 23, and in the main tree those files pass (50 passed).
+**Browser (2026-11-17).** headless Chromium (Playwright 1.58 from the owner's local Excalidraw clone, no repo dependency) against the throwaway parity web `:13000`, dev sign-in, screenshots in `artifacts/testing/v2-43-live-2026-11-17/browser/` (gitignored): while the owner's answer streamed, the block showed "Thinking", then folded to "Thought for 44 s" with the answer text ("Buddy Progr…") below it and no reasoning in the answer; the finished answer has a `[1] Quy trình Hướng dẫn Đồng đội` citation card. After the turn is stored, the history view shows the answer without the reasoning block (`ChatView.tsx` passes no `reasoning` to stored messages; reasoning is not persisted), as designed in V2-32.
+
+**Not verified.** a `v2-reviewer` pass (skipped: one-line code change plus tests). In this worktree `eval` shows 23 failures that need the gitignored `eval/datasets` and `datasets/extraction`; a clean `develop` worktree shows the same 23, and in the main tree those files pass (50 passed).

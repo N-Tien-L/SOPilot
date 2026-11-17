@@ -84,7 +84,7 @@ Re-run the two `git` checks at the start of execution and paste the output into 
   | Extraction, chunking, embedding | `ai-service` (rewritten, not ported: TECH-V2-ai-service, V2-09/V2-20/V2-22) | `test_pdf.py`, `test_markdown.py`, `test_chunk.py`, `test_ingest_units.py`, `test_ingest_worker.py` |
   | Hybrid retrieval SQL | `ai-service` `sopilot_ai.retrieval` (rewritten, V2-09) | `test_retrieval_units.py`, `integration/test_retrieval.py` |
   | Frontend chat components | not ported: deleted in V2-38, rebuilt in V2-15 | `frontend/web` Vitest |
-- [ ] **CI is green with V2 only.** `ci.yml` after §2.5 and `tenant-isolation.yml` pass on the branch's PR, and `eval/` passes (`cd eval; uv sync --extra dev; uv run pytest -q`).
+- [x] **CI is green with V2 only.** `ci.yml` after §2.5 and `tenant-isolation.yml` pass on the branch's PR, and `eval/` passes (`cd eval; uv sync --extra dev; uv run pytest -q`).
 - [x] **Clean V2 bring-up starts no V1 container.** Bring the stack up from empty volumes with the renamed `docker-compose.yml` under a **throwaway project name**: `docker compose -p sopilot-parity up -d --build`. The owner's `sopilot-v2` project and its volumes are never used for this. Stop the owner's stack first with `down` (no `-v`), or override the `V2_*_PORT` variables. Run the V2-16 demo (`scripts/seed-demo.ps1`) and the UCs from §2.1. Confirm `docker ps` shows only `sopilot-parity-*` containers. Removing the throwaway project's volumes afterwards (`down -v` on `-p sopilot-parity` only) needs the owner's approval at the prompt (CLAUDE.md constraint 3).
 
 ### 2.3 Removal (separate commit; explicit paths only, never a recursive wildcard)
@@ -204,7 +204,7 @@ Re-run the two `git` checks at the start of execution and paste the output into 
 `./scripts/pre-commit-check.ps1`, `./scripts/check-services.ps1` (2-service stack, with a positive and a negative run), `./scripts/docs/check-docs.ps1`, `plan_check.py`, `./scripts/check-migrations.ps1`, `python .claude/hooks/test_guard.py`, `./scripts/validate-build.ps1 -Scope core|ai|web`, `./scripts/run-tests.ps1 -Scope core-api|ai-service|frontend -Type unit`, `cd eval; uv run pytest -q`, `cd tests/tenant-isolation; uv run pytest -v` (Docker), and CI on the PR (`ci.yml` + `tenant-isolation.yml`). Browser: the UC rows of the parity record that need the UI are run in a browser on the throwaway stack; say which ones.
 
 ## 6. Results
-**Status 2026-11-17: `done` (owner decision 2026-11-17: mark done and merge after a clean review).** Parity passed, the V1 code is removed, the compose file is renamed, the §2.9 gate is green and the `v2-reviewer` findings that belong here are fixed. Open: CI on a PR (nothing is pushed). The parity record [TEST-REPORT-001](../../../../quality/test-reports/parity-v2-17-2026-11-16.md) has verdict **PASSED_WITH_WARNINGS**. The first run (2026-11-16) failed UC-04 and FR-11 (reasoning streamed as answer text, Finding F1; cause `_pump` in `services/ai-service/src/sopilot_ai/conversations/steps.py:136`). The owner chose a separate fix, [`V2-42`](V2-42-ai-service-reasoning-leaks-into-answer.md), committed as `88c66ef`, merged into `develop` locally (`25e83cb`), and merged into this branch (`9809f5e`; a rebase was not possible because the working tree holds the owner's uncommitted edits to `CLAUDE.md` and two skills, which were left alone). The full throwaway-stack run then passed on this branch (record, "Re-run on the merged branch").
+**Status 2026-11-17: `done` (owner decision 2026-11-17: mark done and merge after a clean review).** Parity passed, the V1 code is removed, the compose file is renamed, the §2.9 gate is green and the `v2-reviewer` findings that belong here are fixed. CI on PR #19 is green. The parity record [TEST-REPORT-001](../../../../quality/test-reports/parity-v2-17-2026-11-16.md) has verdict **PASSED_WITH_WARNINGS**. The first run (2026-11-16) failed UC-04 and FR-11 (reasoning streamed as answer text, Finding F1; cause `_pump` in `services/ai-service/src/sopilot_ai/conversations/steps.py:136`). The owner chose a separate fix, [`V2-42`](V2-42-ai-service-reasoning-leaks-into-answer.md), committed as `88c66ef`, merged into `develop` locally (`25e83cb`), and merged into this branch (`9809f5e`; a rebase was not possible because the working tree holds the owner's uncommitted edits to `CLAUDE.md` and two skills, which were left alone). The full throwaway-stack run then passed on this branch (record, "Re-run on the merged branch").
 
 **Preconditions (§2.0), run on `develop` (345f1c8)**
 - `git ls-remote --tags origin v1-final` → `835cf28c1bedbcbb89cdd20d0cf4cbe73f93d8b6 refs/tags/v1-final`.
@@ -215,7 +215,7 @@ Re-run the two `git` checks at the start of execution and paste the output into 
 **Safety checks (§2.2)**
 - Grep baseline: 52 hits in 13 files, equal to the list in the ticket.
 - After removal (branch at `b6e0b80` plus the review fixes): the §2.2 grep, widened to `.claude`, `CLAUDE.md` and `README.md`, returns only `GoogleIdTokenVerifier.java:34` (port provenance), `infrastructure/db/README.md:3` (past-tense history), `CLAUDE.md:7` (*Poliwise* history) and `CLAUDE.md:99` (`localhost:3001` is the owner's Excalidraw viewer, not V1). `check-docs.ps1`: "docs check passed (13 warnings)", all links to gitignored dataset paths.
-- CI on the PR: not run (not pushed).
+- CI on the PR: [PR #19](https://github.com/N-Tien-L/SOPilot/pull/19), all 13 checks pass (see below).
 - Ported parts (ADR-004 §4.5), run in this work: `GoogleIdTokenVerifierTest` 18/18; `SessionWorkspaceIT` 30/30; ai-service `test_pdf`, `test_markdown`, `test_chunk`, `test_ingest_units`, `test_ingest_worker`, `test_retrieval_units` and integration `test_retrieval` "122 passed".
 - Suites: core-api `mvnw verify` unit "Tests run: 126, Failures: 0", IT "Tests run: 261, Failures: 0", BUILD SUCCESS; ai-service `run-tests -Type all` "766 passed, 15 xfailed"; frontend `pnpm test` "206 passed (15 files)"; eval `uv run pytest -q` "157 passed"; `tests/tenant-isolation` "31 passed".
 
@@ -261,6 +261,17 @@ Re-run the two `git` checks at the start of execution and paste the output into 
 - Known limit: `check-services.ps1` checks the `ai-worker` of the default compose project `sopilot-v2`, so a run against the parity ports reported the owner's worker.
 
 **Not verified**
-- CI (`ci.yml`, `tenant-isolation.yml`) on a PR: nothing is pushed.
-- Browser checks of the parity rows and of the V2-43 error state (none run in V2-17).
-- `tests/tenant-isolation` and the Docker suites were not re-run after the removal (last green run is listed under Safety checks).
+- Safari/WebKit, Firefox and narrow viewports in the browser pass below (Chromium 1366 px only).
+- Google sign-in in a browser; `scripts/measure-ttft.ps1` (carried to V2-18).
+
+**Done after the owner's request of 2026-11-17 ("do all the items in not verified")**
+- CI on a PR: branch pushed, [PR #19](https://github.com/N-Tien-L/SOPilot/pull/19) into `develop`; all 13 checks pass (`secret-scan`, `migrations`, `docs`, `guard-selftest`, `core-api-unit`, `ai-service-unit`, `frontend`; `database`, `negative-control`, `core-api`, `ai-service`, `department-authorization`).
+- Docker suites on the merged tree: `tests/tenant-isolation` "31 passed"; ai-service integration "151 passed"; core-api `run-tests -Type all` unit "Tests run: 126, Failures: 0" and IT "Tests run: 261, Failures: 0", BUILD SUCCESS.
+- Browser, headless Chromium (Playwright 1.58 from the owner's local Excalidraw clone, no repo dependency) against the throwaway parity web `:13000`, dev sign-in, screenshots in `artifacts/testing/v2-43-live-2026-11-17/browser/` (gitignored):
+  - UC-04 owner: live "Thinking" block folded to "Thought for 44 s", answer below it, citation card `[1] Quy trình Hướng dẫn Đồng đội`, no reasoning in the answer (V2-42).
+  - UC-10: the engineer's answer "…trưởng bộ phận trong vòng 24 giờ…" with the card `[1] Quy trình An toàn Lao động (Giới hạn Kỹ thuật)`; HR gets the refusal and nothing of that SOP.
+  - UC-05: the uncovered question shows the refusal; Knowledge gaps lists it for the owner; a member sees "Owners and admins only".
+  - UC-12: the documents list shows the five documents `Ready`, the replaced scan at `v2` (the `FAILED` v1 state was checked through the API, not on screen).
+  - V2-43 error state: see V2-43 §6.
+  - The first browser pass failed both owner questions with the generic error: the log showed `qa_pipeline_failed error=RerankError` while the Modal reranker was cold (parity record F4); the second pass, with the reranker warm, passed. Console: one `401 POST /api/v1/auth/refresh` at sign-in (the session-restore probe without a refresh cookie).
+  - Observation: the error and refusal sentences follow the question's language (Vietnamese here) while the surrounding UI copy ("Try again") is English.

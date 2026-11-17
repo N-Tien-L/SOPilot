@@ -91,4 +91,8 @@ Implemented on `fix/ai-empty-answer-budget` (from `develop` 25e83cb) and committ
 
 No `finalText` contained reasoning. `docker logs` of the container: `llm_output_truncated` 0, `answer_empty` 0, `Traceback` 0. Run 2's reasoning alone (3,380 events against 1,366 for the cut-off run) would not have fit the old 3,000-token ceiling. The guard path itself (`ERROR` / `LLM_UNAVAILABLE`) was not triggered live; it is covered by the unit tests.
 
-**Not verified.** A browser view of the error state; the ai-service integration suite (Docker); the guard path on the live model.
+**Guard path live and in the browser (2026-11-17).** The parity `ai-service` was started once with `SOPILOT_LLM_MAX_OUTPUT_TOKENS=64` (a scratch override file, not in the repo) so the reasoning always runs out; headless Chromium (Playwright 1.58 from the owner's local Excalidraw clone, no repo dependency) against the throwaway parity web `:13000`, dev sign-in, screenshots in `artifacts/testing/v2-43-live-2026-11-17/browser/` (gitignored). Owner asks "Buddy program là gì?": the answer block shows "Thought for 2 s", then the fixed `LLM_UNAVAILABLE` text in the question's language ("Dịch vụ trả lời đang không khả dụng. Vui lòng thử lại sau ít phút.") and "Try again"; no empty answer, no citations. Log: `llm_output_truncated max_tokens=64`, then `answer_empty reasoning_chars=238`. The service was restarted without the override afterwards (variable unset, `models.yaml` default 8192).
+
+**Docker suites (2026-11-17, merged tree).** ai-service `run-tests -Type integration`: "151 passed". CI on PR #19 (`ci.yml` + `tenant-isolation.yml`): all 13 checks pass.
+
+**Not verified.** An integration test through `QAService.ask` for the empty-answer path (the review's suggestion; the path was exercised live instead).
