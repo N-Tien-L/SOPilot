@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # Semantic router (V2-27, TECH §7.1): off = the V2-10 rule router only. Enable after the
     # thresholds are tuned on dev (routing eval, eval/README.md).
     semantic_router_enabled: bool = Field(False, alias="SOPILOT_SEMANTIC_ROUTER_ENABLED")
+    # SetFit classifier behind the rules (V2-44, ADR-012). off = exactly the V2-27 behaviour;
+    # shadow = record the prediction in messages.route, route nothing; on = it replaces the
+    # semantic layer. Stays off until the corpus-specific acceptance of V2-44 passes.
+    router_classifier_mode: Literal["off", "shadow", "on"] = Field(
+        "off", alias="SOPILOT_ROUTER_CLASSIFIER_MODE")
 
     @field_validator("followup_max_tokens", mode="before")
     @classmethod

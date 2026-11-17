@@ -132,3 +132,6 @@ datasets/
 
 # Local screenshots kept as ticket evidence (not committed)
 /docs/quality/evidence/
+
+# SetFit router artifact (V2-44, ADR-012): 2.3 GB, built by eval/experiments/routing/modal_setfit_app.py
+services/ai-service/models/

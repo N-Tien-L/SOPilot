@@ -30,6 +30,7 @@ from sopilot_ai.qa import checks as qa_checks
 from sopilot_ai.qa import citations as qa_citations
 from sopilot_ai.qa import prompt as qa_prompt
 from sopilot_ai.qa import router as qa_router
+from sopilot_ai.qa import setfit_router
 from sopilot_ai.qa.output_guard import OutputGuard, Verdict
 from sopilot_ai.qa.pipeline import (
     CONTINUE,
@@ -77,6 +78,8 @@ class QAContext(PipelineContext):
     reservation: Reservation | None = None
     semantic: qa_router.SemanticDecision | None = None  # V2-27; None when the router is off
     query_vector: np.ndarray | None = None  # router vector of ``text``, reused without history
+    classifier: setfit_router.ClassifierDecision | None = None  # V2-44; None when off or failed
+    classifier_off_topic: bool = False  # mode ``on``: OUT_OF_SCOPE if the gate refuses (D1)
     rewritten: str | None = None
     rewrite_status: str = "NONE"
     retrieval: RetrievalResult | None = None
@@ -226,6 +229,66 @@ class SemanticRouterStep:
         return template("about_source", rule_id="router.about_source", sources=lines)
 
 
+async def classify_question(classifier: setfit_router.SetFitClassifier, c: QAContext,
+                            mode: str) -> setfit_router.ClassifierDecision | None:
+    """Run the SetFit classifier on the masked question and the previous turn (V2-44).
+
+    Records the prediction in ``messages.route.classifier`` (label, confidence, action, the
+    previous-message flag and the time). A failure never blocks the question: it is recorded as a
+    fixed code and the question goes on to retrieval. Question text and model output are never
+    logged.
+    """
+    start = time.monotonic()
+    entry: dict[str, Any] = {"layer": "setfit", "mode": mode, "withPrevious": False}
+    try:
+        previous = setfit_router.previous_message(c.history, classifier.spec.previous_max_chars)
+        entry["withPrevious"] = previous is not None
+        decision = await asyncio.to_thread(classifier.classify, c.text, previous)
+    except Exception as exc:  # noqa: BLE001 - the client never sees it; only the type is logged
+        log.warning("router_classifier_failed", error=type(exc).__name__)
+        entry["error"] = "CLASSIFIER_ERROR"
+        c.route_info["classifier"] = entry
+        return None
+    c.timings["classifier"] = _ms(start)
+    c.classifier = decision
+    entry.update({"label": decision.label, "confidence": round(decision.confidence, 4),
+                  "action": decision.action})
+    c.route_info["classifier"] = entry
+    return decision
+
+
+class ClassifierRouterStep:
+    """Step 6c (V2-44, mode ``on``): the SetFit classifier replaces the cosine comparison.
+
+    Runs after the rules, on questions they left undecided, and never blocks. Template labels
+    (greeting, thanks, about_bot, abuse_only) answer with a fixed sentence; disclaimer labels still
+    run retrieval and add the disclaimer; ``off_topic`` only matters if the gate refuses. Every
+    other label, deferred or not, goes to retrieval. No confidence threshold (ADR-012 §2).
+    """
+
+    name = "setfit_router"
+
+    def __init__(self, classifier: setfit_router.SetFitClassifier) -> None:
+        self.classifier = classifier
+
+    async def run(self, ctx: PipelineContext) -> Decision:
+        c = _ctx(ctx)
+        decision = await classify_question(self.classifier, c, "on")
+        if decision is None or decision.action == qa_router.ACTION_RAG:
+            return CONTINUE
+        if decision.action == qa_router.ACTION_DISCLAIMER:
+            c.checks.setdefault("disclaimers", []).append(decision.label)
+            return CONTINUE
+        if decision.action == qa_router.ACTION_OUT_OF_SCOPE:
+            c.classifier_off_topic = True  # decided by RetrieveStep, after the gate
+            return CONTINUE
+        c.route_info["layer"] = "setfit"
+        c.route_info["intent"] = decision.label
+        if decision.label == qa_router.KIND_ABUSE:
+            c.record("INPUT_FLAG", "router.abuse")
+        return template(decision.label, rule_id=f"router.{decision.label}")
+
+
 class RewriteStep:
     """Step 7: a standalone question from the last turns, only when there is history (D5)."""
 
@@ -297,7 +360,9 @@ class RetrieveStep:
             return CONTINUE
         # D1: OUT_OF_SCOPE (V2-27) is decided only here, after the gate has refused: same
         # sentence, no nearest documents, and never on the knowledge-gap list.
-        if c.semantic is not None and qa_router.is_out_of_scope(c.semantic, gate_refused=True):
+        if c.classifier_off_topic or (
+                c.semantic is not None
+                and qa_router.is_out_of_scope(c.semantic, gate_refused=True)):
             c.route_info["refusal"] = "OUT_OF_SCOPE"
             return refuse("REFUSED_NO_EVIDENCE", template_key="no_evidence",
                           reason="OUT_OF_SCOPE", rule_id="router.off_topic")

@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sopilot_ai.qa import router
+from sopilot_ai.qa import router, setfit_router
 from sopilot_ai.qa.pipeline import DecisionKind, PipelineContext, run_steps
 from sopilot_ai.qa.steps import deterministic_steps
 
@@ -114,15 +114,26 @@ def predict_rules(texts: Sequence[str], vocab: frozenset[str]) -> list[tuple[str
 
 
 def predict(rows: Sequence[dict[str, Any]], layer: router.SemanticLayer | None,
-            vocab: frozenset[str]) -> list[Prediction]:
-    """Config (a) when ``layer`` is None, config (b) otherwise (the router step only where the
-    rules left the question to RAG, as in the service)."""
+            vocab: frozenset[str],
+            classifier: setfit_router.SetFitClassifier | None = None) -> list[Prediction]:
+    """Config (a) when ``layer`` and ``classifier`` are None, config (b) with the semantic layer,
+    config (c) with the SetFit classifier (V2-44; the router step only where the rules left the
+    question to RAG, as in the service). The row's ``previous_turn`` is the previous message."""
     rules = predict_rules([r["text"] for r in rows], vocab)
     out: list[Prediction] = []
     for row, (label, ctx) in zip(rows, rules, strict=True):
-        if layer is None or label not in (RAG, "abuse_with_question"):
+        if (layer is None and classifier is None) or label not in (RAG, "abuse_with_question"):
             out.append(Prediction(label, "rule", None))
             continue
+        if classifier is not None:
+            started = time.perf_counter()
+            verdict = classifier.classify(ctx.text, row.get("previous_turn"))
+            elapsed = (time.perf_counter() - started) * 1000
+            # Same actions as ClassifierRouterStep: only a non-RAG action changes the route.
+            out.append(Prediction(label if verdict.action == router.ACTION_RAG else verdict.label,
+                                  "setfit", elapsed))
+            continue
+        assert layer is not None
         started = time.perf_counter()
         decision = layer.classify(ctx.text, has_history=row.get("previous_turn") is not None)
         elapsed = (time.perf_counter() - started) * 1000
@@ -159,16 +170,20 @@ def error_classes(rows: Sequence[dict[str, Any]], preds: Sequence[Prediction]) -
     """Costly = a business or follow-up question routed away from RAG. Cheap = a greeting, thanks,
     about-bot or profanity question that reached RAG (answered "not found" instead of a sentence),
     or a profanity question with content that the rules did not see as profanity."""
-    costly = cheap = other = 0
+    costly = cheap = other = by_template = 0
     for r, p in zip(rows, preds, strict=True):
         intent = r["intent"]
         if intent in COSTLY_SOURCES and p.label != RAG:
             costly += 1
+            # V2-44: a disclaimer or off_topic label still runs retrieval in the service; only a
+            # template label answers without it, which is the harm that matters most.
+            by_template += p.label in TEMPLATE_LABELS
         elif intent in CHEAP_SOURCES and p.label == RAG:
             cheap += 1
         elif EXPECTED[intent] != p.label and intent not in ("harmful",):
             other += 1
-    return {"costly": costly, "cheap": cheap, "other_misses": other}
+    return {"costly": costly, "costly_answered_by_template": by_template, "cheap": cheap,
+            "other_misses": other}
 
 
 def summarize(rows: Sequence[dict[str, Any]], preds: Sequence[Prediction],
@@ -239,6 +254,22 @@ def build_layer(cfg: dict[str, Any]) -> router.SemanticLayer | None:
     )
 
 
+def build_classifier(cfg: dict[str, Any]) -> setfit_router.SetFitClassifier | None:
+    """The V2-44 classifier exactly as the service builds it: spec from ``models.yaml``, the
+    artifact folder from the config. ``None`` when the config has no ``router_classifier``."""
+    section = cfg.get("router_classifier")
+    if not section:
+        return None
+    from dataclasses import replace
+
+    from sopilot_ai.providers.registry import ModelsConfig
+
+    models = ModelsConfig.load(resolve_path(section["models_config"]))
+    spec = models.router_classifier(REPO_ROOT / "services" / "ai-service")
+    spec = replace(spec, artifact_dir=resolve_path(section["artifact_dir"]))
+    return setfit_router.load_classifier(spec)
+
+
 def _write_report(out_dir: Path, filename: str, name: str, split: str, results: dict[str, Any],
                   model_info: dict[str, Any]) -> None:
     lines = [f"# Routing evaluation: {name} ({split})", "",
@@ -250,6 +281,8 @@ def _write_report(out_dir: Path, filename: str, name: str, split: str, results: 
                      f"{_fmt(m['precision'])} | {m['predicted']} |")
     lines += ["", "## Error classes and gap list", "",
               f"- costly (sop_question / followup routed away): {results['errors']['costly']}",
+              (f"- of those, answered by a template without retrieval: "
+               f"{results['errors']['costly_answered_by_template']}"),
               f"- cheap (greeting/thanks/about_bot/profanity reached RAG): {results['errors']['cheap']}",
               f"- other misses: {results['errors']['other_misses']}",
               (f"- sop_question routed away: {results['sop_question']['routed_away']} of "
@@ -292,12 +325,17 @@ def run(config_path: Path, split: str | None = None) -> dict[str, Any]:
             json.dumps(baseline, ensure_ascii=False, indent=2), encoding="utf-8")
 
     layer = build_layer(cfg)
-    model_info: dict[str, Any] = {"semantic_router": layer is not None}
+    classifier = build_classifier(cfg)
+    model_info: dict[str, Any] = {"semantic_router": layer is not None,
+                                  "setfit_router": classifier is not None}
+    if classifier is not None:
+        classifier.classify("khởi động")  # warm the model before timing
+        model_info["artifact"] = cfg["router_classifier"]["artifact_dir"]
     if layer is not None:
         layer.embed_query("khởi động")  # warm the model before timing
         model_info["model_id"] = layer.model_id
         model_info["thresholds"] = cfg["thresholds"]
-    preds = predict(rows, layer, vocab)
+    preds = predict(rows, layer, vocab, classifier)
     results = summarize(rows, preds, cfg.get("acceptance"), baseline_costly)
     results["baseline"] = baseline
     (out_dir / "metrics.json").write_text(json.dumps(results, ensure_ascii=False, indent=2),

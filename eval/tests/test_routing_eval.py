@@ -172,3 +172,61 @@ def test_jsonl_loader_skips_blank_lines(tmp_path):
     path = tmp_path / "x.jsonl"
     path.write_text(json.dumps({"text": "a", "intent": "greeting"}) + "\n\n", encoding="utf-8")
     assert R.load_dataset(path) == [{"text": "a", "intent": "greeting"}]
+
+
+# --- V2-44: the SetFit classifier through the service code path ----------------------------------
+
+class _FakeClassifier:
+    """Names a label from the text; the harness must only act on non-RAG actions."""
+
+    def __init__(self):
+        self.seen: list[tuple[str, str | None]] = []
+
+    def classify(self, text, previous=None):
+        from sopilot_ai.qa.setfit_router import ClassifierDecision
+        self.seen.append((text, previous))
+        if "thoi tiet" in text:
+            return ClassifierDecision("off_topic", 0.9, router.ACTION_OUT_OF_SCOPE)
+        if "cam on" in text:
+            return ClassifierDecision("thanks", 0.9, router.ACTION_TEMPLATE)
+        return ClassifierDecision("sop_question", 0.9, router.ACTION_RAG)
+
+
+def test_the_classifier_config_points_at_the_service_models_yaml_and_has_a_baseline():
+    cfg = yaml.safe_load((EVAL_ROOT / "configs" / "routing-setfit.yaml").read_text(encoding="utf-8"))
+    assert cfg["router_classifier"]["models_config"] == "services/ai-service/config/models.yaml"
+    assert cfg["semantic_router_enabled"] is False and cfg["baseline"]
+
+
+def test_a_config_without_router_classifier_builds_no_classifier():
+    assert R.build_classifier({}) is None
+
+
+def test_predict_uses_the_classifier_only_where_the_rules_left_retrieval():
+    classifier = _FakeClassifier()
+    vocab = frozenset({"quy", "trinh", "nghi", "phep", "thoi", "tiet", "hom", "nay", "toi", "can"})
+    rows = [{"text": "quy trinh nghi phep", "intent": "sop_question", "previous_turn": "Prev."},
+            {"text": "thoi tiet hom nay", "intent": "off_topic"},
+            {"text": "Xin chào", "intent": "greeting"}]
+    preds = R.predict(rows, None, vocab, classifier)
+    assert [p.layer for p in preds] == ["setfit", "setfit", "rule"]  # the rules decided the greeting
+    assert [p.label for p in preds] == [R.RAG, "off_topic", "greeting"]
+    assert classifier.seen[0] == ("quy trinh nghi phep", "Prev.") and len(classifier.seen) == 2
+
+
+# --- V2-44: the corpus-specific set stays apart from the training data -------------------------------
+
+def test_corpus_set_is_disjoint_from_training_dev_and_frozen_test_texts():
+    if not (DATA / "corpus-test.jsonl").exists():  # the datasets folder is git-ignored
+        pytest.skip("corpus-test.jsonl is only on the owner's machine")
+    corpus = R.load_dataset(DATA / "corpus-test.jsonl")
+    seen = set()
+    for r in corpus:
+        key = (_norm(r["text"]), bool(r["previous_turn"]))
+        assert key not in seen, r["id"]
+        seen.add(key)
+    used = {_norm(r["text"]) for f in ("train-pool", "dev", "test") for r in R.load_dataset(DATA / f"{f}.jsonl")}
+    leaked = [r["id"] for r in corpus if _norm(r["text"]) in used]  # every row, every source
+    assert leaked == []
+    assert {r["intent"] for r in corpus} <= set(R.LABELS)
+    assert sum(r["intent"] == "sop_question" and r["source"].startswith("sop-main-v2:") for r in corpus) >= 100

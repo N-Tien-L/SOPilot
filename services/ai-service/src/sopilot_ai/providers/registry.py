@@ -78,8 +78,63 @@ class RetrievalConfig:
 
 
 @dataclass(frozen=True)
+class RouterClassifierSpec:
+    """``router_classifier`` section (V2-44, ADR-012): artifact, labels and input format."""
+
+    artifact_dir: Path
+    max_seq_length: int
+    max_input_chars: int
+    previous_template: str  # needs {previous} and {current}
+    previous_max_chars: int
+    labels: tuple[str, ...]
+    template_labels: frozenset[str]  # answered with a fixed sentence before retrieval
+    deferred_labels: frozenset[str]  # never routed before retrieval
+    disclaimer_labels: frozenset[str]  # retrieval runs, a fixed disclaimer is added
+    out_of_scope_label: str  # becomes OUT_OF_SCOPE only after the retrieval gate refused
+
+    def __post_init__(self) -> None:
+        known = set(self.labels)
+        groups = (self.template_labels, self.deferred_labels, self.disclaimer_labels,
+                  frozenset({self.out_of_scope_label}))
+        if len(known) != len(self.labels) or not self.labels:
+            raise ValueError("router_classifier.labels must be a non-empty list of unique names")
+        if any(not g <= known for g in groups):
+            raise ValueError("router_classifier: a label group names a label not in labels")
+        if self.template_labels & {"sop_question", "followup", "harmful", "feedback_in_chat"}:
+            raise ValueError("router_classifier: retrieval and guard labels cannot be templates")
+        if (self.template_labels & self.disclaimer_labels
+                or self.out_of_scope_label in self.template_labels | self.disclaimer_labels):
+            raise ValueError("router_classifier: template, disclaimer and out-of-scope groups "
+                             "must be disjoint")
+        if self.template_labels & self.deferred_labels:
+            raise ValueError("router_classifier: a deferred label cannot be a template label")
+        if "{previous}" not in self.previous_template or "{current}" not in self.previous_template:
+            raise ValueError("router_classifier.input.with_previous needs {previous} and {current}")
+        if min(self.max_seq_length, self.max_input_chars, self.previous_max_chars) <= 0:
+            raise ValueError("router_classifier: lengths must be positive")
+
+
+@dataclass(frozen=True)
 class ModelsConfig:
     raw: dict[str, Any]
+
+    def router_classifier(self, base_dir: Path) -> RouterClassifierSpec:
+        """A relative ``artifact_dir`` is read from ``base_dir`` (the service root)."""
+        c = self.raw["router_classifier"]
+        given = c["input"]
+        artifact = Path(str(c["artifact_dir"]))
+        return RouterClassifierSpec(
+            artifact_dir=artifact if artifact.is_absolute() else base_dir / artifact,
+            max_seq_length=int(c["max_seq_length"]),
+            max_input_chars=int(c["max_input_chars"]),
+            previous_template=str(given["with_previous"]),
+            previous_max_chars=int(given["previous_max_chars"]),
+            labels=tuple(c["labels"]),
+            template_labels=frozenset(c["template_labels"]),
+            deferred_labels=frozenset(c["deferred_labels"]),
+            disclaimer_labels=frozenset(c["disclaimer_labels"]),
+            out_of_scope_label=str(c["out_of_scope_label"]),
+        )
 
     @classmethod
     def load(cls, path: Path) -> ModelsConfig:
