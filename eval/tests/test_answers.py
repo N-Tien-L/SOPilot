@@ -15,9 +15,11 @@ from sopilot_eval.answers import (
     Setup,
     answer_one,
     answers_report,
+    correctness_messages,
     coverage_report,
     fixed_subset,
     judge_messages,
+    parse_correctness,
     parse_verdict,
     relax_client_limits,
     retrieve,
@@ -309,3 +311,149 @@ def test_a_concurrent_run_raises_the_client_limits_but_never_lowers_them() -> No
 def test_concurrency_below_one_is_refused() -> None:
     with pytest.raises(ValueError, match="at least 1"):
         run_ordered(lambda i: i, [1], 0)
+
+
+# -- correctness against the reference answer and citation recall (V2-37 E) ------------------------
+
+REFERENCE = "Nhân viên được nghỉ mười hai ngày mỗi năm, trừ nhân viên thử việc."
+
+
+def graded_question(qid: str = "q1") -> dict:
+    return {**question(qid), "reference_answer": REFERENCE}
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ('{"correctness": "correct"}', "correct"),
+    ('```json\n{"correctness": "partial"}\n```', "partial"),
+    ('{"correctness": "Wrong"}', None),
+    ('{"verdict": "supported"}', None),
+    ("correct", None),
+    ("", None),
+])
+def test_the_correctness_reply_is_parsed_strictly(raw, expected) -> None:
+    assert parse_correctness(raw) == expected
+
+
+def test_the_correctness_judge_sees_the_reference_and_is_told_to_ignore_wording() -> None:
+    system, user = correctness_messages("câu hỏi?", REFERENCE, "Được nghỉ [1].")
+    assert "wording" in system["content"] and "[1]" in system["content"]
+    assert REFERENCE in user["content"] and "Được nghỉ [1]." in user["content"]
+
+
+def test_correctness_is_graded_next_to_faithfulness_and_refusals_are_not_correct() -> None:
+    qs = [graded_question("a"), graded_question("b")]
+    asked: list[str] = []
+
+    def judge(messages):
+        asked.append(messages[0]["content"])
+        return ('{"correctness": "correct"}' if "reference answer" in messages[0]["content"]
+                else '{"verdict": "supported"}')
+
+    report, rows = answers_report(setup(), qs, say("Được nghỉ mười hai ngày [1]."), judge, ["a"])
+    total = report["by_expand"]["on"]["all"]
+    assert total["correctness"] == 1.0 and total["correctness_judged"] == 1
+    assert total["correct_end_to_end"] == 1.0  # only "a" is in the judged subset
+    assert len(asked) == 4  # two calls per judged answer, expand on and off
+    assert {r["id"]: r["in_judged_subset"] for r in rows if r["expand"]} == {"a": True, "b": False}
+
+    refusing, _ = answers_report(setup(), qs, say(NOT_FOUND), judge, ["a"])
+    off = refusing["by_expand"]["on"]["all"]
+    assert off["correctness_judged"] == 0 and off["correct_end_to_end"] == 0.0
+
+
+def test_a_correctness_reply_that_does_not_parse_is_counted_and_is_not_correct() -> None:
+    def judge(messages):
+        return "no idea" if "reference answer" in messages[0]["content"] else '{"verdict": "supported"}'
+
+    report, _ = answers_report(setup(), [graded_question()], say("Được nghỉ [1]."), judge, ["q1"])
+    total = report["by_expand"]["on"]["all"]
+    assert total["correctness_unparsed"] == 1 and total["correctness_judged"] == 0
+    assert total["correct_end_to_end"] == 0.0
+
+
+def test_correctness_can_be_switched_off_and_needs_a_reference() -> None:
+    calls: list[str] = []
+
+    def judge(messages):
+        calls.append(messages[0]["content"])
+        return '{"verdict": "supported"}'
+
+    report, _ = answers_report(setup(), [graded_question()], say("Được nghỉ [1]."), judge, ["q1"],
+                               grade_correctness=False)
+    assert len(calls) == 2 and report["by_expand"]["on"]["all"]["correctness_judged"] == 0
+    calls.clear()
+    no_reference = {**question(), "reference_answer": "  "}
+    answers_report(setup(), [no_reference], say("Được nghỉ [1]."), judge, ["q1"])
+    assert len(calls) == 2  # faithfulness only: nothing to compare with
+
+
+def test_citation_recall_counts_the_gold_spans_that_a_cited_source_covers() -> None:
+    # Gold needs both the rule and the exception; a hit on the rule alone cites only the rule.
+    row, _, _ = answer_one(setup(), question(), say("Được nghỉ mười hai ngày [1]."), expand=False)
+    assert row.cite_recall == 0.5 and row.cite_set_complete is False
+    # With the section expanded the cited source holds both spans.
+    row, _, _ = answer_one(setup(), question(), say("Được nghỉ mười hai ngày [1]."), expand=True)
+    assert row.cite_recall == 1.0 and row.cite_set_complete is True
+
+
+def test_citation_recall_takes_the_best_evidence_set_and_is_zero_without_citation() -> None:
+    q = question(sets=(("buy",), ("rule",)))
+    row, _, _ = answer_one(setup(), q, say("Được nghỉ mười hai ngày [1]."), expand=False)
+    assert row.cite_recall == 1.0  # the second set is fully cited
+    row, _, _ = answer_one(setup(), question(), say("Được nghỉ mười hai ngày."), expand=True)
+    assert row.cite_recall == 0.0 and row.cited == 0
+
+
+def test_summary_reports_citation_recall_over_answered_answerable_questions() -> None:
+    qs = [question("a"), question("b", answerable=False)]
+    report, _ = answers_report(setup(), qs, say("Được nghỉ mười hai ngày [1]."), None, [])
+    total = report["by_expand"]["on"]["all"]
+    assert total["citation_recall"] == 1.0 and total["citation_set_complete"] == 1.0
+    assert total["correctness"] is None and total["correct_end_to_end"] is None
+
+
+def test_dump_context_keeps_what_a_hand_grader_needs_and_is_off_by_default() -> None:
+    q = graded_question()
+    _, plain = answers_report(setup(), [q], say("Được nghỉ [1]."), None, [])
+    assert all(r["context"] is None for r in plain)
+    _, dumped = answers_report(setup(), [q], say("Được nghỉ [1]."), None, [], dump_context=True)
+    ctx = dumped[0]["context"]
+    assert ctx["question"] == q["question"] and ctx["reference_answer"] == REFERENCE
+    assert ctx["sources"] and '<source n="1"' in ctx["sources"][0]
+
+
+# -- judge context budget and judge failures ------------------------------------------------------
+
+def _texts(n: int, size: int) -> list:
+    from sopilot_ai.qa import prompt as qa_prompt
+
+    return [qa_prompt.SourceText(n=i, text="x" * size, title=f"doc{i}", page=1) for i in range(1, n + 1)]
+
+
+def test_the_judge_reads_the_cited_sources_first_and_the_cut_is_reported() -> None:
+    from sopilot_eval.answers import judge_sources
+
+    texts = _texts(4, 6000)
+    rendered, cut = judge_sources(texts, "Câu trả lời [3].", max_chars=13000)
+    assert cut is True and 'n="3"' in rendered[0] and len(rendered) == 2
+    rendered, cut = judge_sources(_texts(2, 100), "Không trích dẫn.", max_chars=13000)
+    assert cut is False and len(rendered) == 2
+
+
+def test_a_single_oversized_source_is_cut_not_dropped() -> None:
+    from sopilot_eval.answers import judge_sources
+
+    rendered, cut = judge_sources(_texts(1, 50_000), "[1]", max_chars=16_000)
+    assert cut is True and len(rendered) == 1 and len(rendered[0]) == 16_000
+
+
+def test_a_failed_judge_call_is_counted_and_does_not_lose_the_run() -> None:
+    from sopilot_ai.providers.llm import LLMError
+
+    def judge(messages):
+        raise LLMError("LLM_UNAVAILABLE")
+
+    report, rows = answers_report(setup(), [graded_question()], say("Được nghỉ [1]."), judge, ["q1"])
+    total = report["by_expand"]["on"]["all"]
+    assert total["judge_errors"] == 1 and total["judge_unparsed"] == 0 and total["judged"] == 0
+    assert rows[0]["judge_error"] == "LLM_UNAVAILABLE"
