@@ -35,7 +35,7 @@ Found by a V2-17 parity driver run (2026-11-17, throwaway compose stack, Modal a
 Goal: an answer has room for its reasoning, and a generation with no answer text is never streamed or stored as `ANSWERED`.
 
 ## 2. Acceptance criteria
-- [x] **Budget.** `max_output_tokens` default 8192 and the `generate` chain's `context_max_tokens` default 57000 (57,000 + 8,192 = 65,192 ≤ 65,536 served; KV rule 8 × 65,192 = 521,536 ≤ 784,931, ADR-011 §5). `services/ai-service/.env.example` matches.
+- [x] **Budget.** `max_output_tokens` default 8192 and the `generate` chain's `context_max_tokens` default 57000 (57,000 + 8,192 = 65,192 ≤ 65,536 served; KV rule 8 × 65,192 = 521,536 ≤ 784,931, ADR-011 §5). `services/ai-service/.env.example`, `services/ai-service/README.md` and `infrastructure/modal/README.md` match. A `services/ai-service/.env` copied before V2-43 still sets `SOPILOT_LLM_MAX_OUTPUT_TOKENS=3000` and `SOPILOT_LLM_CONTEXT_MAX_TOKENS=60000` (a set variable wins over the `models.yaml` default, and an empty value means "no ceiling"): the owner updates both lines, or deletes them, before running ai-service from source. Compose does not pass these variables, so it always uses the defaults.
 - [x] **Guard.** When the stream ends and the answer text is empty or whitespace, the turn ends as `outcome = ERROR` with the existing stable code `LLM_UNAVAILABLE` (SSE `error` with the `error_llm_unavailable` template text, quota turn refunded as for every `ERROR`), `checks.emptyAnswer = true`, and a structlog `answer_empty` event (`reasoning_chars`, `model`; no text, no tokens).
 - [x] **Truncation visible.** The provider reads `finish_reason`; `"length"` logs `llm_output_truncated` (`provider`, `model`, `max_tokens`).
 - [x] **No regression.** Normal answers stay `ANSWERED`; refusals are untouched; the ai-service unit suite and ruff pass.
@@ -45,7 +45,7 @@ Goal: an answer has room for its reasoning, and a generation with no answer text
 ## 3. Guide
 - Code: `services/ai-service/config/models.yaml` (`llm.generate`), `providers/llm.py` (`stream`, `_delta_parts`), `conversations/steps.py` (`GenerateStep.run`).
 - The client sees the same fixed text as for an unreachable model ("The answering service is not available. Please try again in a few minutes."): retrying is the right action, and no new code or template is needed.
-- Not in this ticket: passing the `SOPILOT_LLM_*` budget variables through `docker-compose.yml` (a compose edit needs the owner's prompt; the `models.yaml` defaults now fit), the `rewrite` chain's `context_max_tokens` default (60000; its output is 200 tokens), and carrying `finish_reason` from the provider to `GenerateStep` (the two log events are correlated by time; the guard does not need it).
+- Not in this ticket: passing the `SOPILOT_LLM_*` budget variables through `docker-compose.yml` (a compose edit needs the owner's prompt; the `models.yaml` defaults now fit), the `rewrite` chain's `context_max_tokens` default (60000; its output is 200 tokens), and carrying `finish_reason` from the provider to `GenerateStep` (the two log events are correlated by time; the guard does not need it). Known limit: a `length` cut that arrives **after** some answer text still ends `ANSWERED` with a cut-off answer; only `llm_output_truncated` in the log shows it.
 
 ## 4. Testing
 ```powershell
@@ -79,4 +79,6 @@ Implemented on `fix/ai-empty-answer-budget` (from `develop` 25e83cb) and committ
 - `uv run --no-project --with pyyaml python eval/sopilot_eval/plan_check.py`: `"tickets": 43`, `"edges": 110`, `"counters_match": true`, `"acyclic": true`, `"handover_covers_all_tickets": true`.
 - `./scripts/docs/check-docs.ps1`: "docs check passed (13 warnings)" (all warnings are links to gitignored dataset paths in older docs).
 
-**Not verified.** A live Modal re-run of the UC-04 driver (needs the stack; the owner runs it at least 3 times since the failure is intermittent); a browser view of the error state; a `v2-reviewer` pass.
+**Review (`v2-reviewer`, 2026-11-17).** No blocker. Fixed: the stale `SOPILOT_LLM_CONTEXT_MAX_TOKENS=60000` in `infrastructure/modal/README.md` (60,000 + 8,192 > 65,536) and the `default 3000` in `services/ai-service/README.md`; the from-source `.env` step and the "cut after some answer text" limit are now in §2 and §3. Not changed (suggestions): the tests call `QAService._outcome` directly, with no integration test through `ask` (the existing `ERROR` path sends `error`, no `done`, stores `ERROR` and refunds quota, checked by reading); a whitespace-only answer from a scripted chain is still sent as a `delta` before the error (unreachable through the real provider, whose splitter strips leading whitespace). Pre-existing mismatch, reported and not aligned: TECH-V2-ai-service §4.2 shows `enable_thinking: false` for `generate`; `models.yaml` has `${SOPILOT_LLM_THINKING:true}`.
+
+**Not verified.** A live Modal re-run of the UC-04 driver (needs the stack; the owner runs it at least 3 times since the failure is intermittent); a browser view of the error state; the ai-service integration suite (Docker).
