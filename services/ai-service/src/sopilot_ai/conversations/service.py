@@ -29,6 +29,7 @@ from sopilot_ai.conversations.steps import (
     BuildPromptStep,
     ChatChain,
     CitationStep,
+    ClassifierRouterStep,
     GenerateStep,
     NumberCheckStep,
     QAContext,
@@ -37,6 +38,7 @@ from sopilot_ai.conversations.steps import (
     RewriteStep,
     SelfRefusalStep,
     SemanticRouterStep,
+    classify_question,
 )
 from sopilot_ai.db.engine import tenant_tx
 from sopilot_ai.qa import pii, templates
@@ -50,6 +52,7 @@ from sopilot_ai.qa.pipeline import (
 from sopilot_ai.qa.prompt import PROMPT_VERSION
 from sopilot_ai.qa.query_frame import detect_lang
 from sopilot_ai.qa.router import SemanticLayer
+from sopilot_ai.qa.setfit_router import SetFitClassifier
 from sopilot_ai.qa.steps import deterministic_steps
 from sopilot_ai.qa.textnorm import nfc
 from sopilot_ai.quota.counters import FREE_OUTCOMES, QuotaCounter
@@ -95,7 +98,9 @@ class QAService:
                  max_question_chars: int = 1000, followup_max_tokens: int | None = None,
                  support_contact: str = "", timezone: str = "Asia/Ho_Chi_Minh",
                  now: Callable[[], datetime] | None = None,
-                 semantic: SemanticLayer | None = None) -> None:
+                 semantic: SemanticLayer | None = None,
+                 classifier: SetFitClassifier | None = None,
+                 classifier_mode: str = "off") -> None:
         self.engine = engine
         self.retriever = retriever
         self.generate = generate
@@ -106,6 +111,10 @@ class QAService:
         self.followup_max_tokens = followup_max_tokens
         self.support_contact = support_contact
         self.semantic = semantic  # V2-27 router; None = the V2-10 rule router only
+        # V2-44: "shadow" records the prediction after the chain and routes nothing; "on" puts it
+        # in the chain in place of the semantic layer; "off" (or no classifier) is V2-27 as before.
+        self.classifier = classifier if classifier_mode in ("shadow", "on") else None
+        self.classifier_mode = classifier_mode if self.classifier is not None else "off"
         tz = ZoneInfo(timezone)
         self._now = now or (lambda: datetime.now(tz))
         self._detached: set[asyncio.Task[None]] = set()
@@ -124,7 +133,11 @@ class QAService:
 
     def steps(self) -> list[Step]:
         """The chain in the order of TECH §7.1 (``qa.pipeline.STEP_ORDER``)."""
-        router = [SemanticRouterStep(self.semantic, self.engine)] if self.semantic else []
+        router: list[Step] = []
+        if self.classifier is not None and self.classifier_mode == "on":
+            router = [ClassifierRouterStep(self.classifier)]
+        elif self.semantic:
+            router = [SemanticRouterStep(self.semantic, self.engine)]
         return [QuotaStep(self.quota), *deterministic_steps(), *router, RewriteStep(self.rewrite),
                 RetrieveStep(self.retriever, self.engine),
                 BuildContextStep(self.engine, self.context, self.generate), BuildPromptStep(),
@@ -202,7 +215,9 @@ class QAService:
                                      ctx.principal.user_id) as conn:
                     pairs = await repo.recent_turns(conn, ctx.principal, ref.id, HISTORY_TURNS)
                 ctx.history = [(pii.mask_pii(q).text, pii.mask_pii(a).text) for q, a in pairs]
-            return await run_steps(self.steps(), ctx)
+            decision = await run_steps(self.steps(), ctx)
+            await self._shadow(ctx)
+            return decision
         except Exception as exc:  # noqa: BLE001 - the client gets a fixed code, not the message
             log.error("qa_pipeline_failed", error=type(exc).__name__,
                       last_step=(ctx.route_info.get("steps") or [None])[-1])
@@ -210,6 +225,29 @@ class QAService:
             return refuse("ERROR", rule_id="internal")
         finally:
             queue.put_nowait(None)
+
+    async def _shadow(self, ctx: QAContext) -> None:
+        """Shadow mode (V2-44): record the classifier next to the rule decision, change nothing.
+
+        Runs after the chain so that questions the rules decided are recorded too (the comparison
+        on real traffic needs both). It adds the classifier's time (about 100 ms) before the final
+        events and is counted in ``timings.total``. The rule side is ``decided_by`` (the step that
+        ended the chain, absent when none did) and ``layer`` already in ``route``.
+        """
+        steps = ctx.route_info.get("steps") or []
+        # Only a question that went through the PII step has a masked ``text``; one the input step
+        # rejected (too long, empty) still holds the raw text and is never classified.
+        if (self.classifier is None or self.classifier_mode != "shadow" or "pii" not in steps
+                or not ctx.text.strip()):
+            return
+        try:
+            await classify_question(self.classifier, ctx, "shadow")
+            entry = ctx.route_info.get("classifier")
+            if entry is not None:
+                entry["rule"] = {"decidedBy": ctx.route_info.get("decided_by"),
+                                 "layer": ctx.route_info.get("layer")}
+        except Exception as exc:  # noqa: BLE001 - shadow must never change a finished answer
+            log.warning("router_classifier_shadow_failed", error=type(exc).__name__)
 
     def _outcome(self, ctx: QAContext, d: Decision) -> tuple[str, str | None, str, list[Event]]:
         """``(outcome, refusal_reason, text, closing events)`` of a finished chain."""

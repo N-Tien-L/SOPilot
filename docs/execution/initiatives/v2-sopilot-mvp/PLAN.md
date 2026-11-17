@@ -17,8 +17,8 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 44
-completed_tickets: 41
-implemented_tickets: 41
+completed_tickets: 42
+implemented_tickets: 42
 review_tickets: 0
 ---
 
@@ -271,7 +271,7 @@ flowchart TD
 | `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | done |
 | `V2-42` | ai-service: the model's reasoning is streamed as answer text | ai-qa | S | `V2-10`, `V2-32` | done |
 | `V2-43` | ai-service: an answer that ends inside the reasoning is stored as an empty ANSWERED | ai-qa | S | `V2-10`, `V2-42` | done |
-| `V2-44` | ai-service: SetFit routing classifier behind the rules (shadow first) | ai-qa | L | `V2-10`, `V2-27` | todo |
+| `V2-44` | ai-service: SetFit routing classifier behind the rules (shadow first) | ai-qa | L | `V2-10`, `V2-27` | done |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
 | Ticket | Title | Scope | Size | Depends on | Status |

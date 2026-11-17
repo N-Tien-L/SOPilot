@@ -22,7 +22,7 @@ refs:
 
 # ADR-012: Query routing with a SetFit classifier
 
-Approved by the owner on 2026-11-17, including the extra encoder pass and about 2.9 GB of memory (§4). The points listed under "Open for the owner" in §4 stay open and are settled while implementing [V2-44](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-44-ai-service-setfit-router.md). It replaces the embedding layer of the semantic router (V2-27, TECH-V2-ai-service §7.1 step 3) with a trained classifier. Nothing here is implemented in `services/ai-service` yet; the numbers come from the `eval/` experiments of 2026-11-17 (§5).
+Approved by the owner on 2026-11-17, including the extra encoder pass and about 2.9 GB of memory (§4). The points that were open in §4 were settled on 2026-11-17 while implementing [V2-44](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-44-ai-service-setfit-router.md) (see "Decided"). It replaces the embedding layer of the semantic router (V2-27, TECH-V2-ai-service §7.1 step 3) with a trained classifier. The code is in `services/ai-service` behind `SOPILOT_ROUTER_CLASSIFIER_MODE` (default `off`, measured through the running HTTP service in shadow mode only (95 questions, no history); mode `on` is enabled in the owner's local environment by the owner's decision of 2026-11-17); the numbers come from the `eval/` experiments of 2026-11-17 (§5).
 
 ## 1. Context
 
@@ -82,10 +82,14 @@ Negative and risks:
 
 Accepted by the owner on 2026-11-17: the extra encoder pass and about 2.9 GB of resident memory. A fp16 or int8 body (about half the memory) was not measured and is not part of this decision.
 
-Open for the owner:
-- Where the 2.3 GB artifact lives for a fresh checkout (a local directory built from the Modal volume, or a private Hugging Face repo).
-- Whether `about_source` loses an existing feature: it is a template that re-lists the previous turn's citations (V2-27 criterion c), and `two_group+` defers it to retrieval.
-- A corpus-specific test set, which is the only independent evidence for the zero-costly claim.
+Decided by the owner on 2026-11-17 (V2-44):
+- **Artifact location:** a local git-ignored folder, `services/ai-service/models/setfit-router/` by default (`SOPILOT_ROUTER_CLASSIFIER_DIR` overrides), copied from the Modal volume download or rebuilt with `modal_setfit_app.py`. No Hugging Face repo.
+- **`about_source`:** deferred to retrieval as in `two_group+`. With the classifier `on` the "list the previous sources" template is not used and that V2-27 feature is lost; with the classifier `off` it works as before (the code stays). Revisit if the corpus-specific set shows users ask for sources.
+- **`feedback_in_chat`:** not routed; it goes to retrieval.
+- **Previous message:** the first sentence of the last answer in `ctx.history`, `[n]` markers and Markdown emphasis removed, cut at 200 characters (training used one short assistant sentence). The text is `config/models.yaml` `router_classifier.input`.
+- **Load:** inside `build_service` on the first question, like the embedder (about 3 to 8 s). Nothing loads when the mode is `off`. A broken artifact is a logged warning in `shadow` (the service runs without the classifier) and a startup error in `on`.
+
+A corpus-specific test set (439 rows, V2-44 evidence) now exists; all its drafted rows are owner-approved, and the harness gate stays red under its own definition (disclaimer and out-of-scope labels count as routed away) while no SOP/follow-up question is answered by a template.
 
 Follow-up: ticket [V2-44](../../execution/initiatives/v2-sopilot-mvp/tickets/V2-44-ai-service-setfit-router.md).
 
@@ -110,4 +114,8 @@ Frozen `test.jsonl` unless noted; thresholds are picked on dev out-of-fold (OOF)
 
 Local check of the first downloaded model (`eval/experiments/routing/local_setfit_check.py`; the augmented model has the same architecture and was not re-timed): the 233 test rows reproduce the training job's argmax 233 / 233, maximum probability difference below 0.0001; CPU latency p50 about 100 ms, p95 126–136 ms; resident memory about 2.9 GB; load about 3 s.
 
-Not verified: behaviour on questions of the owner's real corpus, the effect on retrieval of the deferred labels, accented/unaccented balance outside this dataset, a GPU or quantized variant, the row labels of the 260 candidate rows beyond the owner's acceptance of 2026-11-17 and a re-read of six of them on 2026-11-17.
+**Reproduction check of the augmented artifact (2026-11-17, V2-44).** Loaded through the service module (`qa/setfit_router.py`, CPU, same input format) the downloaded `setfit-router-model-histaug` agrees with the job's `per_question.jsonl` on the argmax of 230 of 233 test rows, but the largest probability difference is 0.27 (69 rows differ by more than 0.001, 65 of them without a previous message); the first model matched below 0.0001. On the routing metrics the two are identical (14-label accuracy 0.876, 0 SOP/follow-up questions answered by a template, 54 template labels correct, 12 template answers wrong), and the harness through the service path (`eval/configs/routing-setfit.yaml`) gives 0 costly answered by a template, 4 by the eval definition (all `personal_data`/`action_request`, which still run retrieval), router p50 98 ms and p95 118 ms. The cause is not proven (a bf16 autocast and a longer sequence length were ruled out; the likeliest is a second training that wrote the shared Modal volume). Decided by the owner on 2026-11-17: the artifact is the source of truth. The unit test compares the service module with an independent batched reference of the artifact itself (`eval/experiments/routing/artifact_reference.py`), and the figures in the table above are from the job run; the figures of this paragraph and of the corpus set are measured on this exact artifact. The reference shares the weights, the library and the softmax-over-`coef` assumption with the service, so it shows the service module equals a separate re-implementation, not equality with SetFit's own `predict_proba`.
+
+**Corpus-specific set (2026-11-17, V2-44).** 439 rows from the owner's `sop-main-v2` corpus (293 reviewed questions) plus drafted non-SOP rows, through the service code: the rule layer turned away 0 of 380 SOP/follow-up rows, the classifier answered 0 of them with a template (with and without history, the history rebuilt by `previous_message()` from synthetic answers), 5 got a disclaimer and 3 an out-of-scope candidate (retrieval still runs). Classifier call p50 106 ms, p95 156 ms in process; 2.9 GB resident. Through the running service in shadow mode (95 questions, no history): classifier step p50 109 ms, p95 125 ms; the whole process (classifier plus the retrieval encoder) 4.5 GB resident. All 87 drafted rows were approved by the owner on 2026-11-17; details in the V2-44 evidence.
+
+Not verified: behaviour on real traffic of the owner's workspaces (the corpus questions are scored, not live use), the effect on retrieval of the deferred labels, accented/unaccented balance outside this dataset, a GPU or quantized variant, the row labels of the 260 candidate rows beyond the owner's acceptance of 2026-11-17 and a re-read of six of them on 2026-11-17.

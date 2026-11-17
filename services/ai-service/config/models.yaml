@@ -85,6 +85,25 @@ retrieval:
     hybrid: 0.45
     hybrid_rerank: 0.30
   mode: hybrid
+# V2-44 / ADR-012: SetFit intent classifier behind the rules (mode: SOPILOT_ROUTER_CLASSIFIER_MODE).
+# The artifact is not in git: services/ai-service/README.md says how to obtain it. The labels must
+# equal labels.json of the artifact (checked at load). input.with_previous is the training format.
+router_classifier:
+  artifact_dir: ${SOPILOT_ROUTER_CLASSIFIER_DIR:models/setfit-router}  # relative to services/ai-service
+  max_seq_length: 128
+  max_input_chars: 2000
+  input:
+    with_previous: "Previous message: {previous}\nCurrent message: {current}"
+    previous_max_chars: 200      # the first sentence of the last answer, cut here (owner 2026-11-17)
+  labels: [greeting, thanks, about_bot, abuse_only, abuse_with_question, harmful, followup,
+           sop_question, off_topic, action_request, personal_data, legal_medical, about_source,
+           feedback_in_chat]
+  template_labels: [greeting, thanks, about_bot, abuse_only]
+  # two_group+ (ADR-012 §2): decided by retrieval, never routed before it. harmful stays with the
+  # guard rules and feedback_in_chat is not routed; both simply go to retrieval.
+  deferred_labels: [off_topic, legal_medical, personal_data, abuse_with_question, about_source]
+  disclaimer_labels: [action_request, legal_medical, personal_data]
+  out_of_scope_label: off_topic
 chunking:
   target_tokens: 384
   max_tokens: 512

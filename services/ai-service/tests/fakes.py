@@ -115,3 +115,28 @@ class ScriptedChain:
         if on_start is not None:
             on_start(self.model)
         return self.rewrite_output
+
+
+class FakeSetFitEncoder:
+    """Stands in for the sentence-transformers body of the SetFit router (V2-44).
+
+    ``encode`` returns the vector of the first key of ``table`` found in the text (the input
+    includes the previous message, so a key is matched in the whole string) and zeros otherwise.
+    Every encoded input is kept in ``inputs``.
+    """
+
+    def __init__(self, table: dict[str, np.ndarray], dim: int) -> None:
+        self.table = table
+        self.dim = dim
+        self.inputs: list[str] = []
+        self.fail = False
+
+    def encode(self, sentences: Sequence[str], **kwargs) -> np.ndarray:  # noqa: ANN003
+        if self.fail:
+            raise RuntimeError("encoder down")
+        rows = []
+        for text in sentences:
+            self.inputs.append(text)
+            rows.append(next((v for k, v in self.table.items() if k in text),
+                             np.zeros(self.dim, dtype=np.float32)))
+        return np.stack(rows).astype(np.float32)

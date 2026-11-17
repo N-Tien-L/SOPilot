@@ -14,7 +14,7 @@ import numpy as np
 import structlog
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from sopilot_ai.config import Settings
+from sopilot_ai.config import SERVICE_ROOT, Settings
 from sopilot_ai.conversations.service import QAService
 from sopilot_ai.db.engine import system_tx
 from sopilot_ai.db.repositories import embedding_cache
@@ -22,7 +22,7 @@ from sopilot_ai.providers.embedding import EmbeddingProvider, build_embedding_pr
 from sopilot_ai.providers.llm import build_chain, check_model
 from sopilot_ai.providers.registry import ModelsConfig
 from sopilot_ai.providers.rerank import build_rerank_provider
-from sopilot_ai.qa import router
+from sopilot_ai.qa import router, setfit_router
 from sopilot_ai.quota.counters import QuotaCounter
 from sopilot_ai.retrieval.retriever import Retriever
 
@@ -63,6 +63,30 @@ async def build_router(engine: AsyncEngine, embedder: EmbeddingProvider) -> rout
     return layer
 
 
+async def _build_classifier(config: ModelsConfig,
+                            settings: Settings) -> setfit_router.SetFitClassifier | None:
+    """The V2-44 classifier, loaded once on the first question (about 3 s, about 2.9 GB).
+
+    ``off`` loads nothing. In ``shadow`` a missing or broken artifact is logged and the service
+    runs without it (the questions are unaffected); in ``on`` it is a startup error, like a missing
+    LLM endpoint, because the routing would silently change.
+    """
+    mode = settings.router_classifier_mode
+    if mode == "off":
+        return None
+    try:
+        spec = config.router_classifier(SERVICE_ROOT)
+        classifier = await asyncio.to_thread(setfit_router.load_classifier, spec)
+    except Exception as exc:  # noqa: BLE001 - shadow never takes questions down; only the type is logged
+        if mode == "on":
+            raise
+        log.warning("router_classifier_unavailable", mode=mode, error=type(exc).__name__,
+                    reason=str(exc) if isinstance(exc, setfit_router.ClassifierUnavailable) else "")
+        return None
+    log.info("router_classifier_ready", mode=mode, labels=len(spec.labels))
+    return classifier
+
+
 async def build_service(settings: Settings, engine: AsyncEngine) -> QAService:
     config = ModelsConfig.load(settings.models_config)
     # Chains first: a missing endpoint or model id fails here, before the embedding model loads.
@@ -75,6 +99,7 @@ async def build_service(settings: Settings, engine: AsyncEngine) -> QAService:
         await asyncio.to_thread(check_model, client)  # warns, never fails (V2-10)
     semantic = (await build_router(engine, embedder)
                 if settings.semantic_router_enabled else None)
+    classifier = await _build_classifier(config, settings)
     return QAService(
         engine, retriever, generate, rewrite, context=config.context(),
         quota=QuotaCounter(engine, per_user_day=settings.quota_questions_per_user_day,
@@ -82,4 +107,5 @@ async def build_service(settings: Settings, engine: AsyncEngine) -> QAService:
         max_question_chars=settings.max_question_chars,
         followup_max_tokens=settings.followup_max_tokens,
         support_contact=settings.support_contact, timezone=settings.timezone,
-        semantic=semantic)
+        semantic=semantic, classifier=classifier,
+        classifier_mode=settings.router_classifier_mode)
