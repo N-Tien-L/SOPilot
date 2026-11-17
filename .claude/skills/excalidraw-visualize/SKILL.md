@@ -26,6 +26,8 @@ Pipeline: generator script → `.excalidraw` + viewer `.html` → headless expor
 
 When unsure, treat the file as "Both".
 
+Size rule (owner, 2026-11-17, also in skill `project-docs`): only small diagrams (about ≤ 8 nodes, ≤ 10 edges) stay Mermaid/ASCII; every large or detailed diagram is drawn here, whatever the audience. In agent-facing files, put the edges as a short text list in `<details>` under the image. The `PLAN.md` DAG always stays Mermaid.
+
 ## Hard rules (token budget)
 
 - **Never write, print, paste or `Read` raw `.excalidraw` JSON or the exported SVG.** Create and change diagrams only by editing and re-running the generator. Inspect a scene with `python scripts/diagrams/excalidraw_builder.py summary <file>.excalidraw` (counts and bounding box).
