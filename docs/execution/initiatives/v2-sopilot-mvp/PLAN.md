@@ -16,7 +16,7 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 43
+total_tickets: 44
 completed_tickets: 41
 implemented_tickets: 41
 review_tickets: 0
@@ -122,6 +122,7 @@ flowchart TD
     V40["V2-40: infra: implement ADR-011 serving profile (L40S, parallel eval, context budget)"]
     V42["V2-42: ai-service: the model's reasoning is streamed as answer text"]
     V43["V2-43: ai-service: an answer that ends inside the reasoning is stored as an empty ANSWERED"]
+    V44["V2-44: ai-service: SetFit routing classifier behind the rules (shadow first)"]
     V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
     V01 --> V03
     V01 --> V04
@@ -233,6 +234,9 @@ flowchart TD
     V10 --> V43
     V42 --> V43
     V43 --> V17
+    V10 --> V44
+    V27 --> V44
+    V44 --> V18
 ```
 
 ---
@@ -267,6 +271,7 @@ flowchart TD
 | `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | done |
 | `V2-42` | ai-service: the model's reasoning is streamed as answer text | ai-qa | S | `V2-10`, `V2-32` | done |
 | `V2-43` | ai-service: an answer that ends inside the reasoning is stored as an empty ANSWERED | ai-qa | S | `V2-10`, `V2-42` | done |
+| `V2-44` | ai-service: SetFit routing classifier behind the rules (shadow first) | ai-qa | L | `V2-10`, `V2-27` | todo |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
 | Ticket | Title | Scope | Size | Depends on | Status |
@@ -306,7 +311,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | done |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33`, `V2-42`, `V2-43` | done |
-| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41` | todo |
+| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41`, `V2-44` | todo |
 
 ---
 
@@ -464,3 +469,5 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 > **Owner decision 2026-11-16 (V2-42 added):** the V2-17 parity run found UC-04 / FR-11 `not passed`: the model's reasoning was streamed as answer text. [`V2-42`](tickets/V2-42-ai-service-reasoning-leaks-into-answer.md) (ai-qa, P0, S, depends on `V2-10`, `V2-32`) fixes it: `_pump` turned the `Thought` deltas into plain `str`, so `GenerateStep` never saw reasoning. It blocks `V2-17`. The owner keeps the reasoning visible in the "Thought for N s" block (no extra guard for paraphrased rules). `total_tickets` 41 → 42. **Update 2026-11-17:** `V2-42` → `review` (fix and two regression tests committed, ai-service suite green, live re-run clean); `implemented_tickets` 38 → 39, `review_tickets` 0 → 1. Not `done`: owner acceptance needed.
 
 > **Owner decision 2026-11-17 (V2-43 added):** a V2-17 parity driver run found UC-04 / FR-11 `not passed` again, intermittently: one owner question streamed `meta`, 1,366 `reasoning` events, `reasoning_done`, `done` and no `delta` or `citations`, and the turn was stored `ANSWERED` with an empty `finalText`. [`V2-43`](tickets/V2-43-ai-service-empty-answer-on-truncated-reasoning.md) (ai-qa, P0, S, depends on `V2-10`, `V2-42`) fixes it: with thinking on, the reasoning and the answer share `max_output_tokens` (3000), which ran out inside the reasoning, and nothing caught an empty answer. The answer output ceiling becomes 8192 and the prompt ceiling 57000 (ADR-011 §5), and an answer with no text ends as `ERROR` / `LLM_UNAVAILABLE`. It blocks `V2-17`. `total_tickets` 42 → 43. **Same day:** `V2-43` → `review` (fix and unit tests committed, ai-service unit suite green; live re-run pending); `implemented_tickets` 39 → 40, `review_tickets` 1 → 2. Not `done`: owner acceptance needed.
+
+> **Owner decision 2026-11-17 (V2-44 added, [ADR-012](../../../architecture/decisions/adr-012-setfit-routing-classifier.md) approved):** [`V2-44`](tickets/V2-44-ai-service-setfit-router.md) (ai-qa, P2, L, depends on `V2-10`, `V2-27`) brings the SetFit routing classifier of the `eval/` experiments into ai-service, behind the rules and in shadow mode first; it blocks `V2-18`, because the plan check (`eval/sopilot_eval/plan_check.py`) requires the handover to wait for every ticket. `total_tickets` 43 → 44; other counters unchanged (`todo` is not counted). The ticket stays `todo`.
