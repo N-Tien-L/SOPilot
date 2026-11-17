@@ -24,7 +24,9 @@ import argparse
 import copy
 import hashlib
 import json
+import re
 import sys
+import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Sequence
@@ -35,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from sopilot_ai.providers.llm import LLMError
 from sopilot_ai.qa import checks as qa_checks
 from sopilot_ai.qa import citations as qa_citations
 from sopilot_ai.qa import prompt as qa_prompt
@@ -205,9 +208,35 @@ JUDGE_SYSTEM = (
 VERDICT_SCORE = {"supported": 1.0, "partial": 0.5, "unsupported": 0.0}
 
 
-def judge_messages(question: str, sources: Sequence[qa_prompt.SourceText],
-                   answer: str) -> list[dict[str, str]]:
-    body = "\n\n".join(qa_prompt.render_source(s) for s in sources)
+JUDGE_MAX_SOURCE_CHARS = 16_000  # the judge serves 8192 tokens; the answer prompt may hold 16K tokens
+
+
+def judge_sources(sources: Sequence[qa_prompt.SourceText], answer: str,
+                  max_chars: int = JUDGE_MAX_SOURCE_CHARS) -> tuple[list[str], bool]:
+    """Rendered sources that fit ``max_chars``, the ones the answer cites first; and whether any was cut.
+
+    The answer model sees up to 16K tokens of context, the independent judge only 8192, so the judge
+    reads the cited sources first and the rest while they fit. A cut is reported, not hidden."""
+    cited = {int(n) for n in re.findall(r"\[(\d+)\]", answer)}
+    ordered = sorted(sources, key=lambda t: (t.n not in cited, t.n))
+    out: list[str] = []
+    used = 0
+    for source in ordered:
+        text = qa_prompt.render_source(source)
+        room = max_chars - used
+        if len(text) > room:
+            if room > 500 and not out:  # at least a piece of the first source
+                out.append(text[:room])
+            return out, True
+        out.append(text)
+        used += len(text)
+    return out, False
+
+
+def judge_messages(question: str, sources: Sequence[qa_prompt.SourceText], answer: str,
+                   max_source_chars: int = JUDGE_MAX_SOURCE_CHARS) -> list[dict[str, str]]:
+    rendered, _cut = judge_sources(sources, answer, max_source_chars)
+    body = "\n\n".join(rendered)
     user = f"Question:\n{question}\n\nSources:\n{body}\n\nAnswer:\n{answer}"
     return [{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": user}]
 
@@ -222,6 +251,35 @@ def parse_verdict(raw: str) -> str | None:
     except (ValueError, AttributeError):
         return None
     return verdict if verdict in VERDICT_SCORE else None
+
+
+CORRECTNESS_SYSTEM = (
+    "You grade an answer against a reference answer written by a reviewer. Read the question, the "
+    "reference answer and the answer. Judge only whether the answer states the same facts as the "
+    "reference (numbers, dates, conditions, exceptions); ignore wording, length and citation markers "
+    "such as [1]. "
+    'Reply with JSON only: {"correctness": "correct" | "partial" | "wrong"}. '
+    '"correct": every fact of the reference is in the answer and nothing contradicts it. '
+    '"partial": some facts are missing or one condition or exception is left out. '
+    '"wrong": a key fact is missing or contradicts the reference.')
+CORRECTNESS_SCORE = {"correct": 1.0, "partial": 0.5, "wrong": 0.0}
+
+
+def correctness_messages(question: str, reference: str, answer: str) -> list[dict[str, str]]:
+    user = f"Question:\n{question}\n\nReference answer:\n{reference}\n\nAnswer:\n{answer}"
+    return [{"role": "system", "content": CORRECTNESS_SYSTEM}, {"role": "user", "content": user}]
+
+
+def parse_correctness(raw: str) -> str | None:
+    """``correct`` / ``partial`` / ``wrong`` from the judge's reply, else ``None``."""
+    start, end = raw.find("{"), raw.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        value = json.loads(raw[start:end + 1]).get("correctness")
+    except (ValueError, AttributeError):
+        return None
+    return value if value in CORRECTNESS_SCORE else None
 
 
 def fixed_subset(ids: Sequence[str], n: int, seed: str) -> list[str]:
@@ -243,6 +301,14 @@ class AnswerRow:
     number_warned: bool = False
     verdict: str | None = None
     judge_attempted: bool = False
+    correctness: str | None = None  # judge verdict against ``reference_answer``
+    correctness_attempted: bool = False
+    judge_truncated: bool = False  # the sources did not all fit the judge's context
+    judge_error: str | None = None  # the judge call failed (code): counted, not fatal
+    in_judged_subset: bool = False
+    cite_recall: float | None = None  # best evidence set: share of its spans a cited source covers
+    cite_set_complete: bool = False  # every span of one evidence set is covered by cited sources
+    context: dict[str, Any] | None = None  # question, reference and rendered sources (--dump-context)
     context_tokens: int = 0
     llm_calls: int = 0
     groups: list[str] = field(default_factory=list)
@@ -283,6 +349,16 @@ def answer_one(setup: Setup, question: dict, generate: Complete, *, expand: bool
     held = [qa_prompt.render_source(t) for t in texts] + [question["question"],
                                                           f"Hôm nay là {EVAL_TODAY.isoformat()}"]
     row.number_warned = qa_checks.check_numbers(row.answer, held).warned
+    if question.get("evidence_sets"):
+        # Source level, like ``citation_precision_source``: the user is shown the whole cited section.
+        cited_hits = [_Range(setup.doc_of[x.document_id], x.char_start, x.char_end)
+                      for c in cites for x in by_n[c.n].chunks]
+        best = 0.0
+        for evidence_set in question["evidence_sets"]:
+            got = sum(_covered(setup.spans[sid], cited_hits) >= SPAN_COVER for sid in evidence_set)
+            best = max(best, got / len(evidence_set))
+        row.cite_recall = best
+        row.cite_set_complete = best == 1.0
     return row, sources, texts
 
 
@@ -299,6 +375,8 @@ def summarize(rows: Sequence[AnswerRow]) -> dict[str, Any]:
     correct = sum(r.cited_correct for r in ans)
     correct_source = sum(r.cited_correct_source for r in ans)
     judged = [r for r in rows if r.verdict is not None]
+    graded = [r for r in rows if r.correctness is not None]
+    cite = [r for r in ans if r.outcome == "ANSWERED" and r.cite_recall is not None]
     flagged = [VERDICT_SCORE[r.verdict] for r in judged if r.number_warned]
     clean = [VERDICT_SCORE[r.verdict] for r in judged if not r.number_warned]
     return {
@@ -317,7 +395,19 @@ def summarize(rows: Sequence[AnswerRow]) -> dict[str, Any]:
             [float(r.cited == 0) for r in rows if r.outcome == "ANSWERED"]),
         "faithfulness": _mean([VERDICT_SCORE[r.verdict] for r in judged]),
         "judged": len(judged),
-        "judge_unparsed": sum(r.judge_attempted and r.verdict is None for r in rows),
+        "judge_unparsed": sum(r.judge_attempted and r.verdict is None and r.judge_error is None
+                              for r in rows),
+        "judge_errors": sum(r.judge_error is not None for r in rows),
+        "judge_truncated": sum(r.judge_truncated for r in rows),
+        "correctness": _mean([CORRECTNESS_SCORE[r.correctness] for r in graded]),
+        "correctness_judged": len(graded),
+        "correctness_unparsed": sum(r.correctness_attempted and r.correctness is None for r in rows),
+        # Over the answerable questions in the judged subset; a refusal or an unparsed verdict is
+        # not correct, so this is the share the user would actually have been answered right.
+        "correct_end_to_end": _mean([float(r.correctness == "correct")
+                                     for r in ans if r.in_judged_subset]),
+        "citation_recall": _mean([r.cite_recall for r in cite]),
+        "citation_set_complete": _mean([float(r.cite_set_complete) for r in cite]),
         "faithfulness_number_flagged": _mean(flagged), "n_number_flagged": len(flagged),
         "faithfulness_number_clean": _mean(clean),
         "context_tokens_mean": _mean([float(r.context_tokens) for r in rows if r.llm_calls]),
@@ -347,7 +437,8 @@ def run_ordered(fn: Callable[[Any], Any], items: Sequence[Any], concurrency: int
 
 
 def answers_report(setup: Setup, questions: Sequence[dict], generate: Complete, judge: Complete | None,
-                   subset: Sequence[str], concurrency: int = 1) -> tuple[dict[str, Any], list[dict]]:
+                   subset: Sequence[str], concurrency: int = 1, *,
+                   grade_correctness: bool = True, dump_context: bool = False) -> tuple[dict[str, Any], list[dict]]:
     """Run every question for ``expand`` on and off; judge only the fixed ``subset``.
 
     ``concurrency`` > 1 sends that many questions at once. Quality metrics do not depend on it;
@@ -362,9 +453,22 @@ def answers_report(setup: Setup, questions: Sequence[dict], generate: Complete, 
         def one(q: dict, expand: bool = expand) -> AnswerRow:
             row, _sources, texts = answer_one(setup, q, generate, expand=expand,
                                               retrieved=retrieved[q["id"]])
-            if judge is not None and q["id"] in chosen and row.outcome == "ANSWERED":
+            if dump_context and row.outcome == "ANSWERED":  # what a human grader needs to see
+                row.context = {"question": q["question"], "reference_answer": q.get("reference_answer", ""),
+                               "sources": [qa_prompt.render_source(t) for t in texts]}
+            row.in_judged_subset = judge is not None and q["id"] in chosen
+            if row.in_judged_subset and row.outcome == "ANSWERED":
                 row.judge_attempted = True
-                row.verdict = parse_verdict(judge(judge_messages(q["question"], texts, row.answer)))
+                row.judge_truncated = judge_sources(texts, row.answer)[1]
+                reference = (q.get("reference_answer") or "").strip()
+                try:
+                    row.verdict = parse_verdict(judge(judge_messages(q["question"], texts, row.answer)))
+                    if grade_correctness and reference:
+                        row.correctness_attempted = True
+                        row.correctness = parse_correctness(
+                            judge(correctness_messages(q["question"], reference, row.answer)))
+                except LLMError as exc:  # one failed judge call must not lose the whole run
+                    row.judge_error = str(exc)
             return row
 
         rows = run_ordered(one, questions, concurrency)
@@ -408,8 +512,12 @@ def _build_setup(args: argparse.Namespace) -> tuple[Setup, list[dict], dict[str,
     # The service's own ``context_k`` decides how many hits reach the prompt, so eval and the demo
     # cannot drift apart (ADR-011 section 2.4); the config's ``k`` stays for the retrieval metrics.
     retrieval = {**conf, "k": models.retrieval().context_k}
+    reranker = None
+    if conf.get("rerank"):  # same builder as run.py: local cross-encoder or the Modal reranker
+        from .retrievers import build_reranker
+        reranker = build_reranker(conf["rerank"])
     setup = Setup(chunks, index, retrieval, models.retrieval().thresholds, models.context(), counter,
-                  spans)
+                  spans, reranker=reranker)
     provenance = {"git": _git_state(), "dataset": str(args.dataset),
                   "dataset_info": data_info, "chunking": chunk_info, "split": args.split,
                   "allow_draft": bool(args.allow_draft),
@@ -429,6 +537,8 @@ def _build_setup(args: argparse.Namespace) -> tuple[Setup, list[dict], dict[str,
 EVAL_RPM = 600
 EVAL_TPM = 10_000_000
 EVAL_TIMEOUT_S = 900.0
+EVAL_CALL_ATTEMPTS = 3  # tries per LLM call; a failure after the last one is recorded
+EVAL_RETRY_BASE_S = 5.0
 
 
 def relax_client_limits(raw: dict[str, Any], task: str) -> dict[str, Any]:
@@ -450,10 +560,25 @@ def _chain_fn(models_path: Path, task: str, concurrency: int = 1) -> Complete:
     if concurrency > 1:
         models = ModelsConfig(raw=relax_client_limits(models.raw, task))
     chain = build_chain(models, task)
+    for client in chain.clients:
+        # Modal answers a web request that runs longer than ~150 s with a 303 to the result URL; the
+        # service client does not follow it, which would turn every slow thinking answer into
+        # LLM_UNAVAILABLE. Eval-only: the service code is not changed here.
+        client._client.follow_redirects = True
 
     def call(messages: Sequence[dict[str, str]]) -> str:
         tokens = estimate_tokens(" ".join(m["content"] for m in messages))
-        return chain.complete(messages, tokens=tokens, temperature=0.0)
+        # A transient failure (cold start, dropped connection) is retried with backoff; the last
+        # error keeps its cause so the report says why a call failed, not only LLM_UNAVAILABLE.
+        last: LLMError | None = None
+        for attempt in range(EVAL_CALL_ATTEMPTS):
+            try:
+                return chain.complete(messages, tokens=tokens, temperature=0.0)
+            except LLMError as exc:
+                last = exc
+                time.sleep(EVAL_RETRY_BASE_S * 2 ** attempt)
+        cause = last.__cause__ if last else None
+        raise LLMError(f"{last}: {type(cause).__name__}: {str(cause)[:120]}") from cause
 
     return call
 
@@ -474,6 +599,13 @@ def main() -> None:
         if name == "answers":
             p.add_argument("--subset-size", type=int, default=30)
             p.add_argument("--subset-seed", default="v2-10-faithfulness")
+            p.add_argument("--judge-all", action="store_true",
+                           help="judge every answerable question, not only the fixed subset (V2-37 E)")
+            p.add_argument("--dump-context", action="store_true",
+                           help="keep question, reference and sources in per_question.jsonl "
+                                "(for hand grading; large)")
+            p.add_argument("--no-correctness", action="store_true",
+                           help="skip the correctness-against-reference call (faithfulness only)")
             p.add_argument("--judge", choices=["judge", "generate", "none"], default="judge",
                            help="`generate` = the answer model judges itself (stated in the report)")
             p.add_argument("--concurrency", type=int, default=1,
@@ -489,10 +621,13 @@ def main() -> None:
         report = coverage_report(setup, questions)
     else:
         answerable_ids = [q["id"] for q in questions if q["answerable"]]
-        subset = fixed_subset(answerable_ids, a.subset_size, a.subset_seed)
+        subset = (answerable_ids if a.judge_all
+                  else fixed_subset(answerable_ids, a.subset_size, a.subset_seed))
         judge = None if a.judge == "none" else _chain_fn(a.models, a.judge, a.concurrency)
         report, rows = answers_report(setup, questions, _chain_fn(a.models, "generate", a.concurrency),
-                                      judge, subset, a.concurrency)
+                                      judge, subset, a.concurrency,
+                                      grade_correctness=not a.no_correctness,
+                                      dump_context=a.dump_context)
         report["client_limits_raised"] = ({"rpm": EVAL_RPM, "tpm": EVAL_TPM, "timeout_s": EVAL_TIMEOUT_S}
                                           if a.concurrency > 1 else None)
         report["judge"] = a.judge
