@@ -31,11 +31,11 @@ What is tested where, what runs in CI versus on a developer machine, and where t
 
 A green build is not visual verification. For a UI change, open the page in a browser, walk each acceptance criterion and record which browsers and viewports were **not** checked.
 
-Playwright is **not installed** in this repository: `frontend/web/package.json` has no `@playwright/test`, and `tests/e2e/` is empty. Adding it is a new dependency that needs the owner's agreement first (CLAUDE.md constraint 12). Until then, browser evidence is a manual check written up in a test report. The frontend is still wired to V1 until ticket V2-15, so most V2 flows are exercised through the HTTP APIs, not the UI.
+Playwright is **not installed** in this repository: `frontend/web/package.json` has no `@playwright/test`, and `tests/e2e/` is empty. Adding it is a new dependency that needs the owner's agreement first (CLAUDE.md constraint 12). Until then, browser evidence is a manual check written up in a test report. The V2 screens exist (V2-15, V2-31 to V2-33); their browser runs are recorded in those tickets and in `docs/quality/evidence/` (gitignored, local only).
 
 ### Legacy test material
 
-`tests/integration/google-auth-flow.mjs`, `tests/smoke/`, `scripts/test-google-auth.ps1` and the Google-auth and Playwright sections of `tests/README.md` belong to the V1 stack and are not part of the V2 gates.
+The V1 test material (`tests/integration/google-auth-flow.mjs`, `scripts/test-google-auth.ps1`) was removed with V1 in V2-17 and is preserved at tag `v1-final`. `tests/smoke/smoke-check.ps1` now wraps the V2 `scripts/check-services.ps1`; it needs the running stack and is not a CI gate.
 
 ## What runs where
 
@@ -52,14 +52,14 @@ Playwright is **not installed** in this repository: `frontend/web/package.json` 
 | ai-service retrieval / QA / feedback isolation | `tenant-isolation.yml` job `ai-service` (`test_retrieval.py`, `test_qa_isolation.py`, `test_feedback_isolation.py` and three named `test_qa_api.py` cases) | `pytest` on the same files |
 | Department authorization (FR-29) | `tenant-isolation.yml` job `department-authorization` (`DepartmentAuthorizationIT`, `test_department_authorization.py`) | same commands |
 | Eval harness | not in CI | `cd eval; uv sync --extra dev; uv run pytest -q` |
-| Frontend build | `ci.yml` job `frontend-and-gateway` (`pnpm build`, no lint, no tests) | `validate-build.ps1 -Scope web` |
+| Frontend build | `ci.yml` job `frontend` (`pnpm build`, `pnpm lint`, `pnpm test`) | `validate-build.ps1 -Scope web` |
 | Docs check | `ci.yml` job `docs` (`pwsh ./scripts/docs/check-docs.ps1`, then `eval/sopilot_eval/plan_check.py`; first passed on GitHub on PR #14) | `./scripts/docs/check-docs.ps1` |
 
 Consequences to keep in mind when reporting results:
 
 - The rest of the Docker-backed core-api ITs and ai-service integration tests (everything outside the isolation selections above) have **no CI job**. They count as verified only when someone ran them locally and recorded the result.
 - CI runs ai-service with `--extra dev` only, so `pdf`-marked tests skip there. Say which environment you ran.
-- Frozen V1 jobs (`backend-java`, `backend-python`, and the gateway half of `frontend-and-gateway`) stay green until ticket V2-17 deletes V1; they are not V2 evidence.
+- `frontend`: `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm lint` and the Vitest suite (`pnpm test`) in `frontend/web`. The V1 jobs were removed with V1 in V2-17.
 - Without Docker, core-api `*IT` fail at container start, while ai-service integration tests and `tests/tenant-isolation` **skip** (`pytest.skip("Docker is not available")`) and the run still exits 0. Check the skipped count. Report "not run: Docker unavailable", never "passed".
 
 ## Where evidence goes

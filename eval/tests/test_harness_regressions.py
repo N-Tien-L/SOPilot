@@ -139,7 +139,7 @@ def test_reranker_shared_configs_load_model_once(tmp_path, monkeypatch):
 def test_disposable_infrastructure_uses_tmpfs_for_image_volumes(tmp_path):
     # Arrange
     source = yaml.safe_load(
-        (REPO / "docker-compose.v2.yml").read_text(encoding="utf-8")
+        (REPO / "docker-compose.yml").read_text(encoding="utf-8")
     )
     # Act
     config = disposable_config(source, "sopilot-v2-fixture", tmp_path)

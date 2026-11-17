@@ -83,4 +83,4 @@ Repo-level: `./scripts/validate-build.ps1 -Scope web` runs build, lint and test.
 
 ## Docker
 
-The image is built from `Dockerfile` (standalone `node server.js`) and needs `CORE_API_URL` and `AI_SERVICE_URL` at run time. `docker-compose.v2.yml` sets them to the compose service names.
+The image is built from `Dockerfile` (standalone `node server.js`) and needs `CORE_API_URL` and `AI_SERVICE_URL` at run time. `docker-compose.yml` sets them to the compose service names.

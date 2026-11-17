@@ -67,7 +67,12 @@ if ($HasInvalidTodo) {
 Write-Host "`n[3/7] Determining affected services and running tests..." -ForegroundColor Cyan
 $AffectedServices = @()
 
-foreach ($File in $ChangedFiles) {
+# Deleted paths need no tests (for example a removed service directory).
+$TestedFiles = git diff --cached --name-only --diff-filter=d
+if (-not $TestedFiles) {
+    $TestedFiles = git diff --name-only --diff-filter=d HEAD
+}
+foreach ($File in $TestedFiles) {
     if ($File -match "^services/([^/]+)/") {
         $Service = $Matches[1]
         if ($AffectedServices -notcontains $Service) { $AffectedServices += $Service }
@@ -88,14 +93,21 @@ if ($AffectedServices.Count -eq 0) {
             $ScriptPath = Join-Path $repoRoot "scripts\run-tests.ps1"
         }
 
+        if ($Service -notin @("core-api", "ai-service", "frontend")) {
+            Write-Host "❌ services/$Service is not a V2 service; run-tests.ps1 has no scope for it" -ForegroundColor Red
+            $FailedChecks++
+            continue
+        }
         if ($Service -eq "frontend") {
-            # The frontend has no test script yet (run-tests.ps1 would always fail): build + lint instead.
+            # validate-build.ps1 -Scope web runs pnpm build, lint and the Vitest suite (pnpm test).
             $global:LASTEXITCODE = 0
             try {
                 & (Join-Path $PSScriptRoot "validate-build.ps1") -Scope "web"
             } catch {
                 Write-Host $_.Exception.Message -ForegroundColor Red
                 $global:LASTEXITCODE = 1
+            } finally {
+                Set-Location $repoRoot  # validate-build.ps1 leaves the shell in frontend\web
             }
         } else {
             & $ScriptPath -Scope $Service
@@ -110,29 +122,20 @@ if ($AffectedServices.Count -eq 0) {
     }
 }
 
-# 4. Validate Docker Compose Config (V2 always; frozen V1 only when the change touches it, removed by V2-17)
+# 4. Validate the Docker Compose config. It requires its secrets (${VAR:?}): validate the structure
+# with the placeholder values of .env.example, never with .env.
 Write-Host "`n[4/7] Validating Docker Compose config..." -ForegroundColor Cyan
-foreach ($ComposeFile in @("docker-compose.v2.yml", "docker-compose.yml")) {
-    if ($ComposeFile -eq "docker-compose.yml" -and ($ChangedFiles -notcontains $ComposeFile)) {
-        Write-Host "⚠️ $ComposeFile (frozen V1) not changed, skipping." -ForegroundColor Yellow
-        continue
-    }
-    if (Test-Path $ComposeFile) {
-        # V2 requires its secrets (${VAR:?}); validate structure with the placeholder values, never with .env.
-        if ($ComposeFile -eq "docker-compose.v2.yml") {
-            docker compose -f $ComposeFile --env-file .env.example config --quiet
-        } else {
-            docker compose -f $ComposeFile config --quiet
-        }
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "❌ $ComposeFile is invalid" -ForegroundColor Red
-            $FailedChecks++
-        } else {
-            Write-Host "✅ $ComposeFile is valid" -ForegroundColor Green
-        }
+if (Test-Path "docker-compose.yml") {
+    docker compose -f docker-compose.yml --env-file .env.example config --quiet
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ docker-compose.yml is invalid" -ForegroundColor Red
+        $FailedChecks++
     } else {
-        Write-Host "⚠️ $ComposeFile not found, skipping." -ForegroundColor Yellow
+        Write-Host "✅ docker-compose.yml is valid" -ForegroundColor Green
     }
+} else {
+    Write-Host "❌ docker-compose.yml not found" -ForegroundColor Red
+    $FailedChecks++
 }
 
 # 5. V2 Flyway migrations: naming, numbering, immutability, no destructive DDL

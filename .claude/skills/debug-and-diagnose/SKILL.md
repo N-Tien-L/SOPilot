@@ -10,7 +10,7 @@ Rule: no fix without a confirmed cause. Write down the hypothesis, the evidence 
 ## 1. Reproduce and capture
 
 - Exact request (method, path, which workspace/role), response body and status, and `traceId` from the error envelope (`{"error":{...},"traceId"}`).
-- The state of the stack: `docker compose -f docker-compose.v2.yml ps -a` (Postgres 55432, MinIO 59000/59001). The apps run locally (`mvnw spring-boot:run -Dspring-boot.run.profiles=local`, `uv run uvicorn --app-dir src sopilot_ai.api.app:create_app --factory`, `PYTHONPATH=src uv run python -m sopilot_ai.worker`). V2-16 has not added them to compose yet.
+- The state of the stack: `docker compose ps -a` (Postgres 55432, MinIO 59000/59001). The apps run locally (`mvnw spring-boot:run -Dspring-boot.run.profiles=local`, `uv run uvicorn --app-dir src sopilot_ai.api.app:create_app --factory`, `PYTHONPATH=src uv run python -m sopilot_ai.worker`), or in compose as `core-api`, `ai-service`, `ai-worker` and `web` (V2-16); `./scripts/check-services.ps1` probes either.
 - `git log --oneline -15` for recent changes in the touched area.
 
 ## 2. Locate by symptom
@@ -37,7 +37,7 @@ Inspect data read-only: `docker exec sopilot-v2-postgres psql -U postgres -d sop
 
 ## Report
 
-Symptom → root cause (with file:line and evidence) → fix → verification commands and results → residual risk. If the cause is outside the task (a V1 bug, an infra or provider outage), report it and stop.
+Symptom → root cause (with file:line and evidence) → fix → verification commands and results → residual risk. If the cause is outside the task (an infra or provider outage), report it and stop.
 
 ## Never
 

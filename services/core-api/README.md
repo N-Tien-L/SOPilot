@@ -66,7 +66,7 @@ Copy `.env.example` in this directory to `.env`; it lists the variables below wi
 | Env | Default | Notes |
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | none | `local` for development, `test` for automated tests/eval |
-| `SOPILOT_DB_URL`, `SOPILOT_DB_USER`, `SOPILOT_DB_PASSWORD` | `jdbc:postgresql://localhost:55432/sopilot`, `sopilot_core_app`, — | Use the `sopilot_core_app` role from `docker-compose.v2.yml` |
+| `SOPILOT_DB_URL`, `SOPILOT_DB_USER`, `SOPILOT_DB_PASSWORD` | `jdbc:postgresql://localhost:55432/sopilot`, `sopilot_core_app`, — | Use the `sopilot_core_app` role from `docker-compose.yml` |
 | `GOOGLE_CLIENT_ID` | — | Blank rejects every Google login |
 | `SOPILOT_JWT_PRIVATE_KEY_PATH`, `SOPILOT_JWT_KID` | in-memory key in `local`/`test` | Unencrypted PKCS#8 PEM, RSA ≥ 2048; kid defaults to the key thumbprint |
 | `SOPILOT_ACCESS_TTL` | `PT15M` | Startup fails above 15 minutes |
@@ -99,11 +99,11 @@ Run from the repository root unless noted.
 cd services/core-api
 ./mvnw test                                               # unit tests
 ./mvnw verify                                             # unit + Testcontainers integration tests
-./mvnw spring-boot:run "-Dspring-boot.run.profiles=local" # needs the V2 Postgres from docker-compose.v2.yml
+./mvnw spring-boot:run "-Dspring-boot.run.profiles=local" # needs the V2 Postgres from docker-compose.yml
 ```
 
 Integration tests (`*IT`) cover departments/members, the document lifecycle, concurrent quota and duplicate
-uploads, the outbox, MinIO (`minio/minio:RELEASE.2024-05-10T01-41-38Z`, the tag `docker-compose.v2.yml` pins) and
+uploads, the outbox, MinIO (`minio/minio:RELEASE.2024-05-10T01-41-38Z`, the tag `docker-compose.yml` pins) and
 tenant isolation through the API (`TenantIsolationApiIT`). S3 and ai-service are in-process fakes except in
 `S3StorageClientIT` and `HttpAiServiceClientTest`.
 

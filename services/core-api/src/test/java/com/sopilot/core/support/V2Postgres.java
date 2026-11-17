@@ -12,7 +12,7 @@ import java.security.SecureRandom;
 import java.util.HexFormat;
 
 /**
- * One disposable V2 Postgres per test JVM, built like {@code docker-compose.v2.yml}: same image,
+ * One disposable V2 Postgres per test JVM, built like {@code docker-compose.yml}: same image,
  * the real {@code infrastructure/db/init/01-roles.sh}, and both Flyway chains applied as
  * {@code sopilot_migrator}. core-api connects as {@code sopilot_core_app}, so RLS and schema
  * grants are the production ones. Passwords are random per run; nothing touches local volumes.

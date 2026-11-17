@@ -1,6 +1,6 @@
 ---
 name: flyway-migration
-description: Add a V2 Flyway migration to infrastructure/db/migrations/core or /rag (new table, column, index, policy, function or grant), with RLS, grants, verification and doc updates. Use whenever a V2 ticket changes the core or rag schema. Not for V1 infrastructure/init-db (frozen).
+description: Add a V2 Flyway migration to infrastructure/db/migrations/core or /rag (new table, column, index, policy, function or grant), with RLS, grants, verification and doc updates. Use whenever a V2 ticket changes the core or rag schema.
 ---
 
 # Add a V2 Flyway migration
@@ -31,7 +31,7 @@ Start from `references/template.sql`. Checklist:
    - core: `./scripts/run-tests.ps1 -Scope core-api -Type all` (Docker)
    - rag: `./scripts/run-tests.ps1 -Scope ai-service -Type integration` (Docker)
 3. Run the database isolation suite: `cd tests/tenant-isolation; uv run pytest -v` (Docker). It discovers tables from the catalog. A new tenant table is covered automatically and must pass the RLS checks. A new table without `workspace_id` fails `test_only_reviewed_tables_are_global` until it is listed there on purpose, which needs owner review.
-4. Never apply to the owner's persistent `sopilot-v2` volume yourself. Tell the user to run `docker compose -f docker-compose.v2.yml up flyway-core flyway-rag` (or the matching service) when they are ready.
+4. Never apply to the owner's persistent `sopilot-v2` volume yourself. Tell the user to run `docker compose up flyway-core flyway-rag` (or the matching service) when they are ready.
 
 ## 4. Update docs in the same change
 

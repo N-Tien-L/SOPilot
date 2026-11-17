@@ -15,7 +15,7 @@ author: "Owner"
 Start with the state of the stack and the recent history:
 
 ```powershell
-docker compose -f docker-compose.v2.yml ps -a
+docker compose ps -a
 git log --oneline -15
 ```
 
@@ -24,8 +24,8 @@ Then find the symptom:
 | Symptom | First checks | Usual fix |
 |---|---|---|
 | `docker compose up` stops with `set <NAME> in .env` | A required variable is missing from the root `.env` | Add it (names in the root `.env.example`, values from the owner). `./scripts/check-env.ps1` reports missing keys without printing values |
-| Postgres or MinIO container not healthy | `docker compose -f docker-compose.v2.yml logs --tail 50 postgres` (or `minio`); port `55432`/`59000`/`59001` already in use | Free the port or change `V2_POSTGRES_PORT` / `V2_MINIO_*_PORT` |
-| `flyway-core` / `flyway-rag` exit non-zero | `docker compose -f docker-compose.v2.yml logs flyway-core` | A checksum mismatch means an applied migration was edited: restore the file from git. Never repair on the persistent volume without the owner. Run `./scripts/check-migrations.ps1` |
+| Postgres or MinIO container not healthy | `docker compose logs --tail 50 postgres` (or `minio`); port `55432`/`59000`/`59001` already in use | Free the port or change `V2_POSTGRES_PORT` / `V2_MINIO_*_PORT` |
+| `flyway-core` / `flyway-rag` exit non-zero | `docker compose logs flyway-core` | A checksum mismatch means an applied migration was edited: restore the file from git. Never repair on the persistent volume without the owner. Run `./scripts/check-migrations.ps1` |
 | core-api starts but `GET /actuator/health` is `503`, or the log repeats `CannotGetJdbcConnectionException` | The database is unreachable or `SOPILOT_DB_*` is wrong. core-api does **not** exit for this: run from source with no database settings it started in about 3 s, health was `503` and the outbox dispatcher logged the connection failure (observed 2026-11-13). Missing S3 settings do not stop startup either; document calls fail with `503` | Start Postgres (`127.0.0.1:55432`) and load the core-api environment into the shell |
 | core-api exits at startup | Outside the `local`/`test` profiles it needs `SOPILOT_JWT_PRIVATE_KEY_PATH` and `SOPILOT_NONCE_HMAC_KEY`; `SOPILOT_ACCESS_TTL` above `PT15M` also fails startup | Use the `local` profile, or provide both keys |
 | ai-service exits at startup | `SOPILOT_DB_URL` or `SOPILOT_INTERNAL_TOKEN` unset (both are required) | Load the ai-service environment; the DB URL uses the `postgresql://` form, not JDBC |

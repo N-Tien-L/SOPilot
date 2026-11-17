@@ -1,6 +1,6 @@
-# V2 database and storage (`docker-compose.v2.yml`)
+# V2 database and storage (`docker-compose.yml`)
 
-Local infrastructure for SOPilot V2 (ADR-004 §4.4, ticket V2-08). It runs as a separate compose project, `sopilot-v2`, with its own volumes and network, so it never touches the legacy stack (`docker-compose.yml`, `infrastructure/init-db/`).
+Local infrastructure for SOPilot V2 (ADR-004 §4.4, ticket V2-08). It runs as the compose project `sopilot-v2`, with its own volumes and network. Until V2-17 this file was `docker-compose.v2.yml`, kept apart from the V1 stack (the old `docker-compose.yml` and `infrastructure/init-db/`, now preserved at tag `v1-final`); the project name stayed `sopilot-v2` so the existing volumes keep matching.
 
 ## Start
 
@@ -8,11 +8,11 @@ Local infrastructure for SOPilot V2 (ADR-004 §4.4, ticket V2-08). It runs as a 
 2. Start it:
 
    ```powershell
-   docker compose -f docker-compose.v2.yml up -d
+   docker compose up -d
    ```
 
    `flyway-core`, `flyway-rag` and `minio-init` run once and exit with code 0.
-3. Stop it without deleting data: `docker compose -f docker-compose.v2.yml down` (never add `-v`).
+3. Stop it without deleting data: `docker compose down` (never add `-v`).
 
 Published ports, bound to `127.0.0.1` only: Postgres `55432`, MinIO API `59000`, MinIO console `59001` (change with `V2_POSTGRES_PORT`, `V2_MINIO_API_PORT`, `V2_MINIO_CONSOLE_PORT`).
 
@@ -78,7 +78,7 @@ mounted or deleted. Scope and limits are recorded in
 ## Check
 
 ```powershell
-docker compose -f docker-compose.v2.yml ps -a
+docker compose ps -a
 docker exec sopilot-v2-postgres psql -U postgres -d sopilot -c "\du"
 docker exec sopilot-v2-postgres psql -U postgres -d sopilot -c "SELECT version, description, success FROM core.flyway_schema_history UNION ALL SELECT version, description, success FROM rag.flyway_schema_history"
 ```

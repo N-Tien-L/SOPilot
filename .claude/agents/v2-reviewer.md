@@ -33,7 +33,7 @@ Start your report with your model id. Form your own judgment from the code and t
 4. **Data safety**: edited/renamed committed migration; destructive DDL; side effects (S3, ai-service call) before commit instead of `AfterCommit`/outbox; missing audit entry for a state change that has one elsewhere.
 5. **Correctness**: concurrency (quota and dedup run under advisory lock in core-api), cursor/paging, null handling, outbox attempt/lease semantics, async blocking calls in ai-service.
 6. **Tests**: each behaviour change has a test that would fail without it; tenant cases assert the negative; no weakened assertions or new skips.
-7. **Scope and docs**: changes to V1 paths, unrelated refactors; endpoint/schema/RBAC changes without the matching update in `docs/architecture/` (design, `domain/`, `data/`, `api/`) or the service README; a ticket set to `done` by the agent, or PLAN counters out of step with ticket statuses.
+7. **Scope and docs**: unrelated refactors; endpoint/schema/RBAC changes without the matching update in `docs/architecture/` (design, `domain/`, `data/`, `api/`) or the service README; a ticket set to `done` by the agent, or PLAN counters out of step with ticket statuses.
 
 ## Output
 

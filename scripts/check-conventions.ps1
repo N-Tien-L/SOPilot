@@ -13,6 +13,16 @@ Set-Location $repoRoot
 
 $violations = @()
 
+# Directory each CLAUDE.md commit/branch scope may change; infra spans compose, infrastructure and
+# scripts, so it has no directory check.
+$scopeDirs = @{
+    "core" = "services\core-api"; "ai" = "services\ai-service"; "web" = "frontend\web";
+    "eval" = "eval"; "tenant" = "tests\tenant-isolation"; "ci" = ".github\workflows"; "plan" = "docs"
+}
+if ($Scope -ne "infra" -and -not $scopeDirs.ContainsKey($Scope)) {
+    throw "Unknown scope '$Scope'. Use one of: $((@($scopeDirs.Keys) + 'infra' | Sort-Object) -join ', ')."
+}
+
 # Check branch name convention
 $branchName = git rev-parse --abbrev-ref HEAD
 if ($branchName -notmatch "^(feat|fix|chore|docs|refactor|test)/$Scope-.*$") {
@@ -23,20 +33,9 @@ if ($branchName -notmatch "^(feat|fix|chore|docs|refactor|test)/$Scope-.*$") {
 $changedFiles = @(git diff --name-only HEAD) + @(git ls-files --others --exclude-standard)
 foreach ($file in $changedFiles) {
     $file = $file.Replace('/', '\')
-    # Check correct service directory
-    if ($Scope -eq "web") {
-        if (-not $file.StartsWith("frontend\web")) {
-            $violations += "File changed outside frontend\web: $file"
-        }
-    }
-    elseif ($Scope -eq "gateway") {
-        if (-not $file.StartsWith("services\api-gateway")) {
-            $violations += "File changed outside services\api-gateway: $file"
-        }
-    }
-    elseif ($Scope -ne "infra") {
-        # V2 core-api lives in services\core-api, not services\core-service.
-        $expectedDir = if ($Scope -eq "core") { "services\core-api" } else { "services\$Scope-service" }
+    # Check the scope's directory
+    if ($scopeDirs.ContainsKey($Scope)) {
+        $expectedDir = $scopeDirs[$Scope]
         if (-not $file.StartsWith($expectedDir)) {
             $violations += "File changed outside ${expectedDir}: $file"
         }
