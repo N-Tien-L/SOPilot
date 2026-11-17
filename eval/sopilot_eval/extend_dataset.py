@@ -21,6 +21,12 @@ Output in ``<dataset>``: corpus, manifest and page-map copied from the base (sam
 records the base freeze under ``derived_from``. New questions are ``draft`` with
 ``drafted_by=Claude``: the owner must review them before the dataset can be frozen.
 
+With ``--extra-corpus <dir>`` (V2-45) the dir holds ``manifest.extra.json``, ``page-map.extra.json`` and
+``corpus/`` with added canonical documents (``build_canonical.py --only handbook-v3``). They are merged into the
+base corpus under the new ``corpus_version``; base reviews are carried with ``rebased_from``; the new drafts are
+``subset=v3``; and ``negative-recheck.json`` lists base near-miss negatives whose search terms occur in the
+added documents (they may have become answerable and need an adjudication).
+
 Refuses to run when ``<dataset>`` already holds a reviewed v2 question (the review app edits the
 files in place), unless ``--force``.
 """
@@ -32,6 +38,7 @@ import re
 import shutil
 import sys
 import unicodedata
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .dataset import (
@@ -42,9 +49,18 @@ from .dataset import (
     sha256,
     validate_retrieval,
 )
+from .extra_corpus import (
+    EXTRA_MANIFEST,
+    EXTRA_PAGE_MAP,
+    merge_extra_corpus,
+    negative_terms,
+    rebase_reviews,
+    recheck_negatives,
+)
 from .prepare_main import locate, make_span, write_jsonl
 
 LABEL_VERSION = "main-v2-draft-v1"
+LABEL_VERSION_V3 = "main-v3-draft-v1"
 DOC_CODE = re.compile(r"\b(?:QT[-.]?\d+|QĐ|SOP\s*\d+|\d+/(?:QĐ|NĐ|TB|VBHN)\b|BDP|EPA|FDA|ORA|NCI)", re.IGNORECASE)
 
 
@@ -73,13 +89,16 @@ def lexical_overlap(question: str, quotes: list[str]) -> float:
     return round(len(q & gold) / len(q), 3) if q else 0.0
 
 
-def build(base: Path, root: Path, force: bool = False) -> dict:
+def build(base: Path, root: Path, force: bool = False, extra: Path | None = None) -> dict:
+    # With --extra-corpus the new drafts are ``subset=v3``; the base rows keep their subset (v1/v2).
+    subset = "v3" if extra is not None else "v2"
+    label_version = LABEL_VERSION_V3 if extra is not None else LABEL_VERSION
     existing = root / "questions.master.jsonl"
     if existing.exists() and not force:
         touched = [q["id"] for q in read_jsonl(existing)
-                   if q.get("subset") == "v2" and q["review_status"] != "draft"]
+                   if q.get("subset") == subset and q["review_status"] != "draft"]
         if touched:
-            raise SystemExit(f"{len(touched)} v2 questions already reviewed; refusing to rebuild (use --force)")
+            raise SystemExit(f"{len(touched)} {subset} questions already reviewed; refusing to rebuild (use --force)")
     validate_retrieval(base)
     for name in ("manifest.json", "page-map.json", "selection.json", "SOURCES.md"):
         if (base / name).exists():
@@ -96,15 +115,34 @@ def build(base: Path, root: Path, force: bool = False) -> dict:
         manifest.pop(k, None)
     manifest["frozen"] = False
     manifest["derived_from"] = derived
-    manifest["purpose"] = (manifest.get("purpose", "") + " | v2: base questions + realistic, cross-lingual "
-                           "and near-miss negative drafts (see README)").strip(" |")
-    _, texts, documents = load_documents(base)
+    manifest["purpose"] = (manifest.get("purpose", "") + (
+        " | v3: v2 questions + added GitLab Handbook pages and drafts (see README)" if extra is not None else
+        " | v2: base questions + realistic, cross-lingual and near-miss negative drafts (see README)")).strip(" |")
     page_map = json.loads((base / "page-map.json").read_text(encoding="utf-8"))
+    base_reviews = read_jsonl(base / "review.jsonl")
+    base_version = manifest["corpus_version"]
+    recheck = None
+    if extra is not None:
+        extra_manifest = json.loads((extra / EXTRA_MANIFEST).read_text(encoding="utf-8"))
+        manifest = merge_extra_corpus(manifest, extra_manifest, extra, root)
+        page_map = page_map | json.loads((extra / EXTRA_PAGE_MAP).read_text(encoding="utf-8"))
+        (root / "page-map.json").write_text(json.dumps(page_map, ensure_ascii=False, indent=2) + "\n",
+                                            encoding="utf-8")
+    (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _, texts, documents = load_documents(root)
 
     spans = read_jsonl(base / "evidence.jsonl")
-    questions = [q | {"subset": "v1", "tags": sorted(q.get("tags", []))} for q in read_jsonl(base / "questions.master.jsonl")]
-    reviews = read_jsonl(base / "review.jsonl")
+    questions = [q | {"subset": q.get("subset", "v1"), "tags": sorted(q.get("tags", []))} for q in read_jsonl(base / "questions.master.jsonl")]
     audits = read_jsonl(base / "negative-audit.draft.jsonl")
+    reviews = base_reviews
+    if extra is not None:
+        new_ids = {d["doc_id"] for d in extra_manifest["documents"]}
+        recheck = recheck_negatives(negative_terms(questions, base_reviews, audits),
+                                    {d: t for d, t in texts.items() if d in new_ids})
+        recheck["corpus_version"] = manifest["corpus_version"]
+        (root / "negative-recheck.json").write_text(json.dumps(recheck, ensure_ascii=False, indent=2) + "\n",
+                                                    encoding="utf-8")
+        reviews = rebase_reviews(base_reviews, base_version, manifest["corpus_version"], datetime.now(UTC).date().isoformat())
     seed = _seed_intents(root / "seed")
     for it in seed:
         sets = []
@@ -142,9 +180,9 @@ def build(base: Path, root: Path, force: bool = False) -> dict:
                 "reference_answer": item.get("answer", "") if sets else "",
                 "query_types": it["query_types"],
                 "review_status": "draft",
-                "label_version": LABEL_VERSION,
+                "label_version": label_version,
                 "drafted_by": "Claude",
-                "subset": "v2",
+                "subset": subset,
                 "tags": sorted(tags),
                 **({"lexical_overlap": lexical_overlap(item["question"], quotes)} if sets else {}),
             })
@@ -167,8 +205,8 @@ def build(base: Path, root: Path, force: bool = False) -> dict:
         raise ValueError("duplicate span ids")
     for q in questions:
         q["expected"] = project_expected(q, by_id, documents)
-    manifest["v2_seed"] = {
-        "label_version": LABEL_VERSION,
+    manifest[f"{subset}_seed"] = {
+        "label_version": label_version,
         "files": {p.name: sha256(p.read_text(encoding="utf-8")) for p in sorted((root / "seed").glob("*.json"))},
     }
     (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -177,9 +215,10 @@ def build(base: Path, root: Path, force: bool = False) -> dict:
     write_jsonl(root / "review.jsonl", reviews)
     write_jsonl(root / "negative-audit.draft.jsonl", audits)
     info = validate_retrieval(root)
-    new = [q for q in questions if q["subset"] == "v2"]
+    new = [q for q in questions if q["subset"] == subset]
     return {
         **info,
+        **({"negative_recheck_hits": len(recheck["with_hits"])} if recheck else {}),
         "new_questions": len(new),
         "new_intents": len(seed),
         "new_by_split": {s: {"answerable": sum(q["answerable"] for q in new if q["split"] == s),
@@ -194,8 +233,10 @@ def main() -> None:
     ap.add_argument("--base", type=Path, required=True)
     ap.add_argument("--dataset", type=Path, required=True)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--extra-corpus", type=Path, default=None,
+                    help="directory with manifest.extra.json, page-map.extra.json and corpus/ of added documents")
     a = ap.parse_args()
-    sys.stdout.write(json.dumps(build(a.base, a.dataset, a.force), ensure_ascii=False, indent=2) + "\n")
+    sys.stdout.write(json.dumps(build(a.base, a.dataset, a.force, a.extra_corpus), ensure_ascii=False, indent=2) + "\n")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-05, V2-06, V2-22]
-blocks: [V2-18, V2-37]
+blocks: [V2-18, V2-37, V2-45]
 branch: "docs/tests-eval-report"
 assignee: pair
 ---
