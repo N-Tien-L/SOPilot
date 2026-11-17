@@ -142,4 +142,5 @@ The owner delegated review on 2026-11-17 ("I have no time left") and asked that 
 - Strata vs targets: single-passage 76/80 (short 4), multi-passage 41/40, negatives 28/30 (short 2), number_deadline 55, condition_exception 48, comparison 19, OR-alternatives 0 new (no overlapping new pages). Not done: no-diacritics derived probes.
 - Preview: six configurations on the test split, `eval/results/v3-preview/20261117-221436-08f3dd70` (dense span_recall@5 0.869, bm25 0.497, hybrid 0.659); share answered by all six at 1.0: new rows 37 %, v2 42 %, v1 74 %; no question removed. `preview-strata.md` in the dataset. Needed a small change: `docproc_chunks.py` reads `handbook-v3` sources.
 - `cd eval; uv run pytest -q`: 193 passed. `python eval/sopilot_eval/plan_check.py`: counters match. Owner spot check: `owner-spotcheck.md` (30 rows, seed 45).
-- Not verified: no human review; translations not checked by a human; `check-docs.ps1` result below.
+- Owner spot check 2026-11-17: 30/30 rows marked OK by the owner, going by the Opus verdicts shown (`owner-spotcheck.md`); the other 260 new rows are unread by a human.
+- Not verified: no human review of the other new rows; translations not checked by a human; `check-docs.ps1` result below.

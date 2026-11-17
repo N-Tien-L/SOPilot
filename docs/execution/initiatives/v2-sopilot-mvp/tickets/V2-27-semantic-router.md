@@ -4,7 +4,7 @@ title: "ai-service: semantic router (rules + embedding) measured against rules o
 type: feat
 status: done
 created: 2026-10-20
-updated: 2026-11-14
+updated: 2026-11-17
 author: "Owner"
 scope: ai-qa
 priority: P1
@@ -46,6 +46,8 @@ The semantic router calls no LLM: it compares the question's embedding with each
 - **The flag stays `false`**: the passing numbers exist only on an unreviewed dataset and examples; 0/53 gives only a 95% upper bound of about 5.7%, which does not prove ≤ 2%.
 - **Still open:** (1) owner review of the 390-question set (`eval/datasets/routing/`, gitignored, including 71 questions prefixed "Please tell me:") and the examples; decide whether to commit the set (blocked by `datasets/` in `.gitignore`); (2) tune the thresholds on `dev`, rerun `test`, decide on enabling by default; (3) `feedback_in_chat` does not branch yet (needs the owner to decide how to detect "the rest is empty"); (4) measure `followup` through `qa/pipeline.py` (needs `evidence` for the `followup` questions); (5) owner review.
 - **Closure 2026-11-14:** set to `done` by owner decision ([PLAN-V2](../PLAN.md) change log) with the router **off by default**, as the acceptance criterion allows when ≤ 2% is not shown. Not met: the extended router (`feedback_in_chat`), the owner-reviewed dataset, the `followup` measurement and the tuning that would enable the flag. Open items (1), (2) and (4) move to [V2-18](V2-18-research-report-and-handover.md) ("Carried over from closed tickets"); (3) needs an owner decision and a new ticket if pursued.
+
+- **Owner review 2026-11-17:** the owner confirmed the review of the 390-question routing set (`eval/datasets/routing/`, still gitignored). This closes open item (1) for the dataset; the examples, threshold tuning and the `followup` measurement stay as carried over to [V2-18](V2-18-research-report-and-handover.md). The trained SetFit classifier built on this set is [V2-44](V2-44-ai-service-setfit-router.md).
 
 ## 3. Guide
 - **Runtime files:** `services/ai-service/src/sopilot_ai/qa/router.py` (an embedding layer after the rule layer), `src/sopilot_ai/qa/router_exemplars.yaml` (example sentences by intent, including `sop_question` as the control class), `src/sopilot_ai/qa/router_thresholds.yaml`.

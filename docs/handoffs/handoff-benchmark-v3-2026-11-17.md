@@ -20,7 +20,7 @@ Written so a new session can run the benchmarks and draft the report without the
 
 - `develop` holds the V2-45 tooling (merge `87464cd`). V2-45 is `review`, not `done`. Nothing is pushed.
 - The dataset `eval/datasets/sop-main-v3` is **gitignored and local only**. Copy the folder if you work on another machine. It is frozen (`test_sha256` in its `manifest.json`); `sop-main` and `sop-main-v2` are unchanged.
-- **No human has read the 290 new rows** (generator Sonnet 5.5, verifier Opus 5.5, same family). Read `eval/datasets/sop-main-v3/README.md` first. Do the 30-row check in `owner-spotcheck.md` before publishing numbers; if more than 3 of 30 are wrong, re-review.
+- **No human has read the 290 new rows** (generator Sonnet 5.5, verifier Opus 5.5, same family). Read `eval/datasets/sop-main-v3/README.md` first. The 30-row spot check is done (owner marked 30/30 OK on 2026-11-17, following the Opus verdicts); the other 260 new rows are still unread.
 - Known gaps against the V2-45 quotas: single-passage 76/80, negatives 28/30, no OR-alternative intents, no no-diacritics probes.
 - Preview already run (retrieval only, test split): `eval/results/v3-preview/20261117-221436-08f3dd70`; per-stratum table in the dataset's `preview-strata.md`.
 
@@ -66,8 +66,8 @@ What exists: the rules + semantic router, and the SetFit/LR classifier experimen
 | SetFit bge-m3 + history | 150 | 3 | 23 ms T4 |
 
 Open items before it can be reported:
-- The owner has reviewed the 390-question routing set (stated 2026-11-17; the V2-27 ticket text still says "owner review open", so update it when you record evidence).
-- All routing code and configs (`eval/sopilot_eval/routing*.py`, `eval/configs/routing-*.yaml`) are already tracked on `develop`. The routing datasets (`eval/datasets/routing/`) and model outputs are gitignored and stay in this working copy. The SetFit pool-447 retrain on Modal is in `docs/handoffs/handoff-routing-classifier-2026-11-17.md`; branch `feat/eval-routing-classifier` has no commits beyond `develop`.
+- The owner reviewed the 390-question routing set on 2026-11-17 (recorded in V2-27 §2a).
+- All routing code and configs (`eval/sopilot_eval/routing*.py`, `eval/configs/routing-*.yaml`) are already tracked on `develop`. The routing datasets (`eval/datasets/routing/`) and model outputs are gitignored and stay in this working copy. The trained SetFit artifacts are already downloaded locally (gitignored): `eval/results/routing/setfit-router-model-histaug/setfit-router` (the V2-44 source of truth, see its ticket) and `setfit-router-model`; no Modal download is needed. Branch `feat/eval-routing-classifier` has no commits beyond `develop`.
 - Not measured: router on/off effect on answer quality and refusal on v3 (run Tier 2 twice, router off and on, if the report needs it).
 
 **Framing decision (owner):** the PRD defines RQ1-RQ5 only; routing is in none of them. Either add a secondary RQ (for example "RQ6: can a trained intent classifier replace the rules + semantic router with no costly errors, and at what latency?") or list it as an additional contribution in V2-18. Tie it to RQ3: the router decides which questions skip retrieval, so it changes wrong refusals. Until decided, describe it only as supplementary work.

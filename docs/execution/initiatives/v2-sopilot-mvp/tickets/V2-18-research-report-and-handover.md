@@ -36,7 +36,7 @@ The owner closed these tickets as `done` on 2026-11-14 with criteria still open 
 - **`V2-28`:** owner review of the Vietnamese SOP question set and the licences of its 6 documents; agree the size and the 0.8 pass threshold; the real run on the local stack (`dev` to settle `doc_code_boost`, `SOPILOT_HEADER_FOOTER_MIN_PAGES`, `SOPILOT_FOLLOWUP_MAX_TOKENS`, then `test`); `gold_in_context` and the gap-list rate in the harness; the final report. Without the real run, the report presents no `V2-28` results.
 - **`V2-25`:** p50/p95 of `t_upload_ack`, `t_ready`, `t_suggest` on the V2-19 corpus with an empty embedding cache.
 - **`V2-16`:** a clean-environment try (time from clone to the first answer); TTFT P50/P95 with `scripts/measure-ttft.ps1` on the real provider (target P95 < 3 s, recorded as met or not); one question with citations through the API on the compose stack.
-- **`V2-27`:** owner review of the routing set and examples; tune thresholds on `dev`, rerun `test` and decide on enabling `SOPILOT_SEMANTIC_ROUTER_ENABLED`; measure `followup` through `qa/pipeline.py`.
+- **`V2-27`:** owner review of the routing examples (the 390-question routing set was reviewed by the owner on 2026-11-17, see V2-27 §2a); tune thresholds on `dev`, rerun `test` and decide on enabling `SOPILOT_SEMANTIC_ROUTER_ENABLED`; measure `followup` through `qa/pipeline.py`.
 
 ## 3. Guide
 - **Files:** `docs/research/audit-v2-final-<date>.md`, `docs/research/research-report-v2.md` (CREATE). Author "Owner".
