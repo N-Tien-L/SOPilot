@@ -12,6 +12,13 @@ is written to ``corpus/<doc_id>.md`` (NFC, LF), its page index to ``page-map.jso
 offsets, ``end_char`` exclusive) and a manifest entry with hashes and versions. Output holds no
 document text outside ``corpus/``. Existing corpus files are only overwritten with ``--force``,
 because spans and reviews point at their offsets.
+
+V2-45 (needs ``PYTHONPATH=services/ai-service/src``, as the ai-service has ``package = false``): ``--only handbook-v3`` builds just the added GitLab Handbook pages (``source_dataset: handbook-v3``;
+bytes and metadata come from ``<dataset>/acquisition/``, see ``sopilot_eval.extra_corpus``). It needs neither
+``--extraction-dataset`` nor ``--pilot-dataset`` and never touches ``manifest.json``/``page-map.json``: the
+output is ``manifest.extra.json`` and ``page-map.extra.json``, merged later by
+``python -m sopilot_eval.extend_dataset --extra-corpus``. ``selection.json`` then carries a ``corpus_version``
+different from the base dataset's.
 """
 
 from __future__ import annotations
@@ -26,6 +33,12 @@ import unicodedata
 from pathlib import Path
 
 from sopilot_ai.docproc import NORMALIZER_VERSION, clean_document, extract, render
+
+from sopilot_eval.extra_corpus import (
+    EXTRA_MANIFEST,
+    EXTRA_PAGE_MAP,
+    handbook_source_record,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -47,7 +60,12 @@ def git_state() -> dict:
     return {"commit": run("rev-parse", "HEAD"), "docproc_dirty": bool(dirty)}
 
 
-def source_record(sel: dict, extraction: Path, pilot: Path) -> tuple[Path, dict]:
+def source_record(sel: dict, extraction: Path | None, pilot: Path | None, root: Path) -> tuple[Path, dict]:
+    if sel["source_dataset"] == "handbook-v3":
+        return handbook_source_record(root, sel["doc_id"])
+    if extraction is None or pilot is None:
+        raise SystemExit(f"{sel['doc_id']}: --extraction-dataset and --pilot-dataset are required for "
+                         f"source_dataset={sel['source_dataset']}")
     if sel["source_dataset"] == "extraction":
         manifest = json.loads((extraction / "manifest.json").read_text(encoding="utf-8"))
         sources = json.loads((extraction / "sources.json").read_text(encoding="utf-8"))
@@ -78,16 +96,21 @@ def source_record(sel: dict, extraction: Path, pilot: Path) -> tuple[Path, dict]
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--dataset", type=Path, required=True)
-    ap.add_argument("--extraction-dataset", type=Path, required=True)
-    ap.add_argument("--pilot-dataset", type=Path, required=True)
+    ap.add_argument("--extraction-dataset", type=Path, default=None)
+    ap.add_argument("--pilot-dataset", type=Path, default=None)
+    ap.add_argument("--only", choices=["handbook-v3"], default=None,
+                    help="build only this source kind and write manifest.extra.json / page-map.extra.json")
     ap.add_argument("--force", action="store_true", help="overwrite existing corpus files")
     args = ap.parse_args()
     root: Path = args.dataset
     selection = json.loads((root / "selection.json").read_text(encoding="utf-8"))
     (root / "corpus").mkdir(parents=True, exist_ok=True)
     page_map, documents = {}, []
-    for sel in selection["documents"]:
-        path, meta = source_record(sel, args.extraction_dataset, args.pilot_dataset)
+    chosen = [s for s in selection["documents"] if args.only in (None, s["source_dataset"])]
+    if not chosen:
+        raise SystemExit("selection.json has no documents for --only " + str(args.only))
+    for sel in chosen:
+        path, meta = source_record(sel, args.extraction_dataset, args.pilot_dataset, root)
         out = root / "corpus" / f"{sel['doc_id']}.md"
         raw = path.read_bytes()
         rendered = render(clean_document(extract(raw, path.name)).document)
@@ -122,8 +145,11 @@ def main() -> None:
         "production_docproc": True,
         "documents": documents,
     }
-    (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (root / "page-map.json").write_text(json.dumps(page_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if args.only:
+        manifest["models"] = selection.get("models")
+    manifest_name, page_map_name = (EXTRA_MANIFEST, EXTRA_PAGE_MAP) if args.only else ("manifest.json", "page-map.json")
+    (root / manifest_name).write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (root / page_map_name).write_text(json.dumps(page_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

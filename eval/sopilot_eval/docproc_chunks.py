@@ -33,6 +33,11 @@ def _source_document(doc_id: str, root: Path, structured_dir: Path | None, pilot
         if path.suffix.lower() != ".md":
             raise ValueError(f"{doc_id}: only Markdown sources are re-extracted here; add a structured JSON")
         return extract(path.read_bytes(), path.name), "markdown"
+    if sel and sel.get("source_dataset") == "handbook-v3":
+        from .extra_corpus import handbook_source_record
+
+        path, _ = handbook_source_record(root, doc_id)
+        return extract(path.read_bytes(), path.name), "markdown"
     raise ValueError(f"{doc_id}: no cached extraction and no Markdown source")
 
 

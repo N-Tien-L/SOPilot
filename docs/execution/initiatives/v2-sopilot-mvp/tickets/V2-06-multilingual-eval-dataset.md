@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: []
-blocks: [V2-07, V2-09]
+blocks: [V2-07, V2-09, V2-45]
 branch: "docs/tests-eval-dataset"
 assignee: owner
 ---
