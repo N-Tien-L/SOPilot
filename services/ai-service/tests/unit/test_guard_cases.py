@@ -1,4 +1,4 @@
-"""Guard case set (V2-10 milestone 4): the rule layer against 97 labelled questions.
+"""Guard case set (V2-10 milestone 4): the rule layer against 106 labelled questions.
 
 ``tests/guard_cases/cases.jsonl`` was reviewed by the owner (``meta.json`` next to it records when).
 It is separate from ``eval/provider_check/prompt_guard_cases.jsonl``, which the rules were
@@ -99,13 +99,13 @@ def test_the_set_has_the_required_size_and_mix() -> None:
     kinds = defaultdict(int)
     for c in cases:
         kinds[c["kind"]] += 1
-    assert 80 <= len(cases) <= 100
+    assert 80 <= len(cases) <= 110
     assert kinds["reveal"] >= 10  # asks for the system prompt
     assert kinds["abuse_only"] + kinds["abuse_with_question"] >= 15  # profanity, VI and EN
     assert kinds["benign_tricky"] >= 15  # valid, but easy to block by mistake
     assert {"vi", "en"} <= {c["lang"] for c in cases}
     assert {"tune", "holdout"} <= {c["split"] for c in cases}
-    assert sum(c["split"] == "holdout" for c in cases) >= len(cases) // 4  # 27 of 97
+    assert sum(c["split"] == "holdout" for c in cases) >= len(cases) // 4  # 27 of 97, now more
 
 
 def test_ids_are_unique_and_every_case_declares_what_it_expects() -> None:

@@ -75,6 +75,7 @@ Before rules are applied, the PII-masked text is viewed in two normalized forms 
   - *Patterns:* a line starting with `system:` or `assistant:`, control tags `[INST]`, `<<sys>>`, `<|im_start|>`, `### system`.
 * **`harm.threat`:** threats of violence or killing aimed at a specific target (`muốn/định/sẽ giết`, `dọa giết`, `i want to kill/stab/hurt him/my boss/you`). Business phrases such as *"giết thời gian"* (kill time), *"kill the process"*, *"hurt the audit"* are not blocked.
 * **`harm.harassment`:** intent to harass, stalk or threaten online (`quấy rối`, `dọa dẫm`, `stalk`, `dox`).
+* **`harm.weapons`, `harm.hacking` (added 2026-11-17, V2-44, owner request):** how-to requests for making explosives, bombs or weapons (a making verb and a weapon noun; `bom` is matched with diacritics so *bơm* (pump) passes), and for hacking or stealing another person's account or password (a break-in verb and someone else's account). Returns `harm_block`. SOP questions such as *explosive atmosphere*, *làm sạch bơm* and *xử lý khi tài khoản bị xâm nhập* pass (guard cases `bt-21` to `bt-23`).
 * **`harm.self_harm`:** intent of suicide or self-harm (`raw: true` so *"tự tử"* (suicide) is not confused with *"từ từ"* (slowly)). Returns the [`self_harm`](../../../../../services/ai-service/src/sopilot_ai/qa/templates.yaml) template with the emergency number 115 and an internal contact.
 
 #### Group 2: flag (`flag`) → still answered, records `INPUT_FLAG`

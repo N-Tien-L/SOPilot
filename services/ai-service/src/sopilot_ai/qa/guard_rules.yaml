@@ -53,6 +53,25 @@ block:
     patterns:
       - '\b(muon|dinh|giup toi|giup minh)\s+(quay roi|doa dam)\b'
       - '\b(i want to|help me|going to)\s+(harass|stalk|threaten|intimidate|dox)\b'
+  # V2-44 (owner 2026-11-17): how-to requests for weapons, explosives and breaking into a person's
+  # account. Narrow on purpose: a verb of making AND a weapon noun, or a break-in verb AND someone
+  # else's account, so SOP questions ("explosive atmosphere", "bơm", "tài khoản bị xâm nhập") pass.
+  - id: harm.weapons
+    template: harm_block
+    patterns:
+      - '\b(cach|lam sao|lam the nao|huong dan|chi (cho )?(toi|minh|tao)|day (toi|minh|tao)|giup (toi|minh|tao))\b.{0,25}\b(che tao|che ra|lam ra|tu che|dieu che)\b.{0,25}\b(chat no|thuoc no|vu khi|sung tu che|ma tuy)\b'
+      - '\b(how (do i|to|can i|would i)|help me|show me|teach me|tell me how to|steps to|instructions (for|to)|ways to|recipe for)\b.{0,30}\b(make|build|create|synthesi[sz]e|assemble|manufacture|cook)\b.{0,30}\b(bombs?|explosives?|pipe bombs?|molotov( cocktails?)?|nerve agents?|chemical weapons?|ghost guns?|untraceable guns?|napalm|meth|methamphetamine)\b(?!-|\s+(atmospheres?|hazards?|zones?|areas?|limits?|storage|safety|proof)\b)'
+  - id: harm.weapons
+    template: harm_block
+    raw: true   # "bom" (bomb) vs "bơm" (pump) collide once diacritics are stripped
+    patterns:
+      - '\b(cách|làm sao|làm thế nào|hướng dẫn|chỉ (cho )?(tôi|mình|tao)|giúp (tôi|mình|tao))\b.{0,25}\b(làm|chế tạo|tự chế)\b.{0,15}\bbom\b'
+  - id: harm.hacking
+    template: harm_block
+    patterns:
+      - '\b(how (do i|to|can i|would i)|help me|show me|teach me|tell me how to|ways to|steps to)\b.{0,25}\b(hack|break|crack)( in| into)\b.{0,30}\b(accounts?|e-?mails?|phones?|computers?|laptops?|wi-?fi|passwords?)\b'
+      - '\b(hack|crack|steal)\b.{0,20}\b(someone|somebody|another (person|user)|my (coworker|colleague|boss|manager|ex|neighbou?r)|his|her|their)(\x27s)?\b.{0,20}\b(passwords?|accounts?|e-?mails?|phones?)\b'
+      - '\b(cach|lam sao|lam the nao|huong dan|chi (cho )?(toi|minh|tao)|giup (toi|minh|tao))\b.{0,25}\b(hack|xam nhap|danh cap|be khoa)\b.{0,30}\b(tai khoan|mat khau|email|may tinh|wifi|dien thoai)\b.{0,25}\b(cua )?(nguoi khac|dong nghiep|sep|ban be|nguoi yeu|vo|chong|ai do|nguoi dung khac)\b'
   - id: harm.self_harm
     template: self_harm
     raw: true
