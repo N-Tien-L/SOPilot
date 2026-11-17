@@ -90,4 +90,4 @@ Stop, keep the data:
 docker compose down
 ```
 
-Stop the from-source processes with Ctrl+C. Never add `-v`. Resetting data is an owner decision (the reset script is not run unless asked).
+Stop the from-source processes with Ctrl+C. Never add `-v`. Resetting data is an owner decision (CLAUDE.md constraint 3).

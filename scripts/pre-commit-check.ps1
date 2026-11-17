@@ -106,6 +106,8 @@ if ($AffectedServices.Count -eq 0) {
             } catch {
                 Write-Host $_.Exception.Message -ForegroundColor Red
                 $global:LASTEXITCODE = 1
+            } finally {
+                Set-Location $repoRoot  # validate-build.ps1 leaves the shell in frontend\web
             }
         } else {
             & $ScriptPath -Scope $Service

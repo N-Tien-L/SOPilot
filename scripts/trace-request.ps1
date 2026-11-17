@@ -16,21 +16,26 @@ function Port($name, [int]$default) {
 $routes = @(
     @{ Prefix = "/api/v1/"; Service = "core-api"; Port = (Port "V2_CORE_API_PORT" 8080); Code = "services/core-api/src/main/java/com/sopilot/core" },
     @{ Prefix = "/ai/v1/"; Service = "ai-service"; Port = (Port "V2_AI_SERVICE_PORT" 8000); Code = "services/ai-service/src/sopilot_ai/api" },
-    @{ Prefix = "/internal/"; Service = "ai-service (service-to-service, X-Internal-Token)"; Port = (Port "V2_AI_SERVICE_PORT" 8000); Code = "services/ai-service/src/sopilot_ai/api/internal.py" }
+    # /internal/** is service-to-service (X-Internal-Token), never proxied; both services serve some
+    # (docs/architecture/api/http-conventions.md). Most specific prefix first.
+    @{ Prefix = "/internal/ingestions"; Service = "ai-service"; Caller = "core-api's OutboxDispatcher"; Port = (Port "V2_AI_SERVICE_PORT" 8000); Code = "services/ai-service/src/sopilot_ai/api/internal.py" },
+    @{ Prefix = "/internal/document-access/"; Service = "ai-service"; Caller = "core-api's OutboxDispatcher"; Port = (Port "V2_AI_SERVICE_PORT" 8000); Code = "services/ai-service/src/sopilot_ai/api/internal.py" },
+    @{ Prefix = "/internal/documents/"; Match = "/versions/|/suggestions"; Service = "core-api"; Caller = "ai-service's outbox dispatcher"; Port = (Port "V2_CORE_API_PORT" 8080); Code = "services/core-api/src/main/java/com/sopilot/core" },
+    @{ Prefix = "/internal/documents/"; Service = "ai-service"; Caller = "core-api's OutboxDispatcher"; Port = (Port "V2_AI_SERVICE_PORT" 8000); Code = "services/ai-service/src/sopilot_ai/api/internal.py" }
 )
 $webPort = Port "V2_WEB_PORT" 3000
 
 Write-Host "Tracing request path: $Endpoint" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
-$matched = $routes | Where-Object { $Endpoint.StartsWith($_.Prefix) } | Select-Object -First 1
+$matched = $routes | Where-Object { $Endpoint.StartsWith($_.Prefix) -and (-not $_.Match -or $Endpoint -match $_.Match) } | Select-Object -First 1
 if (-not $matched) {
     Write-Host "No V2 route prefix matches '$Endpoint' (expected /api/v1/, /ai/v1/ or /internal/)." -ForegroundColor Yellow
     exit 1
 }
 
-if ($matched.Prefix -eq "/internal/") {
-    Write-Host "1. Not proxied by the web app: core-api's OutboxDispatcher calls ai-service directly."
+if ($matched.Prefix.StartsWith("/internal/")) {
+    Write-Host "1. Not proxied by the web app: $($matched.Caller) calls $($matched.Service) directly (X-Internal-Token)."
 } else {
     Write-Host "1. Browser -> web (Next.js, port $webPort), same origin"
     Write-Host "   -> proxy.ts matches '$($matched.Prefix)**' and forwards the request unchanged"

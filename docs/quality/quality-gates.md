@@ -34,7 +34,7 @@ Run the narrowest check first, then the suite of the touched scope.
 6. Runs the docs check (`scripts/docs/check-docs.ps1`, strict mode).
 7. Prints the summary and exits non-zero if any step failed.
 
-It does **not** run `ruff` or `validate-build.ps1`, the eval harness, the tenant-isolation suite or the browser checks.
+It does **not** run `ruff`, `validate-build.ps1` for `core` or `ai` (only `-Scope web`, step 3), the eval harness, the tenant-isolation suite or the browser checks.
 
 ## 3. Continuous integration
 

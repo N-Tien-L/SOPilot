@@ -60,7 +60,8 @@ foreach ($svc in $services) {
 # ai-worker has no HTTP port: check its container when the stack runs in compose.
 $worker = $null
 try {
-    $worker = docker ps --filter "label=com.docker.compose.project=$Project" `
+    # -a: an exited (e.g. OOM-killed) worker must show up as RED, not as "not checked".
+    $worker = docker ps -a --filter "label=com.docker.compose.project=$Project" `
         --filter "label=com.docker.compose.service=ai-worker" --format "{{.Status}}" 2>$null
 } catch {
     $worker = $null

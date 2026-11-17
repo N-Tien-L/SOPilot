@@ -52,7 +52,7 @@ The V1 test material (`tests/integration/google-auth-flow.mjs`, `scripts/test-go
 | ai-service retrieval / QA / feedback isolation | `tenant-isolation.yml` job `ai-service` (`test_retrieval.py`, `test_qa_isolation.py`, `test_feedback_isolation.py` and three named `test_qa_api.py` cases) | `pytest` on the same files |
 | Department authorization (FR-29) | `tenant-isolation.yml` job `department-authorization` (`DepartmentAuthorizationIT`, `test_department_authorization.py`) | same commands |
 | Eval harness | not in CI | `cd eval; uv sync --extra dev; uv run pytest -q` |
-| Frontend build | `ci.yml` job `frontend-and-gateway` (`pnpm build`, no lint, no tests) | `validate-build.ps1 -Scope web` |
+| Frontend build | `ci.yml` job `frontend` (`pnpm build`, `pnpm lint`, `pnpm test`) | `validate-build.ps1 -Scope web` |
 | Docs check | `ci.yml` job `docs` (`pwsh ./scripts/docs/check-docs.ps1`, then `eval/sopilot_eval/plan_check.py`; first passed on GitHub on PR #14) | `./scripts/docs/check-docs.ps1` |
 
 Consequences to keep in mind when reporting results:
