@@ -293,8 +293,8 @@ def test_build_chain_reads_the_model_and_key_from_the_environment(monkeypatch):
     assert client.spec.model == "served-model"
     assert client.spec.base_url == "https://llm.test/v1"
     assert client.spec.api_key == "secret-value"
-    assert client.spec.context_max_tokens == 60000  # the default under the 65536 deploy (ADR-011)
-    assert client.spec.temperature == 0.2 and client.spec.max_output_tokens == 3000
+    assert client.spec.context_max_tokens == 57000  # the default under the 65536 deploy (ADR-011)
+    assert client.spec.temperature == 0.2 and client.spec.max_output_tokens == 8192  # V2-43
     assert (limiter.rpm, limiter.tpm) == (60, 200_000)
 
 
@@ -452,6 +452,19 @@ def test_stream_marks_server_parsed_reasoning_and_keeps_content_as_answer():
     out = list(client_with(handler, extra_body=on).stream([{"role": "user", "content": "q"}]))
     assert [type(x) is Thought for x in out] == [True, False]
     assert out == ["weigh the rules", "12 days [1]"]
+
+
+def test_the_finish_reason_of_an_event_is_read_so_a_length_cut_can_be_seen():
+    from sopilot_ai.providers.llm import _delta_parts
+
+    cut = {"choices": [{"delta": {"reasoning_content": "still thi"}, "finish_reason": "length"}]}
+    assert _delta_parts(json.dumps(cut)) == ("still thi", "", "length")
+    assert _delta_parts(json.dumps({"choices": [{"delta": {"content": "a"}}]})) == ("", "a", None)
+    body = f"data: {json.dumps(cut)}\n\ndata: [DONE]\n\n".encode()
+    on = {"chat_template_kwargs": {"enable_thinking": True}}
+    client = client_with(lambda _: httpx.Response(200, content=body), extra_body=on)
+    out = list(client.stream([{"role": "user", "content": "q"}]))
+    assert out == ["still thi"]  # the cut reasoning stays reasoning; no answer text is invented
 
 
 def test_stream_splits_inline_think_tags_when_thinking_is_on():
