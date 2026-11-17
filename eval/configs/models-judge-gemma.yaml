@@ -73,7 +73,7 @@ llm:
         model: "${SOPILOT_JUDGE_MODEL:google/gemma-4-26B-A4B-it}"
         rpm: "${SOPILOT_JUDGE_RPM:120}"
         tpm: "${SOPILOT_JUDGE_TPM:400000}"
-        context_max_tokens: 9000  # estimate units (2 chars per token); sources are cut to 16K chars first
+        context_max_tokens: 7000
     temperature: 0
     max_output_tokens: 64
 providers:
