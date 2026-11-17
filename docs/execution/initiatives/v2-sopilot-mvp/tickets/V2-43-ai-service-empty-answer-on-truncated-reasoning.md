@@ -2,7 +2,7 @@
 id: V2-43
 title: "ai-service: an answer that ends inside the reasoning is stored as an empty ANSWERED"
 type: fix
-status: review
+status: done
 created: 2026-11-17
 updated: 2026-11-17
 author: "Owner"
@@ -39,8 +39,8 @@ Goal: an answer has room for its reasoning, and a generation with no answer text
 - [x] **Guard.** When the stream ends and the answer text is empty or whitespace, the turn ends as `outcome = ERROR` with the existing stable code `LLM_UNAVAILABLE` (SSE `error` with the `error_llm_unavailable` template text, quota turn refunded as for every `ERROR`), `checks.emptyAnswer = true`, and a structlog `answer_empty` event (`reasoning_chars`, `model`; no text, no tokens).
 - [x] **Truncation visible.** The provider reads `finish_reason`; `"length"` logs `llm_output_truncated` (`provider`, `model`, `max_tokens`).
 - [x] **No regression.** Normal answers stay `ANSWERED`; refusals are untouched; the ai-service unit suite and ruff pass.
-- [ ] **Live.** Re-run the UC-04 driver on the parity stack at least 3 times (intermittent): every answerable question sends `delta` and `citations`, or ends with `error LLM_UNAVAILABLE`, never an empty `ANSWERED`.
-- [ ] Owner review; then V2-17 re-runs UC-04 and FR-11 on `develop` after the merge.
+- [x] **Live.** Re-run the UC-04 driver on the parity stack at least 3 times (intermittent): every answerable question sends `delta` and `citations`, or ends with `error LLM_UNAVAILABLE`, never an empty `ANSWERED`.
+- [x] Owner review; then V2-17 re-runs UC-04 and FR-11 on `develop` after the merge.
 
 ## 3. Guide
 - Code: `services/ai-service/config/models.yaml` (`llm.generate`), `providers/llm.py` (`stream`, `_delta_parts`), `conversations/steps.py` (`GenerateStep.run`).
@@ -68,7 +68,7 @@ uv run --no-project --with pyyaml python eval/sopilot_eval/plan_check.py
 | ADR-011 §5 (dated note), TECH-V2-ai-service (§4.2 excerpt, §7.4 rule, settings table) | MODIFY |
 
 ## 6. Results
-Implemented on `fix/ai-empty-answer-budget` (from `develop` 25e83cb) and committed 2026-11-17; not pushed or merged. Status `review`: owner acceptance moves it to `done`.
+Implemented on `fix/ai-empty-answer-budget` (from `develop` 25e83cb) and committed 2026-11-17; merged into `develop` (`61a44fd`) and into `chore/infra-remove-legacy` (`b6e0b80`); not pushed. **Status `done` (owner decision 2026-11-17: mark done after a clean review).**
 
 **Tests added.** `test_a_stream_of_only_reasoning_ends_as_an_error_not_answered`, `test_a_stream_with_no_deltas_at_all_ends_as_an_error`, `test_a_whitespace_only_answer_after_reasoning_is_not_an_answer`, `test_reasoning_followed_by_answer_text_is_still_answered` (`test_generate_step.py`), `test_the_finish_reason_of_an_event_is_read_so_a_length_cut_can_be_seen` (`test_llm_provider.py`).
 
@@ -81,4 +81,14 @@ Implemented on `fix/ai-empty-answer-budget` (from `develop` 25e83cb) and committ
 
 **Review (`v2-reviewer`, 2026-11-17).** No blocker. Fixed: the stale `SOPILOT_LLM_CONTEXT_MAX_TOKENS=60000` in `infrastructure/modal/README.md` (60,000 + 8,192 > 65,536) and the `default 3000` in `services/ai-service/README.md`; the from-source `.env` step and the "cut after some answer text" limit are now in §2 and §3. Not changed (suggestions): the tests call `QAService._outcome` directly, with no integration test through `ask` (the existing `ERROR` path sends `error`, no `done`, stores `ERROR` and refunds quota, checked by reading); a whitespace-only answer from a scripted chain is still sent as a `delta` before the error (unreachable through the real provider, whose splitter strips leading whitespace). Pre-existing mismatch, reported and not aligned: TECH-V2-ai-service §4.2 shows `enable_thinking: false` for `generate`; `models.yaml` has `${SOPILOT_LLM_THINKING:true}`.
 
-**Not verified.** A live Modal re-run of the UC-04 driver (needs the stack; the owner runs it at least 3 times since the failure is intermittent); a browser view of the error state; the ai-service integration suite (Docker).
+**Live re-run (2026-11-17).** The throwaway `sopilot-parity` stack's `ai-service` was rebuilt from `chore/infra-remove-legacy` at `b6e0b80` (V2-43 merged; the container's `models.yaml` shows `max_output_tokens: ${SOPILOT_LLM_MAX_OUTPUT_TOKENS:8192}` and `context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:57000}"`; rerank on, Modal). The parity driver (`-QaOnly`) ran 3 times:
+
+| Run | UC-04 owner question | UC-10 engineer | UC-10 HR, UC-05 |
+|---|---|---|---|
+| 1 | 1,791 `reasoning`, 279 `delta`, `citations`, `ANSWERED` | 976 `reasoning`, `ANSWERED`, cites the restricted SOP | `REFUSED_NO_EVIDENCE`, nothing of the restricted SOP |
+| 2 | **3,380** `reasoning`, 272 `delta`, `citations`, `ANSWERED` | 716 `reasoning`, `ANSWERED` | same |
+| 3 | 2,291 `reasoning`, 233 `delta`, `citations`, `ANSWERED` | 885 `reasoning`, `ANSWERED` | same |
+
+No `finalText` contained reasoning. `docker logs` of the container: `llm_output_truncated` 0, `answer_empty` 0, `Traceback` 0. Run 2's reasoning alone (3,380 events against 1,366 for the cut-off run) would not have fit the old 3,000-token ceiling. The guard path itself (`ERROR` / `LLM_UNAVAILABLE`) was not triggered live; it is covered by the unit tests.
+
+**Not verified.** A browser view of the error state; the ai-service integration suite (Docker); the guard path on the live model.
