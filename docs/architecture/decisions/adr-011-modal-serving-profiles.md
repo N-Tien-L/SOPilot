@@ -3,7 +3,7 @@ id: ADR-011
 title: "Answer model serving on Modal: one L40S deploy, 64K context, parallel eval and a warm demo"
 status: approved
 created: 2026-11-15
-updated: 2026-11-16
+updated: 2026-11-17
 author: "Owner"
 deciders: ["Owner"]
 amends: [ADR-006]
@@ -159,3 +159,5 @@ Each TTFT prompt starts with a random nonce, so the prefix cache cannot serve it
 | `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | empty | **60,000** | 65,536 served − 3,000 output tokens − margin |
 
 The V2-40 rule holds with room: 8 × (60,000 + 3,000) = 504,000 ≤ 784,931 KV tokens, and the measured TTFT at 65K is 7.36 s (limit 10 s). The working budget (16K) is far below the ceiling on purpose: a 9B model can miss evidence in the middle of a long prompt, and a larger source budget raises TTFT and eval cost. **Not yet evaluated:** the `multi_passage` group of `answers.py` with these values (deferred to V2-37, see above); until then the budget is a choice, not a result.
+
+**Changed 2026-11-17 (V2-43):** the answer task's output ceiling (`llm.generate.max_output_tokens`) is now **8,192** and the prompt ceiling (`SOPILOT_LLM_CONTEXT_MAX_TOKENS` default of the `generate` chain) **57,000**. With thinking on, the reasoning shares the output ceiling with the answer; at 3,000 a V2-17 parity run spent it all inside the reasoning and left no answer. 57,000 + 8,192 = 65,192 ≤ 65,536 served, and the V2-40 rule still holds: 8 × 65,192 = 521,536 ≤ 784,931 KV tokens. The table above keeps the 2026-11-16 values as decided then.

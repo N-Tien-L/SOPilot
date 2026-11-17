@@ -3,7 +3,7 @@ id: TECH-V2-AI-SERVICE
 title: "ai-service technical design (V2): structured ingest, access-filtered hybrid retrieval, cited Q&A"
 status: approved
 created: 2026-10-20
-updated: 2026-11-13
+updated: 2026-11-17
 refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
   - docs/product/prd-v2-sopilot-mvp.md
@@ -499,10 +499,10 @@ llm:
         model: "${SOPILOT_LLM_MODEL:}"
         rpm: "${SOPILOT_LLM_RPM:60}"        # placeholder, measure on the real endpoint
         tpm: "${SOPILOT_LLM_TPM:200000}"
-        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:60000}"   # prompt ceiling under the 65536 served context (ADR-011)
+        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:57000}"   # prompt ceiling under the 65536 served context (ADR-011 §5, V2-43)
         extra_body: {chat_template_kwargs: {enable_thinking: false}}
     temperature: 0.2
-    max_output_tokens: 800
+    max_output_tokens: ${SOPILOT_LLM_MAX_OUTPUT_TOKENS:8192}   # reasoning + answer (V2-43)
   rewrite:
     chain: [same entry as generate]
     temperature: 0
@@ -923,6 +923,7 @@ Commercial quotas are paused (owner decision 2026-10-20, PRD-V2 §8.10): the two
 - The per-provider limiters below are **always on**, because they are technical free-tier limits, not commercial quotas.
 - **Per provider:** in-memory token buckets for RPM and TPM of each `(provider, model)` from `models.yaml` (one API process, so no Redis needed). The prompt's tokens are estimated before the call; an empty bucket → treated as `429` and the next model in `chain` is used. The whole chain exhausted → `error LLM_UNAVAILABLE`, refunding the user's quota turn if quotas are on.
 - **No model switch midway (owner decision 2026-10-21, P1-5).** Moving to the next model is allowed only **before** the first `delta` is emitted. Errors after that (disconnects, `5xx`, an empty bucket) → `error LLM_UNAVAILABLE`, `outcome = ERROR`, the quota turn refunded; no rerun on another model, because the emitted text would be duplicated.
+- **No empty answer (V2-43).** A generation that ends with no answer text (only reasoning, e.g. `finish_reason: length` inside the reasoning, or nothing) is never `ANSWERED`: `error LLM_UNAVAILABLE`, `outcome = ERROR`, `checks.emptyAnswer = true`, the quota turn refunded, log `answer_empty` (and `llm_output_truncated` from the provider).
 - **Per-model context ceiling.** Each `chain` entry has `context_max_tokens` (§4.2). Switching to a model whose ceiling is below `context.max_tokens` reassembles the context with that ceiling (dropping low-ranked sources first, keeping the rank-1 source) before calling. The prompt token estimate uses the model's own tokenizer if `models.yaml` declares `tokenizer`, otherwise a rough character-based estimate; it is used only for budgeting, never for chunking (chunking uses the embedding's tokenizer, §5.4).
 
 ### 7.5 Conversations (FR-15) and history after losing access
@@ -1016,8 +1017,8 @@ The contract is defined in TECH-V2-core-api §8. On the ai-service side:
 | `SOPILOT_MODELS_CONFIG` | `config/models.yaml` | |
 | `EMBEDDING_REVISION`, `RERANK_REVISION`, `RERANK_ENABLED` | —, —, `false` | |
 | `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_MODEL`, `SOPILOT_LLM_API_KEY` | —, —, — | The Modal endpoint (OpenAI-compatible); the model id comes from `GET /models`. Missing → a startup error (no default) |
-| `SOPILOT_LLM_RPM`, `SOPILOT_LLM_TPM`, `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | `60`, `200000`, `60000` | RPM/TPM are placeholders. The ceiling is the prompt budget under the served `--max-model-len 65536` minus the 3000 output tokens, with margin; the context budget above (`context_k`, `context.*`) is the one evaluated and the one demoed (ADR-011 §2.4, §5) |
-| `SOPILOT_LLM_THINKING`, `SOPILOT_LLM_MAX_OUTPUT_TOKENS` | `true`, `3000` | Answer task only (rewrite stays off). Reasoning shares the output ceiling with the answer; the server has no reasoning parser, so `llm.py` splits `<think>` itself. Measure with `infrastructure/modal/bench_thinking.py` |
+| `SOPILOT_LLM_RPM`, `SOPILOT_LLM_TPM`, `SOPILOT_LLM_CONTEXT_MAX_TOKENS` | `60`, `200000`, `57000` | RPM/TPM are placeholders. The ceiling is the prompt budget under the served `--max-model-len 65536` minus the 8192 output tokens, with margin (V2-43); the context budget above (`context_k`, `context.*`) is the one evaluated and the one demoed (ADR-011 §2.4, §5) |
+| `SOPILOT_LLM_THINKING`, `SOPILOT_LLM_MAX_OUTPUT_TOKENS` | `true`, `8192` | Answer task only (rewrite stays off). Reasoning shares the output ceiling with the answer (3000 ran out inside the reasoning, V2-43); the server has no reasoning parser, so `llm.py` splits `<think>` itself. Measure with `infrastructure/modal/bench_thinking.py` |
 | `SOPILOT_QUOTA_QUESTIONS_PER_USER_DAY`, `SOPILOT_QUOTA_QUESTIONS_SYSTEM_DAY` | `0`, `0` | FR-09, `0` = off (research phase) |
 | `SOPILOT_INGEST_MAX_ATTEMPTS`, `SOPILOT_SUGGEST_TIMEOUT`, `SOPILOT_SUGGEST_MAX_INPUT_TOKENS` | `3`, `20s`, `1500` | |
 | `SOPILOT_MAX_QUESTION_CHARS` | `1000` | §7.1 step 2: longer is refused, not truncated (D4); code points after NFC |

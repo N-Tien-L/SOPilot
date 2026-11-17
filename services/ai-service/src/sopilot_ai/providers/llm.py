@@ -233,7 +233,11 @@ class OpenAICompatibleLLM:
                     payload = line[5:].strip()
                     if payload == "[DONE]":
                         break
-                    reasoning, content = _delta_parts(payload)
+                    reasoning, content, finish = _delta_parts(payload)
+                    if finish == "length":  # the output ceiling cut the stream (V2-43)
+                        log.warning("llm_output_truncated", provider=self.spec.provider,
+                                    model=self.spec.model,
+                                    max_tokens=self.spec.max_output_tokens)
                     if reasoning:
                         splitter.server_parsed()
                         yield Thought(reasoning)
@@ -255,23 +259,26 @@ class OpenAICompatibleLLM:
             raise LLMError("LLM_UNAVAILABLE") from exc
 
 
-def _delta_parts(payload: str) -> tuple[str, str]:
-    """``(reasoning, content)`` of one SSE ``data:`` event; a malformed event is
+def _delta_parts(payload: str) -> tuple[str, str, str | None]:
+    """``(reasoning, content, finish_reason)`` of one SSE ``data:`` event; a malformed event is
     ``LLM_UNAVAILABLE``. vLLM names the reasoning field ``reasoning_content`` (older builds
-    ``reasoning``) when a reasoning parser runs; without one it is empty."""
+    ``reasoning``) when a reasoning parser runs; without one it is empty. ``finish_reason`` is
+    ``"length"`` when ``max_tokens`` cut the output (V2-43)."""
     obj = json.loads(payload)
     if not isinstance(obj, dict):
         raise LLMError("LLM_UNAVAILABLE")
     choices = obj["choices"]
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
         raise LLMError("LLM_UNAVAILABLE")
+    finish = choices[0].get("finish_reason")
+    finish = str(finish) if finish else None
     delta = choices[0].get("delta")
     if delta is None:
-        return "", ""
+        return "", "", finish
     if not isinstance(delta, dict):
         raise LLMError("LLM_UNAVAILABLE")
     reasoning = delta.get("reasoning_content") or delta.get("reasoning") or ""
-    return str(reasoning), str(delta.get("content") or "")
+    return str(reasoning), str(delta.get("content") or ""), finish
 
 
 def _raise_for_status(status: int) -> None:

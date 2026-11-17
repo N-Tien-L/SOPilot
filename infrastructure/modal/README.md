@@ -164,8 +164,9 @@ SOPILOT_LLM_API_KEY=<YOUR_RANDOM_SECRET_KEY>
 SOPILOT_RERANK_BASE_URL=https://<workspace-name>--sopilot-vllm-rerank.modal.run/v1
 SOPILOT_LLM_RPM=60
 SOPILOT_LLM_TPM=200000
-# Prompt ceiling under the served context of 65536 (ADR-011 §2.4, measured in §5)
-SOPILOT_LLM_CONTEXT_MAX_TOKENS=60000
+# Prompt ceiling + output ceiling must stay under the served context of 65536 (ADR-011 §5, V2-43)
+SOPILOT_LLM_CONTEXT_MAX_TOKENS=57000
+SOPILOT_LLM_MAX_OUTPUT_TOKENS=8192
 ```
 
 Then validate with:

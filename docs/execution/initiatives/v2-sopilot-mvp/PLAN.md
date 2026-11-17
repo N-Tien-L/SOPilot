@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "V2 SOPilot execution plan: eval first, local only, research handover"
 status: approved
 created: 2026-10-17
-updated: 2026-11-16
+updated: 2026-11-17
 author: "Owner"
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
@@ -16,10 +16,10 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 42
+total_tickets: 43
 completed_tickets: 38
-implemented_tickets: 39
-review_tickets: 1
+implemented_tickets: 40
+review_tickets: 2
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -121,6 +121,7 @@ flowchart TD
     V39["V2-39: core-api: refresh-token grace window so a reload during a refresh does not end the session"]
     V40["V2-40: infra: implement ADR-011 serving profile (L40S, parallel eval, context budget)"]
     V42["V2-42: ai-service: the model's reasoning is streamed as answer text"]
+    V43["V2-43: ai-service: an answer that ends inside the reasoning is stored as an empty ANSWERED"]
     V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
     V01 --> V03
     V01 --> V04
@@ -229,6 +230,9 @@ flowchart TD
     V10 --> V42
     V32 --> V42
     V42 --> V17
+    V10 --> V43
+    V42 --> V43
+    V43 --> V17
 ```
 
 ---
@@ -262,6 +266,7 @@ flowchart TD
 | `V2-35` | Infra + ai-service: bge-reranker-v2-m3 rerank on GPU, sharing the A10 container with vLLM | infra | L | `V2-09`, `V2-34` | done |
 | `V2-40` | infra: implement ADR-011 serving profile (L40S, parallel eval, context budget) | infra | L | `V2-10`, `V2-35` | done |
 | `V2-42` | ai-service: the model's reasoning is streamed as answer text | ai-qa | S | `V2-10`, `V2-32` | review |
+| `V2-43` | ai-service: an answer that ends inside the reasoning is stored as an empty ANSWERED | ai-qa | S | `V2-10`, `V2-42` | review |
 
 ### Phase 2b: SOP ingestion (AUDIT-ingestion-sop-data)
 | Ticket | Title | Scope | Size | Depends on | Status |
@@ -300,7 +305,7 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | done |
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | done |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
-| `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33`, `V2-42` | in_progress |
+| `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33`, `V2-42`, `V2-43` | in_progress |
 | `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41` | todo |
 
 ---
@@ -453,3 +458,5 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 > **Owner decision 2026-11-16 (V2-40 done):** [`V2-40`](tickets/V2-40-infra-modal-serving-profile.md) → `done` on the owner's acceptance of the evidence. `completed_tickets` 37 → 38 and `implemented_tickets` 37 → 38 (counted on top of the `V2-33` entry above), `review_tickets` unchanged (0). The ADR-011 profile runs on one L40S and is measured ([ADR-011 §5](../../../architecture/decisions/adr-011-modal-serving-profiles.md)); the 64K context budget is set. The full eval runs (`multi_passage` with the new budget, the dev-split run at concurrency 8) and the cost of one eval run are **deferred to [`V2-37`](tickets/V2-37-eval-config-matrix-answer-level.md)** because the AI pipeline still has pending fixes; `V2-37` §3 lists them and the `k` change in `answers.py`. `V2-18` and `V2-37` are no longer blocked by `V2-40`.
 
 > **Owner decision 2026-11-16 (V2-42 added):** the V2-17 parity run found UC-04 / FR-11 `not passed`: the model's reasoning was streamed as answer text. [`V2-42`](tickets/V2-42-ai-service-reasoning-leaks-into-answer.md) (ai-qa, P0, S, depends on `V2-10`, `V2-32`) fixes it: `_pump` turned the `Thought` deltas into plain `str`, so `GenerateStep` never saw reasoning. It blocks `V2-17`. The owner keeps the reasoning visible in the "Thought for N s" block (no extra guard for paraphrased rules). `total_tickets` 41 → 42. **Update 2026-11-17:** `V2-42` → `review` (fix and two regression tests committed, ai-service suite green, live re-run clean); `implemented_tickets` 38 → 39, `review_tickets` 0 → 1. Not `done`: owner acceptance needed.
+
+> **Owner decision 2026-11-17 (V2-43 added):** a V2-17 parity driver run found UC-04 / FR-11 `not passed` again, intermittently: one owner question streamed `meta`, 1,366 `reasoning` events, `reasoning_done`, `done` and no `delta` or `citations`, and the turn was stored `ANSWERED` with an empty `finalText`. [`V2-43`](tickets/V2-43-ai-service-empty-answer-on-truncated-reasoning.md) (ai-qa, P0, S, depends on `V2-10`, `V2-42`) fixes it: with thinking on, the reasoning and the answer share `max_output_tokens` (3000), which ran out inside the reasoning, and nothing caught an empty answer. The answer output ceiling becomes 8192 and the prompt ceiling 57000 (ADR-011 §5), and an answer with no text ends as `ERROR` / `LLM_UNAVAILABLE`. It blocks `V2-17`. `total_tickets` 42 → 43. **Same day:** `V2-43` → `review` (fix and unit tests committed, ai-service unit suite green; live re-run pending); `implemented_tickets` 39 → 40, `review_tickets` 1 → 2. Not `done`: owner acceptance needed.

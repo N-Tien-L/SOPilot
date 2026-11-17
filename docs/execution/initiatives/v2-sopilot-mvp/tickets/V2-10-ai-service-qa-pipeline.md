@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-02, V2-09, V2-34]
-blocks: [V2-13, V2-15, V2-16, V2-26, V2-27, V2-28, V2-32, V2-37, V2-38, V2-40, V2-42]
+blocks: [V2-13, V2-15, V2-16, V2-26, V2-27, V2-28, V2-32, V2-37, V2-38, V2-40, V2-42, V2-43]
 branch: "feat/ai-v2-qa-pipeline"
 assignee: pair
 ---
