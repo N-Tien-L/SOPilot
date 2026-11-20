@@ -219,7 +219,9 @@ class QAService:
             await self._shadow(ctx)
             return decision
         except Exception as exc:  # noqa: BLE001 - the client gets a fixed code, not the message
-            log.error("qa_pipeline_failed", error=type(exc).__name__,
+            # RerankError's message is a fixed code (RERANK_TIMEOUT, RERANK_HTTP_503, ...), safe to log.
+            code = str(exc) if type(exc).__name__ == "RerankError" else None
+            log.error("qa_pipeline_failed", error=type(exc).__name__, detail=code,
                       last_step=(ctx.route_info.get("steps") or [None])[-1])
             ctx.error_code = "INTERNAL_ERROR"
             return refuse("ERROR", rule_id="internal")
@@ -267,8 +269,13 @@ class QAService:
             code = ctx.error_code or "INTERNAL_ERROR"
             return outcome, None, ctx.answer_text or templates.render(_ERROR_TEMPLATES[code],
                                                                       lang), []
-        if d.template_key is None:  # the model refused in its own words (GENERATOR_NOT_FOUND)
-            return outcome, d.refusal_reason, ctx.final_text, []
+        if d.template_key is None:  # the model opened with the "not found" sentence
+            # Whatever followed that sentence contradicts it and its citations were dropped, so
+            # the turn is the fixed sentence only; `refusal` overrides the text already streamed.
+            text = templates.render("not_found_opening", lang)
+            log.info("self_refusal_replaced", streamed_chars=len(ctx.final_text))
+            return outcome, d.refusal_reason, text, [
+                Event("refusal", {"text": text, "reason": d.refusal_reason})]
         text = templates.render(d.template_key, lang, **d.template_values)
         reason = d.refusal_reason
         if d.kind is DecisionKind.TEMPLATE and reason is None:

@@ -422,8 +422,15 @@ class BuildPromptStep:
     async def run(self, ctx: PipelineContext) -> Decision:
         c = _ctx(ctx)
         assert c.today is not None
-        question = c.rewritten or c.text
-        original = c.text if c.rewritten else None
+        # The same question retrieval searched: the model never sees words the router stripped.
+        base = c.working_text or c.text
+        question = c.rewritten or base
+        original = base if c.rewritten else None
+        # Lengths only, never the text: the question is user content (see classify_question).
+        log.info("prompt_question_selected",
+                 source="rewritten" if c.rewritten else ("stripped" if c.working_text else "original"),
+                 question_chars=len(question), original_chars=len(c.text),
+                 stripped_chars=len(c.text) - len(base))
         c.prompt = qa_prompt.build_prompt(question=question, sources=c.source_texts, lang=c.lang,
                                           today=c.today, original=original)
         return CONTINUE
@@ -573,6 +580,7 @@ class SelfRefusalStep:
         c = _ctx(ctx)
         if not qa_checks.is_generator_not_found(c.final_text):
             return CONTINUE
+        log.info("self_refusal_detected", citations_dropped=len(c.citations))
         c.citations = []  # a refusal cites nothing
         c.checks["citationCount"] = 0
         c.route_info["refusal"] = "GENERATOR_NOT_FOUND"

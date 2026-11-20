@@ -1,7 +1,8 @@
 # SOPilot V2 local stack (ADR-004 §4.4; tickets V2-08, V2-16; renamed from docker-compose.v2.yml in V2-17).
 # The project name stays sopilot-v2 so existing volumes (sopilot-v2_*) keep matching.
 #   docker compose up -d
-# Secrets come from .env (see the "V2" block in .env.example). Never run `down -v` on this project.
+# Secrets come from .env (copy of .env.example). One command: `docker compose up -d`.
+# Never run `down -v` on this project: it deletes the database and the document store.
 name: sopilot-v2
 
 services:
@@ -172,6 +173,15 @@ services:
       RERANK_PROVIDER: ${RERANK_PROVIDER:-local}
       RERANK_TIMEOUT_S: ${RERANK_TIMEOUT_S:-30}
       EMBEDDING_REVISION: ${EMBEDDING_REVISION:-}
+      SOPILOT_LLM_THINKING: ${SOPILOT_LLM_THINKING:-true}
+      # SetFit router (V2-44): off | shadow | on. The artifact is not in git and not in the image; it is
+      # mounted read-only from services/ai-service/models/setfit-router (see the ai-service README).
+      SOPILOT_ROUTER_CLASSIFIER_MODE: ${SOPILOT_ROUTER_CLASSIFIER_MODE:-off}
+      SOPILOT_ROUTER_CLASSIFIER_DIR: /models/setfit-router
+      HF_HOME: /hf-cache
+    volumes:
+      - ./services/ai-service/models/setfit-router:/models/setfit-router:ro
+      - hf_cache:/hf-cache
     ports:
       - "127.0.0.1:${V2_AI_SERVICE_PORT:-8000}:8000"
     depends_on:
@@ -214,6 +224,9 @@ services:
       EMBEDDING_REVISION: ${EMBEDDING_REVISION:-}
       # V2-25 metadata suggestions. Optional: without it suggestions fall back to RULES_FALLBACK.
       SOPILOT_GROQ_API_KEY: ${SOPILOT_GROQ_API_KEY:-}
+      HF_HOME: /hf-cache
+    volumes:
+      - hf_cache:/hf-cache
     # The worker has no HTTP server; the image's curl :8000 HEALTHCHECK would always fail.
     healthcheck:
       disable: true
@@ -232,6 +245,9 @@ services:
     build:
       context: ./frontend/web
       dockerfile: Dockerfile
+      args:
+        # Build-time: inlined into the browser bundle. Same value as GOOGLE_CLIENT_ID.
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in .env}
     container_name: sopilot-v2-web
     environment:
       # Read at run time by proxy.ts (ADR-010); the browser only talks to this origin.
@@ -249,6 +265,8 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  # Hugging Face model cache (bge-m3, bge-reranker), shared by ai-service and ai-worker. Downloaded once.
+  hf_cache:
 
 networks:
   sopilot-v2:

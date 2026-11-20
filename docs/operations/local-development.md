@@ -61,7 +61,7 @@ With the `local` profile and no `SOPILOT_JWT_PRIVATE_KEY_PATH`, core-api creates
 
 ### Alternative: everything in containers
 
-`docker-compose.yml` also defines `core-api`, `ai-service`, `ai-worker` and `web`. `docker compose up -d --build` starts all of it. The `web` image serves the V2 screens (sign-in, chat with citations, documents, members, knowledge gaps, settings) behind a same-origin proxy to core-api and ai-service (`CORE_API_URL`, `AI_SERVICE_URL`); Google sign-in needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build time, otherwise only dev sign-in is offered. From source: `cd frontend/web; pnpm dev` (http://localhost:3000; core-api's `SOPILOT_FRONTEND_ORIGIN` must match). Do not run the container and the from-source copy of the same service together (same ports).
+`docker-compose.yml` also defines `core-api`, `ai-service`, `ai-worker` and `web`. The full stack is one command: `docker compose up -d` (add `--build` after code changes). It needs only the root `.env`. The `web` image serves the V2 screens (sign-in, chat with citations, documents, members, knowledge gaps, settings) behind a same-origin proxy to core-api and ai-service; its build reads `GOOGLE_CLIENT_ID` from `.env` (the same value is baked into the browser bundle at build time). The embedding model is cached in the `hf_cache` volume, so the first question after a fresh start is slow. From source: `cd frontend/web; pnpm dev` (http://localhost:3000; core-api's `SOPILOT_FRONTEND_ORIGIN` must match). Do not run the container and the from-source copy of the same service together (same ports).
 
 Use Chrome, Edge or Firefox for the web app. Safari never sends the `Secure` auth cookie over plain `http://localhost`, so every reload signs you out there.
 

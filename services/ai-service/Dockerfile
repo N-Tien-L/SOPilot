@@ -30,7 +30,7 @@ COPY src/ ./src/
 COPY config/ ./config/
 
 # Set ownership
-RUN chown -R appuser:appgroup /app /opt/venv
+RUN mkdir -p /hf-cache && chown -R appuser:appgroup /app /opt/venv /hf-cache
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
