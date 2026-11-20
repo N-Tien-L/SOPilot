@@ -219,7 +219,8 @@ class QAService:
             await self._shadow(ctx)
             return decision
         except Exception as exc:  # noqa: BLE001 - the client gets a fixed code, not the message
-            # RerankError's message is a fixed code (RERANK_TIMEOUT, RERANK_HTTP_503, ...), safe to log.
+            # RerankError's message is a fixed code (RERANK_TIMEOUT, RERANK_HTTP_503, ...):
+            # safe to log.
             code = str(exc) if type(exc).__name__ == "RerankError" else None
             log.error("qa_pipeline_failed", error=type(exc).__name__, detail=code,
                       last_step=(ctx.route_info.get("steps") or [None])[-1])

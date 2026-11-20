@@ -427,8 +427,9 @@ class BuildPromptStep:
         question = c.rewritten or base
         original = base if c.rewritten else None
         # Lengths only, never the text: the question is user content (see classify_question).
+        source = "rewritten" if c.rewritten else ("stripped" if c.working_text else "original")
         log.info("prompt_question_selected",
-                 source="rewritten" if c.rewritten else ("stripped" if c.working_text else "original"),
+                 source=source,
                  question_chars=len(question), original_chars=len(c.text),
                  stripped_chars=len(c.text) - len(base))
         c.prompt = qa_prompt.build_prompt(question=question, sources=c.source_texts, lang=c.lang,
