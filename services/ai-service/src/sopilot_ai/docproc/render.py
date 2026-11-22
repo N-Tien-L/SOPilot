@@ -10,7 +10,8 @@ import re
 
 from sopilot_ai.docproc.model import DocElement, PageSpan, RenderedDocument, StructuredDocument
 
-NORMALIZER_VERSION = "2"  # 2: figure_text elements are rendered
+NORMALIZER_VERSION = "3"  # 2: figure_text elements are rendered; 3: V2-47 cleaning (repeated
+# letterhead tables and decorative lines are frame, split step rows are stitched)
 
 _RENDERED_ROLES = ("content", "figure_text")
 

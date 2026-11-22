@@ -503,3 +503,27 @@ async def test_reindex_brings_stale_versions_back_in_step(client, engine, databa
                                                   normalizer_version=NORMALIZER_VERSION)
     assert ver not in {s.version_id for s in stale}
     assert (await client.get("/health")).json() == {"status": "ok"}
+
+
+async def test_a_version_cleaned_by_an_older_normalizer_is_stale(client, engine, database, store,
+                                                                deps) -> None:
+    """V2-47 item 8: bumping ``NORMALIZER_VERSION`` makes earlier versions show up as stale."""
+    ws, doc, ver = uuid4(), uuid4(), uuid4()
+    await ingest(client, store, body(ws, doc, ver, "Quy trình tuyển dụng"), HIRING)
+    assert await drain(deps, 600, None) == 1
+    assert NORMALIZER_VERSION == "3"  # V2-47 bumped it from "2"
+    sql(database, "UPDATE rag.extracted_documents SET normalizer_version = %s "
+                  "WHERE version_id = %s", "2", ver)
+    try:
+        async with system_tx(engine) as conn:
+            stale = await reindex_repo.stale_versions(
+                conn, model=IDENTITY[0], revision=IDENTITY[1],
+                normalizer_version=NORMALIZER_VERSION)
+        assert ver in {s.version_id for s in stale}
+        health = (await client.get("/health")).json()
+        assert health["status"] == "degraded" and health["staleVersions"] >= 1
+        found, queued = await reindex(engine, *IDENTITY, dry_run=True)
+        assert found >= 1 and queued == 0
+    finally:  # leave the shared database in step for the tests that expect /health ok
+        sql(database, "UPDATE rag.extracted_documents SET normalizer_version = %s "
+                      "WHERE version_id = %s", NORMALIZER_VERSION, ver)

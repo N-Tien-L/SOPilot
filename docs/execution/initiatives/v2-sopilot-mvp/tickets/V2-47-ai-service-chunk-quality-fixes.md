@@ -2,7 +2,7 @@
 id: V2-47
 title: "ai-service: chunk quality fixes found on the pilot corpus (false headings, letterhead tables, split step rows, table of contents, tiny legal fragments)"
 type: fix
-status: in_progress # todo | in_progress | review | done | blocked
+status: review # todo | in_progress | review | done | blocked
 created: 2026-11-22
 updated: 2026-11-22
 author: "Owner"
@@ -43,6 +43,7 @@ Goal: no chunk of the pilot corpus is made of page furniture, a false heading, a
 
 ## 2. Owner decisions needed before Phase B
 - **Order with V2-45 and the eval harness.** `eval/sopilot_eval/docproc_chunks.py:66-67` raises when `clean_document` then `render` no longer reproduces byte for byte the frozen Markdown of `sop-main` (sha256 per document). Phase B changes that Markdown, so docproc-mode RQ runs and the `sop-main-v3` freeze of V2-45 stop working at HEAD. The owner decides: freeze `sop-main-v3` first and re-freeze after Phase B, or pin the docproc commit used by the eval. The implementer stops before Phase B until this is recorded here.
+  - **Decided by the owner 2026-11-22: neither.** The eval results already submitted stay as they are (measured with the old chunker and Markdown, item 9). `sop-main` / `sop-main-v3` are not re-frozen and no docproc commit is pinned. After Phase B, the docproc mode of the eval harness (`docproc_chunks.py`) refuses the frozen corpus at HEAD by design; any later eval result lives only in the repository and starts with a new freeze. The goal of the rest of this ticket is a correct, explainable pipeline for the demo.
 - **Reindex of the owner's local data** after merge (not done by this ticket).
 
 ## 3. Acceptance criteria
@@ -196,4 +197,52 @@ Deltas against the baseline:
 
 Phase A gate (final code, 2026-11-22): `validate-build.ps1 -Scope ai` passed; ai-service unit 734 passed, 1 skipped, 15 xfailed (baseline at `f2995f3`: 706 passed); integration 158 passed; `validate-build.ps1 -Scope web` passed (build, lint, 240 Vitest); `cd eval; uv run pytest -q` 200 passed; corpus table above re-run on the final code. The frontend half of item 6 (`lib/viewer/report-labels.ts` and its test) is in the working tree only: `report-labels.ts` belongs to the uncommitted V2-46 frontend and is committed with it.
 
-Review (fresh `v2-reviewer`, two rounds, no BLOCKER). Round 1, accepted and fixed: legal copy claimed "one chunk per article" for body-line articles (now "per article heading"); the `":"` rule hit converter headings; `gap_after` and chunk-slice invariants untested; a numbered "6. Contents" kit list was dropped (numbering no longer stripped); doc qualifiers. Round 2, accepted and fixed: the `":"` rule hit real list-item sub-headings (now paragraphs only); two negative tests (procedure table in the preamble, barrier after an absorbed section); §5.4 wording. Left open: the `epa-qc` contents tail (above); the V2-46 wireframe `docs/architecture/diagrams/ingest-strategy-preview.*` and its generator still say "never merged" for `LEGAL_ARTICLES` (untracked V2-46 files, regenerate with the V2-46 frontend); a converter heading like "1 PURPOSE" without a dot is no longer lifted under a roman heading (no corpus case); the processing report of a document ingested before V2-47 recomputes `signals` with the new outline rules.
+Phase A review (fresh `v2-reviewer`, two rounds, no BLOCKER). Round 1, accepted and fixed: legal copy claimed "one chunk per article" for body-line articles (now "per article heading"); the `":"` rule hit converter headings; `gap_after` and chunk-slice invariants untested; a numbered "6. Contents" kit list was dropped (numbering no longer stripped); doc qualifiers. Round 2, accepted and fixed: the `":"` rule hit real list-item sub-headings (now paragraphs only); two negative tests (procedure table in the preamble, barrier after an absorbed section); §5.4 wording. Left open: the `epa-qc` contents tail (above); the V2-46 wireframe `docs/architecture/diagrams/ingest-strategy-preview.*` and its generator still say "never merged" for `LEGAL_ARTICLES` (untracked V2-46 files, regenerate with the V2-46 frontend); a converter heading like "1 PURPOSE" without a dot is no longer lifted under a roman heading (no corpus case); the processing report of a document ingested before V2-47 recomputes `signals` with the new outline rules.
+
+### Phase B (2026-11-22, working tree on `fix/ai-chunk-quality`)
+
+Code: `docproc/clean/boilerplate.py` (items 2 and 5b), `docproc/tables.py` (item 3), `docproc/render.py` (item 8); tests `tests/unit/test_clean_v2_47.py`, `tests/unit/test_tables_v2_47.py`, `tests/integration/test_retrieval.py::test_a_version_cleaned_by_an_older_normalizer_is_stale`; TECH-V2-ai-service §5.2, §5.3, §5.4; TEST-REPORT-005 section 8; V2-18 section 2b.
+
+**Item 2, failing condition.** `tb-qt05` has 11 pages, so the repeat rule needs `max(3, 0.4 x 11) = 4.4` pages. The letterhead is a 3x4 table, `header_rows=0`, **identical** on pages 5, 7, 8, 9 (the ticket's "text split differently per page" holds for the pages where Docling returned it as lines, which were already marked): its cells repeat at a page edge on 4 pages, under 4.4. Shape, `_EDGE_WINDOW`, `_MAX_FRAME_LABEL` and the rows-hit rule all pass. Change: a small table whose whole grid (shape and exact folded text of its non-empty cells, digits included; review: masking digits would have removed small value tables that differ only in numbers) is identical at a page edge on at least `header_footer_min_pages` (3) pages is header/footer; the 0.4 ratio is unchanged for lines and for the cell-share rule. Side effect fixed: the page-9 letterhead was being joined onto the "7. HỒ SƠ" records table (same width, next page).
+
+**Item 3.** With the letterhead marked, the existing join links pages 4, 5, 6. The rest needed two new join cases and stitching (`tables.py`, cleaning only; the extractor's join is unchanged): a next-page part whose first row is a continuation row (first two cells empty, text after them) joins even when Docling marked that row as a header, or when the part is exactly one column narrower (Docling dropped the empty trailing "Biểu mẫu" column on page 7; padded on the right). The continuation row is stitched into the previous last row (text appended in the same column) and keeps that row's page, so a step chunk keeps the page it starts on; `cell_spans` shift by the rows not appended, a span on the stitched row moves down one row with one row less (dropped when its rowspan is 1); `row_spans` are computed by the renderer afterwards (asserted in order and inside the table). A row with an empty number but a filled second cell is a new step. **Cause of `Cột N`:** the page-7 part stayed a separate table (width 4, `header_rows=1`), passed `is_procedure_table` because its overflow "header" text contains "trách nhiệm" and "nội dung", and `step_rows` names columns with an empty header `Cột N`; joining it removes the cause. Result: one procedure table pages 4 to 8 with **8 whole steps** (the ticket expected 6; the document has 8), each labelled `TT | Hoạt động | Trách nhiệm | Yêu cầu | Biểu mẫu`.
+
+**Item 5b.** Body paragraphs made only of `_ - = * ~ .` and spaces, at least 3 of them, are `boilerplate`, kind `decorative_line` (a lone `-` or `.` stays).
+
+**Item 8.** `NORMALIZER_VERSION` 2 → 3 (`docproc/render.py:13`). The stale check reports versions with the old value: new integration test (`stale_versions` lists the version, `/health` is `degraded`, `reindex --dry-run` finds it). On the local stack, `reindex --dry-run` **without** `--all`: old code `reindex_done dry_run=True found=0 queued=0`; new code (normalizer 3, the branch's `src` and `config` copied into a temp folder of the running `sopilot-v2-ai-service` container, removed afterwards) `reindex_done dry_run=True found=25 queued=0`: all 25 active versions of the owner's data are stale until reindexed. Consequences: (a) `rag.message_citations` stores character offsets with a `version_id`; a reindex rewrites the Markdown of the same version, so highlights of earlier conversations can point at shifted text; (b) `/health` reports `degraded` until the owner runs `python -m sopilot_ai.admin reindex`; (c) **mismatch, not fixed here:** retrieval does not skip stale-normalizer chunks (`retrieval/search.py:39` filters only on embedding model and revision) although the comment at `api/app.py:45-46` says it does. Reindexing the owner's data is not done by this ticket.
+
+| file | family | chunks | <64 | no letters | uncovered | steps | md sha | violations or failure |
+|---|---|---|---|---|---|---|---|---|
+| epa-qc | ISO_PROCEDURE | 54 | 2 | 0 | 3 | 0 | b71f13cc | 0 |
+| epa-soil | ISO_PROCEDURE | 75 | 1 | 0 | 0 | 0 | 8a8601b9 | 0 |
+| epa-sw | ISO_PROCEDURE | 42 | 0 | 0 | 0 | 0 | 8fa5f4c2 | 0 |
+| fda-qms-sop | ISO_PROCEDURE | 22 | 1 | 0 | 0 | 0 | 768c5464 | 0 |
+| k8s-disruptions | MARKDOWN | 16 | 2 | 0 | 0 | 0 | ce8cc1ee | 0 |
+| k8s-drain | MARKDOWN | 9 | 3 | 0 | 0 | 0 | 13182cbb | 0 |
+| nb-qt01 | ISO_PROCEDURE | 37 | 4 | 0 | 0 | 14 | 0c6c480b | 0 |
+| nb-qt02 | ISO_PROCEDURE | 20 | 3 | 0 | 1 | 7 | 916dc5f6 | 0 |
+| nb-qt03 | ISO_PROCEDURE | 23 | 1 | 0 | 0 | 12 | 264767c4 | 0 |
+| nb-qt04 | ISO_PROCEDURE | 13 | 1 | 0 | 0 | 6 | 8f84742f | 0 |
+| nb-thanhtra06 | ISO_PROCEDURE | 34 | 2 | 0 | 1 | 2 | d4e183ae | 0 |
+| nci-bdp-deviations | ISO_PROCEDURE | 38 | 6 | 0 | 0 | 0 | a0002f30 | 0 |
+| nci-bdp-labeling | ISO_PROCEDURE | 12 | 0 | 0 | 0 | 0 | d55cc7a9 | 0 |
+| nd30 | - | - | - | - | - | - | - | extract:NO_TEXT_LAYER |
+| tb-qt01 | ISO_PROCEDURE | 22 | 1 | 0 | 1 | 2 | 325ba3a2 | 0 |
+| tb-qt03 | ISO_PROCEDURE | 32 | 5 | 0 | 1 | 5 | dc781cc9 | 0 |
+| tb-qt05 | ISO_PROCEDURE | 16 | 1 | 0 | 1 | 8 | d9d43b34 | 0 |
+| vn-cv10065 | PROSE | 2 | 0 | 0 | 0 | 0 | 5ba88f0c | 0 |
+| vn-nq311-scan | - | - | - | - | - | - | - | extract:NO_TEXT_LAYER |
+| vn-nq424-scan | - | - | - | - | - | - | - | extract:NO_TEXT_LAYER |
+| vn-nq432-scan | - | - | - | - | - | - | - | extract:NO_TEXT_LAYER |
+| vn-qd1308 | LEGAL_ARTICLES | 43 | 2 | 0 | 0 | 0 | 5ed56798 | 0 |
+| vn-qd82 | LEGAL_ARTICLES | 3 | 1 | 0 | 0 | 0 | d0e6b4a0 | 0 |
+| vn-tb425 | MARKDOWN | 5 | 0 | 0 | 0 | 0 | 55733f77 | 0 |
+| vn-vbhn109 | LEGAL_ARTICLES | 34 | 1 | 0 | 0 | 0 | 7e6cb72a | 0 |
+
+Invariants: offsets=0, substring=0, procedure_row=0, page_order=0, page_source=0, multi_page_table=0, token_budget=0. Families unchanged, the 4 scans fail with `NO_TEXT_LAYER`. The Markdown changed in 8 files (`md sha`), as expected. Removed blocks compared with the Phase A code on the same extraction (scratch worktree at `507e7ff`): every added block is a `decorative_line` (lines of underscores, dashes or dots in `nb-qt01`, `nb-qt03`, `nb-qt04`, `nb-thanhtra06`, `tb-qt05`, `vn-cv10065`, `vn-qd1308`, `vn-qd82`) or one of the four `tb-qt05` letterhead tables; no block was un-removed; only `tb-qt05` changed its steps (6 → 8). `nb-qt01` lost its last letterless chunk (a line of dots).
+
+V2-21 limits re-measured on the V2-19 corpus (`predict_extraction.py --clean --reuse-structured`, `python -m sopilot_eval.cleaning`, into `eval/results/v2-47-clean-{base,phase-b}`): leakage 67/827 = **8.1% → 51/827 = 6.2%**; wrongful removal **11/706 = 1.6%, unchanged** (the same revision-history label disagreements); removed blocks 824 → 898, unconfirmed 176 → 246 (the decorative lines, which the labels do not list). Both within the limits (10%, 2%).
+
+Phase B gate: `validate-build.ps1 -Scope ai` passed; ai-service unit 754 passed, 1 skipped, 15 xfailed (after the review fixes); integration 159 passed; `validate-build.ps1 -Scope web` passed (240 Vitest); `cd eval; uv run pytest -q` 200 passed. Eval docproc mode at HEAD: refuses the frozen `sop-main` corpus by design (section 2 decision), not run.
+
+Phase B review (fresh `v2-reviewer`, one round, no BLOCKER; accepted and fixed): the whole-table key masked digits, so small value tables that differ only in numbers on 3 pages of a long document would be removed (now exact folded text, negative test); a merged cell starting on the stitched row lost its value (it now moves down with its value, asserted through `step_rows`); the two new join cases could join a next-page table whose header has blank corner cells (now the row must look like overflow text, negative tests); a lone `-` or `.` was a decorative line (now at least 3 characters); the item 8 evidence lacked a real dry-run (added above); the normalizer test now asserts the bumped value and restores the shared database in `finally`. After the fixes the corpus table, the removed blocks and the V2-21 numbers are unchanged (re-run). Left open: a narrower part is padded on the right, so a part from which Docling dropped a middle column would shift (none in the corpus); a decorative line between two table parts that is not a repeated footer still blocks their join (decorative lines are marked after joining); stitched text can fill a cell that an earlier merged cell covered; the letterhead gets the role `header`, not `boilerplate` as item 2 words it (it is still listed in the removed blocks and absent from the Markdown). F3 stays open.
