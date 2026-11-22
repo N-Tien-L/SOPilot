@@ -42,6 +42,17 @@ def is_article(title: str) -> bool:
     return bool(_ARTICLE.match(title.strip()))
 
 
+def is_article_line(node: Node) -> bool:
+    """A body line that opens like an article ("Điều 3. ..."), however long.
+
+    A short decision often has its articles as plain sentences, so the outline never promotes
+    them to headings (they are longer than a title). They still show that the document is legal.
+    """
+    if node.level is not None or node.el.kind not in ("paragraph", "list_item"):
+        return False
+    return is_article(_full_text(node.el))
+
+
 def _full_text(el: DocElement) -> str:
     if el.kind == "list_item" and el.number:
         return f"{el.number} {el.text}".strip()

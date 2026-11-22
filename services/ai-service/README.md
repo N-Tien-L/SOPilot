@@ -67,6 +67,7 @@ Read from the routers in `src/sopilot_ai/api/`. User routes need `Authorization:
 | Method and path | Access | Notes |
 |---|---|---|
 | `GET /health` | Public | `{"status":"ok"}`, or `{"status":"degraded","staleVersions":N}` when chunks use another embedding model, revision or normalizer |
+| `GET /ai/v1/documents/{documentId}/versions/{versionId}/processing-report` | Bearer | Detected family, the evidence for it, the chunking rule ids with the current `chunking` config and the chunk layout (`ordinal`, `chunkType`, `sectionPath`, pages, code point range, tokens) of the **active** version; no chunk text. `?ordinal=N` returns that chunk's `content` and `indexText`. Same `404` rule as `/content` (TECH-V2-ai-service §7.7) |
 | `GET /ai/v1/documents/{documentId}/versions/{versionId}/content` | Bearer | Canonical Markdown of the **active** version of a document the caller may read; any other version, or a missing, unreadable, not `READY` or deleted document, is `404` |
 | `POST /ai/v1/conversations/{id}/messages` | Bearer | Body `{content, lang?}`; answers `text/event-stream`. `{id}` is a conversation UUID or `new`; another user's or workspace's conversation is `404`. Events and error codes: TECH-V2-ai-service §7.2 |
 | `GET /ai/v1/conversations` | Bearer | `limit` (1-100, default 50), `offset` |

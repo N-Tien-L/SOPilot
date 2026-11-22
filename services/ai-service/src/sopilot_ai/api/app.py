@@ -16,6 +16,7 @@ from sopilot_ai.api.conversations import router as conversations_router
 from sopilot_ai.api.documents import router as documents_router
 from sopilot_ai.api.feedback import router as feedback_router
 from sopilot_ai.api.internal import router as internal_router
+from sopilot_ai.api.processing_report import router as processing_report_router
 from sopilot_ai.auth.jwt import TokenVerifier
 from sopilot_ai.config import Settings, get_settings
 from sopilot_ai.conversations.factory import build_service
@@ -52,11 +53,13 @@ def create_app(settings: Settings | None = None, engine: AsyncEngine | None = No
                 await app.state.engine.dispose()
 
     app = FastAPI(title="SOPilot ai-service", lifespan=lifespan)
+    app.state.models_config_path = settings.models_config
     app.state.internal_token = settings.internal_token.get_secret_value()
     app.state.token_verifier = token_verifier or TokenVerifier(settings.core_jwks_url)
     app.state.embedding_identity = embedding_identity or active_embedding(settings)
     app.include_router(internal_router)
     app.include_router(documents_router)
+    app.include_router(processing_report_router)
     app.include_router(conversations_router)
     app.include_router(feedback_router)
 

@@ -660,7 +660,7 @@ Heading recognition in priority order: Markdown headings (`#`) → numbering pat
 | Family | Recognition | Chunk unit |
 |---|---|---|
 | `ISO_PROCEDURE` | Has Purpose/Scope/Procedure sections (Mục đích/Phạm vi/Nội dung) or a table with Responsibility + Step/Description columns | Sections by heading; **each row of the procedure table is a `PROCEDURE_STEP` chunk**, with content like `Bước: … \| Trách nhiệm: … \| Mô tả: … \| Biểu mẫu: …`; vertically merged cells (`cell_spans`, §5.2) are **repeated down each row** they cover, so steps 3 and 4 under one merged "Trách nhiệm" (Responsibility) cell still carry the right person |
-| `LEGAL_ARTICLES` | ≥ 3 headings of the form `Điều n` / `Article n` | One chunk per article; long articles split by clause (Khoản) |
+| `LEGAL_ARTICLES` | ≥ 3 headings or body lines of the form `Điều n` / `Article n` (a short decision has its articles as plain sentences, longer than a title, so they are never headings) | One chunk per article; long articles split by clause (Khoản) |
 | `MARKDOWN` | MD files or `#` headings | Sections by heading |
 | `PROSE` | None of the above | Paragraphs; merged up to `target_tokens`, split by sentence, never cut mid-sentence |
 
@@ -972,6 +972,26 @@ CREATE TABLE rag.knowledge_gap_status (
 - `POST /ai/v1/knowledge-gaps/{messageId}/resolve`: OWNER, ADMIN.
 
 ---
+
+### 7.7 Processing report (FR-31, V2-46)
+
+`GET /ai/v1/documents/{documentId}/versions/{versionId}/processing-report` follows the same rules as §7.3: the active `READY` version of a document that passes the §6.1 filter, otherwise one `404`. It runs in one `tenant_tx` and filters `workspace_id` and `version_id = active_version_id`.
+
+```json
+{ "documentId": "…", "versionId": "…", "fileType": "PDF", "language": "vi", "docCode": "QT-07", "pageCount": 4,
+  "family": "ISO_PROCEDURE",
+  "signals": { "articleHeadings": 0, "articleLines": 0, "sopSectionWords": ["muc dich", "pham vi"], "procedureTables": 1, "headings": 9 },
+  "strategy": { "rules": ["HEADING_TREE", "MERGE_SHORT", "STEP_ROW", "PACK", "PREFIX"],
+                "config": { "targetTokens": 384, "maxTokens": 512, "minTokens": 64 } },
+  "stats": { "chunks": 14, "avgTokens": 188, "maxTokens": 301, "byType": { "SECTION": 8, "PROCEDURE_STEP": 5, "TABLE": 1 } },
+  "chunks": [ { "ordinal": 0, "chunkType": "SECTION", "sectionPath": ["1. Muc dich"], "pageStart": 1, "pageEnd": 1,
+                "charStart": 0, "charEnd": 412, "tokenCount": 118 } ] }
+```
+
+- No `markdown` and no `pages`: the frontend reads them from §7.3 and converts code-point offsets to UTF-16 in the browser.
+- Offsets are not unique: a split table row or split procedure step repeats the whole row's range, and its text is built from cell values, so it is not always a slice of the Markdown. The frontend groups chunks that share a range; a clicked chunk's `content` and `index_text` come from `?ordinal=` (read from `rag.chunks`).
+- `signals` are recomputed from the stored `structure.elements` with the same functions as at ingest (`family_of(resolve_outline(...))`); `family` is the stored `doc_family` and is the truth. `strategy.config` is the current `models.yaml` `chunking` section, not a per-version value. `docCode` is `extracted_meta->>'docCode'`.
+- Markdown files have no `page_index`; the frontend builds pseudo-pages. No document text is logged.
 
 ## 8. Internal API on the ai-service side
 

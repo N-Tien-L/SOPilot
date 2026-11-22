@@ -435,6 +435,45 @@ async def test_the_content_endpoint_follows_the_matrix(shared: World, who) -> No
             assert_no_trace(resp.text, {name}, shared, cell)
 
 
+async def report_status(w: World, p: Principal, doc: Doc, version=None, **params) -> httpx.Response:  # noqa: ANN001, ANN003
+    return await w.client.get(
+        f"/ai/v1/documents/{doc.id}/versions/{version or doc.ver}/processing-report",
+        params=params, headers=bearer(w.keypair, p))
+
+
+@pytest.mark.parametrize("who", WHO)
+async def test_the_processing_report_follows_the_matrix(shared: World, who) -> None:
+    p = shared.principals[who]
+    for name in DOCS:
+        resp = await report_status(shared, p, shared.docs[name])
+        cell = f"{who} x {name}"
+        if can_read(who, name):
+            body = resp.json()
+            assert resp.status_code == 200 and body["chunks"], cell
+            assert SECRETS[name] not in resp.text, f"{cell}: the list must not carry chunk text"
+            detail = await report_status(shared, p, shared.docs[name], ordinal=0)
+            assert detail.status_code == 200 and SECRETS[name] in detail.json()["content"], cell
+        else:
+            assert resp.status_code == 404, f"{cell}: never 403, the document must look absent"
+            assert_no_trace(resp.text, {name}, shared, cell)
+            denied = await report_status(shared, p, shared.docs[name], ordinal=0)
+            assert denied.status_code == 404, cell
+
+
+async def test_the_processing_report_of_an_unknown_version_or_chunk_is_not_found(
+        shared: World) -> None:
+    owner = shared.principals["OWNER"]
+    doc = shared.docs["WS"]
+    assert (await report_status(shared, owner, doc, version=uuid4())).status_code == 404
+    assert (await report_status(shared, owner, doc, ordinal=9999)).status_code == 404
+
+
+async def test_another_workspace_cannot_open_the_processing_report(shared: World) -> None:
+    stranger = Principal(uuid4(), uuid4(), "OWNER")
+    for name in DOCS:
+        assert (await report_status(shared, stranger, shared.docs[name])).status_code == 404
+
+
 # -- filter before LIMIT ---------------------------------------------------------------------------
 
 FILLER = ("quy định này áp dụng cho toàn bộ nhân viên trong công ty theo hướng dẫn của ban quản "
