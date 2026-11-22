@@ -71,6 +71,7 @@ class _Section:
     heading: _Block | None
     blocks: list[_Block] = field(default_factory=list)
     gap_after: bool = False  # a table of contents was dropped right after this section
+    heading_in_blocks: bool = False  # heading is the only body (``_keep_leaf_headings``)
 
 
 @dataclass
@@ -109,6 +110,7 @@ class Chunker:
         nodes = resolve_outline(rendered.elements)
         family = family or family_of(nodes)
         sections = self._drop_contents(self._sections(nodes))
+        self._keep_leaf_headings(sections)
         if family is DocFamily.LEGAL_ARTICLES:
             sections = self._merge_preamble(sections, rendered.markdown)
         else:
@@ -172,9 +174,30 @@ class Chunker:
         return merged
 
     @staticmethod
+    def _keep_leaf_headings(sections: list[_Section]) -> None:
+        """A heading with no body and no sub-section is a step title, not a parent: keep its text.
+
+        A short numbered line such as ``3.3.1 Bàn giao cho đơn vị vận chuyển`` is read as a
+        heading (``headings._classify``). Heading text is kept out of ``content``, and a section
+        without blocks yields no chunk, so such a step used to vanish from the index. Its own
+        heading becomes its body; the usual small-section merge then packs neighbouring steps.
+        A document with no body anywhere is left alone, so it still ends in ``EMPTY_CONTENT``.
+        """
+        if not any(s.blocks for s in sections):
+            return
+        for i, section in enumerate(sections):
+            if section.heading is None or section.blocks:
+                continue
+            nxt = sections[i + 1] if i + 1 < len(sections) else None
+            if nxt is not None and nxt.level > section.level:
+                continue  # a parent: its text is in the path of its children
+            section.blocks.append(section.heading)
+            section.heading_in_blocks = True
+
+    @staticmethod
     def _absorb(current: _Section, nxt: _Section) -> None:
         """``current`` keeps its path and takes the heading block and body of ``nxt``."""
-        if nxt.heading:
+        if nxt.heading and not nxt.heading_in_blocks:
             current.blocks.append(nxt.heading)
         current.blocks += nxt.blocks
         current.gap_after = nxt.gap_after
