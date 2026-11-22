@@ -21,6 +21,7 @@ Per-stack conventions (naming, fakes, markers) are in `.claude/rules/core-api.md
 | Retrieval harness | `cd eval; uv run pytest -q` | no |
 | Frontend build + lint | `./scripts/validate-build.ps1 -Scope web` | no |
 
+- Long or noisy suites (`-Type all`, integration, tenant isolation, frontend build) may go to `Agent(subagent_type: "v2-runner", model: "haiku", effort: "low")` with the exact command and cwd. It returns exit code, verbatim failures and the tail; re-run a failing single test yourself before triaging, and never record its summary alone as evidence.
 - If Docker is not running, integration suites fail at container start. Report "not run: Docker unavailable"; never report them as passed.
 - `run-tests.ps1 -Scope ai-service` installs `--extra pdf` (Docling), but CI installs only `--extra dev`, so `pdf`-marked tests skip in CI. Say which one you ran.
 

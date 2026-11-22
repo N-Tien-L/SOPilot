@@ -51,6 +51,8 @@ CI proves unit-level behaviour and the isolation claims (FR-19, FR-29). The `doc
 
 Before a non-trivial commit or PR, run the read-only agent `v2-reviewer` (`.claude/agents/v2-reviewer.md`) on the diff. It reports evidence-backed findings and never edits. Findings are fixed or answered before merging. It covers what automation does not: error text that leaks internals (constraint 6), tenant binding on new queries, contract drift between services, docs that describe the changed behaviour.
 
+Tickets run through skill `execute-ticket` use an agent team: the orchestrating session plans and owns status and git, `v2-coder` implements one work packet, `v2-runner` runs long commands and returns raw output, and a fresh `v2-reviewer` reviews. The hook `.claude/hooks/guard.py` enforces the roles (`--coder`, `--runner`, `--readonly`; cases in `test_guard.py`). Coder and runner reports are claims: ticket evidence is only output the orchestrator has seen.
+
 ## 5. Ticket status
 
 | Status | Meaning |
