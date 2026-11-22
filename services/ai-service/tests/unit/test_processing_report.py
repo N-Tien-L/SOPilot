@@ -90,3 +90,11 @@ def test_one_chunk_detail_carries_the_embedded_text() -> None:
                           token_count=41, content="bước 3",
                           index_text="QT-07 › 4. Quy trình bước 3")
     assert chunk_response(row)["indexText"].endswith("bước 3")
+
+
+def test_legal_articles_strategy_has_one_chunk_per_article() -> None:
+    legal = STRATEGY_RULES["LEGAL_ARTICLES"]
+    assert "ARTICLE_UNIT" in legal and "MERGE_SHORT" not in legal
+    for family in ("ISO_PROCEDURE", "MARKDOWN"):
+        assert "MERGE_SHORT" in STRATEGY_RULES[family]
+        assert "ARTICLE_UNIT" not in STRATEGY_RULES[family]

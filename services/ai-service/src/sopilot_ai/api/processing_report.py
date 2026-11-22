@@ -28,7 +28,7 @@ router = APIRouter(prefix="/ai/v1", tags=["documents"])
 
 # Rule ids per family; the frontend owns the wording. Mirrors ``Chunker`` (family.py, chunker.py).
 STRATEGY_RULES: dict[str, list[str]] = {
-    DocFamily.LEGAL_ARTICLES.value: ["HEADING_TREE", "STEP_ROW", "PACK", "PREFIX"],
+    DocFamily.LEGAL_ARTICLES.value: ["HEADING_TREE", "ARTICLE_UNIT", "STEP_ROW", "PACK", "PREFIX"],
     DocFamily.ISO_PROCEDURE.value: ["HEADING_TREE", "MERGE_SHORT", "STEP_ROW", "PACK", "PREFIX"],
     DocFamily.MARKDOWN.value: ["HEADING_TREE", "MERGE_SHORT", "PACK", "PREFIX"],
     DocFamily.PROSE.value: ["PACK", "PREFIX"],

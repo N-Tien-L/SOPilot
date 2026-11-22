@@ -80,8 +80,15 @@ def _classify(text: str, el: DocElement) -> tuple[int, str] | None:
         depth = number.count(".") + 1
         letters = [c for c in rest if c.isalpha()]
         words = len(rest.split())
-        if not letters or words > _MAX_PROMOTED_WORDS or rest.rstrip().endswith((".", ";", ",")):
+        body_ending = rest.rstrip().endswith((".", ";", ","))
+        # A colon rejects plain paragraphs only; converter headings and list items (which Docling
+        # uses for real numbered sub-headings) keep their numbered level and kind.
+        if rest.rstrip().endswith(":") and el.kind == "paragraph":
             return None
+        if not letters or words > _MAX_PROMOTED_WORDS or body_ending:
+            return None
+        if depth == 1 and text[match.end(1)] not in ".)":
+            return None  # "1 Nghị định ..." is a sentence, not a numbered title
         if depth > 1 or rest.isupper():
             return depth, "numbered"
         if depth == 1 and el.kind == "paragraph" and len(text) <= 60:
