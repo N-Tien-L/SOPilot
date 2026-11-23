@@ -44,7 +44,8 @@ def _ms(start: float) -> int:
 
 
 async def _ask_model(deps: SuggestDeps, messages: list[dict[str, str]], category_ids: set[str],
-                     timings: dict[str, Any]) -> tuple[sllm.Suggestion, str]:
+                     timings: dict[str, Any],
+                     language: str | None = None) -> tuple[sllm.Suggestion, str]:
     assert deps.chain is not None
     tokens_in = sum(estimate_tokens(m["content"]) for m in messages)
     for _ in range(deps.model_attempts):
@@ -55,11 +56,12 @@ async def _ask_model(deps: SuggestDeps, messages: list[dict[str, str]], category
                                           tokens=tokens_in + deps.max_output_tokens, temperature=0)
         except (LLMError, httpx.HTTPError) as exc:
             timings["llm_ms"] = timings.get("llm_ms", 0) + _ms(started)
-            log.warning("suggest_model_failed", error=type(exc).__name__)
+            log.warning("suggest_model_failed", error=type(exc).__name__,
+                        code=getattr(exc, "code", None))
             continue
         timings["llm_ms"] = timings.get("llm_ms", 0) + _ms(started)
         try:
-            suggestion = sllm.parse_output(raw, category_ids)
+            suggestion = sllm.parse_output(raw, category_ids, language)
         except ValueError:
             log.warning("suggest_output_invalid")
             continue
@@ -108,9 +110,9 @@ async def handle(job: ClaimedSuggestion, deps: SuggestDeps) -> str:
         suggestion, method = sllm.Suggestion(), "RULES_FALLBACK"
     else:
         messages = sllm.build_messages(file_title, extracted.markdown, categories, tags,
-                                       deps.max_input_tokens)
+                                       deps.max_input_tokens, extracted.language)
         suggestion, method = await _ask_model(deps, messages, {c["id"] for c in categories},
-                                              timings)
+                                              timings, extracted.language)
 
     result = {"title": title, "description": suggestion.description,
               "categoryId": suggestion.category_id,

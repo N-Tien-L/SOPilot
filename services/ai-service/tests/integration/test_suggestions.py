@@ -166,6 +166,32 @@ async def test_model_failure_retries_once_then_falls_back_to_rules(
                ws) == [(0,)]  # fallbacks are never cached
 
 
+CHINESE = json.dumps({"description": "本文件规定了内部采购流程。", "category_id": CAT_ID,
+                      "proposed_category_name": None, "tags": ["采购"]})
+
+
+async def test_answer_in_chinese_for_a_vietnamese_document_is_retried(
+        client, store, deps, engine, database) -> None:  # noqa: ANN001
+    ws = uuid4()
+    doc, _ = await make_ready(client, store, deps, ws)
+    chain = ScriptedChain(CHINESE, GOOD)
+    await run_suggestions(engine, chain)
+    assert chain.calls == 2
+    payload = outbox_payload(database, doc)
+    assert payload["method"] == "LLM" and payload["description"] == "Quy trình mua hàng nội bộ."
+
+
+async def test_chinese_twice_falls_back_to_rules_and_is_not_cached(
+        client, store, deps, engine, database) -> None:  # noqa: ANN001
+    ws = uuid4()
+    doc, _ = await make_ready(client, store, deps, ws)
+    await run_suggestions(engine, ScriptedChain(CHINESE, CHINESE))
+    payload = outbox_payload(database, doc)
+    assert payload["method"] == "RULES_FALLBACK" and payload["description"] is None
+    assert sql(database, "SELECT count(*) FROM rag.suggestion_cache WHERE workspace_id = %s",
+               ws) == [(0,)]
+
+
 async def test_no_model_configured_means_rules_only(client, store, deps, engine, database) -> None:  # noqa: ANN001
     ws = uuid4()
     doc, _ = await make_ready(client, store, deps, ws)

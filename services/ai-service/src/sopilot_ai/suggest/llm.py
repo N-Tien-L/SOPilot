@@ -16,7 +16,11 @@ from uuid import UUID
 
 from sopilot_ai.suggest.rules import headings, representative_paragraphs
 
-PROMPT_VERSION = "suggest-v1"
+# v2: the prompt names the detected language and CJK output is rejected for English and Vietnamese
+# documents (the model answered English pages in Chinese), so v1 cache entries are not reused.
+PROMPT_VERSION = "suggest-v2"
+LANGUAGE_NAMES = {"en": "English", "vi": "Vietnamese"}  # the languages in scope (PRD-V2)
+_CJK = re.compile(r"[぀-ヿ㐀-鿿가-힯]")  # kana, ideographs, hangul
 DESCRIPTION_MAX = 500
 TAGS_MAX = 10
 TAG_MAX = 50
@@ -32,6 +36,20 @@ SYSTEM_PROMPT = (
 )
 
 
+def system_prompt(language: str | None) -> str:
+    """``SYSTEM_PROMPT`` plus the language of the document, which the ingest step already detected.
+
+    "Same language as the document" alone was not enough for the suggestion model: it wrote the
+    description and tags of English pages in Chinese. Naming the language removes the choice.
+    """
+    name = LANGUAGE_NAMES.get(language or "")
+    if name:
+        return (f"{SYSTEM_PROMPT} The document is written in {name}: write the description, any "
+                f"proposed category name and the tags in {name}, never in Chinese.")
+    return (f"{SYSTEM_PROMPT} Write in the document's own language and do not use Chinese unless "
+            "the document itself is Chinese.")
+
+
 @dataclass(frozen=True)
 class Suggestion:
     description: str | None = None
@@ -41,8 +59,10 @@ class Suggestion:
 
 
 def build_messages(file_title: str, markdown: str, categories: Sequence[dict[str, str]],
-                   existing_tags: Sequence[str], max_input_tokens: int) -> list[dict[str, str]]:
+                   existing_tags: Sequence[str], max_input_tokens: int,
+                   language: str | None = None) -> list[dict[str, str]]:
     """Title, outline and up to three paragraphs, cut to ``max_input_tokens`` (≈ 4 chars/token)."""
+    system = system_prompt(language)
     budget = max_input_tokens * 4
     parts = [f"Title: {file_title}", "Outline:"]
     parts += headings(markdown)
@@ -51,16 +71,20 @@ def build_messages(file_title: str, markdown: str, categories: Sequence[dict[str
     cats = "\n".join(f"- {c['id']}: {c['name']}" for c in categories) or "(none)"
     tail = (f"\nCategories:\n{cats}\nExisting tags: {', '.join(existing_tags) or '(none)'}")
     body = "\n".join(parts)
-    room = max(budget - len(tail) - len(SYSTEM_PROMPT), 0)
+    room = max(budget - len(tail) - len(system), 0)
     user = body[:room] + tail
-    return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
-def parse_output(raw: str, category_ids: set[str]) -> Suggestion:
-    """Validated ``Suggestion``. Raises ``ValueError`` when no JSON object can be read."""
+def parse_output(raw: str, category_ids: set[str], language: str | None = None) -> Suggestion:
+    """Validated ``Suggestion``. Raises ``ValueError`` when no JSON object can be read.
+
+    For an English or Vietnamese document, text in CJK script is also an error (the model drifted
+    to Chinese); the caller retries and then falls back to the rules.
+    """
     text = _THINK.sub("", raw)
     start, end = text.find("{"), text.rfind("}")
     if start < 0 or end <= start:
@@ -86,6 +110,9 @@ def parse_output(raw: str, category_ids: set[str]) -> Suggestion:
                 tags.append(norm)
         if len(tags) >= TAGS_MAX:
             break
+    if language in LANGUAGE_NAMES and _CJK.search(
+            " ".join([description or "", proposed_name or "", *tags])):
+        raise ValueError("model output is not in the language of the document")
     return Suggestion(description or None, category_id, proposed_name, tags)
 
 
