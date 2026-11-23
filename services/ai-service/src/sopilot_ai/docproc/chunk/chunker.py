@@ -107,7 +107,7 @@ class Chunker:
 
     def chunk(self, rendered: RenderedDocument, *, title: str = "",
               doc_code: str | None = None, family: DocFamily | None = None) -> list[Chunk]:
-        nodes = resolve_outline(rendered.elements)
+        nodes = resolve_outline(rendered.elements, rendered.file_type)
         family = family or family_of(nodes)
         sections = self._drop_contents(self._sections(nodes))
         self._keep_leaf_headings(sections)

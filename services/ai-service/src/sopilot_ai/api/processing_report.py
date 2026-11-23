@@ -64,8 +64,8 @@ _REQUEST_CONFIG_KEY = "chunk_config"
 def signals_from(structure: Any) -> dict[str, object] | None:
     """Recomputed with the ingest functions from the stored elements; ``None`` if unreadable."""
     try:
-        elements = StructuredDocument.model_validate(structure).elements
-        return family_evidence(resolve_outline(elements))
+        document = StructuredDocument.model_validate(structure)
+        return family_evidence(resolve_outline(document.elements, document.file_type))
     except Exception:  # noqa: BLE001 - the report must still render without the evidence
         log.warning("processing_report_signals_unreadable")
         return None

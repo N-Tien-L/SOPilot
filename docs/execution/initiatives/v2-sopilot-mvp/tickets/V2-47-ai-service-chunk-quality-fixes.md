@@ -4,7 +4,7 @@ title: "ai-service: chunk quality fixes found on the pilot corpus (false heading
 type: fix
 status: review # todo | in_progress | review | done | blocked
 created: 2026-11-22
-updated: 2026-11-22
+updated: 2026-11-23
 author: "Owner"
 scope: ai-qa
 priority: P1
@@ -94,6 +94,7 @@ Work in two phases, one commit each, and run the checks between them. Failing te
 | `services/ai-service/src/sopilot_ai/api/processing_report.py`, `frontend/web/lib/viewer/report-labels.ts` (+ tests) | MODIFY (item 6) |
 | `eval/check_chunks_corpus.py` (or a new script beside it) | MODIFY / CREATE (item 7) |
 | TECH-V2-ai-service §5 and §7.7, TEST-REPORT-005 | MODIFY |
+| `services/ai-service/src/sopilot_ai/docproc/{model,render}.py`, `chunk/{headings,chunker,family}.py`, `ingest/pipeline.py`, `api/processing_report.py`, `tests/unit/test_markdown_headings_are_explicit.py`, `mock_docs/{families,gitlab-handbook}/` | MODIFY / CREATE (Markdown headings, section 7) |
 
 ## 7. Results
 
@@ -246,3 +247,20 @@ V2-21 limits re-measured on the V2-19 corpus (`predict_extraction.py --clean --r
 Phase B gate: `validate-build.ps1 -Scope ai` passed; ai-service unit 754 passed, 1 skipped, 15 xfailed (after the review fixes); integration 159 passed; `validate-build.ps1 -Scope web` passed (240 Vitest); `cd eval; uv run pytest -q` 200 passed. Eval docproc mode at HEAD: refuses the frozen `sop-main` corpus by design (section 2 decision), not run.
 
 Phase B review (fresh `v2-reviewer`, one round, no BLOCKER; accepted and fixed): the whole-table key masked digits, so small value tables that differ only in numbers on 3 pages of a long document would be removed (now exact folded text, negative test); a merged cell starting on the stitched row lost its value (it now moves down with its value, asserted through `step_rows`); the two new join cases could join a next-page table whose header has blank corner cells (now the row must look like overflow text, negative tests); a lone `-` or `.` was a decorative line (now at least 3 characters); the item 8 evidence lacked a real dry-run (added above); the normalizer test now asserts the bumped value and restores the shared database in `finally`. After the fixes the corpus table, the removed blocks and the V2-21 numbers are unchanged (re-run). Left open: a narrower part is padded on the right, so a part from which Docling dropped a middle column would shift (none in the corpus); a decorative line between two table parts that is not a repeated footer still blocks their join (decorative lines are marked after joining); stitched text can fill a cell that an earlier merged cell covered; the letterhead gets the role `header`, not `boilerplate` as item 2 words it (it is still listed in the removed blocks and absent from the Markdown). F3 stays open.
+
+### Markdown headings are explicit (2026-11-23, working tree on `fix/ai-chunk-quality`)
+
+Found while reading the chunks of 10 real GitLab handbook pages (`mock_docs/gitlab-handbook/`): in `09-incident-management-on-call-index` the shift list `1. APAC 23:00 - 07:00` … `3. AMER 15:00 - 23:00` was promoted to level-1 headings, because `str.isupper()` ignores digits and punctuation (`headings.py`, the depth-1 branch of `_classify`), so 22 of 29 `section_path` values started with `3. AMER 15:00 - 23:00`. The numbering patterns exist for converter output (ADR-008 section 6.1: Docling returns almost every heading at level 1 and reports numbered titles as list items); Markdown has no such uncertainty.
+
+**Change** (owner decision 2026-11-23): `resolve_outline(elements, file_type)` takes the file type. For `"MD"` no `paragraph` or `list_item` is promoted by pattern and the all-caps fallback is off; a heading is a `#` line only. PDF and an unknown type (default) are unchanged. The type travels as `RenderedDocument.file_type` (set by `render`), and `detect_family`, the chunker, `process_document` and the processing report pass it. Tests: `tests/unit/test_markdown_headings_are_explicit.py` (6, including the PDF controls). Unit suite 765 passed, 1 skipped, 15 xfailed; ruff clean.
+
+**Evidence (offline, same `process_document` code, old rule against new rule on the same files):**
+- 8 families files and the 10 handbook pages: identical chunks except `09` (29 → 28 chunks, the 22 wrong paths gone). The legal fixture `legal-vi-quyet-dinh-ban-hanh-quy-dinh-bao-mat.md` had no `#` and relied on the all-caps fallback (3 → 2 chunks, empty paths); its two title lines now start with `# `, which restores the previous 3 chunks.
+- 300 random pages of the public handbook (4206 `.md` files listed through the GitLab API, seed 47): 291 processed (9 `EMPTY_CONTENT`, stubs, same before and after), 11 pages without any `#` heading, **the all-caps fallback fired on 0 pages**, 11 pages changed (chunks -3 to 0), 0 family changes. The 28 removed promotions: 13 list items (`1. CIO`, `2. MRARR`, `1. Opportunity.Net_ARR__c` …, 4 through the `isupper` path) and 15 bold lines such as `**1. Schema migrations**` that the old rule made level-1 headings (their real parent heading left the path); they are body text under the real parent now. The effect on retrieval ranking was not measured.
+- PDF, 18 PDFs of the V2-19 pilot (cached `extract()` output in `eval/results/v2-47-clean-phase-b/structured`, 380 gold headings): heading text and page found 345, of which 321 (93%) have the right level; the 24 level misses are four document-specific patterns (`1.0 PURPOSE` read as depth 2, roman `I.`–`VI.` under a level-1 title, unnumbered sub-headings that Docling reports at level 1). The all-caps fallback fired on 1 PDF (`vn-cv10065`, no heading found by Docling) and promoted 0 lines. The `isupper` path promoted 28 list items on 4 PDFs (`nb-thanhtra06`, `tb-qt01`, `tb-qt03`, `tb-qt05`), all in the contents box on page 1 (none in the gold labels); `_drop_contents` removes that section, and the chunks (count, content, paths, family) are identical with and without those promotions.
+
+**Decision (owner, 2026-11-23): PDF is left as it is.** Open risk, not fixed: a PDF with a numbered list of capitalised codes in the body (not in a contents box) would get the same false headings as handbook page 09; a "no list-item neighbour" check was tried offline and changed no chunk of the 4 PDFs, but the sample has no such body list, so it proves no benefit. Heading levels on PDF stay as measured (93%); the misses are not fixed because each is specific to one document.
+
+**Not done:** reindex of the owner's data (chunks already stored keep the old paths until `reindex --all`); retrieval effect of the changed paths; integration suite and the web and eval suites were not re-run for this change (no frontend, schema or eval file changed).
+
+**Mock documents.** `mock_docs/families/` (8 files written for the family tests) and `mock_docs/gitlab-handbook/` (10 pages of the public GitLab handbook, source and note in its `README.md`) are committed so the checks above can be repeated.

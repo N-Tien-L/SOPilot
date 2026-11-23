@@ -96,8 +96,14 @@ def _classify(text: str, el: DocElement) -> tuple[int, str] | None:
     return None
 
 
-def resolve_outline(elements: Sequence[DocElement]) -> list[Node]:
-    """One ``Node`` per rendered element, in order; headings carry a level and a title."""
+def resolve_outline(elements: Sequence[DocElement], file_type: str | None = None) -> list[Node]:
+    """One ``Node`` per rendered element, in order; headings carry a level and a title.
+
+    Markdown (``file_type="MD"``) states its structure: a heading is a ``#`` line and a numbered
+    line is a list item, so no paragraph or list item is promoted by pattern, and the all-caps
+    fallback is off. A converter (PDF, or ``None`` when unknown) only guesses structure, so the
+    numbering patterns and the fallback apply.
+    """
     nodes: list[Node] = []
     for el in elements:
         if el.char_start is None:
@@ -120,7 +126,8 @@ def resolve_outline(elements: Sequence[DocElement]) -> list[Node]:
                 node.level, node.kind = found
             elif trust_levels and (found := _classify(text, el)) and found[1] == "article":
                 node.kind = "article"
-        elif el.kind in ("paragraph", "list_item") and len(text) <= _MAX_PROMOTED_CHARS:
+        elif (file_type != "MD" and el.kind in ("paragraph", "list_item")
+              and len(text) <= _MAX_PROMOTED_CHARS):
             found = _classify(text, el)
             if found is None and _is_lone_numbered_title(nodes, position, text):
                 found = (1, "numbered")
@@ -128,7 +135,7 @@ def resolve_outline(elements: Sequence[DocElement]) -> list[Node]:
                 node.title, node.level, node.kind = text, found[0], found[1]
 
     _lift_numeric_below_roman(nodes)
-    if not any(n.level is not None for n in nodes):
+    if file_type != "MD" and not any(n.level is not None for n in nodes):
         _promote_all_caps(nodes)
     return nodes
 

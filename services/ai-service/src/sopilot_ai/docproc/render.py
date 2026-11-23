@@ -103,6 +103,7 @@ def render(doc: StructuredDocument) -> RenderedDocument:
 
     markdown = _BLOCK_SEP.join(parts)
     return RenderedDocument(
+        file_type=doc.file_type,
         markdown=markdown,
         elements=out,
         page_index=_build_page_index(markers, len(markdown)),

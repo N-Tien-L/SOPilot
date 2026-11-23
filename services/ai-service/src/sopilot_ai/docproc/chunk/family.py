@@ -47,6 +47,6 @@ def family_evidence(nodes: Sequence[Node]) -> dict[str, object]:
     }
 
 
-def detect_family(elements: Sequence[DocElement]) -> DocFamily:
+def detect_family(elements: Sequence[DocElement], file_type: str | None = None) -> DocFamily:
     """Family of a rendered document (``elements`` carry offsets, so only content is seen)."""
-    return family_of(resolve_outline(elements))
+    return family_of(resolve_outline(elements, file_type))
