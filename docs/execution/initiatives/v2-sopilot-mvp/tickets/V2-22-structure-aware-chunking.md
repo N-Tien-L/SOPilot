@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-20]
-blocks: [V2-07, V2-09, V2-28]
+blocks: [V2-07, V2-09, V2-28, V2-46, V2-47]
 branch: "feat/ai-qa-structure-chunking"
 assignee: pair
 ---

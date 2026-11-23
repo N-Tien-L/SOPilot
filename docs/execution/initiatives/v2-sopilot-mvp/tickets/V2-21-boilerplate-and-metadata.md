@@ -11,7 +11,7 @@ priority: P0
 size: M
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-20]
-blocks: [V2-09, V2-16, V2-25, V2-28]
+blocks: [V2-09, V2-16, V2-25, V2-28, V2-47]
 branch: "feat/ai-qa-boilerplate-metadata"
 assignee: pair
 ---
