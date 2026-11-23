@@ -31,6 +31,7 @@ from sopilot_ai.qa import citations as qa_citations
 from sopilot_ai.qa import prompt as qa_prompt
 from sopilot_ai.qa import router as qa_router
 from sopilot_ai.qa import setfit_router
+from sopilot_ai.qa import translate as qa_translate
 from sopilot_ai.qa.output_guard import OutputGuard, Verdict
 from sopilot_ai.qa.pipeline import (
     CONTINUE,
@@ -43,7 +44,7 @@ from sopilot_ai.quota.counters import QuotaCounter, Reservation
 from sopilot_ai.retrieval import context_store, search
 from sopilot_ai.retrieval.access_filter import Principal
 from sopilot_ai.retrieval.context import ContextConfig, Source, build_sources, group_keys
-from sopilot_ai.retrieval.retriever import RetrievalResult, Retriever
+from sopilot_ai.retrieval.retriever import AltQuery, RetrievalResult, Retriever
 
 NEAREST_DOCUMENTS = 3
 
@@ -82,6 +83,7 @@ class QAContext(PipelineContext):
     classifier_off_topic: bool = False  # mode ``on``: OUT_OF_SCOPE if the gate refuses (D1)
     rewritten: str | None = None
     rewrite_status: str = "NONE"
+    alt_query: AltQuery | None = None  # the question in the other language (§6.4b)
     retrieval: RetrievalResult | None = None
     nearest: list[dict[str, str]] = field(default_factory=list)
     sources: list[Source] = field(default_factory=list)
@@ -327,6 +329,55 @@ class RewriteStep:
         return CONTINUE
 
 
+class TranslateStep:
+    """Step 7b (§6.4b): also ask the question in the language of the documents.
+
+    Multilingual embeddings and rerankers score a question and a passage in two languages far
+    lower than in one: measured on 15 answerable questions over English pages, the Vietnamese form
+    passed the rerank gate 6 times and the English form 15 times. When the other of vi/en holds
+    enough of the documents the asker can read, one short call of the rewrite model gives the
+    question in that language and retrieval uses both. A failed call keeps the original question.
+    """
+
+    name = "translate"
+
+    def __init__(self, chain: ChatChain, engine: AsyncEngine, min_share: float | None) -> None:
+        self.chain = chain
+        self.engine = engine
+        self.min_share = min_share
+
+    async def run(self, ctx: PipelineContext) -> Decision:
+        c = _ctx(ctx)
+        if self.min_share is None or c.frame is None or c.principal is None:
+            return CONTINUE
+        if c.frame.lang not in qa_translate.SUPPORTED or not c.query.strip():
+            return CONTINUE
+        async with tenant_tx(self.engine, c.principal.workspace_id, c.principal.user_id) as conn:
+            doc_langs = await search.document_languages(conn, c.principal)
+        target = qa_translate.translation_target(c.frame.lang, doc_langs,
+                                                 min_share=self.min_share)
+        if target is None:
+            return CONTINUE
+        messages = qa_translate.build_translate_prompt(c.query, target)
+        tokens = estimate_tokens(" ".join(m["content"] for m in messages))
+        start = time.monotonic()
+        c.llm_calls += 1
+        translated: str | None = None
+        try:
+            raw = await asyncio.to_thread(self.chain.complete, messages, tokens=tokens,
+                                          temperature=0.0)
+            translated = qa_prompt.clean_rewrite(raw, max_chars=c.max_question_chars)
+        except LLMError:
+            translated = None
+        c.timings["translate"] = _ms(start)
+        if translated and translated.casefold() != c.query.casefold():
+            c.alt_query = AltQuery(translated, target)
+            c.route_info["translate"] = {"to": target, "status": "OK"}
+        else:
+            c.route_info["translate"] = {"to": target, "status": "FAILED"}
+        return CONTINUE
+
+
 class RetrieveStep:
     """Step 8: hybrid retrieval and the gate; below the gate is a refusal without the LLM."""
 
@@ -345,7 +396,8 @@ class RetrieveStep:
             # (no history, nothing stripped); otherwise the query is embedded as before.
             reuse = c.query_vector if c.query_vector is not None and c.query == c.text else None
             result = await self.retriever.retrieve(conn, c.principal, c.query,
-                                                   query_lang=c.frame.lang, query_vector=reuse)
+                                                   query_lang=c.frame.lang, query_vector=reuse,
+                                                   alt=c.alt_query)
             nearest_ids: list[UUID] = []
             if not result.passed:
                 nearest_ids = list(dict.fromkeys(

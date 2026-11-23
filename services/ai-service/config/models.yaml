@@ -75,6 +75,11 @@ retrieval:
   rrf_weights: [1.0, 1.0]
   doc_code_boost: 0.02
   cross_lingual_bm25_factor: 1.0
+  # V2-47 / §6.4b: a question in vi or en is also asked in the other language when that language
+  # holds at least this share of the documents the asker can read (one short call of the rewrite
+  # model). Measured: Vietnamese over English pages passed the rerank gate 6 of 15 times, 12 of 15
+  # with the translation. Empty switches it off.
+  query_translation_min_share: "${SOPILOT_QUERY_TRANSLATION_MIN_SHARE:0.2}"
   context:
     expand: true
     section_max_tokens: 3000

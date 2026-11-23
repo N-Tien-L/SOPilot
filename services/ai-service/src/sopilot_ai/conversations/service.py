@@ -38,6 +38,7 @@ from sopilot_ai.conversations.steps import (
     RewriteStep,
     SelfRefusalStep,
     SemanticRouterStep,
+    TranslateStep,
     classify_question,
 )
 from sopilot_ai.db.engine import tenant_tx
@@ -139,6 +140,8 @@ class QAService:
         elif self.semantic:
             router = [SemanticRouterStep(self.semantic, self.engine)]
         return [QuotaStep(self.quota), *deterministic_steps(), *router, RewriteStep(self.rewrite),
+                TranslateStep(self.rewrite, self.engine,
+                              self.retriever.config.query_translation_min_share),
                 RetrieveStep(self.retriever, self.engine),
                 BuildContextStep(self.engine, self.context, self.generate), BuildPromptStep(),
                 GenerateStep(self.generate), CitationStep(), SelfRefusalStep(),

@@ -37,6 +37,7 @@ STEP_ORDER: tuple[str, ...] = (
     "semantic_router",  # V2-27; only in the chain when SOPILOT_SEMANTIC_ROUTER_ENABLED is true
     "setfit_router",  # V2-44; only in the chain when SOPILOT_ROUTER_CLASSIFIER_MODE is "on"
     "rewrite",
+    "translate",  # V2-47: the question in the language of the documents (§6.4b)
     "retrieve_and_gate",
     "build_context",
     "build_prompt",

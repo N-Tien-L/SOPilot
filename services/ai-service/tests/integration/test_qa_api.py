@@ -79,9 +79,11 @@ class Harness:
         self.service: QAService | None = None
 
     def build(self, *, thresholds: dict | None = None, per_user: int = 0,
-              system: int = 0) -> httpx.AsyncClient:
+              system: int = 0, translate: float | None = None) -> httpx.AsyncClient:
+        # ``translate`` is the share of V2-47's question translation (off here: the corpus mixes
+        # Vietnamese and English documents, so it would add a call to every test that counts them).
         retriever = Retriever(BowEmbedder(), RetrievalConfig(
-            thresholds=thresholds or {"hybrid": 0.0}))
+            thresholds=thresholds or {"hybrid": 0.0}, query_translation_min_share=translate))
         service = QAService(self.engine, retriever, self.generate, self.rewrite,
                             context=ContextConfig(),
                             quota=QuotaCounter(self.engine, per_user_day=per_user,

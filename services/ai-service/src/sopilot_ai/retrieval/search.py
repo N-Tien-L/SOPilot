@@ -112,6 +112,15 @@ SELECT DISTINCT t.term
    AND t.term = ANY (CAST(:terms AS text[]))
 """)
 
+_DOC_LANGS = text(f"""
+WITH {allowed_cte()}
+SELECT e.language AS lang, count(*) AS n
+  FROM rag.extracted_documents e
+  JOIN allowed a ON a.document_id = e.document_id AND a.active_version_id = e.version_id
+ WHERE e.workspace_id = :wid AND e.language IS NOT NULL
+ GROUP BY e.language
+""")
+
 _TITLES = text(f"""
 WITH {allowed_cte()}
 SELECT a.document_id, a.title FROM allowed a WHERE a.document_id = ANY (CAST(:ids AS uuid[]))
@@ -194,6 +203,16 @@ async def known_terms(conn: AsyncConnection, principal: Principal,
         return set()
     rows = (await conn.execute(_KNOWN_TERMS, {**access_params(principal), "terms": unique})).all()
     return {r.term for r in rows}
+
+
+async def document_languages(conn: AsyncConnection, principal: Principal) -> dict[str, int]:
+    """Readable documents by detected language (``vi``/``en``), through the access filter.
+
+    One row per language of the active versions the asker may read, so a document the asker
+    cannot read never changes the counts. Documents whose language is unknown are not counted.
+    """
+    rows = (await conn.execute(_DOC_LANGS, access_params(principal))).all()
+    return {r.lang: int(r.n) for r in rows}
 
 
 async def document_titles(conn: AsyncConnection, principal: Principal,
