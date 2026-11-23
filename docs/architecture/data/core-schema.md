@@ -13,7 +13,7 @@ refs:
 
 # Schema `core` (V2, core-api)
 
-> **Implementation status:** migrations `core/V001`–`V010` (V2-08, V2-11, V2-12, V2-23, V2-24, V2-25, V2-29, V2-30, V2-36). Moved from the former agent context `database/tables/core.md` (V2 section) and `database/schema.md` (V2 bootstrap) on 2026-11-13. The V1 `core` tables are archived at [v1-context/database/tables/core.md](../../archive/v1-context/database/tables/core.md).
+> **Implementation status:** migrations `core/V001`–`V012` (V2-08, V2-11, V2-12, V2-23, V2-24, V2-25, V2-29, V2-30, V2-36, V2-46). Moved from the former agent context `database/tables/core.md` (V2 section) and `database/schema.md` (V2 bootstrap) on 2026-11-13. The V1 `core` tables are archived at [v1-context/database/tables/core.md](../../archive/v1-context/database/tables/core.md).
 
 Source of truth: the migrations in `infrastructure/db/migrations/core/` and [TECH-V2-core-api](../components/core-api.md) §3. core-api is the only owner/writer of V2 `core`. Schema changes are new Flyway files only (skill `flyway-migration`).
 
@@ -73,7 +73,7 @@ Added by `V009` (V2-36, ADR-009):
 |---|---|---|
 | `core.department_publishers` | FORCE | PK `department_id` (one publisher per department), `workspace_id`, `user_id`, `assigned_at`; composite FKs `(workspace_id, department_id)` -> departments and `(workspace_id, user_id)` -> memberships, both `ON DELETE CASCADE` |
 | `core.workspace_publishers` | FORCE | PK `workspace_id` (one per workspace), `user_id`, `assigned_at`; composite FK to memberships `ON DELETE CASCADE` |
-| `core.documents` (extended) | FORCE | + `owner_department_id`; FK `(workspace_id, owner_department_id)` -> departments `RESTRICT`; `fk_documents_owner_in_scope` `(id, owner_department_id)` -> `document_departments` `DEFERRABLE INITIALLY DEFERRED`; `ck_documents_owner_matches_visibility`: `visibility = 'WORKSPACE'` iff `owner_department_id IS NULL` |
+| `core.documents` (extended) | FORCE | `V012` (V2-46): + `prepared_by text`, nullable, `ck_documents_prepared_by_length` (1-100 chars when set). Who drafted the content (a department, a person or a source), a copy of text and not a reference, kept apart from `created_by`, the publisher. No field source. core-api fills it with the owning department's name when a department document is created without one. `V009` (ADR-009): + `owner_department_id`; FK `(workspace_id, owner_department_id)` -> departments `RESTRICT`; `fk_documents_owner_in_scope` `(id, owner_department_id)` -> `document_departments` `DEFERRABLE INITIALLY DEFERRED`; `ck_documents_owner_matches_visibility`: `visibility = 'WORKSPACE'` iff `owner_department_id IS NULL` |
 
 `V009` also backfills `workspace_publishers` (creator while ACTIVE, else the earliest ACTIVE OWNER; deleted workspaces skipped) and `documents.owner_department_id` (ADR-009 Q6; documents in several departments are listed as `NOTICE` in the Flyway log), adds `definer_access` policies for `sopilot_migrator` on the two new tables, `documents` and `document_departments`, and replaces `core.create_personal_workspace` so a newly created PERSONAL workspace gets its creator as workspace publisher (only on creation, not on later logins).
 

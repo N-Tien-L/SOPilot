@@ -384,6 +384,46 @@ class DocumentServiceTest {
                 any());
     }
 
+    // ---- prepared by (who drafted the content, apart from who published it) --------------------------
+
+    @Test
+    void anUploadStoresWhoPreparedTheContentStripped() {
+        when(docs.findDetail(eq(wid), any())).thenReturn(Optional.of(detail("WORKSPACE", List.of())));
+
+        service.upload(owner, "a.md", markdown(), "WORKSPACE", null, null, null, null, null, "  HR department ");
+
+        verify(docs).setPreparedBy(eq(wid), any(), eq("HR department"));
+    }
+
+    @Test
+    void anUploadWithoutPreparedByOnAWorkspaceDocumentStoresNothing() {
+        when(docs.findDetail(eq(wid), any())).thenReturn(Optional.of(detail("WORKSPACE", List.of())));
+
+        service.upload(owner, "a.md", markdown(), "WORKSPACE", null, null, null, null, null, null);
+
+        verify(docs, never()).setPreparedBy(any(), any(), any());
+    }
+
+    @Test
+    void aTooLongPreparedByIsRejectedAndNothingIsStored() {
+        assertApi(() -> service.upload(owner, "a.md", markdown(), "WORKSPACE", null, null, null, null, null,
+                "x".repeat(101)), HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+
+        verify(docs, never()).insertDocument(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any());
+    }
+
+    @Test
+    void patchingPreparedByLeavesEveryFieldSourceAloneAndABlankValueClearsIt() {
+        stubExistingDocument(systemSources(null));
+
+        service.update(admin, docId, Map.of("preparedBy", "  "));
+
+        verify(docs).setPreparedBy(wid, docId, null);
+        verify(docs).updateMetadata(wid, docId, "Old title", "SYSTEM", "Old description", "SYSTEM", null, "SUGGESTED",
+                "vi", "SYSTEM", "SUGGESTED");
+    }
+
     @Test
     void duplicateDepartmentIdsOnUploadAreStoredOnceInTheirOriginalOrder() {
         when(departments.find(wid, deptA)).thenReturn(Optional.of(department(deptA, DepartmentStatus.ACTIVE)));

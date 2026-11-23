@@ -65,7 +65,7 @@ public class DocumentService {
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
     private static final Duration DOWNLOAD_TTL = Duration.ofMinutes(5);
     private static final Set<String> IN_PROGRESS = Set.of("UPLOADED", "PROCESSING");
-    private static final Set<String> PATCHABLE = Set.of("title", "description", "language", "categoryId", "tags");
+    private static final Set<String> PATCHABLE = Set.of("title", "description", "language", "categoryId", "tags", "preparedBy");
 
     private final DocumentRepository docs;
     private final CategoryRepository categories;
@@ -119,10 +119,21 @@ public class DocumentService {
         return upload(principal, filename, content, visibility, departmentIds, categoryId, tags, requestedTitle, null);
     }
 
-    /** {@code ownerDepartmentId} defaults to the caller's own department for {@code DEPARTMENTS} (TECH §15.3). */
     public UploadResult upload(AuthPrincipal principal, String filename, byte[] content, String visibility,
                                List<UUID> departmentIds, UUID categoryId, List<String> tags, String requestedTitle,
                                UUID ownerDepartmentId) {
+        return upload(principal, filename, content, visibility, departmentIds, categoryId, tags, requestedTitle,
+                ownerDepartmentId, null);
+    }
+
+    /**
+     * {@code ownerDepartmentId} defaults to the caller department for {@code DEPARTMENTS} (TECH §15.3).
+     * {@code preparedBy} is who drafted the content; left empty on a department document it becomes the owning
+     * department name (a copy, so a later rename or transfer does not rewrite who wrote it).
+     */
+    public UploadResult upload(AuthPrincipal principal, String filename, byte[] content, String visibility,
+                               List<UUID> departmentIds, UUID categoryId, List<String> tags, String requestedTitle,
+                               UUID ownerDepartmentId, String preparedBy) {
         String effectiveVisibility = (visibility == null || visibility.isBlank()) ? "WORKSPACE" : visibility.strip();
         if (!"WORKSPACE".equals(effectiveVisibility) && !"DEPARTMENTS".equals(effectiveVisibility)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Visibility must be WORKSPACE or DEPARTMENTS.");
@@ -130,6 +141,7 @@ public class DocumentService {
         Validated file = UploadValidator.validate(filename, content);
         String title = requestedTitle != null ? text(requestedTitle, 200, false, "title") : titleFrom(file.originalName());
         String titleSource = requestedTitle != null ? "USER" : "SYSTEM";
+        String requestedAuthor = text(preparedBy, 100, true, "preparedBy");
         UUID wid = principal.workspaceId();
         return tenant.run(principal, () -> {
             List<UUID> effectiveDepartmentIds = resolveDepartments(wid, effectiveVisibility, departmentIds);
@@ -164,6 +176,13 @@ public class DocumentService {
 
             if ("DEPARTMENTS".equals(effectiveVisibility)) {
                 docs.setDocumentDepartments(wid, documentId, effectiveDepartmentIds);
+            }
+            String author = requestedAuthor;
+            if (author == null && creation.ownerDepartmentId() != null) {
+                author = departments.find(wid, creation.ownerDepartmentId()).map(Department::name).orElse(null);
+            }
+            if (author != null) {
+                docs.setPreparedBy(wid, documentId, author);
             }
             if (tags != null && !tags.isEmpty()) {
                 tagService.assignTags(wid, documentId, tags);
@@ -367,6 +386,11 @@ public class DocumentService {
                 changed.add("tags");
             }
 
+            if (patch.containsKey("preparedBy")) {
+                docs.setPreparedBy(wid, documentId, text(patch.get("preparedBy"), 100, true, "preparedBy"));
+                changed.add("preparedBy");
+            }
+
             docs.updateMetadata(wid, documentId, title, titleSource, description, descriptionSource,
                     categoryId, categorySource, language, languageSource, tagsSource);
             audit.record(principal, "DOCUMENT_METADATA_UPDATED", "DOCUMENT", documentId,
@@ -511,10 +535,18 @@ public class DocumentService {
     public record DocumentPage(List<DocumentView> items, String nextCursor, boolean hasMore) {
     }
 
+    /**
+     * {@code ownerDepartmentId} narrows the list to one department's documents. It is open to OWNER/ADMIN and to
+     * members of that department only, so a member cannot probe which other department owns what they can read.
+     */
     public DocumentPage list(AuthPrincipal principal, String status, UUID categoryId, String tag,
-                             String query, Cursor cursor, int limit) {
+                             String query, UUID ownerDepartmentId, String visibility, Cursor cursor, int limit) {
+        if (ownerDepartmentId != null && !principal.isManager() && !ownerDepartmentId.equals(principal.departmentId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "You do not have permission to do this.");
+        }
         return tenant.run(principal, () -> {
-            List<DocumentDetail> rows = new ArrayList<>(docs.listVisible(principal, status, categoryId, tag, query, cursor, limit + 1));
+            List<DocumentDetail> rows = new ArrayList<>(docs.listVisible(principal, status, categoryId, tag, query,
+                    ownerDepartmentId, visibility, cursor, limit + 1));
             boolean more = rows.size() > limit;
             if (more) {
                 rows.remove(rows.size() - 1);
