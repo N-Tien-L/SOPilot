@@ -32,6 +32,8 @@ import {
   setFailure,
   startable,
   STATUS_UNKNOWN,
+  WORKSPACE_SCOPE,
+  type UploadScope,
 } from './queue';
 
 const store = () => useUploadStore.getState();
@@ -83,7 +85,7 @@ async function runUpload(id: string): Promise<void> {
   try {
     const document = item.documentId
       ? await uploadDocumentVersion(item.documentId, file, controller.signal)
-      : await uploadDocument(file, controller.signal);
+      : await uploadDocument(file, item.scope, item.preparedBy, controller.signal);
     if (controller.signal.aborted) return;
     store().update((q) => markUploaded(q, id, document.id));
     refreshDocuments(workspaceId);
@@ -96,13 +98,19 @@ async function runUpload(id: string): Promise<void> {
   }
 }
 
-/** Adds the chosen files (at most 10 per batch) and starts uploading right away. */
-export function selectFiles(selected: readonly File[]): void {
+/** Adds the chosen files (at most 10 per batch) to `scope`, with who prepared them, and starts uploading right away. */
+export function selectFiles(
+  selected: readonly File[],
+  scope: UploadScope = WORKSPACE_SCOPE,
+  preparedBy: string | null = null,
+): void {
   if (selected.length === 0) return;
   const candidates = selected.map((file) => ({ id: crypto.randomUUID(), file }));
   const { queue, notAdded } = addFiles(
     store().queue,
     candidates.map(({ id, file }) => ({ id, file: { name: file.name, size: file.size } })),
+    scope,
+    preparedBy,
   );
   const kept = new Set(queue.items.map((i) => i.id));
   for (const { id, file } of candidates) {

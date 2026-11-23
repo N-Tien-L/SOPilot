@@ -17,6 +17,8 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   helperText?: string;
   options: SelectOption[];
   placeholder?: string;
+  /** The placeholder is a real "no value" choice (filters such as "All statuses"), not just a hint. */
+  allowEmpty?: boolean;
   selectSize?: 'sm' | 'md' | 'lg';
 }
 
@@ -28,6 +30,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       helperText,
       options,
       placeholder,
+      allowEmpty = false,
       selectSize = 'md',
       className,
       id,
@@ -67,7 +70,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             {...props}
           >
             {placeholder && (
-              <option value="" disabled>
+              <option value="" disabled={!allowEmpty}>
                 {placeholder}
               </option>
             )}

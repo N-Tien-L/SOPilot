@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { MetadataDialog } from '@/components/documents/MetadataDialog';
-import { Button, Skeleton } from '@/components/ui';
+import { Button, Skeleton, Tabs } from '@/components/ui';
 import { ContentViewer, NotAvailable } from '@/components/viewer/ContentViewer';
+import { ProcessingReport } from '@/components/viewer/ProcessingReport';
 import { ApiError } from '@/lib/api/errors';
 import { canEditDetails } from '@/lib/admin/metadata';
 import { documentStatusLabel } from '@/lib/chat/labels';
@@ -35,11 +36,27 @@ function DocumentContentPage({ id }: { id: string }) {
     );
   else if (d?.currentVersion)
     body = (
-      <ContentViewer
-        documentId={d.id}
-        versionId={d.currentVersion.id}
-        originalName={d.currentVersion.originalName}
-        notice={versionNotice(d)}
+      <Tabs
+        variant="underline"
+        tabs={[
+          {
+            value: 'content',
+            label: 'Recognized content',
+            content: (
+              <ContentViewer
+                documentId={d.id}
+                versionId={d.currentVersion.id}
+                originalName={d.currentVersion.originalName}
+                notice={versionNotice(d)}
+              />
+            ),
+          },
+          {
+            value: 'report',
+            label: 'Processing report',
+            content: <ProcessingReport documentId={d.id} versionId={d.currentVersion.id} />,
+          },
+        ]}
       />
     );
 

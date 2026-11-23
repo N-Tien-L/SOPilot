@@ -1,6 +1,7 @@
 // Typed calls for the V2-15 screens. Components use these (through lib/query/hooks.ts), never
 // fetch. Paths are relative to /api/v1 (core) and /ai/v1 (ai-service).
 
+import type { UploadScope } from '@/lib/upload/queue';
 import { aiRequest, coreRequest, coreRequestPage } from './http';
 import type {
   AuditEntry,
@@ -9,7 +10,9 @@ import type {
   CreatedInvitation,
   DepartmentView,
   ConversationSummary,
+  ChunkDetail,
   DocumentContent,
+  ProcessingReport,
   DocumentStatus,
   DocumentView,
   DownloadUrl,
@@ -122,6 +125,9 @@ export interface DocumentFilters {
   tag?: string;
   /** Title search. */
   q?: string;
+  /** One department's documents. Owners and admins, or members of that department, only. */
+  ownerDepartmentId?: string;
+  visibility?: 'WORKSPACE' | 'DEPARTMENTS';
   cursor?: string;
   limit?: number;
 }
@@ -143,9 +149,20 @@ function fileForm(file: File): FormData {
   form.append('file', file);
   return form;
 }
-/** Creates a WORKSPACE-visible document. `201` with the new document, `409` for duplicates and quota. */
-export const uploadDocument = (file: File, signal?: AbortSignal) =>
-  coreRequest<DocumentView>('/documents', { method: 'POST', body: fileForm(file), signal });
+/** A department document is read by that department and owned by it (`ownerDepartmentId` defaults to the caller's own). */
+function createForm(file: File, scope: UploadScope, preparedBy: string | null): FormData {
+  const form = fileForm(file);
+  if (preparedBy) form.append('preparedBy', preparedBy);
+  form.append('visibility', scope.kind === 'DEPARTMENT' ? 'DEPARTMENTS' : 'WORKSPACE');
+  if (scope.kind === 'DEPARTMENT') {
+    form.append('ownerDepartmentId', scope.departmentId);
+    form.append('departmentIds', scope.departmentId);
+  }
+  return form;
+}
+/** Creates a document in `scope`. `201` with the new document, `409` for duplicates and quota, `403 NOT_PUBLISHER`. */
+export const uploadDocument = (file: File, scope: UploadScope, preparedBy: string | null, signal?: AbortSignal) =>
+  coreRequest<DocumentView>('/documents', { method: 'POST', body: createForm(file, scope, preparedBy), signal });
 /** A replacement file for an existing document (a new version). */
 export const uploadDocumentVersion = (documentId: string, file: File, signal?: AbortSignal) =>
   coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}/versions`, {
@@ -156,13 +173,14 @@ export const uploadDocumentVersion = (documentId: string, file: File, signal?: A
 /** Reprocess a document whose latest version is FAILED (`409 VERSION_NOT_FAILED` otherwise). */
 export const retryDocument = (documentId: string) =>
   coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}/retry`, { method: 'POST' });
-/** Only the keys that changed: title, description, language, categoryId (null clears), tags. */
+/** Only the keys that changed: title, description, language, categoryId, preparedBy (null clears). */
 export interface DocumentPatch {
   title?: string;
   description?: string | null;
   language?: string | null;
   categoryId?: string | null;
-  tags?: string[];
+  /** Who drafted the content; `null` clears it. */
+  preparedBy?: string | null;
 }
 export const updateDocument = (documentId: string, patch: DocumentPatch) =>
   coreRequest<DocumentView>(`/documents/${encodeURIComponent(documentId)}`, { method: 'PATCH', body: patch });
@@ -194,6 +212,14 @@ export const getDocumentContent = (documentId: string, versionId: string, signal
     `/documents/${encodeURIComponent(documentId)}/versions/${encodeURIComponent(versionId)}/content`,
     { signal },
   );
+
+// ---- processing report (V2-46; the active version only, else 404) ----
+const reportPath = (documentId: string, versionId: string) =>
+  `/documents/${encodeURIComponent(documentId)}/versions/${encodeURIComponent(versionId)}/processing-report`;
+export const getProcessingReport = (documentId: string, versionId: string, signal?: AbortSignal) =>
+  aiRequest<ProcessingReport>(reportPath(documentId, versionId), { signal });
+export const getProcessingChunk = (documentId: string, versionId: string, ordinal: number, signal?: AbortSignal) =>
+  aiRequest<ChunkDetail>(`${reportPath(documentId, versionId)}?ordinal=${ordinal}`, { signal });
 
 // ---- conversations, feedback, knowledge gaps (ai-service) ----
 export const listConversations = (limit = 50) =>

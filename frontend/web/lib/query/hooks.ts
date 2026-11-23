@@ -111,6 +111,31 @@ export function useDocument(id: string) {
   });
 }
 
+/** Detected family, strategy and chunk layout of the active version (V2-46). No retry: a 404 is the answer. */
+export function useProcessingReport(documentId: string, versionId: string | null) {
+  const wid = useWid();
+  return useQuery({
+    queryKey: workspaceKey(wid, 'processing-report', documentId, versionId),
+    queryFn: ({ signal }) => api.getProcessingReport(documentId, versionId as string, signal),
+    enabled: versionId !== null,
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+}
+
+/** One chunk's stored text, read only when the user opens it. */
+export function useProcessingChunk(documentId: string, versionId: string, ordinal: number | null) {
+  const wid = useWid();
+  return useQuery({
+    queryKey: workspaceKey(wid, 'processing-chunk', documentId, versionId, ordinal),
+    queryFn: ({ signal }) => api.getProcessingChunk(documentId, versionId, ordinal as number, signal),
+    enabled: ordinal !== null,
+    retry: false,
+    staleTime: 0,
+  });
+}
+
 /** The canonical Markdown of the active version. No retry: a 404 is the answer (FR-25). */
 export function useDocumentContent(documentId: string, versionId: string | null) {
   const wid = useWid();

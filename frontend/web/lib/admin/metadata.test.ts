@@ -5,7 +5,6 @@ import {
   formFromDocument,
   hasOpenSuggestion,
   canWriteDocument,
-  parseTags,
   sourceLabel,
   planAccess,
   validateMetadata,
@@ -16,6 +15,7 @@ function doc(overrides: Partial<DocumentView> = {}): DocumentView {
     id: 'd1',
     title: 'Leave policy',
     description: 'How leave works',
+    preparedBy: 'HR department',
     category: { id: 'c1', name: 'HR' },
     tags: ['hr', 'leave'],
     language: 'en',
@@ -31,15 +31,6 @@ function doc(overrides: Partial<DocumentView> = {}): DocumentView {
     ...overrides,
   };
 }
-
-describe('parseTags', () => {
-  it('trims, drops empties and de-duplicates case-insensitively keeping the first spelling', () => {
-    expect(parseTags(' HR, leave ,, hr,\nPolicy ')).toEqual(['HR', 'leave', 'Policy']);
-  });
-  it('returns nothing for blank input', () => {
-    expect(parseTags('  , ,')).toEqual([]);
-  });
-});
 
 describe('buildDocumentPatch', () => {
   it('is empty when nothing changed', () => {
@@ -57,9 +48,9 @@ describe('buildDocumentPatch', () => {
     const patch = buildDocumentPatch(d, {
       ...formFromDocument(d),
       title: ' Leave rules ',
-      tags: 'hr, leave, new',
+      preparedBy: ' People team ',
     });
-    expect(patch).toEqual({ title: 'Leave rules', tags: ['hr', 'leave', 'new'] });
+    expect(patch).toEqual({ title: 'Leave rules', preparedBy: 'People team' });
   });
 
   it('sends null for a cleared description, language and category', () => {
@@ -73,14 +64,16 @@ describe('buildDocumentPatch', () => {
     expect(buildDocumentPatch(d, formFromDocument(d))).toEqual({});
   });
 
-  it('does not treat a reordered or re-cased tag list as a change (the server returns tags sorted)', () => {
+  it('clears who prepared the document with null, and leaves an already empty value alone', () => {
     const d = doc();
-    expect(buildDocumentPatch(d, { ...formFromDocument(d), tags: 'leave, HR' })).toEqual({});
+    expect(buildDocumentPatch(d, { ...formFromDocument(d), preparedBy: '  ' })).toEqual({ preparedBy: null });
+    const empty = doc({ preparedBy: null });
+    expect(buildDocumentPatch(empty, formFromDocument(empty))).toEqual({});
   });
 });
 
 describe('validateMetadata', () => {
-  const full = { title: 't', description: 'd', language: '', categoryId: 'c1', tags: 'a' };
+  const full = { title: 't', description: 'd', language: '', categoryId: 'c1', preparedBy: '' };
   it('accepts a complete form', () => {
     expect(validateMetadata(full, true)).toEqual({});
   });
@@ -88,9 +81,9 @@ describe('validateMetadata', () => {
     expect(validateMetadata({ ...full, categoryId: '' }, false)).toEqual({});
     expect(validateMetadata({ ...full, categoryId: '' }, true)).toHaveProperty('categoryId');
   });
-  it('requires a description and a tag', () => {
-    const errors = validateMetadata({ ...full, description: ' ', tags: ' , ' }, false);
-    expect(Object.keys(errors).sort()).toEqual(['description', 'tags']);
+  it('requires a description but never a tag or a preparer', () => {
+    expect(Object.keys(validateMetadata({ ...full, description: ' ' }, false))).toEqual(['description']);
+    expect(validateMetadata({ ...full, preparedBy: '' }, false)).toEqual({});
   });
 });
 

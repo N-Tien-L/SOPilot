@@ -139,6 +139,8 @@ export interface DocumentView {
   id: string;
   title: string;
   description: string | null;
+  /** Who drafted the content (a department, a person or a source); the publisher is `createdBy`. */
+  preparedBy: string | null;
   category: { id: string; name: string } | null;
   tags: string[];
   language: string | null;
@@ -295,6 +297,59 @@ export interface DocumentContent {
   pages: ContentPage[];
   warnings: ContentWarning[];
   removedBlocks: RemovedBlock[];
+}
+
+// ---- processing report (V2-46, TECH-V2-ai-service §7.7) ----
+export type DocFamily = 'LEGAL_ARTICLES' | 'ISO_PROCEDURE' | 'MARKDOWN' | 'PROSE';
+export type ChunkType = 'SECTION' | 'PROCEDURE_STEP' | 'TABLE' | 'PROSE';
+
+export interface FamilySignals {
+  headings: number;
+  articleHeadings: number;
+  /** Body lines that open like an article ("Điều 3. ..."): a short decision has no article headings. */
+  articleLines: number;
+  sopSectionWords: string[];
+  procedureTables: number;
+}
+
+export interface ProcessingChunk {
+  ordinal: number;
+  chunkType: ChunkType;
+  sectionPath: string[];
+  pageStart: number | null;
+  pageEnd: number | null;
+  /** Unicode code points on the canonical Markdown. Ranges can repeat (split rows and steps). */
+  charStart: number;
+  charEnd: number;
+  tokenCount: number;
+}
+
+export interface ProcessingReport {
+  documentId: string;
+  versionId: string;
+  fileType: string;
+  language: string | null;
+  docCode: string | null;
+  pageCount: number | null;
+  family: DocFamily;
+  /** Recomputed from the stored structure; null when it could not be read. */
+  signals: FamilySignals | null;
+  strategy: {
+    rules: string[];
+    /** The current `models.yaml` values, not stored per version. */
+    config: { targetTokens: number; maxTokens: number; minTokens: number };
+  };
+  stats: { chunks: number; avgTokens: number; maxTokens: number; byType: Partial<Record<ChunkType, number>> };
+  chunks: ProcessingChunk[];
+}
+
+export interface ChunkDetail {
+  ordinal: number;
+  chunkType: ChunkType;
+  sectionPath: string[];
+  tokenCount: number;
+  content: string;
+  indexText: string;
 }
 
 export interface ConversationSummary {

@@ -99,7 +99,7 @@ export default function GapsPage() {
       </div>
 
       {gaps.isLoading ? <div className="mt-4"><Skeleton count={4} height={48} /></div> : null}
-      {gaps.isError ? <ErrorNote error={gaps.error} className="mt-4" /> : null}
+      {gaps.isError ? <ErrorNote error={gaps.error} className="mt-4" onRetry={() => void gaps.refetch()} /> : null}
       {gaps.data && rows.length === 0 ? (
         <div className="mt-6">
           <EmptyState title={tab === 'open' ? 'No open gaps' : 'No resolved gaps'} description="Nothing to review here." />

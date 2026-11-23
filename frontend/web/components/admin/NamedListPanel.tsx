@@ -34,7 +34,7 @@ interface Props {
   note?: string;
 }
 
-function NameDialog({
+export function NameDialog({
   title,
   initial,
   submitLabel,
@@ -179,7 +179,7 @@ export function NamedListPanel({ noun, items, loading, error, api, invalidate, e
           loading={action.busy}
           message={
             <>
-              Delete <strong>{deleting.name}</strong>? This works only while nothing uses it; otherwise archive it instead.
+              Delete <strong>{deleting.name}</strong>? Documents that use it become uncategorized. This cannot be undone; archive it instead to keep them as they are.
               {action.error ? <ErrorNote error={action.error} className="mt-2" /> : null}
             </>
           }

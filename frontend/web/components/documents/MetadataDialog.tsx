@@ -22,7 +22,7 @@ import {
   type MetadataForm,
   type VisibilityChoice,
 } from '@/lib/admin/metadata';
-import { useCategories, useDepartments, useInvalidate, useMembers, useMyMember } from '@/lib/query/hooks';
+import { useCategories, useDepartments, useInvalidate, useMyMember } from '@/lib/query/hooks';
 import { useSessionStore } from '@/store/session-store';
 
 function FieldNote({ source }: { source: string | null | undefined }) {
@@ -49,8 +49,7 @@ export function MetadataDialog({ doc, onClose }: { doc: DocumentView; onClose: (
   const workspace = useSessionStore((s) => s.workspace);
   const isManager = workspace?.role === 'OWNER' || workspace?.role === 'ADMIN';
   const categories = useCategories();
-  const members = useMembers(isManager);
-  const withDepartments = showDepartments(workspace?.kind, isManager && members.data ? members.data.length : null);
+  const withDepartments = showDepartments(workspace?.kind);
   const departments = useDepartments(false, withDepartments);
 
   const [form, setForm] = useState<MetadataForm>(() => formFromDocument(doc));
@@ -141,14 +140,14 @@ export function MetadataDialog({ doc, onClose }: { doc: DocumentView; onClose: (
           : 'Access saved and applied.';
       setSaved(
         unattended
-          ? `${base} Nobody is assigned to publish in the new scope yet: assign a publisher under Members, Publishers.`
+          ? `${base} Nobody is assigned to publish in the new scope yet: assign a publisher under Departments.`
           : base,
       );
     }
   }
 
   const set = (key: keyof MetadataForm) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
-  const shown = (key: 'description' | 'categoryId' | 'tags') => (touched ? errors[key] : undefined);
+  const shown = (key: 'description' | 'categoryId') => (touched ? errors[key] : undefined);
 
   return (
     <Modal open onClose={onClose} title="Document details" description={doc.title} size="lg">
@@ -233,13 +232,12 @@ export function MetadataDialog({ doc, onClose }: { doc: DocumentView; onClose: (
           </div>
           <div>
             <Input
-              label="Tags"
-              value={form.tags}
-              onChange={(e) => set('tags')(e.target.value)}
-              helperText="Separate with commas."
-              error={shown('tags')}
+              label="Prepared by"
+              maxLength={100}
+              value={form.preparedBy}
+              onChange={(e) => set('preparedBy')(e.target.value)}
+              helperText="Who drafted the content: a department, a person or a source. Readers see it."
             />
-            <FieldNote source={doc.fieldSources?.tags} />
           </div>
           <div>
             <Input
@@ -305,7 +303,7 @@ export function MetadataDialog({ doc, onClose }: { doc: DocumentView; onClose: (
                 );
               })}
               {departments.data && departments.data.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Create a department first (Members, Departments).</p>
+                <p className="text-sm text-muted-foreground">Create a department first (Departments in the sidebar).</p>
               ) : null}
               {isOwner ? (
                 <Select

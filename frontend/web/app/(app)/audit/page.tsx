@@ -32,6 +32,7 @@ function AuditLog() {
           <Select
             aria-label="Action"
             placeholder="All actions"
+            allowEmpty
             options={AUDIT_ACTIONS.map((a) => ({ value: a.value, label: a.label }))}
             value={action}
             onChange={(e) => setAction(e.target.value)}
@@ -41,6 +42,7 @@ function AuditLog() {
           <Select
             aria-label="Actor"
             placeholder="Anyone"
+            allowEmpty
             options={(members.data ?? []).map((m) => ({ value: m.userId, label: m.displayName }))}
             value={actorId}
             onChange={(e) => setActorId(e.target.value)}
@@ -87,7 +89,20 @@ function AuditLog() {
         </div>
       ) : null}
       {rows.length > 0 ? (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card">
+        <>
+        <ul className="mt-4 space-y-2 md:hidden" aria-label="Audit entries">
+          {rows.map((e) => (
+            <li key={e.id} className="rounded-lg border border-border bg-card p-3 text-sm">
+              <div className="font-medium">{auditActionLabel(e.action)}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {e.actorId ? (names.get(e.actorId) ?? 'Former member') : 'System'} · {new Date(e.createdAt).toLocaleString()}
+                {e.targetType ? ` · ${e.targetType.toLowerCase()}` : ''}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">{summarizeDetails(e.details)}</div>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-4 hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
           <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
             <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -112,6 +127,7 @@ function AuditLog() {
             </tbody>
           </table>
         </div>
+        </>
       ) : null}
       {logs.hasNextPage ? (
         <div className="mt-4">
