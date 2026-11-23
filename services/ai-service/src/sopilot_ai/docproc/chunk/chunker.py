@@ -15,8 +15,15 @@ from typing import Literal
 from pydantic import BaseModel
 
 from sopilot_ai.docproc.chunk.family import DocFamily, family_of
-from sopilot_ai.docproc.chunk.headings import Node, resolve_outline
+from sopilot_ai.docproc.chunk.headings import (
+    MAX_HEADING_CHARS,
+    Node,
+    is_article,
+    is_article_line,
+    resolve_outline,
+)
 from sopilot_ai.docproc.chunk.procedure_table import is_procedure_table, step_rows
+from sopilot_ai.docproc.clean.boilerplate import fold
 from sopilot_ai.docproc.errors import ExtractionError, FailureCode
 from sopilot_ai.docproc.model import DocElement, RenderedDocument
 from sopilot_ai.docproc.tokens import Tokenizer
@@ -25,6 +32,8 @@ ChunkKind = Literal["TEXT", "TABLE", "PROCEDURE_STEP"]
 
 _SENTENCE_BREAK = re.compile(r"(?<=[.!?…;])\s+|\n+")
 _SEPARATOR = " › "
+_CONTENTS_TITLES = frozenset({"muc luc", "contents", "table of contents"})
+_MIN_CONTENTS_ENTRIES = 2
 
 
 @dataclass(frozen=True)
@@ -61,6 +70,8 @@ class _Section:
     level: int
     heading: _Block | None
     blocks: list[_Block] = field(default_factory=list)
+    gap_after: bool = False  # a table of contents was dropped right after this section
+    heading_in_blocks: bool = False  # heading is the only body (``_keep_leaf_headings``)
 
 
 @dataclass
@@ -96,15 +107,20 @@ class Chunker:
 
     def chunk(self, rendered: RenderedDocument, *, title: str = "",
               doc_code: str | None = None, family: DocFamily | None = None) -> list[Chunk]:
-        nodes = resolve_outline(rendered.elements)
+        nodes = resolve_outline(rendered.elements, rendered.file_type)
         family = family or family_of(nodes)
-        sections = self._sections(nodes)
-        if family is not DocFamily.LEGAL_ARTICLES:
+        sections = self._drop_contents(self._sections(nodes))
+        self._keep_leaf_headings(sections)
+        if family is DocFamily.LEGAL_ARTICLES:
+            sections = self._merge_preamble(sections, rendered.markdown)
+        else:
             sections = self._merge_small(sections, rendered.markdown)
         chunks: list[Chunk] = []
         for section in sections:
             prefix = self._bounded_prefix(title, doc_code, section.path)
             chunks += self._section_chunks(section, prefix, rendered.markdown)
+        if family is DocFamily.LEGAL_ARTICLES:
+            chunks = self._drop_letterless(chunks, rendered)
         if not chunks:
             raise ExtractionError(FailureCode.EMPTY_CONTENT)
         return chunks
@@ -141,6 +157,7 @@ class Chunker:
             current = sections[i]
             total = self._body_tokens(current, markdown)
             while (current.blocks and total < self.config.min_tokens
+                   and not current.gap_after
                    and i + 1 < len(sections)
                    and self._is_sibling(current, sections[i + 1])
                    and not self._has_rows(sections[i + 1])
@@ -149,14 +166,153 @@ class Chunker:
                 added = self._body_tokens(nxt, markdown)
                 if total + added > self.config.target_tokens:
                     break
-                if nxt.heading:
-                    current.blocks.append(nxt.heading)
-                current.blocks += nxt.blocks
+                self._absorb(current, nxt)
                 total += added
                 i += 1
             merged.append(current)
             i += 1
         return merged
+
+    @staticmethod
+    def _keep_leaf_headings(sections: list[_Section]) -> None:
+        """A heading with no body and no sub-section is a step title, not a parent: keep its text.
+
+        A short numbered line such as ``3.3.1 Bàn giao cho đơn vị vận chuyển`` is read as a
+        heading (``headings._classify``). Heading text is kept out of ``content``, and a section
+        without blocks yields no chunk, so such a step used to vanish from the index. Its own
+        heading becomes its body; the usual small-section merge then packs neighbouring steps.
+        A document with no body anywhere is left alone, so it still ends in ``EMPTY_CONTENT``.
+        """
+        if not any(s.blocks for s in sections):
+            return
+        for i, section in enumerate(sections):
+            if section.heading is None or section.blocks:
+                continue
+            nxt = sections[i + 1] if i + 1 < len(sections) else None
+            if nxt is not None and nxt.level > section.level:
+                continue  # a parent: its text is in the path of its children
+            section.blocks.append(section.heading)
+            section.heading_in_blocks = True
+
+    @staticmethod
+    def _absorb(current: _Section, nxt: _Section) -> None:
+        """``current`` keeps its path and takes the heading block and body of ``nxt``."""
+        if nxt.heading and not nxt.heading_in_blocks:
+            current.blocks.append(nxt.heading)
+        current.blocks += nxt.blocks
+        current.gap_after = nxt.gap_after
+
+    # -- V2-47, TECH-V2-ai-service §5.4 ----------------------------------------------------
+
+    @staticmethod
+    def _is_contents_heading(section: _Section) -> bool:
+        """V2-47 item 4: the heading reads "contents" once folded, minus a trailing colon.
+
+        Numbering is not stripped: a numbered "6. Contents" is a real section (a kit list).
+        """
+        if section.heading is None or not section.path:
+            return False
+        title = fold(section.path[-1]).strip().rstrip(":").strip()
+        return title in _CONTENTS_TITLES
+
+    @staticmethod
+    def _is_contents_item(block: _Block) -> bool:
+        """V2-47 item 4: a list item, or a short unfinished line, can be a contents entry."""
+        if block.el.kind == "list_item":
+            return True
+        text = block.el.text.strip()
+        return (block.el.kind == "paragraph" and len(text) <= MAX_HEADING_CHARS
+                and not text.endswith(".") and "\n" not in text)
+
+    def _contents_end(self, sections: list[_Section], start: int) -> int | None:
+        """V2-47 item 4: index after the table of contents opened at ``start``, else ``None``.
+
+        The contents section needs a body of entries only; the entry sections that follow it are
+        promoted list items without a body. At least two entries must exist in total.
+        """
+        section = sections[start]
+        if not self._is_contents_heading(section):
+            return None
+        if not all(self._is_contents_item(b) for b in section.blocks):
+            return None
+        end = start + 1
+        while (end < len(sections) and sections[end].heading is not None
+               and sections[end].heading.el.kind == "list_item" and not sections[end].blocks):
+            end += 1
+        if len(section.blocks) + (end - start - 1) < _MIN_CONTENTS_ENTRIES:
+            return None
+        return end
+
+    def _drop_contents(self, sections: list[_Section]) -> list[_Section]:
+        """V2-47 item 4: remove tables of contents from the section list (text stays in Markdown).
+
+        The section before a dropped range is flagged so no merge reaches across the gap and a
+        chunk stays one contiguous Markdown slice.
+        """
+        kept: list[_Section] = []
+        i = 0
+        while i < len(sections):
+            end = self._contents_end(sections, i)
+            if end is None:
+                kept.append(sections[i])
+                i += 1
+                continue
+            if kept:
+                kept[-1].gap_after = True
+            i = end
+        return kept
+
+    @staticmethod
+    def _is_article_section(section: _Section) -> bool:
+        """An article heading, or a body line that opens like an article (V2-47 item 5a)."""
+        if section.heading is not None and section.path and is_article(section.path[-1]):
+            return True
+        return any(is_article_line(Node(el=b.el)) for b in section.blocks)
+
+    def _merge_preamble(self, sections: list[_Section], markdown: str) -> list[_Section]:
+        """V2-47 item 5a: in a legal document, small sections before the first article fold forward.
+
+        Level and parent do not matter, but the first article section and everything after it
+        are never merged: articles stay one chunk each.
+        """
+        # No article anywhere (a family passed in by the caller): there is no preamble to merge.
+        cutoff = next((i for i, s in enumerate(sections) if self._is_article_section(s)), 0)
+        merged: list[_Section] = []
+        i = 0
+        while i < len(sections):
+            current = sections[i]
+            total = self._body_tokens(current, markdown)
+            while (current.blocks and total < self.config.min_tokens
+                   and not current.gap_after
+                   and i + 1 < cutoff
+                   and not self._has_rows(sections[i + 1])
+                   and not self._has_rows(current)):
+                nxt = sections[i + 1]
+                added = self._body_tokens(nxt, markdown)
+                if total + added > self.config.target_tokens:
+                    break
+                self._absorb(current, nxt)
+                total += added
+                i += 1
+            merged.append(current)
+            i += 1
+        return merged
+
+    @staticmethod
+    def _drop_letterless(chunks: list[Chunk], rendered: RenderedDocument) -> list[Chunk]:
+        """V2-47 item 5a: a ``TEXT`` chunk with no letter (a line of underscores) is noise.
+
+        Table chunks and chunks that overlap a table element are kept: numeric tables stay.
+        """
+        tables = [(el.char_start, el.char_end) for el in rendered.elements
+                  if el.kind == "table" and el.char_start is not None and el.char_end is not None]
+
+        def keep(chunk: Chunk) -> bool:
+            if chunk.kind != "TEXT" or any(c.isalpha() for c in chunk.content):
+                return True
+            return any(chunk.char_start < end and start < chunk.char_end for start, end in tables)
+
+        return [c for c in chunks if keep(c)]
 
     @staticmethod
     def _is_sibling(a: _Section, b: _Section) -> bool:

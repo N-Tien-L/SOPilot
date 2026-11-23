@@ -91,7 +91,7 @@ def process_document(data: bytes, file_type: str, *, title: str, tokenizer: Toke
     timings["clean_ms"] = _ms(t)
 
     t = time.perf_counter()
-    family = detect_family(rendered.elements)
+    family = detect_family(rendered.elements, rendered.file_type)
     chunks = chunk_document(rendered, tokenizer, title=title, doc_code=cleaned.meta.doc_code,
                             config=chunk_config, family=family)
     timings["chunk_ms"] = _ms(t)

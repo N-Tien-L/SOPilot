@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-10, V2-12, V2-15]
-blocks: [V2-17, V2-42]
+blocks: [V2-17, V2-42, V2-46]
 branch: "feat/web-v2-32"
 assignee: pair
 ---

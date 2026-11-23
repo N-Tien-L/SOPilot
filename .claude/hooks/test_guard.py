@@ -42,9 +42,10 @@ def make_fixture(base: Path) -> tuple[Path, Path, Path]:
 
 
 def call(event: dict, env_extra: dict | None = None, readonly: bool = False, stdin: str | None = None,
-         cwd: Path | None = None) -> tuple[int, str, str]:
+         cwd: Path | None = None, mode: str | None = None) -> tuple[int, str, str]:
     env = dict(os.environ, **(env_extra or {}))
-    args = [sys.executable, str(HOOK)] + (["--readonly"] if readonly else [])
+    mode = "readonly" if readonly else mode
+    args = [sys.executable, str(HOOK)] + ([f"--{mode}"] if mode else [])
     r = subprocess.run(args, input=stdin if stdin is not None else json.dumps(event), text=True,
                        capture_output=True, env=env, cwd=cwd, timeout=30)
     return r.returncode, r.stdout, r.stderr
@@ -371,6 +372,7 @@ def main() -> int:
             ("ruff check", "uv run --extra dev ruff check", ALLOW),
             ("pytest unit", "uv run --extra dev pytest tests/unit -q", ALLOW),
             ("cd then git", "cd services/core-api && git status", ALLOW),
+            ("stream merge then pipe", "git log --oneline 2>&1 | Select-Object -First 5", ALLOW),
             ("redirect write", "echo x > notes.txt", BLOCK),
             ("tee", "git log | tee out.txt", BLOCK),
             ("git commit", 'git commit -m x', BLOCK),
@@ -398,6 +400,113 @@ def main() -> int:
         verify("read-only: Write tool", BLOCK, *call(ev, readonly=True)[:2])
         ev = {"tool_name": "Bash", "tool_input": {"command": "git stash"}, "cwd": str(repo)}
         verify("read-only: an ask verdict becomes a block", BLOCK, *call(ev, readonly=True)[:2])
+
+        # --- runner mode (v2-runner): read-only plus build/test/check commands
+        def rn(label: str, cmd: str, expected: str, tool: str = "PowerShell") -> None:
+            ev = {"tool_name": tool, "tool_input": {"command": cmd}, "cwd": str(repo)}
+            verify("runner: " + label, expected, *call(ev, mode="runner")[:2])
+
+        for label, cmd, exp in [
+            ("run-tests", "./scripts/run-tests.ps1 -Scope core-api -Type unit", ALLOW),
+            ("run-tests piped tail", "./scripts/run-tests.ps1 -Scope ai-service -Type unit 2>&1 | Select-Object -Last 20",
+             ALLOW),
+            ("run-tests *>&1", "./scripts/run-tests.ps1 -Scope ai-service -Type unit *>&1 | Select-Object -Last 20",
+             ALLOW),
+            ("validate-build", "./scripts/validate-build.ps1 -Scope web", ALLOW),
+            ("pre-commit-check", "./scripts/pre-commit-check.ps1", ALLOW),
+            ("check-docs", "./scripts/docs/check-docs.ps1", ALLOW),
+            ("powershell -File run-tests", "powershell -NoProfile -File ./scripts/run-tests.ps1 -Scope core-api", ALLOW),
+            ("single maven test", "cd services/core-api; ./mvnw test -Dtest=X#y", ALLOW),
+            ("maven IT", "./mvnw -q -B verify -Dit.test=XIT -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false",
+             ALLOW),
+            ("uv pytest", "cd services/ai-service; uv run --extra dev pytest tests/unit -q", ALLOW),
+            ("uv ruff check", "uv run --extra dev ruff check", ALLOW),
+            ("uv ruff format --check", "uv run --extra dev ruff format --check", ALLOW),
+            ("uv sync --locked", "cd eval; uv sync --extra dev --locked; uv run pytest -q", ALLOW),
+            ("pnpm lint", "pnpm --dir frontend/web lint", ALLOW),
+            ("pnpm test", "pnpm --dir frontend/web test", ALLOW),
+            ("pnpm exec tsc", "pnpm --dir frontend/web exec tsc --noEmit", ALLOW),
+            ("compose ps", "docker compose ps -a", ALLOW),
+            ("compose logs", "docker compose logs --tail 50 postgres", ALLOW),
+            ("hook self-test", "python .claude/hooks/test_guard.py", ALLOW),
+            ("git diff", "git diff --stat", ALLOW),
+            ("uv sync without lock", "uv sync --extra dev", BLOCK),
+            ("uv add", "uv add httpx", BLOCK),
+            ("ruff --fix", "uv run --extra dev ruff check --fix", BLOCK),
+            ("ruff format", "uv run --extra dev ruff format", BLOCK),
+            ("pnpm install", "pnpm --dir frontend/web install", BLOCK),
+            ("pnpm lint --fix", "pnpm --dir frontend/web lint --fix", BLOCK),
+            ("pnpm dev", "pnpm --dir frontend/web dev", BLOCK),
+            ("mvnw install", "./mvnw install", BLOCK),
+            ("mvnw spring-boot:run", "./mvnw spring-boot:run", BLOCK),
+            ("compose up", "docker compose up -d postgres", BLOCK),
+            ("compose down", "docker compose down", BLOCK),
+            ("docker exec", "docker exec pg psql -c 'select 1'", BLOCK),
+            ("git commit", "git commit -m x", BLOCK),
+            ("redirect write", "./scripts/run-tests.ps1 -Scope core-api > out.txt", BLOCK),
+            ("chained write", "./scripts/pre-commit-check.ps1; rm x", BLOCK),
+            ("python -c", "python -c \"print(1)\"", BLOCK),
+            ("secret still blocked", "cat .env", BLOCK),
+        ]:
+            rn(label, cmd, exp)
+        ev = {"tool_name": "Edit", "tool_input": {"file_path": p("README.md"), "old_string": "x", "new_string": "y"},
+              "cwd": str(repo)}
+        verify("runner: Edit tool", BLOCK, *call(ev, mode="runner")[:2])
+
+        # --- coder mode (v2-coder): edits allowed, git/deps/status files are not
+        def cd(label: str, tool: str, ti: dict, expected: str) -> None:
+            ev = {"tool_name": tool, "tool_input": ti, "cwd": str(repo)}
+            verify("coder: " + label, expected, *call(ev, {"CLAUDE_PROJECT_DIR": str(repo)}, mode="coder")[:2])
+
+        def cs(label: str, cmd: str, expected: str) -> None:
+            cd(label, "PowerShell", {"command": cmd}, expected)
+
+        for label, tool, ti, exp in [
+            ("edit source", "Edit", {"file_path": p("services/core-api/src/X.java"), "old_string": "a",
+                                     "new_string": "b"}, ALLOW),
+            ("write new test", "Write", {"file_path": p("services/ai-service/tests/unit/test_x.py"), "content": ""},
+             ALLOW),
+            ("write new migration", "Write", {"file_path": p("infrastructure/db/migrations/core/V999__x.sql"),
+                                              "content": ""}, ALLOW),
+            ("edit .env.example", "Edit", {"file_path": p(".env.example"), "old_string": "a", "new_string": "b"}, ALLOW),
+            ("edit design doc", "Edit", {"file_path": p("docs/architecture/x.md"), "old_string": "a",
+                                         "new_string": "b"}, ALLOW),
+            ("edit committed migration", "Edit", {"file_path": p(MIG), "old_string": "a", "new_string": "b"}, BLOCK),
+            ("edit pom.xml", "Edit", {"file_path": p("services/core-api/pom.xml"), "old_string": "a",
+                                      "new_string": "b"}, BLOCK),
+            ("edit pyproject.toml", "Edit", {"file_path": p("services/ai-service/pyproject.toml"), "old_string": "a",
+                                             "new_string": "b"}, BLOCK),
+            ("write package.json", "Write", {"file_path": p("frontend/web/package.json"), "content": "{}"}, BLOCK),
+            ("edit ticket", "Edit", {"file_path": p("docs/execution/initiatives/v2/tickets/V2-1.md"),
+                                     "old_string": "a", "new_string": "b"}, BLOCK),
+            ("edit .claude rule", "Edit", {"file_path": p(".claude/rules/core-api.md"), "old_string": "a",
+                                           "new_string": "b"}, BLOCK),
+            ("read ticket", "Read", {"file_path": p("docs/execution/initiatives/v2/tickets/V2-1.md")}, ALLOW),
+            ("read .env", "Read", {"file_path": p(".env")}, BLOCK),
+        ]:
+            cd(label, tool, ti, exp)
+        for label, cmd, exp in [
+            ("run-tests", "./scripts/run-tests.ps1 -Scope core-api -Type unit", ALLOW),
+            ("single pytest", "cd services/ai-service; uv run --extra dev pytest tests/unit/test_x.py -q", ALLOW),
+            ("ruff --fix on own files", "uv run --extra dev ruff check --fix src/x.py", ALLOW),
+            ("git status/diff", "git status --short; git diff --stat", ALLOW),
+            ("gh pr view", "gh pr view 12", ALLOW),
+            ("git add", "git add services", BLOCK),
+            ("git commit", "git commit -m x", BLOCK),
+            ("git checkout -b", "git checkout -b feat/x", BLOCK),
+            ("git switch", "git switch develop", BLOCK),
+            ("git push", "git push origin x", BLOCK),
+            ("git stash (ask becomes block)", "git stash", BLOCK),
+            ("gh pr create", "gh pr create --fill", BLOCK),
+            ("uv add", "uv add httpx", BLOCK),
+            ("pnpm add", "pnpm --dir frontend/web add zod", BLOCK),
+            ("npm install", "npm install", BLOCK),
+            ("pip install", "pip install x", BLOCK),
+            ("recursive delete (ask becomes block)", "Remove-Item -Recurse build", BLOCK),
+            ("redirect into ticket", "echo x > docs/execution/initiatives/v2/tickets/V2-1.md", BLOCK),
+            ("Set-Content pom.xml", "Set-Content services/core-api/pom.xml x", BLOCK),
+        ]:
+            cs(label, cmd, exp)
 
         say(f"{total - failures}/{total} passed")
         return 1 if failures else 0

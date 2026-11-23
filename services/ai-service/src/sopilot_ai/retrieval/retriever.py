@@ -30,6 +30,15 @@ from sopilot_ai.retrieval.access_filter import Principal
 from sopilot_ai.retrieval.lexical import tokenize
 
 
+@dataclass(frozen=True)
+class AltQuery:
+    """The question in the other language (§6.4b): searched next to the original, and used to
+    rerank the chunks written in that language."""
+
+    text: str
+    lang: str
+
+
 @dataclass
 class Candidate:
     chunk_id: UUID
@@ -75,7 +84,8 @@ class Retriever:
 
     async def retrieve(self, conn: AsyncConnection, principal: Principal, query: str, *,
                        query_lang: str | None = None,
-                       query_vector: np.ndarray | None = None) -> RetrievalResult:
+                       query_vector: np.ndarray | None = None,
+                       alt: AltQuery | None = None) -> RetrievalResult:
         cfg = self.config
         base_mode = cfg.mode
         model, revision = self.embedder.model, self.embedder.revision
@@ -90,27 +100,56 @@ class Retriever:
                                        pool=cfg.candidate_pool)
                      if base_mode in ("bm25", "hybrid") else [])
 
+        alt_vec: np.ndarray | None = None
+        alt_dense: list[search.Hit] = []
+        alt_bm25: list[search.Hit] = []
+        if alt is not None:
+            if base_mode in ("dense", "hybrid"):
+                alt_vec = await self.embed_query(alt.text)
+                alt_dense = await search.dense(conn, principal, alt_vec, model=model,
+                                               revision=revision, pool=cfg.candidate_pool)
+            if base_mode in ("bm25", "hybrid"):
+                alt_bm25 = await search.bm25(conn, principal, tokenize(alt.text, role="query"),
+                                             pool=cfg.candidate_pool)
+
         cands: dict[UUID, Candidate] = {}
-        for h in dense_hits:
-            cands[h.chunk_id] = Candidate(h.chunk_id, h.document_id, h.version_id, h.lang,
-                                          dense_score=h.score)
-        for h in bm25_hits:
+        for h in [*dense_hits, *alt_dense]:
+            c = cands.get(h.chunk_id)
+            if c is None:
+                cands[h.chunk_id] = Candidate(h.chunk_id, h.document_id, h.version_id, h.lang,
+                                              dense_score=h.score)
+            elif c.dense_score is None or h.score > c.dense_score:
+                c.dense_score = h.score  # the better of the two questions' cosines
+        for h in [*bm25_hits, *alt_bm25]:
             c = cands.setdefault(h.chunk_id, Candidate(h.chunk_id, h.document_id, h.version_id,
                                                        h.lang))
-            c.bm25_score = h.score
+            if c.bm25_score is None or h.score > c.bm25_score:
+                c.bm25_score = h.score
 
         codes: set[str] = set()
         if base_mode == "dense":
-            order = [h.chunk_id for h in dense_hits]
+            order = ([h.chunk_id for h in dense_hits] if alt is None else
+                     sorted((k for k, c in cands.items() if c.dense_score is not None),
+                            key=lambda k: (-(cands[k].dense_score or 0.0), str(k))))
         elif base_mode == "bm25":
-            order = [h.chunk_id for h in bm25_hits]
+            order = ([h.chunk_id for h in bm25_hits] if alt is None else
+                     sorted((k for k, c in cands.items() if c.bm25_score is not None),
+                            key=lambda k: (-(cands[k].bm25_score or 0.0), str(k))))
         else:
             dense_rank = [h.chunk_id for h in dense_hits]
             bm25_rank = [h.chunk_id for h in bm25_hits]
+            rankings = [dense_rank, bm25_rank]
+            weights = list(cfg.rrf_weights)
             item_w = [None, fusion.cross_lingual_weights(
                 {h.chunk_id: h.lang for h in bm25_hits}, query_lang,
                 cfg.cross_lingual_bm25_factor)]
-            fused = fusion.rrf([dense_rank, bm25_rank], cfg.rrf_weights, cfg.rrf_k, item_w)
+            if alt is not None:  # the translated question adds its own two lists (§6.4b)
+                rankings += [[h.chunk_id for h in alt_dense], [h.chunk_id for h in alt_bm25]]
+                weights += list(cfg.rrf_weights)
+                item_w += [None, fusion.cross_lingual_weights(
+                    {h.chunk_id: h.lang for h in alt_bm25}, alt.lang,
+                    cfg.cross_lingual_bm25_factor)]
+            fused = fusion.rrf(rankings, weights, cfg.rrf_k, item_w)
             codes = find_doc_codes(query)
             if codes and cfg.doc_code_boost:
                 versions = list({cands[k].version_id for k in fused})
@@ -130,6 +169,10 @@ class Retriever:
             missing = [c.chunk_id for c in pool if c.dense_score is None]
             direct = await search.cosine_by_id(conn, principal, qvec, missing, model=model,
                                                revision=revision)
+            if alt_vec is not None:
+                for k, v in (await search.cosine_by_id(conn, principal, alt_vec, missing,
+                                                       model=model, revision=revision)).items():
+                    direct[k] = max(direct.get(k, v), v)
             for c in pool:
                 if c.dense_score is None and c.chunk_id in direct:
                     c.dense_score = direct[c.chunk_id]
@@ -141,11 +184,22 @@ class Retriever:
         if self.reranker is not None and pool:
             texts = await search.index_texts(conn, principal, [c.chunk_id for c in pool])
             pool = [c for c in pool if c.chunk_id in texts]
-            scores = await asyncio.to_thread(self.reranker.score, query,
-                                             [texts[c.chunk_id] for c in pool])
+            # A chunk is scored against the question in its own language (§6.4b): a pair in one
+            # language scores far higher than the same pair across two. Without a translation
+            # this is one call with the original question, as before.
+            groups: dict[str, list[int]] = {}
+            for i, c in enumerate(pool):
+                q = alt.text if alt is not None and c.lang == alt.lang else query
+                groups.setdefault(q, []).append(i)
+            scores = np.zeros(len(pool), dtype=np.float32)
+            for q, idx in groups.items():
+                got = await asyncio.to_thread(self.reranker.score, q,
+                                              [texts[pool[i].chunk_id] for i in idx])
+                for i, v in zip(idx, got, strict=True):
+                    scores[i] = float(v)
             for c, s in zip(pool, scores, strict=True):
                 c.rerank_score = float(s)
-            pool = [pool[int(j)] for j in np.argsort(-np.asarray(scores), kind="stable")]
+            pool = [pool[int(j)] for j in np.argsort(-scores, kind="stable")]
             gate_mode = "hybrid_rerank"
 
         for i, c in enumerate(pool, start=1):

@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-03, V2-19]
-blocks: [V2-09, V2-21, V2-22]
+blocks: [V2-09, V2-21, V2-22, V2-47]
 branch: "feat/ai-structured-extraction"
 assignee: pair
 ---

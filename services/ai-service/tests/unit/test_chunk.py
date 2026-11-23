@@ -159,6 +159,42 @@ def test_family_detection():
         assert detect_family(render(doc).elements) is family
 
 
+LONG = (" nội dung điều này là một câu dài hơn một trăm ký tự để không bị đọc thành tiêu đề"
+        " của một mục nào cả.")
+
+
+def _legal_decision() -> list[DocElement]:
+    """A short decision: its articles come back as a paragraph, a heading and a list item."""
+    return [
+        _h("QUYẾT ĐỊNH"),
+        _p("Điều 1. Phê duyệt chiến lược dữ liệu quốc gia." + LONG),
+        _h("Điều 2. Hiệu lực thi hành"),
+        _p("Quyết định này có hiệu lực kể từ ngày ký."),
+        DocElement(kind="list_item", text="Điều 3. Các bộ trưởng thi hành." + LONG, number=None),
+    ]
+
+
+def test_a_decision_whose_articles_are_not_all_headings_is_legal_articles():
+    doc = StructuredDocument(file_type="PDF", elements=_legal_decision())
+    assert detect_family(render(doc).elements) is DocFamily.LEGAL_ARTICLES
+
+
+def test_two_article_lines_are_not_enough_for_legal_articles():
+    elements = _legal_decision()[:4]
+    doc = StructuredDocument(file_type="PDF", elements=elements)
+    assert detect_family(render(doc).elements) is DocFamily.MARKDOWN
+
+
+def test_article_evidence_counts_headings_and_lines_apart():
+    from sopilot_ai.docproc.chunk.family import family_evidence
+    from sopilot_ai.docproc.chunk.headings import resolve_outline
+
+    doc = StructuredDocument(file_type="PDF", elements=_legal_decision())
+    evidence = family_evidence(resolve_outline(render(doc).elements))
+    assert evidence["articleHeadings"] + evidence["articleLines"] == 3
+    assert evidence["articleLines"] == 2
+
+
 def test_legal_articles_stay_one_chunk_each_and_long_ones_split_on_clauses():
     clause = " ".join(["từ"] * 30)
     articles = []

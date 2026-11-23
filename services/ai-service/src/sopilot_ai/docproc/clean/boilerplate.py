@@ -98,6 +98,22 @@ def _frame_pieces(el: DocElement) -> list[tuple[int, list[str]]] | None:
     return groups or None
 
 
+def _table_key(el: DocElement) -> tuple[int, int, tuple[str, ...]] | None:
+    """Whole-table repeat key of a table ``_frame_pieces`` accepts, or None.
+
+    ``(rows, columns, folded text of the non-empty cells in row-major order)``; None when the
+    table cannot be a frame (too big, a long cell) or has no lettered cell. Digits are NOT
+    masked: a floor of 3 pages is only safe for grids that are identical, so small tables that
+    differ only in numbers (``25 °C`` / ``40 °C``) are different tables.
+    """
+    if el.kind != "table" or not el.rows or _frame_pieces(el) is None:
+        return None
+    keys = tuple(" ".join(fold(c).split()) for row in el.rows for c in row if c.strip())
+    if not any(_LETTER.search(k) for k in keys):
+        return None
+    return len(el.rows), len(el.rows[0]), keys
+
+
 def mark_repeated_header_footer(doc: StructuredDocument, config: CleanConfig) -> None:
     """The run of repeated elements at each page edge becomes header/footer.
 
@@ -105,7 +121,11 @@ def mark_repeated_header_footer(doc: StructuredDocument, config: CleanConfig) ->
     ``max(header_footer_min_pages, header_footer_ratio * page_count)`` pages. On each page the
     frame is the run of repeated elements from the top edge down and from the bottom edge up;
     the run stops at the first element that is not repeated, so a repeated line inside the body
-    is kept. A table counts as repeated when it is small and most of its lettered cells repeat.
+    is kept. A table counts as repeated when it is small and most of its lettered cells repeat,
+    or when the whole grid (same shape, same folded text, empty cells ignored) sits at a page
+    edge on at least ``header_footer_min_pages`` pages: an identical grid on 3+ pages is
+    stronger evidence than single repeated lines, which need the ``ratio`` share of the pages
+    (a letterhead table that the extractor returned as separate lines on the other pages).
     Skipped below ``header_footer_min_pages``: with one or two pages every edge line would
     repeat and the title and last paragraph would be removed.
     """
@@ -128,6 +148,12 @@ def mark_repeated_header_footer(doc: StructuredDocument, config: CleanConfig) ->
                 for key in group:
                     pages_of[key].add(page)
     needed = max(config.header_footer_min_pages, config.header_footer_ratio * doc.page_count)
+    table_keys = {i: _table_key(doc.elements[i]) for ids in by_page.values() for i in ids}
+    table_pages: dict[tuple[int, int, tuple[str, ...]], set[int]] = defaultdict(set)
+    for page, indexes in by_page.items():
+        for index in set(indexes[:_EDGE_WINDOW]) | set(indexes[-_EDGE_WINDOW:]):
+            if table_keys[index] is not None:
+                table_pages[table_keys[index]].add(page)
 
     def unit_repeats(group: list[str]) -> bool:
         return any(len(pages_of[key]) >= needed for key in group)
@@ -138,6 +164,9 @@ def mark_repeated_header_footer(doc: StructuredDocument, config: CleanConfig) ->
             return False
         if doc.elements[index].kind != "table":
             return unit_repeats(groups[0][1])
+        key = table_keys[index]
+        if key is not None and len(table_pages[key]) >= config.header_footer_min_pages:
+            return True
         # A header grid: most lettered cells repeat, every lettered row has a repeating cell and
         # the cells that do not repeat are short (split labels such as "TRA NINH BÌNH ...").
         # A body table whose column titles repeat on each page fails on its data rows.
@@ -243,6 +272,17 @@ def _is_motto_table(el: DocElement) -> bool:
     return any(p.search(fold(c)) for c in cells for p in _MOTTO)
 
 
+# Only ``_ - = * ~ .`` and whitespace; "Nội dung: ....", "- Không", "1." and "…" have more.
+_DECORATIVE_LINE = re.compile(r"^[_\-=*~.\s]+$")
+_MIN_DECORATIVE_CHARS = 3  # a lone "-" or "." is a value ("none"), not a rule
+
+
+def _is_decorative_line(text: str) -> bool:
+    text = text.strip()
+    return bool(_DECORATIVE_LINE.match(text)) \
+        and len("".join(text.split())) >= _MIN_DECORATIVE_CHARS
+
+
 def _mark(el: DocElement, role: str = "boilerplate") -> None:
     el.role = role  # type: ignore[assignment]
 
@@ -253,6 +293,12 @@ def mark_frame_blocks(doc: StructuredDocument) -> dict[int, str]:
     Returns ``{element index: kind}`` for the blocks this step marked.
     """
     kinds: dict[int, str] = {}
+    # A line of underscores/dashes/dots is a rule drawn as text, on any page. Marked first so it
+    # takes no slot in the leading/trailing windows below.
+    for index, el in enumerate(doc.elements):
+        if _in_body(el) and el.kind == "paragraph" and _is_decorative_line(el.text):
+            _mark(el)
+            kinds[index] = "decorative_line"
     body = [i for i, el in enumerate(doc.elements) if _in_body(el)]
     first_heading = next((i for i in body if doc.elements[i].kind == "heading"), None)
 

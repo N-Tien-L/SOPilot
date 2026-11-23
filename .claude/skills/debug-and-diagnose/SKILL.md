@@ -12,6 +12,7 @@ Rule: no fix without a confirmed cause. Write down the hypothesis, the evidence 
 - Exact request (method, path, which workspace/role), response body and status, and `traceId` from the error envelope (`{"error":{...},"traceId"}`).
 - The state of the stack: `docker compose ps -a` (Postgres 55432, MinIO 59000/59001). The apps run locally (`mvnw spring-boot:run -Dspring-boot.run.profiles=local`, `uv run uvicorn --app-dir src sopilot_ai.api.app:create_app --factory`, `PYTHONPATH=src uv run python -m sopilot_ai.worker`), or in compose as `core-api`, `ai-service`, `ai-worker` and `web` (V2-16); `./scripts/check-services.ps1` probes either.
 - `git log --oneline -15` for recent changes in the touched area.
+- Collecting is delegable, diagnosing is not: `docker compose logs`, `docker compose ps -a`, `check-services.ps1` and repo-wide searches may go to `Agent(subagent_type: "v2-runner", model: "haiku", effort: "low")`, which returns raw output only. Form and test the hypothesis yourself from that raw output.
 
 ## 2. Locate by symptom
 

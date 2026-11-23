@@ -30,6 +30,16 @@ def _expand(value: Any) -> Any:
     return _VAR.sub(lambda m: os.environ.get(m.group(1), m.group(2) or ""), value)
 
 
+def _optional_share(value: Any) -> float | None:
+    """A share in (0, 1], or ``None`` (also for an empty ``${VAR:}`` expansion) = switched off."""
+    if value in (None, "", "off", "false", False):
+        return None
+    share = float(value)
+    if not 0.0 < share <= 1.0:
+        raise ValueError("retrieval.query_translation_min_share must be in (0, 1] or empty")
+    return share
+
+
 @dataclass(frozen=True)
 class EmbeddingSpec:
     key: str
@@ -65,6 +75,9 @@ class RetrievalConfig:
     rrf_weights: tuple[float, float] = (1.0, 1.0)
     doc_code_boost: float = 0.02
     cross_lingual_bm25_factor: float = 1.0
+    # Translate the question into the other of vi/en when that language holds at least this share
+    # of the readable documents (§6.4b); None switches the extra LLM call off.
+    query_translation_min_share: float | None = 0.2
     thresholds: dict[str, float | None] = field(default_factory=lambda: {
         "dense": 0.45, "bm25": None, "hybrid": 0.45, "hybrid_rerank": 0.30})
 
@@ -193,6 +206,8 @@ class ModelsConfig:
             doc_code_boost=float(r.get("doc_code_boost", defaults.doc_code_boost)),
             cross_lingual_bm25_factor=float(
                 r.get("cross_lingual_bm25_factor", defaults.cross_lingual_bm25_factor)),
+            query_translation_min_share=_optional_share(
+                r.get("query_translation_min_share", defaults.query_translation_min_share)),
             thresholds=({k: (None if v in (None, "") else float(v)) for k, v in thresholds.items()}
                         if thresholds else dict(defaults.thresholds)),
         )

@@ -19,6 +19,12 @@ Checks
   4. Git prohibitions: force push, reset --hard, clean, --no-verify (also `-n`), hooksPath override.
   5. Shell writes to the guard itself and settings (`.claude/hooks`, `.claude/settings*.json`): ask.
   6. `--readonly` (v2-reviewer): shell commands must match a small read-only allowlist.
+  7. `--runner` (v2-runner): no file writes; shell commands must match the read-only allowlist plus the
+     repository build/test/check scripts, `mvnw clean|test|verify`, `uv run pytest|ruff check`,
+     `uv sync --locked|--frozen`, `pnpm lint|build|test|exec tsc|vitest|eslint` (no fixes) and Docker status/logs.
+  8. `--coder` (v2-coder): normal checks, plus no git/gh writes (status/diff/log only), no dependency
+     installs, no edits to dependency manifests/lockfiles, `docs/execution/**` or `.claude/**`, and every
+     ask verdict becomes a block (the coder reports back to the orchestrator instead of prompting).
 
 This is a guardrail against mistakes, not a sandbox. It parses commands into tokens; it does not
 evaluate them. Known gaps are listed in docs/quality/ and asserted as GAP cases in test_guard.py.
@@ -453,9 +459,132 @@ def readonly_segment(toks: list[str]) -> str | None:
     return f"`{toks[0]}` is not on the read-only allowlist"
 
 
+# ----------------------------------------------------------------------------- runner mode
+
+RUNNER_SCRIPTS = SCRIPTS | {"scripts/run-tests.ps1", "scripts/validate-build.ps1", "scripts/pre-commit-check.ps1",
+                            "scripts/check-services.ps1"}
+MVN_GOALS = {"clean", "test", "verify"}
+PNPM_SCRIPTS = {"lint", "build", "test"}
+PNPM_EXEC = {"tsc", "vitest", "eslint"}
+PNPM_VALUE_OPTS = {"--dir", "-c", "--filter", "-f"}
+FIX_FLAGS = ("--fix", "--fix-only", "--unsafe-fixes", "--add-noqa", "-u", "--update", "--updatesnapshot")
+DOCKER_READ = {"ps", "logs", "inspect", "images", "version", "info"}
+
+
+def runner_segment(toks: list[str]) -> str | None:
+    """None if the segment is allowed for the test runner, else a reason."""
+    low = [t.lower() for t in toks]
+    p = prog(toks[0])
+    norm = [t.replace("\\", "/").removeprefix("./").lower() for t in toks]
+    if p in ("powershell", "pwsh"):
+        for j, t in enumerate(norm):
+            if t in RUNNER_SCRIPTS:
+                return None if all(x in PS_FLAGS for x in norm[1:j]) else "unexpected PowerShell arguments"
+        return "only the repository scripts may run through PowerShell"
+    if norm[0] in RUNNER_SCRIPTS:
+        return None
+    if p in ("mvnw", "mvnw.cmd"):
+        goals = [a for a in low[1:] if not a.startswith("-")]
+        opts = [a for a in low[1:] if a.startswith("-")]
+        if goals and set(goals) <= MVN_GOALS and all(a in ("-q", "-b", "-o") or a.startswith("-d") for a in opts):
+            return None
+        return "only `mvnw [clean] test|verify` with -D/-q/-B options is allowed"
+    if p == "uv":
+        args = low[1:]
+        if args[:1] == ["sync"]:
+            return None if any(a in ("--locked", "--frozen") for a in args) else "`uv sync` needs --locked or --frozen"
+        if args[:1] != ["run"]:
+            return "only `uv run ...` and `uv sync --locked` are allowed"
+        rest = [a for a in args[1:] if a not in ("--extra", "dev", "pdf", "--locked", "--frozen")]
+        if rest[:2] == ["ruff", "check"] or rest[:3] == ["ruff", "format", "--check"]:
+            return None if not any(a in FIX_FLAGS for a in rest) else "ruff fixes files"
+        if rest[:1] == ["pytest"]:
+            return None
+        return "only ruff check and pytest may run through uv"
+    if p == "pnpm":
+        args, i = low[1:], 0
+        while i < len(args) and args[i].startswith("-"):
+            i += 2 if args[i] in PNPM_VALUE_OPTS else 1
+        words = args[i:]
+        if any(a in FIX_FLAGS for a in words):
+            return "pnpm command would fix or update files"
+        if words[:1] and words[0] in PNPM_SCRIPTS:
+            return None
+        if words[:1] == ["run"] and words[1:2] and words[1] in PNPM_SCRIPTS:
+            return None
+        if words[:1] == ["exec"] and words[1:2] and words[1] in PNPM_EXEC:
+            return None
+        return "only pnpm lint|build|test and exec tsc|vitest|eslint are allowed"
+    if p in ("docker", "docker-compose"):
+        words = [a for a in low[1:] if not a.startswith("-")]
+        if words[:1] == ["compose"]:
+            words = words[1:]
+        return None if words[:1] and words[0] in DOCKER_READ else "only Docker status and logs are allowed"
+    if p in ("python", "py") and norm[1:] == [".claude/hooks/test_guard.py"]:
+        return None
+    return readonly_segment(toks)
+
+
+# ----------------------------------------------------------------------------- coder mode
+
+DEP_MANIFESTS = {"pom.xml", "pyproject.toml", "uv.lock", "package.json", "pnpm-lock.yaml", "package-lock.json",
+                 "yarn.lock", "requirements.txt", "pnpm-workspace.yaml"}
+CODER_NO_EDIT = ("docs/execution/", ".claude/")
+INSTALLERS = {"pnpm": {"add", "install", "i", "update", "up", "remove", "rm", "dlx"},
+              "npm": None, "npx": None, "yarn": None, "pip": None, "pip3": None,
+              "uv": {"add", "remove", "pip", "lock", "tool"}, "uvx": None}
+GH_READ = {"view", "list", "status", "diff", "checks"}
+
+
+def repo_rel(path: str, cwd: str) -> str:
+    found = locate(path, cwd)
+    return (found[1] if found else path.replace("\\", "/")).lower().removeprefix("./")
+
+
+def coder_file_verdict(path: str, cwd: str) -> Verdict | None:
+    rel = repo_rel(path, cwd)
+    if last_component(rel) in DEP_MANIFESTS:
+        return "block", (f"'{path}' is a dependency manifest/lockfile: new dependencies need owner agreement "
+                         "(constraint 12). Report the need to the orchestrator.")
+    if any(rel.startswith(p) for p in CODER_NO_EDIT):
+        return "block", f"'{path}' is orchestrator-owned (ticket/PLAN status or agent config). Report instead."
+    return None
+
+
+def coder_segment(toks: list[str]) -> str | None:
+    """None if a coder may run the segment, else a reason. Runs after the normal checks."""
+    p = prog(toks[0])
+    low = [t.lower() for t in toks]
+    if p == "git":
+        i = 1
+        while i < len(toks) and toks[i].startswith("-"):
+            i += 2 if toks[i] in ("-C", "-c") else 1
+        if i >= len(toks):
+            return None
+        sub = low[i]
+        if sub == "branch":
+            return None if all(a in BRANCH_READ for a in low[i + 1:]) else "only listing branches is allowed"
+        return None if sub in GIT_READ else f"git {sub}: git writes belong to the orchestrator"
+    if p == "gh":
+        return None if len(low) > 2 and low[2] in GH_READ else "gh writes belong to the orchestrator"
+    if p in INSTALLERS:
+        subs = INSTALLERS[p]
+        args, i = low[1:], 0
+        while i < len(args) and args[i].startswith("-"):
+            i += 2 if args[i] in PNPM_VALUE_OPTS else 1
+        words = [a for a in args[i:] if not a.startswith("-")]
+        if subs is None or (words[:1] and words[0] in subs):
+            return f"`{p} {' '.join(words[:1])}` changes dependencies (constraint 12): report it to the orchestrator"
+    return None
+
+
 # ----------------------------------------------------------------------------- main check
 
-def check(event: dict, readonly: bool = False) -> Verdict | None:
+def check(event: dict, readonly: bool = False, mode: str | None = None) -> Verdict | None:
+    if readonly:
+        mode = "readonly"
+    readonly = mode in ("readonly", "runner")
+    strict = mode is not None  # asks become blocks: a subagent reports back instead of prompting
     tool = event.get("tool_name", "")
     data = event.get("tool_input") or {}
     if not isinstance(data, dict):
@@ -465,7 +594,7 @@ def check(event: dict, readonly: bool = False) -> Verdict | None:
 
     if tool in FILE_TOOLS:
         if readonly and tool in WRITE_TOOLS:
-            return "block", f"{tool} is not available to a read-only agent."
+            return "block", f"{tool} is not available to a read-only agent ({mode})."
         paths = [data.get(k) for k in ("file_path", "notebook_path", "path") if data.get(k)]
         globs = [data.get(k) for k in (("pattern",) if tool == "Glob" else ("glob",)) if isinstance(data.get(k), str)]
         for p in paths:
@@ -480,6 +609,10 @@ def check(event: dict, readonly: bool = False) -> Verdict | None:
                     return "block", (f"'{p}' is a committed Flyway migration: its checksum is already recorded. Add the "
                                      "next V<NNN>__<name>.sql in the same chain instead (skill flyway-migration). If the "
                                      "owner really wants this edit, they make it themselves.")
+                if mode == "coder":
+                    v = coder_file_verdict(str(p), cwd)
+                    if v:
+                        return v
         return None
 
     if tool in SHELL_TOOLS:
@@ -522,25 +655,36 @@ def check(event: dict, readonly: bool = False) -> Verdict | None:
                 return "block", f"The command writes to committed migration '{target}' (Flyway checksum). Add a new migration."
             if is_protected_config(target, cwd):
                 asks.append(("ask", f"The command writes to '{target}', part of the agent security configuration."))
+            if mode == "coder":
+                v = coder_file_verdict(target, cwd)
+                if v:
+                    return v
         if readonly:
-            if re.search(r"\$\(|`|<\(|\$\{", cmd) or ">" in re.sub(r"\d?>&\d|\d?>\s*(?:/dev/null|\$null)", "", cmd):
-                return "block", "Read-only agent: redirection and command substitution are not allowed."
-            for toks in segs:
-                why = readonly_segment(toks)
+            label = "Runner" if mode == "runner" else "Read-only agent"
+            harmless = re.sub(r"[\d*]?>&\d|\d?>\s*(?:/dev/null|\$null)", " ", cmd)  # stream merges, discards
+            if re.search(r"\$\(|`|<\(|\$\{", cmd) or ">" in harmless:
+                return "block", f"{label}: redirection and command substitution are not allowed."
+            for toks in segments(harmless):
+                why = runner_segment(toks) if mode == "runner" else readonly_segment(toks)
                 if why:
-                    return "block", f"Read-only agent: {why}."
+                    return "block", f"{label}: {why}."
+        if mode == "coder":
+            for toks in segs:
+                why = coder_segment(toks)
+                if why:
+                    return "block", f"Coder: {why}."
     if asks:
-        return ("block" if readonly else "ask"), asks[0][1]
+        return ("block" if strict else "ask"), asks[0][1]
     return None
 
 
 def main(argv: list[str]) -> int:
-    readonly = "--readonly" in argv
+    mode = next((m for m in ("readonly", "runner", "coder") if f"--{m}" in argv), None)
     try:
         event = json.load(sys.stdin)
         if not isinstance(event, dict):
             raise GuardError("hook input is not a JSON object")
-        verdict = check(event, readonly)
+        verdict = check(event, mode=mode)
     except Exception as exc:  # fail closed on anything unexpected
         sys.stderr.write(f"guard.py: {type(exc).__name__}: {exc}. Blocking because the guard cannot decide.\n")
         return 2

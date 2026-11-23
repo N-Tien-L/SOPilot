@@ -60,6 +60,7 @@ class PageSpan(BaseModel):
 
 
 class RenderedDocument(BaseModel):
+    file_type: Literal["PDF", "MD"] | None = None  # None = unknown: converter-style heading rules
     markdown: str
     elements: list[DocElement]
     page_index: list[PageSpan]

@@ -42,6 +42,17 @@ def is_article(title: str) -> bool:
     return bool(_ARTICLE.match(title.strip()))
 
 
+def is_article_line(node: Node) -> bool:
+    """A body line that opens like an article ("Điều 3. ..."), however long.
+
+    A short decision often has its articles as plain sentences, so the outline never promotes
+    them to headings (they are longer than a title). They still show that the document is legal.
+    """
+    if node.level is not None or node.el.kind not in ("paragraph", "list_item"):
+        return False
+    return is_article(_full_text(node.el))
+
+
 def _full_text(el: DocElement) -> str:
     if el.kind == "list_item" and el.number:
         return f"{el.number} {el.text}".strip()
@@ -69,8 +80,15 @@ def _classify(text: str, el: DocElement) -> tuple[int, str] | None:
         depth = number.count(".") + 1
         letters = [c for c in rest if c.isalpha()]
         words = len(rest.split())
-        if not letters or words > _MAX_PROMOTED_WORDS or rest.rstrip().endswith((".", ";", ",")):
+        body_ending = rest.rstrip().endswith((".", ";", ","))
+        # A colon rejects plain paragraphs only; converter headings and list items (which Docling
+        # uses for real numbered sub-headings) keep their numbered level and kind.
+        if rest.rstrip().endswith(":") and el.kind == "paragraph":
             return None
+        if not letters or words > _MAX_PROMOTED_WORDS or body_ending:
+            return None
+        if depth == 1 and text[match.end(1)] not in ".)":
+            return None  # "1 Nghị định ..." is a sentence, not a numbered title
         if depth > 1 or rest.isupper():
             return depth, "numbered"
         if depth == 1 and el.kind == "paragraph" and len(text) <= 60:
@@ -78,8 +96,14 @@ def _classify(text: str, el: DocElement) -> tuple[int, str] | None:
     return None
 
 
-def resolve_outline(elements: Sequence[DocElement]) -> list[Node]:
-    """One ``Node`` per rendered element, in order; headings carry a level and a title."""
+def resolve_outline(elements: Sequence[DocElement], file_type: str | None = None) -> list[Node]:
+    """One ``Node`` per rendered element, in order; headings carry a level and a title.
+
+    Markdown (``file_type="MD"``) states its structure: a heading is a ``#`` line and a numbered
+    line is a list item, so no paragraph or list item is promoted by pattern, and the all-caps
+    fallback is off. A converter (PDF, or ``None`` when unknown) only guesses structure, so the
+    numbering patterns and the fallback apply.
+    """
     nodes: list[Node] = []
     for el in elements:
         if el.char_start is None:
@@ -102,7 +126,8 @@ def resolve_outline(elements: Sequence[DocElement]) -> list[Node]:
                 node.level, node.kind = found
             elif trust_levels and (found := _classify(text, el)) and found[1] == "article":
                 node.kind = "article"
-        elif el.kind in ("paragraph", "list_item") and len(text) <= _MAX_PROMOTED_CHARS:
+        elif (file_type != "MD" and el.kind in ("paragraph", "list_item")
+              and len(text) <= _MAX_PROMOTED_CHARS):
             found = _classify(text, el)
             if found is None and _is_lone_numbered_title(nodes, position, text):
                 found = (1, "numbered")
@@ -110,7 +135,7 @@ def resolve_outline(elements: Sequence[DocElement]) -> list[Node]:
                 node.title, node.level, node.kind = text, found[0], found[1]
 
     _lift_numeric_below_roman(nodes)
-    if not any(n.level is not None for n in nodes):
+    if file_type != "MD" and not any(n.level is not None for n in nodes):
         _promote_all_caps(nodes)
     return nodes
 
