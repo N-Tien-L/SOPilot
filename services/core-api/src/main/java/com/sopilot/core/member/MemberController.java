@@ -4,6 +4,7 @@ import com.sopilot.core.common.ApiException;
 import com.sopilot.core.common.ApiResponse;
 import com.sopilot.core.member.MemberRepository.Member;
 import com.sopilot.core.security.AuthPrincipal;
+import com.sopilot.core.security.WorkspaceRole;
 import com.sopilot.core.workspace.WorkspaceRepository.MembershipStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/members")
 public class MemberController {
 
+    private static final java.util.Set<String> LIST_PARAMS = java.util.Set.of("status", "departmentId", "q", "role");
+
     private final MemberService service;
 
     public MemberController(MemberService service) {
@@ -37,7 +40,23 @@ public class MemberController {
     public ApiResponse<List<MemberView>> list(AuthPrincipal principal,
                                               @RequestParam(required = false) String status,
                                               @RequestParam(required = false) UUID departmentId,
-                                              @RequestParam(required = false) String q) {
+                                              @RequestParam(required = false) String q,
+                                              @RequestParam(required = false) String role,
+                                              @RequestParam java.util.Map<String, String> params) {
+        // An unknown filter must not silently return the full list (the caller would think it applied).
+        if (!LIST_PARAMS.containsAll(params.keySet())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                    "Unsupported query parameter. Allowed: status, departmentId, q, role.");
+        }
+        WorkspaceRole parsedRole = null;
+        if (role != null && !role.isBlank()) {
+            try {
+                parsedRole = WorkspaceRole.valueOf(role);
+            } catch (IllegalArgumentException e) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                        "Role must be OWNER, ADMIN or MEMBER.");
+            }
+        }
         MembershipStatus parsed = null;
         if (status != null && !status.isBlank()) {
             try {
@@ -46,7 +65,10 @@ public class MemberController {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Status must be ACTIVE or SUSPENDED.");
             }
         }
-        return ApiResponse.of(service.list(principal, parsed, departmentId, q).stream().map(MemberView::of).toList());
+        WorkspaceRole wanted = parsedRole;
+        return ApiResponse.of(service.list(principal, parsed, departmentId, q).stream()
+                .filter(m -> wanted == null || m.role() == wanted)
+                .map(MemberView::of).toList());
     }
 
     @GetMapping("/me")

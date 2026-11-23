@@ -241,6 +241,10 @@ public abstract class ApiIT {
         if (extraParams != null) {
             extraParams.forEach((k, v) -> v.forEach(val -> form.add(k, val)));
         }
+        // Upload requires an explicit visibility; default to WORKSPACE unless the test sets (or omits on purpose) it.
+        if (path.equals("/api/v1/documents") && (extraParams == null || !extraParams.containsKey("visibility"))) {
+            form.add("visibility", "WORKSPACE");
+        }
         return http.exchange(path, HttpMethod.POST, new HttpEntity<>(form, headers), JsonNode.class);
     }
 

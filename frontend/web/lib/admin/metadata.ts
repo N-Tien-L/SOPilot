@@ -9,8 +9,7 @@ export interface MetadataForm {
   description: string;
   language: string;
   categoryId: string;
-  /** Comma separated, as typed. */
-  tags: string;
+  preparedBy: string;
 }
 
 export function formFromDocument(doc: DocumentView): MetadataForm {
@@ -19,28 +18,8 @@ export function formFromDocument(doc: DocumentView): MetadataForm {
     description: doc.description ?? '',
     language: doc.language ?? '',
     categoryId: doc.category?.id ?? '',
-    tags: doc.tags.join(', '),
+    preparedBy: doc.preparedBy ?? '',
   };
-}
-
-/** Trimmed, de-duplicated (case-insensitively, first spelling wins), empty entries dropped. */
-export function parseTags(text: string): string[] {
-  const seen = new Set<string>();
-  const tags: string[] = [];
-  for (const raw of text.split(/[,\n]/)) {
-    const tag = raw.trim();
-    const key = tag.toLowerCase();
-    if (tag === '' || seen.has(key)) continue;
-    seen.add(key);
-    tags.push(tag);
-  }
-  return tags;
-}
-
-/** The server returns tags sorted, so order alone is not a change. */
-function sameTags(a: readonly string[], b: readonly string[]): boolean {
-  const key = (tags: readonly string[]) => [...tags].map((t) => t.toLowerCase()).sort().join('\u0000');
-  return a.length === b.length && key(a) === key(b);
 }
 
 /**
@@ -57,22 +36,21 @@ export function buildDocumentPatch(doc: DocumentView, form: MetadataForm): Docum
   const language = form.language.trim();
   if (language !== (doc.language ?? '')) patch.language = language === '' ? null : language;
   if (form.categoryId !== (doc.category?.id ?? '')) patch.categoryId = form.categoryId === '' ? null : form.categoryId;
-  const tags = parseTags(form.tags);
-  if (!sameTags(tags, doc.tags)) patch.tags = tags;
+  const preparedBy = form.preparedBy.trim();
+  if (preparedBy !== (doc.preparedBy ?? '')) patch.preparedBy = preparedBy === '' ? null : preparedBy;
   return patch;
 }
 
-export type MetadataErrors = Partial<Record<'description' | 'categoryId' | 'tags', string>>;
+export type MetadataErrors = Partial<Record<'description' | 'categoryId', string>>;
 
 /**
- * UI-only completeness rules: a description and at least one tag; a category only when the
- * workspace already has categories to choose from (V2-25 §2a).
+ * UI-only completeness rules: a description; a category only when the workspace already has
+ * categories to choose from (V2-25 §2a). There is no tag rule: tags are no longer part of the form.
  */
 export function validateMetadata(form: MetadataForm, hasCategories: boolean): MetadataErrors {
   const errors: MetadataErrors = {};
   if (form.description.trim() === '') errors.description = 'Add a short description.';
   if (hasCategories && form.categoryId === '') errors.categoryId = 'Choose a category.';
-  if (parseTags(form.tags).length === 0) errors.tags = 'Add at least one tag.';
   return errors;
 }
 

@@ -40,7 +40,7 @@ public class DocumentRepository {
             + "d.access_revision, d.current_version_id, d.latest_version_id, d.created_by, u.display_name AS creator_name, "
             + "d.created_at, d.updated_at, d.category_id, c.name AS category_name, "
             + "d.title_source, d.description_source, d.category_source, d.tags_source, d.language_source, "
-            + "d.owner_department_id, ds.title AS suggested_title, ds.proposed_category_name AS suggested_category, "
+            + "d.owner_department_id, d.prepared_by, ds.title AS suggested_title, ds.proposed_category_name AS suggested_category, "
             + "COALESCE((SELECT array_agg(t.name ORDER BY lower(t.name) ASC) FROM core.document_tags dt "
             + " JOIN core.tags t ON t.workspace_id = dt.workspace_id AND t.id = dt.tag_id "
             + " WHERE dt.workspace_id = d.workspace_id AND dt.document_id = d.id), ARRAY[]::text[]) AS doc_tags, "
@@ -89,7 +89,7 @@ public class DocumentRepository {
                     rs.getObject("created_by", UUID.class), rs.getString("creator_name"),
                     rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
                     version(rs, "lv_"), version(rs, "cv_"), category, tags, departments, fieldSources,
-                    rs.getObject("owner_department_id", UUID.class), suggestions);
+                    rs.getObject("owner_department_id", UUID.class), suggestions, rs.getString("prepared_by"));
         };
     }
 
@@ -142,7 +142,8 @@ public class DocumentRepository {
     }
 
     public List<DocumentDetail> listVisible(AuthPrincipal principal, String status, UUID categoryId, String tag,
-                                            String titleQuery, Cursor cursor, int limitPlusOne) {
+                                            String titleQuery, UUID ownerDepartmentId, String visibility,
+                                            Cursor cursor, int limitPlusOne) {
         StringBuilder sql = new StringBuilder(DETAIL_SELECT
                 + " WHERE d.workspace_id = ? AND d.deleted_at IS NULL AND " + VISIBLE);
         List<Object> args = new ArrayList<>(List.of(principal.workspaceId()));
@@ -156,6 +157,14 @@ public class DocumentRepository {
         if (categoryId != null) {
             sql.append(" AND d.category_id = ?");
             args.add(categoryId);
+        }
+        if (ownerDepartmentId != null) {
+            sql.append(" AND d.owner_department_id = ?");
+            args.add(ownerDepartmentId);
+        }
+        if (visibility != null) {
+            sql.append(" AND d.visibility = ?");
+            args.add(visibility);
         }
         if (tag != null && !tag.isBlank()) {
             sql.append(" AND EXISTS (SELECT 1 FROM core.document_tags dt "
@@ -314,6 +323,12 @@ public class DocumentRepository {
         return superseded;
     }
 
+    /** Who drafted the document (null clears it). Separate from {@link #updateMetadata}: it has no field source. */
+    public void setPreparedBy(UUID workspaceId, UUID documentId, String preparedBy) {
+        jdbc.update("UPDATE core.documents SET prepared_by = ? WHERE workspace_id = ? AND id = ?",
+                preparedBy, workspaceId, documentId);
+    }
+
     public void updateMetadata(UUID workspaceId, UUID documentId, String title, String titleSource, String description,
                                String descriptionSource, UUID categoryId, String categorySource, String language,
                                String languageSource, String tagsSource) {
@@ -438,14 +453,25 @@ public class DocumentRepository {
                                  long accessRevision, UUID createdBy, String creatorName, OffsetDateTime createdAt,
                                  OffsetDateTime updatedAt, VersionRow latest, VersionRow current,
                                  CategoryRef category, List<String> tags, List<DepartmentRef> departments,
-                                 FieldSources fieldSources, UUID ownerDepartmentId, Suggestions suggestions) {
+                                 FieldSources fieldSources, UUID ownerDepartmentId, Suggestions suggestions,
+                                 String preparedBy) {
+        public DocumentDetail(UUID id, String title, String description, String language, String visibility,
+                              long accessRevision, UUID createdBy, String creatorName, OffsetDateTime createdAt,
+                              OffsetDateTime updatedAt, VersionRow latest, VersionRow current,
+                              CategoryRef category, List<String> tags, List<DepartmentRef> departments,
+                              FieldSources fieldSources, UUID ownerDepartmentId, Suggestions suggestions) {
+            this(id, title, description, language, visibility, accessRevision, createdBy, creatorName, createdAt,
+                    updatedAt, latest, current, category, tags, departments, fieldSources, ownerDepartmentId,
+                    suggestions, null);
+        }
+
         public DocumentDetail(UUID id, String title, String description, String language, String visibility,
                               long accessRevision, UUID createdBy, String creatorName, OffsetDateTime createdAt,
                               OffsetDateTime updatedAt, VersionRow latest, VersionRow current,
                               CategoryRef category, List<String> tags, List<DepartmentRef> departments,
                               FieldSources fieldSources, UUID ownerDepartmentId) {
             this(id, title, description, language, visibility, accessRevision, createdBy, creatorName, createdAt,
-                    updatedAt, latest, current, category, tags, departments, fieldSources, ownerDepartmentId, null);
+                    updatedAt, latest, current, category, tags, departments, fieldSources, ownerDepartmentId, null, null);
         }
     }
 

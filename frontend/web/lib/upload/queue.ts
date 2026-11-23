@@ -15,8 +15,20 @@ export type UploadStatus = 'queued' | 'uploading' | 'processing' | 'ready' | 'fa
 /** Where a failed item failed: before it was stored (`upload`) or while processing a stored document. */
 export type FailureStage = 'client' | 'upload' | 'processing';
 
+/**
+ * Where a new document is published (ADR-009): the whole workspace (the workspace publisher), or one
+ * department that the uploader publishes for (that department's publisher). It cannot be changed later
+ * except by an owner, so it is chosen before the file is sent and kept for retries.
+ */
+export type UploadScope = { kind: 'WORKSPACE' } | { kind: 'DEPARTMENT'; departmentId: string };
+
+export const WORKSPACE_SCOPE: UploadScope = { kind: 'WORKSPACE' };
+
 export interface UploadItem {
   id: string;
+  scope: UploadScope;
+  /** Who drafted the content, typed once for the batch; empty lets core-api default it (a department document gets its department). */
+  preparedBy: string | null;
   file: FileRef;
   status: UploadStatus;
   failure: UploadFailure | null;
@@ -67,12 +79,17 @@ export interface AddResult {
  * Adds files up to the batch limit. A file that fails the client check still takes a slot and is
  * listed as failed with its own reason, so the user sees which file was refused and why.
  */
-export function addFiles(queue: UploadQueue, candidates: readonly { id: string; file: FileRef }[]): AddResult {
+export function addFiles(
+  queue: UploadQueue,
+  candidates: readonly { id: string; file: FileRef }[],
+  scope: UploadScope = WORKSPACE_SCOPE,
+  preparedBy: string | null = null,
+): AddResult {
   const room = Math.max(0, MAX_FILES_PER_BATCH - batchSize(queue));
   const accepted = candidates.slice(0, room);
   const added: UploadItem[] = accepted.map(({ id, file }) => {
     const problem = checkFile(file);
-    const base: UploadItem = { id, file, status: 'queued', failure: null, stage: null, documentId: null };
+    const base: UploadItem = { id, scope, preparedBy, file, status: 'queued', failure: null, stage: null, documentId: null };
     if (!problem) return base;
     return failed(base, 'client', { message: problem.message, action: 'replace', code: problem.code, traceId: null });
   });

@@ -7,7 +7,7 @@ import { Badge, Button, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleto
 import { createInvitation, revokeInvitation } from '@/lib/api/endpoints';
 import type { CreatedInvitation, InvitationView } from '@/lib/api/types';
 import { INVITABLE_ROLES, ROLE_LABEL, blankToNull, showDepartments } from '@/lib/admin/members';
-import { useDepartments, useInvalidate, useInvitations, useMembers } from '@/lib/query/hooks';
+import { useDepartments, useInvalidate, useInvitations } from '@/lib/query/hooks';
 import { useSessionStore } from '@/store/session-store';
 import { useAction } from './useAction';
 
@@ -64,13 +64,11 @@ function CreatedLink({ created, email, onDone }: { created: CreatedInvitation; e
 function InviteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (c: CreatedInvitation, email: string) => void }) {
   const invalidate = useInvalidate();
   const workspace = useSessionStore((s) => s.workspace);
-  const members = useMembers();
-  const withDepartments = showDepartments(workspace?.kind, members.data ? members.data.length : null);
+  const withDepartments = showDepartments(workspace?.kind);
   const departments = useDepartments(false, withDepartments);
   const { run, busy, error } = useAction();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('MEMBER');
-  const [displayName, setDisplayName] = useState('');
   const [employeeCode, setEmployeeCode] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [departmentId, setDepartmentId] = useState('');
@@ -81,7 +79,6 @@ function InviteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
     const input = {
       email: email.trim(),
       role,
-      ...(blankToNull(displayName) ? { displayName: displayName.trim() } : {}),
       ...(blankToNull(employeeCode) ? { employeeCode: employeeCode.trim() } : {}),
       ...(blankToNull(jobTitle) ? { jobTitle: jobTitle.trim() } : {}),
       ...(withDepartments && departmentId ? { departmentId } : {}),
@@ -96,7 +93,7 @@ function InviteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
   }
 
   return (
-    <Modal open onClose={onClose} title="Invite a member" description="They join with the role and profile you set here.">
+    <Modal open onClose={onClose} title="Invite a member" description="They sign in with Google and join with the role and department you set here. Their name comes from their Google account.">
       <form onSubmit={submit} className="space-y-3">
         <Input label="Email" type="email" required autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
         <Select
@@ -105,7 +102,6 @@ function InviteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
           value={role}
           onChange={(e) => setRole(e.target.value)}
         />
-        <Input label="Full name" maxLength={100} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         <Input label="Employee code" maxLength={50} value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)} />
         <Input label="Job title" maxLength={100} value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
         {withDepartments ? (

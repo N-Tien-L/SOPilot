@@ -15,7 +15,7 @@ export function ConversationList() {
   const router = useRouter();
   const pathname = usePathname();
   const activeId = pathname.startsWith('/chat/') ? pathname.slice('/chat/'.length) : null;
-  const { data, isLoading, isError, error } = useConversations();
+  const { data, isLoading, isError, error, refetch } = useConversations();
   const invalidate = useInvalidate();
   const [renaming, setRenaming] = useState<ConversationSummary | null>(null);
   const [title, setTitle] = useState('');
@@ -69,7 +69,7 @@ export function ConversationList() {
         </Link>
       </div>
       {isLoading ? <p className="px-3 py-1 text-xs text-sidebar-muted">Loading…</p> : null}
-      {isError ? <ErrorNote error={error} className="px-3 py-1 !text-danger-soft" /> : null}
+      {isError ? <ErrorNote error={error} className="px-3 py-1 !text-danger-soft" onRetry={() => void refetch()} /> : null}
       {data && data.length === 0 ? <p className="px-3 py-1 text-xs text-sidebar-muted">No conversations yet.</p> : null}
       <ul>
         {(data ?? []).map((c) => (

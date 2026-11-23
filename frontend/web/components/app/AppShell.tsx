@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, Flag, LogOut, Menu, MessageSquare, ScrollText, Settings, Users, X } from 'lucide-react';
+import { Building2, FileText, Flag, LogOut, Menu, MessageSquare, ScrollText, Settings, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { ConversationList } from '@/components/chat/ConversationList';
+import { showDepartments } from '@/lib/admin/members';
 import { restoreSession, signOut } from '@/lib/session/auth';
 import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useSessionStore } from '@/store/session-store';
@@ -17,12 +18,15 @@ interface NavItem {
   icon: React.ReactNode;
   /** Roles that see the item; the server stays the authority (C7). */
   roles?: readonly string[];
+  /** Hidden in a personal workspace, which has no departments. */
+  teamOnly?: boolean;
 }
 
 const NAV: NavItem[] = [
   { href: '/chat', label: 'Chat', icon: <MessageSquare size={16} aria-hidden /> },
   { href: '/documents', label: 'Documents', icon: <FileText size={16} aria-hidden /> },
   { href: '/members', label: 'Members', icon: <Users size={16} aria-hidden />, roles: ['OWNER', 'ADMIN'] },
+  { href: '/departments', label: 'Departments', icon: <Building2 size={16} aria-hidden />, roles: ['OWNER', 'ADMIN'], teamOnly: true },
   { href: '/gaps', label: 'Knowledge gaps', icon: <Flag size={16} aria-hidden />, roles: ['OWNER', 'ADMIN'] },
   { href: '/audit', label: 'Audit log', icon: <ScrollText size={16} aria-hidden />, roles: ['OWNER'] },
   { href: '/settings', label: 'Settings', icon: <Settings size={16} aria-hidden /> },
@@ -57,7 +61,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <main className="p-8 text-sm text-muted-foreground">Loading…</main>;
   }
 
-  const items = NAV.filter((n) => !n.roles || n.roles.includes(workspace.role));
+  const items = NAV.filter(
+    (n) => (!n.roles || n.roles.includes(workspace.role)) && !(n.teamOnly && !showDepartments(workspace.kind)),
+  );
   const nav = (
     <nav
       aria-label="Main"

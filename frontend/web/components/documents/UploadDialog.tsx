@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, FileText, Loader2, UploadCloud } from 'lucide-react';
-import { Button, Modal } from '@/components/ui';
+import { Button, Input, Modal } from '@/components/ui';
 import { formatBytes } from '@/lib/chat/labels';
 import {
   clearFinishedUploads,
@@ -16,6 +16,8 @@ import {
 } from '@/lib/upload/controller';
 import type { UploadItem } from '@/lib/upload/queue';
 import { batchSize, countItems, MAX_FILES_PER_BATCH } from '@/lib/upload/queue';
+import { uploadScopes } from '@/lib/admin/documentsLayout';
+import { useMyMember, usePublishers } from '@/lib/query/hooks';
 import { useUploadStore } from '@/store/upload-store';
 
 const ACCEPT = '.pdf,.md,.markdown,application/pdf,text/markdown';
@@ -183,6 +185,18 @@ export function UploadDialog() {
   const notice = useUploadStore((s) => s.notice);
   const picker = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const me = useMyMember();
+  const publishers = usePublishers();
+  const choices = uploadScopes(me.data?.publisherOf);
+  const [scopeKey, setScopeKey] = useState('');
+  const [preparedBy, setPreparedBy] = useState('');
+  const choice = choices.find((c) => c.key === scopeKey) ?? choices[0];
+  const departmentName = (id: string) => publishers.data?.departments.find((d) => d.departmentId === id)?.name ?? 'your department';
+  const choiceLabel = (c: (typeof choices)[number]) =>
+    c.scope.kind === 'WORKSPACE' ? 'Whole workspace (everyone can read)' : `${departmentName(c.scope.departmentId)} only (its members can read)`;
+  const addFilesToScope = (files: File[]) => {
+    if (choice) selectFiles(files, choice.scope, preparedBy.trim() === '' ? null : preparedBy.trim());
+  };
 
   const counts = countItems(queue);
   const full = batchSize(queue) >= MAX_FILES_PER_BATCH;
@@ -215,6 +229,44 @@ export function UploadDialog() {
       }
     >
       <div className="flex flex-col gap-4">
+        {choices.length === 0 ? (
+          <p role="alert" className="text-sm text-warning-foreground">
+            You are not a publisher here. Ask an owner to make you the publisher of your department or the workspace.
+          </p>
+        ) : (
+          <fieldset className="space-y-1 border-0 p-0">
+            <legend className="mb-1 text-sm font-medium">Who can read these documents</legend>
+            {choices.length === 1 ? (
+              <p className="text-sm">{choiceLabel(choices[0])}</p>
+            ) : (
+              <div role="radiogroup" aria-label="Who can read these documents" className="space-y-1 text-sm">
+                {choices.map((c) => (
+                  <label key={c.key} className="flex items-center gap-2">
+                    <input type="radio" name="upload-scope" checked={choice?.key === c.key} onChange={() => setScopeKey(c.key)} />
+                    {choiceLabel(c)}
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Only an owner can change this after upload. It applies to files you add from now on.
+            </p>
+          </fieldset>
+        )}
+        {choice ? (
+          <Input
+            label="Prepared by (optional)"
+            maxLength={100}
+            value={preparedBy}
+            onChange={(e) => setPreparedBy(e.target.value)}
+            placeholder={choice.scope.kind === 'DEPARTMENT' ? departmentName(choice.scope.departmentId) : 'For example: HR department'}
+            helperText={
+              choice.scope.kind === 'DEPARTMENT'
+                ? 'Who drafted these documents. Left empty, it is your department.'
+                : 'Who drafted these documents, so readers know where they come from. Applies to files you add from now on.'
+            }
+          />
+        ) : null}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -224,9 +276,9 @@ export function UploadDialog() {
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            selectFiles(Array.from(e.dataTransfer.files));
+            addFilesToScope(Array.from(e.dataTransfer.files));
           }}
-          className={`flex flex-col items-center gap-2 rounded-lg border-2 border-dashed text-center text-sm ${
+          className={`flex flex-col items-center gap-2 rounded-lg border-2 border-dashed text-center text-sm ${choice ? '' : 'pointer-events-none opacity-50 '}${
             full ? 'p-3' : 'p-5'
           } ${dragging ? 'border-primary bg-primary-soft' : 'border-input bg-muted'}`}
         >
@@ -248,7 +300,7 @@ export function UploadDialog() {
             tabIndex={-1}
             aria-label="Files to upload"
             onChange={(e) => {
-              selectFiles(Array.from(e.target.files ?? []));
+              addFilesToScope(Array.from(e.target.files ?? []));
               e.target.value = '';
             }}
           />

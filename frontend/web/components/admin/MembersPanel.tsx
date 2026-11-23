@@ -2,12 +2,23 @@
 
 import { useState, type FormEvent } from 'react';
 import { ErrorNote } from '@/components/app/ErrorNote';
-import { Badge, Button, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton } from '@/components/ui';
+import { Badge, Button, Checkbox, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton } from '@/components/ui';
 import { reactivateMember, removeMember, suspendMember, updateMember } from '@/lib/api/endpoints';
 import type { MemberView, WorkspaceRole } from '@/lib/api/types';
-import { ROLE_LABEL, assignableRoles, blankToNull, canActOnMember, showDepartments } from '@/lib/admin/members';
+import {
+  NO_DEPARTMENT,
+  ROLE_LABEL,
+  assignableRoles,
+  blankToNull,
+  canActOnMember,
+  canEditProfile,
+  filterMembers,
+  showDepartments,
+  type MemberFilters,
+} from '@/lib/admin/members';
 import { useDepartments, useInvalidate, useMembers } from '@/lib/query/hooks';
 import { useSessionStore } from '@/store/session-store';
+import { moveMembers } from './moveMembers';
 import { useAction } from './useAction';
 
 type Pending = { kind: 'suspend' | 'reactivate' | 'remove'; member: MemberView };
@@ -94,6 +105,8 @@ function EditMemberDialog({
   );
 }
 
+const NO_FILTERS: MemberFilters = { q: '', role: '', status: '', departmentId: '' };
+
 export function MembersPanel() {
   const { data, isLoading, isError, error } = useMembers();
   const me = useSessionStore((s) => s.user);
@@ -101,13 +114,63 @@ export function MembersPanel() {
   const invalidate = useInvalidate();
   const [editing, setEditing] = useState<MemberView | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [filters, setFilters] = useState<MemberFilters>(NO_FILTERS);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [target, setTarget] = useState('');
+  const [moveNote, setMoveNote] = useState<{ moved: number; failed: number } | null>(null);
   const action = useAction();
+  const bulk = useAction();
   const actorRole = workspace?.role ?? 'MEMBER';
-  const withDepartments = showDepartments(workspace?.kind, data ? data.length : null);
+  const withDepartments = showDepartments(workspace?.kind);
+  const departments = useDepartments(false, withDepartments);
 
   if (isLoading) return <Skeleton count={4} height={40} />;
   if (isError) return <ErrorNote error={error} />;
   if (!data || data.length === 0) return <EmptyState title="No members" />;
+
+  const rows = filterMembers(data, filters);
+  const editable = rows.filter((m) => canEditProfile(actorRole, m.role, m.userId === me?.id));
+  const allShownSelected = editable.length > 0 && editable.every((m) => selected.has(m.userId));
+  const filtered = JSON.stringify(filters) !== JSON.stringify(NO_FILTERS);
+  const set = (key: keyof MemberFilters) => (value: string) => setFilters((f) => ({ ...f, [key]: value }));
+
+  function toggle(userId: string, on: boolean) {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (on) next.add(userId);
+      else next.delete(userId);
+      return next;
+    });
+  }
+  function toggleAllShown(on: boolean) {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      for (const m of editable) {
+        if (on) next.add(m.userId);
+        else next.delete(m.userId);
+      }
+      return next;
+    });
+  }
+
+  async function moveSelected() {
+    const ids = [...selected];
+    setMoveNote(null);
+    const box: { done: Awaited<ReturnType<typeof moveMembers>> | null } = { done: null };
+    await bulk.run(async () => {
+      box.done = await moveMembers(ids, target === NO_DEPARTMENT ? null : target);
+    });
+    const done = box.done;
+    if (!done) return;
+    await invalidate('members');
+    await invalidate('publishers');
+    await invalidate('departments');
+    await invalidate('member-me');
+    setMoveNote({ moved: done.moved.length, failed: done.failed.length });
+    // Keep the people that could not be moved selected so the action can be repeated for them.
+    setSelected(new Set(done.failed.map((f) => f.userId)));
+    if (done.failed.length === 0) setTarget('');
+  }
 
   async function confirm() {
     if (!pending) return;
@@ -117,6 +180,11 @@ export function MembersPanel() {
     if (ok) {
       await invalidate('members');
       await invalidate('publishers');
+      setSelected((cur) => {
+        const next = new Set(cur);
+        next.delete(member.userId);
+        return next;
+      });
       setPending(null);
     }
   }
@@ -135,81 +203,259 @@ export function MembersPanel() {
     },
   };
 
+  // The same buttons for the table row (desktop) and the card (phone). One line, never wrapped.
+  function actionButtons(m: MemberView) {
+    const isSelf = m.userId === me?.id;
+    const canAct = canActOnMember(actorRole, m.role, isSelf);
+    const mayEdit = canEditProfile(actorRole, m.role, isSelf);
+    const suspended = m.status !== 'ACTIVE';
+    if (!mayEdit && !canAct) return null;
+    return (
+      <div className="flex flex-nowrap justify-end gap-1 whitespace-nowrap">
+        {mayEdit ? (
+          <Button size="sm" variant="ghost" onClick={() => setEditing(m)}>
+            Edit
+          </Button>
+        ) : null}
+        {canAct ? (
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                action.reset();
+                setPending({ kind: suspended ? 'reactivate' : 'suspend', member: m });
+              }}
+            >
+              {suspended ? 'Reactivate' : 'Suspend'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                action.reset();
+                setPending({ kind: 'remove', member: m });
+              }}
+            >
+              Remove
+            </Button>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
+  const departmentOptions = [
+    { value: NO_DEPARTMENT, label: 'No department' },
+    ...(departments.data ?? []).map((d) => ({ value: d.id, label: d.name })),
+  ];
+
   return (
     <>
-      <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
-        <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
-          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th scope="col" className="px-3 py-2">Name</th>
-              <th scope="col" className="px-3 py-2">Employee ID</th>
-              <th scope="col" className="px-3 py-2">Job title</th>
-              {withDepartments ? <th scope="col" className="px-3 py-2">Department</th> : null}
-              <th scope="col" className="px-3 py-2">Role</th>
-              <th scope="col" className="px-3 py-2">Status</th>
-              <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((m) => {
-              const isSelf = m.userId === me?.id;
-              const canAct = canActOnMember(actorRole, m.role, isSelf);
-              const suspended = m.status !== 'ACTIVE';
-              return (
-                <tr key={m.userId} className="border-t border-border align-top">
-                  <td className="px-3 py-2">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <input
+          aria-label="Search members"
+          placeholder="Search name, email or employee ID"
+          value={filters.q}
+          onChange={(e) => set('q')(e.target.value)}
+          className="h-10 w-72 rounded-md border border-input bg-card px-3 text-sm"
+        />
+        <div className="w-36">
+          <Select
+            aria-label="Role"
+            placeholder="All roles"
+            allowEmpty
+            options={(Object.keys(ROLE_LABEL) as WorkspaceRole[]).map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
+            value={filters.role}
+            onChange={(e) => set('role')(e.target.value)}
+          />
+        </div>
+        <div className="w-40">
+          <Select
+            aria-label="Status"
+            placeholder="All statuses"
+            allowEmpty
+            options={[
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'SUSPENDED', label: 'Suspended' },
+            ]}
+            value={filters.status}
+            onChange={(e) => set('status')(e.target.value)}
+          />
+        </div>
+        {withDepartments ? (
+          <div className="w-52">
+            <Select
+              aria-label="Department"
+              placeholder="All departments"
+              allowEmpty
+              options={departmentOptions}
+              value={filters.departmentId}
+              onChange={(e) => set('departmentId')(e.target.value)}
+            />
+          </div>
+        ) : null}
+        {filtered ? (
+          <Button size="sm" variant="ghost" onClick={() => setFilters(NO_FILTERS)}>
+            Clear filters
+          </Button>
+        ) : null}
+        <span role="status" className="text-sm text-muted-foreground">
+          {filtered ? `${rows.length} of ${data.length} members` : `${data.length} members`}
+        </span>
+      </div>
+
+      {selected.size > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted p-3 text-sm">
+          <span className="font-medium">{selected.size} selected</span>
+          {withDepartments ? (
+            <>
+              <div className="w-56">
+                <Select
+                  aria-label="Move selected to department"
+                  placeholder="Move to department"
+                  options={departmentOptions}
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                />
+              </div>
+              <Button size="sm" variant="primary" disabled={target === ''} loading={bulk.busy} onClick={() => void moveSelected()}>
+                Move
+              </Button>
+            </>
+          ) : null}
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            A person is in one department, so moving leaves the old one and ends any publisher role there.
+          </span>
+        </div>
+      ) : null}
+      {moveNote ? (
+        <p role="status" className={`mb-3 text-sm ${moveNote.failed > 0 ? 'text-warning-foreground' : 'text-success-foreground'}`}>
+          {moveNote.moved} moved{moveNote.failed > 0 ? `, ${moveNote.failed} could not be moved and stay selected` : ''}.
+        </p>
+      ) : null}
+      {bulk.error ? <ErrorNote error={bulk.error} className="mb-3" /> : null}
+
+      {rows.length === 0 ? (
+        <EmptyState title="No members match" description="Change the search or clear the filters." />
+      ) : (
+        <div className="relative hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
+          <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
+            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th scope="col" className="w-10 px-3 py-2">
+                  <Checkbox
+                    aria-label="Select all shown"
+                    checked={allShownSelected}
+                    disabled={editable.length === 0}
+                    onChange={(e) => toggleAllShown(e.target.checked)}
+                  />
+                </th>
+                <th scope="col" className="px-3 py-2">Name</th>
+                <th scope="col" className="px-3 py-2">Employee ID</th>
+                <th scope="col" className="px-3 py-2">Job title</th>
+                {withDepartments ? <th scope="col" className="px-3 py-2">Department</th> : null}
+                <th scope="col" className="px-3 py-2">Role</th>
+                <th scope="col" className="px-3 py-2">Status</th>
+                <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((m) => {
+                const isSelf = m.userId === me?.id;
+                const mayEdit = canEditProfile(actorRole, m.role, isSelf);
+                const suspended = m.status !== 'ACTIVE';
+                return (
+                  <tr key={m.userId} className="border-t border-border align-top">
+                    <td className="px-3 py-2">
+                      {mayEdit ? (
+                        <Checkbox
+                          aria-label={`Select ${m.displayName}`}
+                          checked={selected.has(m.userId)}
+                          onChange={(e) => toggle(m.userId, e.target.checked)}
+                        />
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">
+                        {m.displayName}
+                        {isSelf ? <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span> : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{m.email}</div>
+                    </td>
+                    <td className="px-3 py-2">{m.employeeCode ?? '-'}</td>
+                    <td className="px-3 py-2">{m.jobTitle ?? '-'}</td>
+                    {withDepartments ? <td className="px-3 py-2">{m.departmentName ?? '-'}</td> : null}
+                    <td className="px-3 py-2">{ROLE_LABEL[m.role] ?? m.role}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant={suspended ? 'warning' : 'success'}>{suspended ? 'Suspended' : 'Active'}</Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      {actionButtons(m)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {rows.length > 0 ? (
+        <ul className="space-y-3 md:hidden" aria-label="Members">
+          {rows.map((m) => {
+            const isSelf = m.userId === me?.id;
+            const mayEdit = canEditProfile(actorRole, m.role, isSelf);
+            const suspended = m.status !== 'ACTIVE';
+            return (
+              <li key={m.userId} className="rounded-lg border border-border bg-card p-3 text-sm">
+                <div className="flex items-start gap-3">
+                  {mayEdit ? (
+                    <Checkbox
+                      aria-label={`Select ${m.displayName}`}
+                      checked={selected.has(m.userId)}
+                      onChange={(e) => toggle(m.userId, e.target.checked)}
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
                     <div className="font-medium">
                       {m.displayName}
                       {isSelf ? <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span> : null}
                     </div>
-                    <div className="text-xs text-muted-foreground">{m.email}</div>
-                  </td>
-                  <td className="px-3 py-2">{m.employeeCode ?? '-'}</td>
-                  <td className="px-3 py-2">{m.jobTitle ?? '-'}</td>
-                  {withDepartments ? <td className="px-3 py-2">{m.departmentName ?? '-'}</td> : null}
-                  <td className="px-3 py-2">{ROLE_LABEL[m.role] ?? m.role}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant={suspended ? 'warning' : 'success'}>{suspended ? 'Suspended' : 'Active'}</Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {isSelf || canAct ? (
-                        <Button size="sm" variant="ghost" onClick={() => setEditing(m)}>
-                          Edit
-                        </Button>
-                      ) : null}
-                      {canAct ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              action.reset();
-                              setPending({ kind: suspended ? 'reactivate' : 'suspend', member: m });
-                            }}
-                          >
-                            {suspended ? 'Reactivate' : 'Suspend'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              action.reset();
-                              setPending({ kind: 'remove', member: m });
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    <div className="break-all text-xs text-muted-foreground">{m.email}</div>
+                  </div>
+                  <Badge variant={suspended ? 'warning' : 'success'}>{suspended ? 'Suspended' : 'Active'}</Badge>
+                </div>
+                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                  <dt className="text-muted-foreground">Role</dt>
+                  <dd>{ROLE_LABEL[m.role] ?? m.role}</dd>
+                  {withDepartments ? (
+                    <>
+                      <dt className="text-muted-foreground">Department</dt>
+                      <dd>{m.departmentName ?? '-'}</dd>
+                    </>
+                  ) : null}
+                  {m.employeeCode ? (
+                    <>
+                      <dt className="text-muted-foreground">Employee ID</dt>
+                      <dd>{m.employeeCode}</dd>
+                    </>
+                  ) : null}
+                  {m.jobTitle ? (
+                    <>
+                      <dt className="text-muted-foreground">Job title</dt>
+                      <dd>{m.jobTitle}</dd>
+                    </>
+                  ) : null}
+                </dl>
+                <div className="mt-2">{actionButtons(m)}</div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       {editing ? (
         <EditMemberDialog member={editing} actorRole={actorRole} withDepartments={withDepartments} onClose={() => setEditing(null)} />
       ) : null}

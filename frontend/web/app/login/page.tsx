@@ -48,7 +48,7 @@ export default function LoginPage() {
             });
           },
         });
-        gsi.renderButton(buttonHost.current, { theme: 'outline', size: 'large', text: 'signin_with', width: 280 });
+        gsi.renderButton(buttonHost.current, { theme: 'outline', size: 'large', text: 'signin_with', width: 280, locale: 'en' });
       } catch {
         if (!cancelled) setGoogleError('Google sign-in could not be loaded. Check your connection and reload.');
       }

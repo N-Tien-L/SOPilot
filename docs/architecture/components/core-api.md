@@ -700,10 +700,10 @@ A department move takes effect at the next refresh (≤ 15 minutes). Deactivatin
 
 | Method & path | Access | Notes |
 |---|---|---|
-| `POST /api/v1/documents` | OWNER, ADMIN | Multipart: `file`, `visibility` (default `WORKSPACE`), `departmentIds[]`, `title?`, `categoryId?`, `tags[]?` |
+| `POST /api/v1/documents` | OWNER, ADMIN | Multipart: `file`, `visibility` (required, `WORKSPACE` or `DEPARTMENTS`; omitted is `400 VALIDATION_FAILED`, so a missing field never publishes to the whole workspace), `departmentIds[]`, `ownerDepartmentId?`, `title?`, `categoryId?`, `tags[]?`, `preparedBy?` (who drafted the content, at most 100 characters; empty on a department document defaults to the owning department's name) |
 | `POST /api/v1/documents/{id}/versions` | OWNER, ADMIN | Upload a replacement for the document the user chose; `200` (repeated send while processing), `409 VERSION_IN_PROGRESS`, `409 DOCUMENT_UNCHANGED`, `409 DUPLICATE_DOCUMENT` per §3.3 |
 | `POST /api/v1/documents/{id}/retry` | OWNER, ADMIN | Only when the latest version is `FAILED`; increments `attempt`, moves the version back to `UPLOADED`, creates an `INGEST_REQUESTED` outbox event carrying the new `attempt`. Calling it again once the version has left `FAILED` → `409 VERSION_NOT_FAILED` (a double click does not create two jobs) |
-| `GET /api/v1/documents` | Member | Read-access filter (§5.6), filter by `status`, `categoryId`, `tag`, `q` (title) |
+| `GET /api/v1/documents` | Member | Read-access filter (§5.6), filter by `status`, `categoryId`, `tag`, `q` (title), `visibility` (`WORKSPACE`/`DEPARTMENTS`) and `ownerDepartmentId` (OWNER/ADMIN, or a member of that department; others get `403 FORBIDDEN`, so a member cannot probe which department owns what they can read) |
 | `GET /api/v1/documents/{id}` | Member with read access | `404` if outside access |
 | `GET /api/v1/documents/{id}/download-url` | Member with read access | `{url, expiresAt}`, a pre-signed S3 URL valid `≤ 300 s`, `Content-Disposition` with the original name. Optional `?disposition=attachment\|inline` (default `attachment`; any other value `400 VALIDATION_FAILED`): `inline` signs `Content-Disposition: inline` so the frontend can show the PDF in the browser's native viewer (V2-32); the content type is the one core-api stored for the validated file type |
 | `GET /api/v1/documents/{id}/versions` | OWNER, ADMIN | Version history and `FAILED` reasons |
@@ -721,7 +721,7 @@ The returned `Document` object:
 
 ```json
 {
-  "id": "…", "title": "Quy trình mua hàng", "description": null,
+  "id": "…", "title": "Quy trình mua hàng", "description": null, "preparedBy": "Phòng Mua sắm",
   "category": { "id": "…", "name": "Mua sắm" }, "tags": ["ISO", "mua hàng"],
   "language": "vi", "visibility": "DEPARTMENTS", "departments": [ { "id": "…", "name": "Kế toán" } ],
   "status": "READY", "answerable": true,
@@ -742,7 +742,7 @@ The returned `Document` object:
 
 | Method & path | Access | Notes |
 |---|---|---|
-| `PATCH /api/v1/documents/{id}` | OWNER, ADMIN | Edit `title`, `description`, `categoryId`, `tags[]`, `language`; edited fields get source `USER`. Does not call ai-service, except for `language` when BM25 is configured per language (currently not, see TECH-V2-ai-service §6.3) |
+| `PATCH /api/v1/documents/{id}` | OWNER, ADMIN | Edit `title`, `description`, `categoryId`, `tags[]`, `language`, `preparedBy` (`null` or blank clears it); edited fields get source `USER`, except `preparedBy`, which has none. Does not call ai-service, except for `language` when BM25 is configured per language (currently not, see TECH-V2-ai-service §6.3) |
 | `PUT /api/v1/documents/{id}/visibility` | OWNER, ADMIN | `{visibility, departmentIds[]}`; flow §2.3; response `{accessSync: APPLIED|PENDING}` |
 | `POST /api/v1/documents/{id}/suggestion/apply` | OWNER, ADMIN | Accept the selected suggested fields: `{fields: ["description","category"]}`; the source becomes `USER` |
 | `GET/POST/PATCH/DELETE /api/v1/categories[/{id}]` | Read: member; write: OWNER, ADMIN | Flat; `ARCHIVED` cannot be newly assigned |

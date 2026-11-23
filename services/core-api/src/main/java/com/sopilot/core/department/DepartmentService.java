@@ -107,7 +107,8 @@ public class DepartmentService {
     private static String validName(String raw) {
         String name = raw == null ? "" : raw.trim();
         if (name.isEmpty() || name.length() > MAX_NAME) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Department name must be 1-100 characters.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Department name is invalid.",
+                    Map.of("fields", Map.of("name", "Name must be between 1 and " + MAX_NAME + " characters.")));
         }
         return name;
     }

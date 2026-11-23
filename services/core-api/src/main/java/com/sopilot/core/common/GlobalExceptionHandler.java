@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -76,6 +77,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMissingPart(Exception e) {
         return ResponseEntity.badRequest().body(ApiErrorResponse.of(
                 "VALIDATION_FAILED", "A required part of the request is missing.", Map.of()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        // Parameter name only: the rejected value is client input and is never echoed back.
+        return ResponseEntity.badRequest().body(ApiErrorResponse.of(
+                "VALIDATION_FAILED", "A parameter has an invalid value.",
+                Map.of("fields", Map.of(String.valueOf(e.getName()), "invalid"))));
     }
 
     @ExceptionHandler(Exception.class)

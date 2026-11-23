@@ -52,9 +52,15 @@ public class DocumentController {
                                                             @RequestParam(required = false) UUID categoryId,
                                                             @RequestParam(required = false) List<String> tags,
                                                             @RequestParam(required = false) String title,
-                                                            @RequestParam(required = false) UUID ownerDepartmentId) {
+                                                            @RequestParam(required = false) UUID ownerDepartmentId,
+                                                            @RequestParam(required = false) String preparedBy) {
+        // Sensitive choice: an omitted field must not silently publish the document to the whole workspace.
+        if (visibility == null || visibility.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                    "Visibility is required: WORKSPACE or DEPARTMENTS.");
+        }
         UploadResult result = service.upload(principal, file.getOriginalFilename(), bytes(file),
-                visibility, departmentIds, categoryId, tags, title, ownerDepartmentId);
+                visibility, departmentIds, categoryId, tags, title, ownerDepartmentId, preparedBy);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(result.document()));
     }
 
@@ -77,12 +83,18 @@ public class DocumentController {
                                            @RequestParam(required = false) UUID categoryId,
                                            @RequestParam(required = false) String tag,
                                            @RequestParam(required = false) String q,
+                                           @RequestParam(required = false) UUID ownerDepartmentId,
+                                           @RequestParam(required = false) String visibility,
                                            @RequestParam(required = false) String cursor,
                                            @RequestParam(required = false) Integer limit) {
         if (status != null && !STATUSES.contains(status)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Status filter is invalid.");
         }
-        DocumentPage page = service.list(principal, status, categoryId, tag, q, Cursor.decode(cursor), Cursor.limit(limit));
+        if (visibility != null && !Set.of("WORKSPACE", "DEPARTMENTS").contains(visibility)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Visibility filter is invalid.");
+        }
+        DocumentPage page = service.list(principal, status, categoryId, tag, q, ownerDepartmentId, visibility,
+                Cursor.decode(cursor), Cursor.limit(limit));
         return PageResponse.of(page.items(), page.nextCursor(), page.hasMore());
     }
 

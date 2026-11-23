@@ -20,7 +20,7 @@ import java.util.UUID;
  * were not applied: the title and a new category name), and {@code latestVersion.failure*} are for
  * OWNER/ADMIN and for the publisher responsible for the document (TECH §15.3); other readers get {@code null}.
  */
-public record DocumentView(UUID id, String title, String description,
+public record DocumentView(UUID id, String title, String description, String preparedBy,
                            CategoryRef category, List<String> tags,
                            String language, String visibility,
                            List<DepartmentRef> departments,
@@ -56,7 +56,7 @@ public record DocumentView(UUID id, String title, String description,
             owner = d.departments().stream().filter(x -> x.id().equals(d.ownerDepartmentId())).findFirst()
                     .orElse(new DepartmentRef(d.ownerDepartmentId(), null));
         }
-        return new DocumentView(d.id(), d.title(), d.description(),
+        return new DocumentView(d.id(), d.title(), d.description(), d.preparedBy(),
                 d.category(), d.tags() == null ? List.of() : d.tags(),
                 d.language(), d.visibility(),
                 manager ? d.departments() : null,

@@ -51,7 +51,7 @@ beforeEach(() => {
   pending = [];
   vi.clearAllMocks();
   upload.mockImplementation(
-    (file, abort) => new Promise<DocumentView>((resolve, reject) => pending.push({ file, signal: abort, resolve, reject })),
+    (file, _scope, _preparedBy, abort) => new Promise<DocumentView>((resolve, reject) => pending.push({ file, signal: abort, resolve, reject })),
   );
   useSessionStore.setState({ workspace: workspace('w1') });
 });
@@ -94,6 +94,21 @@ describe('controller: concurrency', () => {
     await flush();
     const item = useUploadStore.getState().queue.items[0];
     expect(item.failure).toMatchObject({ action: 'none', existing: { documentId: 'd9', title: 'Safety SOP' } });
+  });
+});
+
+describe('controller: publishing scope', () => {
+  it('sends each file to the scope chosen when it was added, and keeps it for a resend', async () => {
+    selectFiles(files(1), { kind: 'DEPARTMENT', departmentId: 'd1' });
+    expect(upload).toHaveBeenLastCalledWith(expect.any(File), { kind: 'DEPARTMENT', departmentId: 'd1' }, null, expect.anything());
+    selectFiles(files(1));
+    expect(upload).toHaveBeenLastCalledWith(expect.any(File), { kind: 'WORKSPACE' }, null, expect.anything());
+  });
+
+  it('sends who prepared the content with each file of the batch', () => {
+    selectFiles(files(2), { kind: 'WORKSPACE' }, 'HR department');
+    expect(upload).toHaveBeenCalledTimes(2);
+    for (const call of upload.mock.calls) expect(call[2]).toBe('HR department');
   });
 });
 

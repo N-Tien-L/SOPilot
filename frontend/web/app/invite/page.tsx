@@ -8,7 +8,8 @@ import { useAction } from '@/components/admin/useAction';
 import { Button } from '@/components/ui';
 import { acceptInvitation } from '@/lib/api/endpoints';
 import { clearInviteToken, holdInviteToken, peekInviteToken, readInviteToken } from '@/lib/admin/invite';
-import { adoptSession } from '@/lib/session/auth';
+import { ApiError } from '@/lib/api/errors';
+import { adoptSession, signOut } from '@/lib/session/auth';
 import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { ROLE_LABEL } from '@/lib/admin/members';
 import { useSessionStore } from '@/store/session-store';
@@ -21,6 +22,7 @@ export default function InvitePage() {
   const router = useRouter();
   const status = useSessionStore((s) => s.status);
   const pending = useSessionStore((s) => s.pendingInvitations);
+  const email = useSessionStore((s) => s.user?.email ?? null);
   // The token is taken from the fragment on first render and kept in memory. Nothing renders it
   // before the session is known, so the server-rendered markup does not depend on it.
   const [token] = useState<string | null>(() => {
@@ -48,6 +50,19 @@ export default function InvitePage() {
       router.replace('/chat');
     }
   }
+
+  // The link belongs to another account: sign out, keep the link in memory and go to the sign-in page.
+  async function switchAccount() {
+    const held = token;
+    try {
+      await signOut();
+    } finally {
+      if (held) holdInviteToken(held);
+      router.replace('/login');
+    }
+  }
+
+  const wrongAccount = error instanceof ApiError && error.code === 'INVITATION_EMAIL_MISMATCH';
 
   let body: React.ReactNode;
   if (status === 'unknown') {
@@ -103,6 +118,16 @@ export default function InvitePage() {
           </p>
         ) : null}
         {error ? <ErrorNote error={error} /> : null}
+        {wrongAccount ? (
+          <div className="space-y-2 rounded-lg border border-border bg-muted p-3 text-sm">
+            <p>
+              You are signed in as <strong>{email ?? 'this account'}</strong>. Sign in with the account the invitation was sent to.
+            </p>
+            <Button variant="secondary" size="sm" onClick={() => void switchAccount()}>
+              Sign out and use another account
+            </Button>
+          </div>
+        ) : null}
       </div>
     );
   }
