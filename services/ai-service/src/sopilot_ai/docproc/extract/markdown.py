@@ -15,6 +15,7 @@ from sopilot_ai.docproc.model import DocElement, StructuredDocument
 
 _FRONTMATTER = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.DOTALL)
 _SHORTCODE = re.compile(r"\{\{[<%].*?[>%]\}\}", re.DOTALL)
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 def _decode(data: bytes) -> str:
@@ -40,7 +41,9 @@ def _split_frontmatter(text: str) -> tuple[dict | None, str]:
 def _inline_text(token: Token) -> str:
     parts: list[str] = []
     for child in token.children or []:
-        if child.type in ("text", "code_inline", "html_inline"):
+        if child.type == "html_inline":
+            parts.append(_HTML_COMMENT.sub("", child.content))  # an HTML comment is not content
+        elif child.type in ("text", "code_inline"):
             parts.append(child.content)
         elif child.type in ("softbreak", "hardbreak"):
             parts.append(" ")
@@ -49,9 +52,21 @@ def _inline_text(token: Token) -> str:
     return "".join(parts)
 
 
+_QUOTE_AFTER_BULLET = re.compile(r"\s*(?:[-*+]|\d{1,9}[.)])\s+>( ?)")
+
+
 class _Builder:
-    def __init__(self) -> None:
+    def __init__(self, lines: list[str] | None = None) -> None:
         self.elements: list[DocElement] = []
+        self._lines = lines or []
+
+    def _quote_marker(self, token: Token) -> str:
+        """The ``>`` that opened a blockquote inside a list item, with the source's spacing."""
+        start = token.map[0] if token.map else None
+        if start is not None and start < len(self._lines):
+            if m := _QUOTE_AFTER_BULLET.match(self._lines[start]):
+                return ">" + m.group(1)
+        return "> "
 
     def walk(self, tokens: list[Token], list_depth: int = 0) -> None:
         i = 0
@@ -85,6 +100,12 @@ class _Builder:
                 if j < len(tokens) and tokens[j].type == "paragraph_open":
                     text = _inline_text(tokens[j + 1])
                     i = j + 3
+                elif (j + 3 < len(tokens) and tokens[j].type == "blockquote_open"
+                      and tokens[j + 1].type == "paragraph_open"):
+                    # "- >$5,000 needs approval": the author means "greater than", and the
+                    # item must not become an empty bullet followed by an orphan paragraph.
+                    text = self._quote_marker(tokens[j]) + _inline_text(tokens[j + 2])
+                    i = j + 4
                 else:
                     i = j
                 self.elements.append(DocElement(kind="list_item", text=text, number=number,
@@ -97,8 +118,9 @@ class _Builder:
                 self.elements.append(DocElement(kind="code", text=t.content))
                 i += 1
             elif t.type == "html_block":
-                if t.content.strip():
-                    self.elements.append(DocElement(kind="paragraph", text=t.content))
+                content = _HTML_COMMENT.sub("", t.content)
+                if content.strip():
+                    self.elements.append(DocElement(kind="paragraph", text=content))
                 i += 1
             else:
                 i += 1  # blockquote_open/close, hr: children are walked as normal blocks
@@ -127,7 +149,8 @@ def extract_markdown(data: bytes) -> StructuredDocument:
     frontmatter, body = _split_frontmatter(text)
     body = _SHORTCODE.sub("", body)
     md = MarkdownIt("commonmark", {"html": True}).enable("table")
-    builder = _Builder()
+    # markdown-it numbers lines after normalising only CR/CRLF, so split the same way.
+    builder = _Builder(body.replace("\r\n", "\n").replace("\r", "\n").split("\n"))
     builder.walk(md.parse(body))
     return StructuredDocument(file_type="MD", elements=builder.elements, page_count=None,
                               frontmatter=frontmatter)
