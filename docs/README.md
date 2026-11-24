@@ -18,6 +18,7 @@ The persistent knowledge base for SOPilot. Agents start at the root [`CLAUDE.md`
 | Diagrams | [`architecture/diagrams/`](architecture/diagrams/) |
 | Current work, status, tickets | [`execution/initiatives/`](execution/initiatives/) — V2 MVP: [`v2-sopilot-mvp/PLAN.md`](execution/initiatives/v2-sopilot-mvp/PLAN.md) |
 | Testing approach and gates | [`quality/testing-strategy.md`](quality/testing-strategy.md), [`quality/quality-gates.md`](quality/quality-gates.md) |
+| End-to-end test plan (personas, scenarios, charter) | [`quality/test-plans/test-plan-001-e2e-business-flows.md`](quality/test-plans/test-plan-001-e2e-business-flows.md) |
 | Evidence that something was tested | [`quality/test-reports/`](quality/test-reports/) (binaries in `artifacts/testing/`, gitignored) |
 | Running and fixing the local stack | [`operations/`](operations/) — [local development](operations/local-development.md), [troubleshooting](operations/troubleshooting.md), [reindex](operations/reindex.md) |
 | Experiments, evaluations, investigations | [`research/`](research/) |

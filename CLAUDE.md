@@ -101,4 +101,5 @@ UI work also follows the global `frontend-delivery` skill. A green build is not 
 - When telling the user to view an Excalidraw file, include the full localhost:3001/#url=<encoded-file-url> viewer link in the response.
 - Use Mermaid or ASCII for small diagrams with few nodes and edges; use Excalidraw only for large, detailed diagrams.
 - For SOPilot thesis diagrams, use Excalidraw exported as SVG fitting one A4 page, with straight angular lines, not hand-drawn style.
+- When writing the Vietnamese thesis text, keep English technical terms like dense and reranking untranslated instead of rendering them awkwardly in Vietnamese.
 <!-- end claude-reflect -->
