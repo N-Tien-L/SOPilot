@@ -4,6 +4,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { clearWarnings } from '@/lib/chat/warning-store';
 import { abortAllStreams } from '@/lib/sse/registry';
+import { resetInspector } from '@/store/inspector-store';
 import { resetUploadState } from '@/store/upload-store';
 
 export function createQueryClient(): QueryClient {
@@ -40,6 +41,7 @@ export function workspaceKey(workspaceId: string, ...parts: readonly unknown[]):
 export function resetWorkspaceState(client: QueryClient): void {
   abortAllStreams();
   resetUploadState();
+  resetInspector();
   clearWarnings();
   void client.cancelQueries(); // starts cancelling synchronously
   client.clear();

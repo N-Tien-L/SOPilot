@@ -589,3 +589,47 @@ async def test_a_client_that_leaves_mid_answer_leaves_an_error_row_and_gives_the
     assert counted(database, owner.user_id) == 0  # reserved, then given back
     assert sql(database, "SELECT count(*) FROM rag.messages WHERE conversation_id = %s",
                ref.id)[0][0] == 2
+
+
+# -- pipeline inspector trace & access isolation -----------------------------------------------
+
+async def test_pipeline_trace_streams_steps_persists_and_enforces_access_isolation(
+        harness: Harness, database, corpus: Corpus) -> None:  # noqa: ANN001
+    owner = corpus.principal()
+    status, events = await harness.ask(owner, QUESTION, lang="vi", includeTrace=True)
+    assert status == 200
+    step_events = [d for n, d in events if n == "step"]
+    assert any(s["step"] == "retrieve_dense" and s["status"] == "passed" for s in step_events)
+    assert any(s["step"] == "retrieve_sparse" and s["status"] == "passed" for s in step_events)
+    assert any(s["step"] == "retrieve_rrf" and s["status"] == "passed" for s in step_events)
+    assert any(s["step"] == "retrieve_and_gate" and s["status"] == "passed" for s in step_events)
+    assert any(s["step"] == "build_prompt" and s["status"] == "passed" for s in step_events)
+    assert "CANARY-" not in json.dumps(step_events)
+
+    meta = data(events, "meta")
+    cid, mid = meta["conversationId"], meta["messageId"]
+    resp = await harness.get(owner, f"/conversations/{cid}/messages/{mid}/trace")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["hidden"] is False and body["reconstructed"] is False
+    assert len(body["chunks"]) >= 1 and body["chunks"][0]["content"]
+    assert body["promptMessages"] is not None
+    assert "[REDACTED_CANARY]" in json.dumps(body["promptMessages"])
+    assert "CANARY-" not in json.dumps(body)
+
+    # Another user in the same workspace cannot read this trace (404)
+    other = corpus.principal("MEMBER", uuid4())
+    denied = await harness.get(other, f"/conversations/{cid}/messages/{mid}/trace")
+    assert denied.status_code == 404
+
+    # Deleting the cited document hides chunks & promptMessages on subsequent trace reads (FR-25)
+    purchase_doc = corpus.docs["purchase"][0]
+    sql(database, "UPDATE rag.document_access SET deleted_at = now() WHERE document_id = %s",
+        purchase_doc)
+    revoked = await harness.get(owner, f"/conversations/{cid}/messages/{mid}/trace")
+    assert revoked.status_code == 200
+    rev_body = revoked.json()
+    assert rev_body["hidden"] is True
+    assert rev_body["hiddenReason"] == "DOCUMENT_DELETED"
+    assert rev_body["chunks"] == []
+    assert rev_body["promptMessages"] is None

@@ -11,15 +11,18 @@ import { CITE_PREFIX, citeNumber, linkCitations } from '@/lib/chat/citations';
 export function AnswerMarkdown({
   text,
   known,
+  labels,
   onCite,
 }: {
   text: string;
   known: ReadonlySet<number>;
+  /** Optional display label per citation number (e.g. `1 -> "1.1"`, `2 -> "1.2"`). */
+  labels?: ReadonlyMap<number, string>;
   onCite: (n: number) => void;
 }) {
   const source = useMemo(() => linkCitations(text, known), [text, known]);
   return (
-    <div className="prose prose-sm max-w-none text-foreground prose-p:my-2">
+    <div className="chat-markdown prose prose-sm max-w-none text-foreground prose-p:my-2 prose-strong:text-foreground prose-headings:text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         urlTransform={(url) => (url.startsWith(CITE_PREFIX) ? url : defaultUrlTransform(url))}
@@ -27,14 +30,15 @@ export function AnswerMarkdown({
           a: ({ href, children }) => {
             const n = citeNumber(href);
             if (n !== null) {
+              const display = labels?.get(n) ?? String(n);
               return (
                 <button
                   type="button"
                   onClick={() => onCite(n)}
-                  aria-label={`Source ${n}`}
-                  className="mx-0.5 inline-block min-w-5 rounded-[5px] bg-primary-soft px-1.5 align-baseline text-xs font-bold text-primary-strong no-underline hover:outline hover:outline-1 hover:outline-primary focus-visible:outline-2 focus-visible:outline-ring"
+                  aria-label={`Source ${display}`}
+                  className="ml-0.5 inline-flex min-w-5 -translate-y-0.5 cursor-pointer items-center justify-center rounded-md border border-primary/30 bg-primary-soft px-1.5 py-0.2 align-baseline font-mono text-[11px] font-bold text-primary-strong no-underline transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:outline-2 focus-visible:outline-ring"
                 >
-                  {n}
+                  {display}
                 </button>
               );
             }

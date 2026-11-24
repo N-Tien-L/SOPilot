@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button, ConfirmDialog, Input, Modal } from '@/components/ui';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { deleteConversation, renameConversation } from '@/lib/api/endpoints';
@@ -32,6 +33,7 @@ export function ConversationList() {
       await renameConversation(renaming.id, title.trim());
       await invalidate('conversations');
       await invalidate('conversation', renaming.id);
+      toast.success('Conversation renamed');
       setRenaming(null);
     } catch (e) {
       setActionError(e);
@@ -48,6 +50,7 @@ export function ConversationList() {
       await deleteConversation(deleting.id);
       await invalidate('conversations');
       if (deleting.id === activeId) router.push('/chat');
+      toast.info('Conversation deleted');
       setDeleting(null);
     } catch (e) {
       setActionError(e);
@@ -58,58 +61,74 @@ export function ConversationList() {
 
   return (
     <div className="min-h-0">
-      <div className="flex items-center justify-between px-3 pb-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-sidebar-muted">Conversations</span>
+      <div className="flex items-center justify-between px-2.5 pb-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
+          Conversations
+        </span>
         <Link
           href="/chat"
           aria-label="New chat"
-          className="rounded-md p-1 text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground"
+          title="New chat"
+          className="rounded-lg p-1 text-sidebar-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
-          <Plus size={16} aria-hidden />
+          <Plus size={15} aria-hidden />
         </Link>
       </div>
-      {isLoading ? <p className="px-3 py-1 text-xs text-sidebar-muted">Loading…</p> : null}
-      {isError ? <ErrorNote error={error} className="px-3 py-1 !text-danger-soft" onRetry={() => void refetch()} /> : null}
-      {data && data.length === 0 ? <p className="px-3 py-1 text-xs text-sidebar-muted">No conversations yet.</p> : null}
-      <ul>
-        {(data ?? []).map((c) => (
-          <li key={c.id} className="group relative">
-            <Link
-              href={`/chat/${c.id}`}
-              aria-current={c.id === activeId ? 'page' : undefined}
-              className={`block truncate rounded-md py-1.5 pl-3 pr-14 text-sm ${
-                c.id === activeId ? 'bg-white/15 text-sidebar-foreground' : 'text-sidebar-muted hover:bg-white/10'
-              }`}
-            >
-              {c.title || 'New conversation'}
-            </Link>
-            <span className="absolute inset-y-0 right-1 hidden items-center gap-0.5 group-focus-within:flex group-hover:flex">
-              <button
-                type="button"
-                aria-label={`Rename ${c.title || 'conversation'}`}
-                className="rounded p-1 text-sidebar-muted hover:bg-white/15 hover:text-sidebar-foreground"
-                onClick={() => {
-                  setActionError(null);
-                  setTitle(c.title ?? '');
-                  setRenaming(c);
-                }}
+      {isLoading ? <p className="px-2.5 py-1 text-xs text-sidebar-muted">Loading…</p> : null}
+      {isError ? (
+        <ErrorNote
+          error={error}
+          onRetry={() => void refetch()}
+          className="mx-1 my-1 border-danger/40 bg-danger/15 !text-danger-soft"
+        />
+      ) : null}
+      {data && data.length === 0 ? (
+        <p className="px-2.5 py-1 text-xs text-sidebar-muted/80">No conversations yet.</p>
+      ) : null}
+      <ul className="space-y-0.5">
+        {(data ?? []).map((c) => {
+          const active = c.id === activeId;
+          return (
+            <li key={c.id} className="group relative">
+              <Link
+                href={`/chat/${c.id}`}
+                aria-current={active ? 'page' : undefined}
+                className={`block truncate rounded-lg py-1.5 pl-2.5 pr-14 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
+                  active
+                    ? 'bg-white/12 font-medium text-sidebar-foreground'
+                    : 'text-sidebar-muted hover:bg-white/[0.06] hover:text-sidebar-foreground'
+                }`}
               >
-                <Pencil size={13} aria-hidden />
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete ${c.title || 'conversation'}`}
-                className="rounded p-1 text-sidebar-muted hover:bg-white/15 hover:text-sidebar-foreground"
-                onClick={() => {
-                  setActionError(null);
-                  setDeleting(c);
-                }}
-              >
-                <Trash2 size={13} aria-hidden />
-              </button>
-            </span>
-          </li>
-        ))}
+                {c.title || 'New conversation'}
+              </Link>
+              <span className="absolute inset-y-0 right-1 hidden items-center gap-0.5 group-focus-within:flex group-hover:flex">
+                <button
+                  type="button"
+                  aria-label={`Rename ${c.title || 'conversation'}`}
+                  className="cursor-pointer rounded-md p-1 text-sidebar-muted transition-colors hover:bg-white/15 hover:text-sidebar-foreground"
+                  onClick={() => {
+                    setActionError(null);
+                    setTitle(c.title ?? '');
+                    setRenaming(c);
+                  }}
+                >
+                  <Pencil size={12} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${c.title || 'conversation'}`}
+                  className="cursor-pointer rounded-md p-1 text-sidebar-muted transition-colors hover:bg-white/15 hover:text-sidebar-foreground"
+                  onClick={() => {
+                    setActionError(null);
+                    setDeleting(c);
+                  }}
+                >
+                  <Trash2 size={12} aria-hidden />
+                </button>
+              </span>
+            </li>
+          );
+        })}
       </ul>
 
       <Modal open={renaming !== null} onClose={() => setRenaming(null)} title="Rename conversation">

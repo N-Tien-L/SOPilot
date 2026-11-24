@@ -7,8 +7,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Above core-api's 20 MB upload limit; the default 10 MB cuts larger multipart bodies.
     proxyClientMaxBodySize: '25mb',
-    // Idle-socket limit of the proxied request (Next default 30 s). SSE sends a ping every 15 s.
-    proxyTimeout: 120_000,
+    // Idle-socket limit of the proxied request (Next default 30 s). Raised to 10 min to tolerate
+    // Modal GPU cold starts; SSE sends a ping every 15 s once streaming begins.
+    proxyTimeout: 600_000,
   },
 };
 

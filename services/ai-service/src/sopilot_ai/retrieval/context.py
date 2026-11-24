@@ -48,6 +48,7 @@ class ContextConfig:
     expand: bool = True
     section_max_tokens: int = 1200
     max_tokens: int = 3000
+    merge_adjacent_sections: bool = True
 
 
 @dataclass(frozen=True)
@@ -147,9 +148,14 @@ class _Window:
     chunks: dict[int, ChunkInfo]
     hits: list[tuple[int, ChunkInfo]] = field(default_factory=list)  # (rank, chunk)
 
-    def touches(self, other: _Window) -> bool:
+    def touches(self, other: _Window, *, same_section_only: bool = False) -> bool:
         if self.version_id != other.version_id:
             return False
+        if same_section_only:
+            my_sec = next(iter(self.chunks.values())).section_path
+            other_sec = next(iter(other.chunks.values())).section_path
+            if my_sec != other_sec:
+                return False
         mine, theirs = set(self.chunks), set(other.chunks)
         return bool(mine & theirs) or any(o + 1 in theirs or o - 1 in theirs for o in mine)
 
@@ -188,8 +194,9 @@ def build_sources(hits: Sequence[ChunkInfo],
 
     merged: list[_Window] = []
     if cfg.expand:
+        same_sec = not cfg.merge_adjacent_sections
         for w in windows:
-            touching = [m for m in merged if m.touches(w)]
+            touching = [m for m in merged if m.touches(w, same_section_only=same_sec)]
             if not touching:
                 merged.append(w)
                 continue

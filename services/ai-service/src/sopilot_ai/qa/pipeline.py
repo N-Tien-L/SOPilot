@@ -16,6 +16,7 @@ gate, never before it (D1).
 """
 from __future__ import annotations
 
+import time
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -121,11 +122,23 @@ class Step(Protocol):
     async def run(self, ctx: PipelineContext) -> Decision: ...
 
 
-async def run_steps(steps: Sequence[Step], ctx: PipelineContext) -> Decision:
+async def run_steps(
+    steps: Sequence[Step],
+    ctx: PipelineContext,
+    *,
+    on_step_start: Callable[[str], None] | None = None,
+    on_step_end: Callable[[str, Decision, int], None] | None = None,
+) -> Decision:
     """Run the steps in order; return the first decision that stops the chain, else ``CONTINUE``."""
     for step in steps:
+        if on_step_start is not None:
+            on_step_start(step.name)
+        started = time.monotonic()
         decision = await step.run(ctx)
+        elapsed_ms = round((time.monotonic() - started) * 1000)
         ctx.route_info.setdefault("steps", []).append(step.name)
+        if on_step_end is not None:
+            on_step_end(step.name, decision, elapsed_ms)
         if decision.stops:
             ctx.route_info["decided_by"] = step.name
             return decision

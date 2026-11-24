@@ -1,7 +1,15 @@
 // Incremental Server-Sent Events parser (frontend-nfrs C3). EventSource cannot send a body or a
 // header, so the stream is read with fetch and decoded here.
 
-import type { AnswerWarning, Citation, RefusalReason, StreamEvent } from '@/lib/api/types';
+import type {
+  AnswerWarning,
+  Citation,
+  PipelineDecision,
+  PipelineStageId,
+  PipelineStepStatus,
+  RefusalReason,
+  StreamEvent,
+} from '@/lib/api/types';
 
 export interface RawSseEvent {
   event: string;
@@ -86,6 +94,23 @@ export function decodeStreamEvent(raw: RawSseEvent): StreamEvent | null {
         mode: str(data.mode),
         lang: str(data.lang),
       };
+    case 'step': {
+      if (!isRecord(data)) return null;
+      const step = str(data.step);
+      const stage = str(data.stage) as PipelineStageId;
+      const status = str(data.status) as PipelineStepStatus;
+      if (!step || !stage || !status) return null;
+      return {
+        type: 'step',
+        step,
+        stage,
+        status,
+        ...(typeof data.durationMs === 'number' ? { durationMs: data.durationMs } : {}),
+        ...(isRecord(data.decision) ? { decision: data.decision as unknown as PipelineDecision } : {}),
+        ...(typeof data.summary === 'string' ? { summary: data.summary } : {}),
+        ...(isRecord(data.detail) ? { detail: data.detail } : {}),
+      };
+    }
     case 'reasoning':
       return isRecord(data) ? { type: 'reasoning', text: str(data.text) } : null;
     case 'reasoning_done':

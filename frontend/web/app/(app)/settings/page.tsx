@@ -1,14 +1,18 @@
 'use client';
 
-import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { FileText, HardDrive, LogOut, ShieldAlert } from 'lucide-react';
+import { toast } from 'sonner';
 import { ErrorNote } from '@/components/app/ErrorNote';
-import { Button, ConfirmDialog, Input, Modal, Skeleton } from '@/components/ui';
+import { CountUp } from '@/components/effects';
+import { FadeIn } from '@/components/motion/Primitives';
+import { Button, ConfirmDialog, Input, Modal, PageHeader, Skeleton, StatCard } from '@/components/ui';
 import { deleteWorkspace, leaveWorkspace, renameWorkspace } from '@/lib/api/endpoints';
 import { formatBytes } from '@/lib/chat/labels';
 import { useInvalidate, useWorkspaceDetail } from '@/lib/query/hooks';
 import { moveToAnotherWorkspace } from '@/lib/session/exit';
+import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useSessionStore } from '@/store/session-store';
 
 export default function SettingsPage() {
@@ -28,8 +32,18 @@ export default function SettingsPage() {
   const actionDone = useRef(false);
 
   if (!workspace) return null;
-  if (isLoading) return <div className="p-6"><Skeleton count={3} height={48} /></div>;
-  if (isError || !data) return <div className="p-6"><ErrorNote error={error} /></div>;
+  if (isLoading)
+    return (
+      <div className="mx-auto max-w-2xl p-6">
+        <Skeleton count={3} height={56} />
+      </div>
+    );
+  if (isError || !data)
+    return (
+      <div className="mx-auto max-w-2xl p-6">
+        <ErrorNote error={error} />
+      </div>
+    );
 
   const isOwner = data.role === 'OWNER';
   const isPersonal = data.kind === 'PERSONAL';
@@ -52,6 +66,7 @@ export default function SettingsPage() {
       });
       setName(null);
       setSaved(true);
+      toast.success('Workspace renamed');
     } catch (e) {
       setRenameError(e);
     } finally {
@@ -82,16 +97,30 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Workspace settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {isPersonal ? 'Personal workspace' : 'Team workspace'} · your role: {data.role}
-        </p>
+      <FadeIn>
+        <PageHeader
+          title="Workspace settings"
+          description={`${isPersonal ? 'Personal workspace' : 'Team workspace'} · your role: ${data.role}`}
+        />
+      </FadeIn>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <StatCard
+          label="Documents"
+          value={<CountUp to={data.documentCount} suffix={data.documentCount === 1 ? ' document' : ' documents'} />}
+          icon={<FileText size={14} aria-hidden />}
+        />
+        <StatCard
+          label="Storage used"
+          value={formatBytes(data.bytesUsed)}
+          hint="Stored in workspace bucket"
+          icon={<HardDrive size={14} aria-hidden />}
+        />
       </div>
 
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="text-lg font-semibold">Name</h2>
-        <form onSubmit={rename} className="mt-3 flex items-end gap-2">
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-sm)]">
+        <h2 className="text-base font-bold text-foreground">Name</h2>
+        <form onSubmit={rename} className="mt-3 flex items-start gap-2">
           <div className="flex-1">
             <Input
               aria-label="Workspace name"
@@ -108,25 +137,30 @@ export default function SettingsPage() {
             </Button>
           ) : null}
         </form>
-        {saved ? <p role="status" className="mt-2 text-sm text-success-foreground">Saved.</p> : null}
+        {saved ? (
+          <p role="status" className="mt-2 text-xs font-medium text-success-foreground">
+            Saved.
+          </p>
+        ) : null}
         {renameError ? <ErrorNote error={renameError} className="mt-2" /> : null}
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="text-lg font-semibold">Usage</h2>
-        <p className="mt-2 text-sm">
-          {data.documentCount} document{data.documentCount === 1 ? '' : 's'} · {formatBytes(data.bytesUsed)} stored
-        </p>
-      </section>
-
       {!isPersonal ? (
-        <section className="rounded-lg border border-border bg-card p-4">
-          <h2 className="text-lg font-semibold">Leave workspace</h2>
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-sm)]">
+          <h2 className="text-base font-bold text-foreground">Leave workspace</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             You lose access to its documents and conversations. The last owner cannot leave.
           </p>
-          <div className="mt-3">
-            <Button variant="outline" onClick={() => { setExitError(null); setLeaving(true); }}>
+          <div className="mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<LogOut size={14} aria-hidden />}
+              onClick={() => {
+                setExitError(null);
+                setLeaving(true);
+              }}
+            >
               Leave workspace
             </Button>
           </div>
@@ -134,15 +168,27 @@ export default function SettingsPage() {
       ) : null}
 
       {isOwner ? (
-        <section className="rounded-lg border border-danger bg-danger-soft p-4">
-          <h2 className="text-lg font-semibold text-danger-foreground">Danger zone</h2>
-          <p className="mt-1 text-sm">
+        <section className="rounded-2xl border border-danger/35 bg-danger-soft/60 p-5">
+          <div className="flex items-center gap-2 text-danger-foreground">
+            <ShieldAlert size={16} aria-hidden />
+            <h2 className="text-base font-bold">Danger zone</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
             {isPersonal
               ? 'A personal workspace cannot be deleted.'
               : 'Deleting removes the workspace, its documents and its members’ access.'}
           </p>
-          <div className="mt-3">
-            <Button variant="destructive" disabled={isPersonal} onClick={() => { setTyped(''); setExitError(null); setDeleting(true); }}>
+          <div className="mt-4">
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={isPersonal}
+              onClick={() => {
+                setTyped('');
+                setExitError(null);
+                setDeleting(true);
+              }}
+            >
               Delete workspace
             </Button>
           </div>
@@ -164,7 +210,12 @@ export default function SettingsPage() {
         variant="danger"
         loading={busy}
       />
-      <Modal open={deleting} onClose={() => setDeleting(false)} title="Delete workspace" description={`Type “${data.name}” to confirm. This cannot be undone.`}>
+      <Modal
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        title="Delete workspace"
+        description={`Type “${data.name}” to confirm. This cannot be undone.`}
+      >
         <div className="space-y-4">
           <Input aria-label="Workspace name to confirm" value={typed} onChange={(e) => setTyped(e.target.value)} />
           {exitError ? <ErrorNote error={exitError} /> : null}

@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { RotateCcw } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
-import { Button, EmptyState, Select, Skeleton } from '@/components/ui';
+import { FadeIn } from '@/components/motion/Primitives';
+import { Button, EmptyState, PageHeader, Select, Skeleton } from '@/components/ui';
 import { AUDIT_ACTIONS, auditActionLabel, localToIso, summarizeDetails } from '@/lib/admin/audit';
 import { useAuditLogs, useMembers } from '@/lib/query/hooks';
 import { useSessionStore } from '@/store/session-store';
@@ -23,11 +25,15 @@ function AuditLog() {
   const rows = logs.data?.pages.flatMap((p) => p.data) ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <h1 className="text-2xl font-semibold">Audit log</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Who changed what in this workspace, newest first. Only owners can read it.</p>
+    <div className="mx-auto max-w-6xl space-y-5 p-6">
+      <FadeIn>
+        <PageHeader
+          title="Audit log"
+          description="Who changed what in this workspace, newest first. Only owners can read it."
+        />
+      </FadeIn>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-[var(--shadow-sm)]">
         <div className="w-56">
           <Select
             aria-label="Action"
@@ -48,27 +54,29 @@ function AuditLog() {
             onChange={(e) => setActorId(e.target.value)}
           />
         </div>
-        <label className="text-xs text-muted-foreground">
+        <label className="text-xs font-medium text-muted-foreground">
           From
           <input
             type="datetime-local"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="mt-1 block h-10 rounded-md border border-input bg-card px-3 text-sm text-foreground"
+            className="mt-1 block h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/20"
           />
         </label>
-        <label className="text-xs text-muted-foreground">
+        <label className="text-xs font-medium text-muted-foreground">
           To
           <input
             type="datetime-local"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="mt-1 block h-10 rounded-md border border-input bg-card px-3 text-sm text-foreground"
+            className="mt-1 block h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/20"
           />
         </label>
         {action || actorId || from || to ? (
           <Button
             variant="ghost"
+            size="sm"
+            icon={<RotateCcw size={13} aria-hidden />}
             onClick={() => {
               setAction('');
               setActorId('');
@@ -81,56 +89,64 @@ function AuditLog() {
         ) : null}
       </div>
 
-      {logs.isLoading ? <div className="mt-4"><Skeleton count={5} height={40} /></div> : null}
-      {logs.isError ? <ErrorNote error={logs.error} className="mt-4" /> : null}
+      {logs.isLoading ? <Skeleton count={5} height={44} /> : null}
+      {logs.isError ? <ErrorNote error={logs.error} onRetry={() => void logs.refetch()} /> : null}
       {logs.data && rows.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState title="No entries" description="Nothing matches these filters." />
-        </div>
+        <EmptyState title="No entries" description="Nothing matches these filters." />
       ) : null}
+
       {rows.length > 0 ? (
         <>
-        <ul className="mt-4 space-y-2 md:hidden" aria-label="Audit entries">
-          {rows.map((e) => (
-            <li key={e.id} className="rounded-lg border border-border bg-card p-3 text-sm">
-              <div className="font-medium">{auditActionLabel(e.action)}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                {e.actorId ? (names.get(e.actorId) ?? 'Former member') : 'System'} · {new Date(e.createdAt).toLocaleString()}
-                {e.targetType ? ` · ${e.targetType.toLowerCase()}` : ''}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">{summarizeDetails(e.details)}</div>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-4 hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
-          <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-3 py-2">When</th>
-                <th scope="col" className="px-3 py-2">Actor</th>
-                <th scope="col" className="px-3 py-2">Action</th>
-                <th scope="col" className="px-3 py-2">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((e) => (
-                <tr key={e.id} className="border-t border-border align-top">
-                  <td className="whitespace-nowrap px-3 py-2">{new Date(e.createdAt).toLocaleString()}</td>
-                  <td className="px-3 py-2">{e.actorId ? (names.get(e.actorId) ?? 'Former member') : 'System'}</td>
-                  <td className="px-3 py-2">
-                    <div className="font-medium">{auditActionLabel(e.action)}</div>
-                    {e.targetType ? <div className="text-xs text-muted-foreground">{e.targetType.toLowerCase()}</div> : null}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground [overflow-wrap:anywhere]">{summarizeDetails(e.details)}</td>
+          <ul className="space-y-2.5 md:hidden" aria-label="Audit entries">
+            {rows.map((e) => (
+              <li key={e.id} className="rounded-2xl border border-border bg-card p-4 text-sm shadow-[var(--shadow-sm)]">
+                <div className="font-semibold text-foreground">{auditActionLabel(e.action)}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {e.actorId ? (names.get(e.actorId) ?? 'Former member') : 'System'} · {new Date(e.createdAt).toLocaleString()}
+                  {e.targetType ? ` · ${e.targetType.toLowerCase()}` : ''}
+                </div>
+                <div className="mt-1.5 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                  {summarizeDetails(e.details)}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-sm)] md:block">
+            <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
+              <thead className="border-b border-border bg-muted/60 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th scope="col" className="px-4 py-3">When</th>
+                  <th scope="col" className="px-4 py-3">Actor</th>
+                  <th scope="col" className="px-4 py-3">Action</th>
+                  <th scope="col" className="px-4 py-3">Details</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border/70">
+                {rows.map((e) => (
+                  <tr key={e.id} className="align-top transition-colors hover:bg-muted/35">
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {new Date(e.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {e.actorId ? (names.get(e.actorId) ?? 'Former member') : 'System'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-foreground">{auditActionLabel(e.action)}</div>
+                      {e.targetType ? <div className="text-xs text-muted-foreground">{e.targetType.toLowerCase()}</div> : null}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                      {summarizeDetails(e.details)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       ) : null}
+
       {logs.hasNextPage ? (
-        <div className="mt-4">
+        <div className="flex justify-center">
           <Button variant="outline" loading={logs.isFetchingNextPage} onClick={() => void logs.fetchNextPage()}>
             Load more
           </Button>

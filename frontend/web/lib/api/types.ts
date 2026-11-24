@@ -57,6 +57,16 @@ export interface CorePage<T> {
 
 export type RefusalReason = 'NO_EVIDENCE' | 'OUT_OF_SCOPE' | 'INPUT_INVALID' | 'GUARD' | 'GENERATOR_NOT_FOUND';
 
+export interface CitationChunk {
+  subN: string;
+  chunkId: string;
+  sectionPath: string[];
+  page: number | null;
+  charStart: number;
+  charEnd: number;
+  snippet: string;
+}
+
 export interface Citation {
   n: number;
   documentId: string;
@@ -66,6 +76,8 @@ export interface Citation {
   charStart: number;
   charEnd: number;
   snippet: string;
+  sectionPath?: string[];
+  chunks?: CitationChunk[];
 }
 
 export interface AnswerWarning {
@@ -73,8 +85,112 @@ export interface AnswerWarning {
   values: string[];
 }
 
+export type PipelineStageId =
+  | 'input_pii'
+  | 'guard_rule'
+  | 'classify_route'
+  | 'rewrite_translate'
+  | 'retrieve_dense'
+  | 'retrieve_sparse'
+  | 'retrieve_rrf'
+  | 'retrieve_rerank'
+  | 'context_prompt'
+  | 'llm_generate'
+  | 'post_checks';
+
+export type PipelineStepStatus = 'pending' | 'running' | 'passed' | 'blocked' | 'skipped' | 'error';
+
+export interface PipelineDecision {
+  kind: string;
+  outcome: string | null;
+  reason: string | null;
+  ruleId?: string | null;
+  templateKey?: string | null;
+}
+
+export interface RetrievedChunkTrace {
+  rank: number;
+  chunkId: string;
+  documentId: string;
+  versionId: string;
+  title: string | null;
+  sectionPath: string[];
+  page: number | null;
+  chunkType: string;
+  tokenCount: number;
+  denseScore: number | null;
+  bm25Score: number | null;
+  fusionScore: number | null;
+  rerankScore: number | null;
+  docCodeMatch: boolean;
+  inContext: boolean;
+  preview: string;
+  content: string;
+}
+
+export interface ContextSourceTrace {
+  n: number;
+  documentId: string;
+  versionId: string;
+  title?: string | null;
+  page?: number | null;
+  sectionPath?: string[];
+  tokens?: number;
+  reduced?: boolean;
+  hitChunkCount?: number;
+  chunkCount?: number;
+  code?: string | null;
+  rev?: string | null;
+  effective?: string | null;
+}
+
+export interface PromptMessageTrace {
+  role: string;
+  content: string;
+}
+
+export interface PipelineStepEntry {
+  step: string;
+  stage: PipelineStageId;
+  status: PipelineStepStatus;
+  durationMs?: number | null;
+  decision?: PipelineDecision | null;
+  summary?: string;
+  detail?: Record<string, unknown>;
+}
+
+export interface PipelineTrace {
+  version: number;
+  messageId: string | null;
+  conversationId: string | null;
+  question?: string;
+  mode: string;
+  lang: string;
+  outcome: string | null;
+  refusalReason: string | null;
+  totalMs: number | null;
+  disclaimers?: string[];
+  reconstructed?: boolean;
+  hidden?: boolean;
+  hiddenReason?: HiddenReason | string | null;
+  steps: PipelineStepEntry[];
+  chunks: RetrievedChunkTrace[];
+  promptMessages: PromptMessageTrace[] | null;
+  live?: boolean;
+}
+
 export type StreamEvent =
   | { type: 'meta'; conversationId: string; messageId: string; mode: string; lang: string }
+  | {
+      type: 'step';
+      step: string;
+      stage: PipelineStageId;
+      status: PipelineStepStatus;
+      durationMs?: number;
+      decision?: PipelineDecision | null;
+      summary?: string;
+      detail?: Record<string, unknown>;
+    }
   // The model's reasoning, before the first `delta` (TECH-V2-ai-service §7.2). Absent when thinking is off.
   | { type: 'reasoning'; text: string }
   | { type: 'reasoning_done'; durationMs: number }
@@ -350,6 +466,11 @@ export interface ChunkDetail {
   tokenCount: number;
   content: string;
   indexText: string;
+}
+
+/** GET /ai/v1/retrieval/options (V2-48). */
+export interface RetrievalOptions {
+  rerank: { available: boolean };
 }
 
 export interface ConversationSummary {

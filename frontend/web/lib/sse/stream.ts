@@ -18,8 +18,22 @@ export interface StreamAnswerOptions {
   conversationId: string;
   content: string;
   lang?: 'vi' | 'en';
+  /** `false` switches the reranker off for this question; anything else leaves the server default. */
+  rerank?: boolean;
   signal?: AbortSignal;
   onEvent: (event: StreamEvent) => void;
+}
+
+/** The request body; `rerank` is sent only when the user switched it off. */
+export function buildAnswerBody(
+  options: Pick<StreamAnswerOptions, 'content' | 'lang' | 'rerank'>,
+): Record<string, unknown> {
+  return {
+    content: options.content,
+    includeTrace: true,
+    ...(options.lang ? { lang: options.lang } : {}),
+    ...(options.rerank === false ? { rerank: false } : {}),
+  };
 }
 
 export async function streamAnswer(options: StreamAnswerOptions): Promise<StreamEnd> {
@@ -37,7 +51,7 @@ export async function streamAnswer(options: StreamAnswerOptions): Promise<Stream
         `/conversations/${encodeURIComponent(options.conversationId)}/messages`,
         {
           method: 'POST',
-          body: { content: options.content, ...(options.lang ? { lang: options.lang } : {}) },
+          body: buildAnswerBody(options),
           headers: { Accept: 'text/event-stream' },
           signal: controller.signal,
         },

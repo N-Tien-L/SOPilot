@@ -108,9 +108,22 @@ def build_prompt(*, question: str, sources: Sequence[SourceText], lang: str, tod
 
 
 _REWRITE_SYSTEM = (
-    "Bạn viết lại câu hỏi cuối của người dùng thành MỘT câu hỏi độc lập, đầy đủ ngữ cảnh, "
-    "dựa vào các lượt trước. Giữ nguyên ngôn ngữ của câu hỏi cuối. Không trả lời câu hỏi. "
-    "Không thêm thông tin không có trong hội thoại. Chỉ in câu hỏi đã viết lại, không giải thích."
+    "Bạn viết lại câu hỏi cuối của người dùng thành MỘT câu hỏi tìm kiếm độc lập, đầy đủ ngữ cảnh, "
+    "dựa vào các lượt trước.\n"
+    "Quy tắc:\n"
+    "1. BẮT BUỘC thay thế mọi đại từ và cụm từ chỉ định mơ hồ (như 'nó', 'đó', 'này', "
+    "'thiết bị đó', 'quy trình này', 'trường hợp đó') bằng tên đối tượng cụ thể, hành động/chủ đề "
+    "và mã tài liệu (ví dụ: SOP-QA-014, QT-MH-01) đã xuất hiện ở các lượt trước.\n"
+    "2. Bỏ các từ nối hội thoại ở đầu câu (như 'Còn nếu', 'Vậy thì', 'Thế còn') để câu hoàn toàn "
+    "độc lập.\n"
+    "3. Giữ nguyên ngôn ngữ của câu hỏi cuối. Không trả lời câu hỏi. Không bịa thêm thông tin "
+    "ngoài hội thoại.\n"
+    "4. Chỉ in ra đúng MỘT câu hỏi đã viết lại, không giải thích.\n"
+    "Ví dụ:\n"
+    "- Lượt trước nói về hiệu chuẩn máy đo pH theo SOP-LAB-02 khi hiệu chuẩn không đạt.\n"
+    "- Câu hỏi cuối: 'Còn nếu sửa xong rồi thì khi nào thiết bị đó được dùng lại?'\n"
+    "- Kết quả: 'Theo SOP-LAB-02, sau khi sửa chữa máy đo pH bị hiệu chuẩn không đạt, khi nào máy "
+    "đo pH mới được đưa lại vào sử dụng?'"
 )
 _QUOTES = "\"'“”‘’`"
 _PREFIX = re.compile(r"^(câu hỏi( độc lập| đã viết lại)?|question|rewritten question)\s*:\s*",

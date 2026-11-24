@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { ErrorNote } from '@/components/app/ErrorNote';
-import { Badge, Button, Checkbox, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton } from '@/components/ui';
+import { Avatar, Badge, Button, Checkbox, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton } from '@/components/ui';
 import { reactivateMember, removeMember, suspendMember, updateMember } from '@/lib/api/endpoints';
 import type { MemberView, WorkspaceRole } from '@/lib/api/types';
 import {
@@ -60,6 +62,7 @@ function EditMemberDialog({
     if (ok) {
       await invalidate('members');
       await invalidate('publishers');
+      toast.success('Member updated');
       onClose();
     }
   }
@@ -252,14 +255,17 @@ export function MembersPanel() {
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <input
-          aria-label="Search members"
-          placeholder="Search name, email or employee ID"
-          value={filters.q}
-          onChange={(e) => set('q')(e.target.value)}
-          className="h-10 w-72 rounded-md border border-input bg-card px-3 text-sm"
-        />
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-sm)]">
+        <div className="relative min-w-[200px] flex-1">
+          <Search size={14} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            aria-label="Search members"
+            placeholder="Search name, email or employee ID"
+            value={filters.q}
+            onChange={(e) => set('q')(e.target.value)}
+            className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-placeholder outline-none focus:border-primary focus:ring-2 focus:ring-ring/20"
+          />
+        </div>
         <div className="w-36">
           <Select
             aria-label="Role"
@@ -300,14 +306,16 @@ export function MembersPanel() {
             Clear filters
           </Button>
         ) : null}
-        <span role="status" className="text-sm text-muted-foreground">
-          {filtered ? `${rows.length} of ${data.length} members` : `${data.length} members`}
+        <span role="status" className="text-xs font-medium text-muted-foreground">
+          {filtered
+            ? `${rows.length} of ${data.length} ${data.length === 1 ? 'member' : 'members'}`
+            : `${data.length} ${data.length === 1 ? 'member' : 'members'}`}
         </span>
       </div>
 
       {selected.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted p-3 text-sm">
-          <span className="font-medium">{selected.size} selected</span>
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/35 bg-primary-soft/50 p-3.5 text-sm">
+          <span className="font-semibold text-primary-strong">{selected.size} selected</span>
           {withDepartments ? (
             <>
               <div className="w-56">
@@ -342,11 +350,11 @@ export function MembersPanel() {
       {rows.length === 0 ? (
         <EmptyState title="No members match" description="Change the search or clear the filters." />
       ) : (
-        <div className="relative hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
-          <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="relative hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-sm)] md:block">
+          <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
+            <thead className="border-b border-border bg-muted/60 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th scope="col" className="w-10 px-3 py-2">
+                <th scope="col" className="w-10 px-4 py-3">
                   <Checkbox
                     aria-label="Select all shown"
                     checked={allShownSelected}
@@ -354,23 +362,23 @@ export function MembersPanel() {
                     onChange={(e) => toggleAllShown(e.target.checked)}
                   />
                 </th>
-                <th scope="col" className="px-3 py-2">Name</th>
-                <th scope="col" className="px-3 py-2">Employee ID</th>
-                <th scope="col" className="px-3 py-2">Job title</th>
-                {withDepartments ? <th scope="col" className="px-3 py-2">Department</th> : null}
-                <th scope="col" className="px-3 py-2">Role</th>
-                <th scope="col" className="px-3 py-2">Status</th>
-                <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>
+                <th scope="col" className="px-4 py-3">Name</th>
+                <th scope="col" className="px-4 py-3">Employee ID</th>
+                <th scope="col" className="px-4 py-3">Job title</th>
+                {withDepartments ? <th scope="col" className="px-4 py-3">Department</th> : null}
+                <th scope="col" className="px-4 py-3">Role</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border/70">
               {rows.map((m) => {
                 const isSelf = m.userId === me?.id;
                 const mayEdit = canEditProfile(actorRole, m.role, isSelf);
                 const suspended = m.status !== 'ACTIVE';
                 return (
-                  <tr key={m.userId} className="border-t border-border align-top">
-                    <td className="px-3 py-2">
+                  <tr key={m.userId} className="align-top transition-colors hover:bg-muted/35">
+                    <td className="px-4 py-3">
                       {mayEdit ? (
                         <Checkbox
                           aria-label={`Select ${m.displayName}`}
@@ -379,21 +387,30 @@ export function MembersPanel() {
                         />
                       ) : null}
                     </td>
-                    <td className="px-3 py-2">
-                      <div className="font-medium">
-                        {m.displayName}
-                        {isSelf ? <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span> : null}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={m.displayName} size="sm" />
+                        <div className="min-w-0">
+                          <div className="font-semibold text-foreground">
+                            {m.displayName}
+                            {isSelf ? <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span> : null}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{m.email}</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">{m.email}</div>
                     </td>
-                    <td className="px-3 py-2">{m.employeeCode ?? '-'}</td>
-                    <td className="px-3 py-2">{m.jobTitle ?? '-'}</td>
-                    {withDepartments ? <td className="px-3 py-2">{m.departmentName ?? '-'}</td> : null}
-                    <td className="px-3 py-2">{ROLE_LABEL[m.role] ?? m.role}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{m.employeeCode ?? '-'}</td>
+                    <td className="px-4 py-3 text-foreground">{m.jobTitle ?? '-'}</td>
+                    {withDepartments ? <td className="px-4 py-3 text-foreground">{m.departmentName ?? '-'}</td> : null}
+                    <td className="px-4 py-3">
+                      <Badge variant={m.role === 'OWNER' ? 'default' : m.role === 'ADMIN' ? 'info' : 'neutral'}>
+                        {ROLE_LABEL[m.role] ?? m.role}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
                       <Badge variant={suspended ? 'warning' : 'success'}>{suspended ? 'Suspended' : 'Active'}</Badge>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-3">
                       {actionButtons(m)}
                     </td>
                   </tr>
@@ -410,7 +427,7 @@ export function MembersPanel() {
             const mayEdit = canEditProfile(actorRole, m.role, isSelf);
             const suspended = m.status !== 'ACTIVE';
             return (
-              <li key={m.userId} className="rounded-lg border border-border bg-card p-3 text-sm">
+              <li key={m.userId} className="rounded-2xl border border-border bg-card p-4 text-sm shadow-[var(--shadow-sm)]">
                 <div className="flex items-start gap-3">
                   {mayEdit ? (
                     <Checkbox

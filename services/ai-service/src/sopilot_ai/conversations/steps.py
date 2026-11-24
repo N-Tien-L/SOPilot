@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
+import re
 import threading
 import time
 from collections.abc import AsyncIterator, Callable, Iterator, Sequence
@@ -44,7 +46,7 @@ from sopilot_ai.quota.counters import QuotaCounter, Reservation
 from sopilot_ai.retrieval import context_store, search
 from sopilot_ai.retrieval.access_filter import Principal
 from sopilot_ai.retrieval.context import ContextConfig, Source, build_sources, group_keys
-from sopilot_ai.retrieval.retriever import AltQuery, RetrievalResult, Retriever
+from sopilot_ai.retrieval.retriever import AltQuery, PhaseHook, RetrievalResult, Retriever
 
 NEAREST_DOCUMENTS = 3
 
@@ -75,6 +77,7 @@ class QAContext(PipelineContext):
     history: list[tuple[str, str]] = field(default_factory=list)  # masked (question, answer)
     conversation_id: UUID | None = None  # None for a new conversation
     emit: Callable[[str, Any], None] = field(default=lambda name, data: None, repr=False)
+    rerank: bool | None = None  # V2-48: False turns the reranker off for this question only
 
     reservation: Reservation | None = None
     semantic: qa_router.SemanticDecision | None = None  # V2-27; None when the router is off
@@ -101,6 +104,20 @@ class QAContext(PipelineContext):
 
     llm_calls: int = 0
     timings: dict[str, int] = field(default_factory=dict)
+
+    # Pipeline Inspector fields (populated by steps; never logged)
+    emit_trace: bool = False
+    on_retrieval_phase: PhaseHook | None = field(default=None, repr=False)
+    retrieved_chunks: list[dict[str, Any]] = field(default_factory=list)
+    context_budget_used: int | None = None
+    invalid_citations_removed: int = 0
+    tokens_in: int | None = None
+    tokens_out: int | None = None
+    usage_source: str = "estimated"
+    reasoning_chars: int = 0
+    output_guard_violation: str | None = None
+    thinking_enabled: bool = False
+    llm_provider: str = "modal"
 
     @property
     def query(self) -> str:
@@ -397,14 +414,52 @@ class RetrieveStep:
             reuse = c.query_vector if c.query_vector is not None and c.query == c.text else None
             result = await self.retriever.retrieve(conn, c.principal, c.query,
                                                    query_lang=c.frame.lang, query_vector=reuse,
-                                                   alt=c.alt_query)
+                                                   alt=c.alt_query, on_phase=c.on_retrieval_phase,
+                                                   rerank=c.rerank)
             nearest_ids: list[UUID] = []
             if not result.passed:
                 nearest_ids = list(dict.fromkeys(
                     x.document_id for x in result.candidates))[:NEAREST_DOCUMENTS]
-            titles = await search.document_titles(conn, c.principal, nearest_ids)
+            cand_doc_ids = list(dict.fromkeys([
+                *(x.document_id for x in result.candidates),
+                *nearest_ids,
+            ]))
+            titles = await search.document_titles(conn, c.principal, cand_doc_ids)
+            loaded = await context_store.load_chunks(
+                conn, c.principal, [x.chunk_id for x in result.candidates])
         c.timings["retrieval"] = _ms(start)
         c.retrieval = result
+        hit_ids = {h.chunk_id for h in result.hits}
+        by_chunk_id = {ch.chunk_id: ch for ch in loaded}
+        c.retrieved_chunks = []
+        for cand in result.candidates:
+            ch = by_chunk_id.get(cand.chunk_id)
+            if ch is None:
+                continue
+            clean_preview = " ".join(ch.content.split())
+            preview = (clean_preview[:180].rstrip() + "…"
+                       if len(clean_preview) > 180 else clean_preview)
+            c.retrieved_chunks.append({
+                "rank": cand.rank,
+                "chunkId": str(cand.chunk_id),
+                "documentId": str(cand.document_id),
+                "versionId": str(cand.version_id),
+                "title": titles.get(cand.document_id),
+                "sectionPath": list(ch.section_path),
+                "page": ch.page_start,
+                "chunkType": ch.chunk_type,
+                "tokenCount": ch.token_count,
+                "denseScore": round(cand.dense_score, 4) if cand.dense_score is not None else None,
+                "bm25Score": round(cand.bm25_score, 4) if cand.bm25_score is not None else None,
+                "fusionScore": (round(cand.fusion_score, 4)
+                                if cand.fusion_score is not None else None),
+                "rerankScore": (round(cand.rerank_score, 4)
+                                if cand.rerank_score is not None else None),
+                "docCodeMatch": cand.doc_code_match,
+                "inContext": cand.chunk_id in hit_ids,
+                "preview": preview,
+                "content": ch.content,
+            })
         c.route_info["gate"] = {"score": result.gate_score, "threshold": result.threshold,
                                 "mode": result.mode, "passed": result.passed}
         if result.passed:
@@ -441,6 +496,7 @@ class BuildContextStep:
         budget = self.chain.context_budget
         if budget is not None and budget < cfg.max_tokens:
             cfg = replace(cfg, max_tokens=budget)  # a model with a smaller window (§7.4)
+        c.context_budget_used = cfg.max_tokens
         start = time.monotonic()
         async with tenant_tx(self.engine, c.principal.workspace_id, c.principal.user_id) as conn:
             hits = await context_store.load_chunks(
@@ -549,21 +605,49 @@ class GenerateStep:
         guard = OutputGuard(bundle.canary, bundle.protected)
         tokens = estimate_tokens(" ".join(m["content"] for m in bundle.messages))
 
+        clients = getattr(self.chain, "clients", None)
+        if clients:
+            first_spec = getattr(clients[0], "spec", None)
+            if first_spec is not None:
+                c.llm_provider = getattr(first_spec, "provider", "modal") or "modal"
+                c.thinking_enabled = bool(getattr(first_spec, "thinking", False))
+
         def started(model: str) -> None:
             c.model = model
+            if c.emit_trace:
+                c.emit("step", {
+                    "step": self.name,
+                    "stage": "llm_generate",
+                    "status": "running",
+                    "summary": f"Streaming from {model} ({c.llm_provider})",
+                    "detail": {
+                        "provider": c.llm_provider,
+                        "model": model,
+                        "thinkingEnabled": c.thinking_enabled,
+                    },
+                })
+
+        def got_usage(prompt_tok: int, completion_tok: int) -> None:
+            c.tokens_in = prompt_tok
+            c.tokens_out = completion_tok
+            c.usage_source = "provider"
 
         # Reasoning has its own guard. A thinking model often quotes its instructions, so a hit
         # here withholds the reasoning (never the answer); the answer guard below stays strict.
         start = time.monotonic()
         thought = _ThoughtStream(c, OutputGuard(bundle.canary, bundle.protected), start)
         c.llm_calls += 1
-        gen = self.chain.stream(bundle.messages, tokens=tokens, on_start=started)
+        stream_kwargs: dict[str, Any] = {"tokens": tokens, "on_start": started}
+        if "on_usage" in inspect.signature(self.chain.stream).parameters:
+            stream_kwargs["on_usage"] = got_usage
+        gen = self.chain.stream(bundle.messages, **stream_kwargs)
         stop = threading.Event()
         reasoning_chars = 0
         try:
             async for delta in _pump(gen, stop):
                 if isinstance(delta, Thought):
                     reasoning_chars += len(delta)
+                    c.reasoning_chars = reasoning_chars
                     thought.feed(str(delta))
                     continue
                 thought.close()
@@ -603,10 +687,14 @@ class GenerateStep:
         from sopilot_ai.qa import templates
 
         layer = verdict.violation or "OUTPUT_CANARY"
+        c.output_guard_violation = layer
         c.record(layer, "output.canary" if layer == "OUTPUT_CANARY" else "output.prompt_echo")
         c.replaced = True
         c.emit("replace", {"text": templates.render("guard_block", c.lang), "reason": "GUARD"})
         return refuse("REFUSED_GUARD", template_key="guard_block", rule_id=layer.lower())
+
+
+_CITE_MARKER = re.compile(r"\[(\d+)\]")
 
 
 class CitationStep:
@@ -617,6 +705,8 @@ class CitationStep:
     async def run(self, ctx: PipelineContext) -> Decision:
         c = _ctx(ctx)
         valid = {s.n for s in c.sources}
+        raw_markers = [int(m.group(1)) for m in _CITE_MARKER.finditer(c.answer_text)]
+        c.invalid_citations_removed = sum(1 for n in raw_markers if n not in valid)
         final, used = qa_citations.clean_markers(c.answer_text, valid)
         c.final_text = final.strip()
         c.citations = qa_citations.build_citations(c.sources, used)

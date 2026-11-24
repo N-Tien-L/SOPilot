@@ -41,6 +41,7 @@ from sopilot_ai.conversations.steps import (
     TranslateStep,
     classify_question,
 )
+from sopilot_ai.conversations.trace import TraceCollector
 from sopilot_ai.db.engine import tenant_tx
 from sopilot_ai.qa import pii, templates
 from sopilot_ai.qa.pipeline import (
@@ -150,7 +151,9 @@ class QAService:
     # -- one question ----------------------------------------------------------------------
 
     async def answer(self, principal: Principal, ref: ConversationRef, content: str,
-                     lang: str | None = None) -> AsyncIterator[Event]:
+                     lang: str | None = None, *,
+                     include_trace: bool = False,
+                     rerank: bool | None = None) -> AsyncIterator[Event]:
         started = time.monotonic()
         user_created = self._now()
         queue: asyncio.Queue[Event | None] = asyncio.Queue()
@@ -159,7 +162,8 @@ class QAService:
             followup_max_tokens=self.followup_max_tokens, support_contact=self.support_contact,
             principal=principal, lang=detect_lang(content, lang), today=user_created.date(),
             conversation_id=None if ref.new else ref.id,
-            emit=lambda name, data: queue.put_nowait(Event(name, data)))
+            emit=lambda name, data: queue.put_nowait(Event(name, data)),
+            emit_trace=include_trace, rerank=rerank)
 
         async def known_terms(words: Sequence[str]) -> set[str]:
             async with tenant_tx(self.engine, principal.workspace_id, principal.user_id) as conn:
@@ -167,9 +171,12 @@ class QAService:
 
         ctx.known_terms = known_terms
         user_id, assistant_id = uuid4(), uuid4()
+        mode = self.retriever.mode_for(rerank)  # this question's mode (V2-48)
+        collector = TraceCollector(
+            message_id=assistant_id, conversation_id=ref.id, mode=mode, lang=ctx.lang)
         yield Event("meta", {"conversationId": str(ref.id), "messageId": str(assistant_id),
-                             "mode": self.retriever.mode, "lang": ctx.lang})
-        task = asyncio.create_task(self._run(ctx, ref, queue))
+                             "mode": mode, "lang": ctx.lang})
+        task = asyncio.create_task(self._run(ctx, ref, queue, collector))
         try:
             while (item := await queue.get()) is not None:
                 yield item
@@ -179,14 +186,14 @@ class QAService:
             # The client left: keep a record and give the question back, outside this task's
             # cancellation (a plain await here would be cancelled again).
             self._detach(self._store_aborted(principal, ref, ctx, content, user_id, assistant_id,
-                                             user_created, started))
+                                             user_created, started, collector))
             raise
 
         outcome, reason, text, closing = self._outcome(ctx, decision)
         if ctx.reservation is not None and outcome in FREE_OUTCOMES:
             ctx.reservation = await self._release(principal, ctx)
         rec = self._record(principal, ref, ctx, content, user_id, assistant_id, user_created,
-                           started, outcome, reason, text)
+                           started, outcome, reason, text, collector)
         try:
             async with tenant_tx(self.engine, principal.workspace_id, principal.user_id) as conn:
                 await repo.save_turn(conn, principal, rec)
@@ -210,7 +217,36 @@ class QAService:
     # -- internals -------------------------------------------------------------------------
 
     async def _run(self, ctx: QAContext, ref: ConversationRef,
-                   queue: asyncio.Queue[Event | None]) -> Decision:
+                   queue: asyncio.Queue[Event | None],
+                   collector: TraceCollector) -> Decision:
+        current_step: str | None = None
+
+        def on_retrieval_phase(
+            phase_name: str, status: str, duration_ms: int | None,
+            detail: dict | None,
+        ) -> None:
+            payload = collector.record_phase(phase_name, status, duration_ms, detail)
+            if ctx.emit_trace:
+                ctx.emit("step", payload)
+
+        ctx.on_retrieval_phase = on_retrieval_phase
+
+        def on_start(name: str) -> None:
+            nonlocal current_step
+            current_step = name
+            if ctx.emit_trace and name != "retrieve_and_gate":
+                ctx.emit("step", collector.step_started(name))
+
+        def on_end(name: str, decision: Decision, elapsed_ms: int) -> None:
+            step_ms = (
+                ctx.retrieval.stats.rerank_ms
+                if name == "retrieve_and_gate" and ctx.retrieval is not None
+                else elapsed_ms
+            )
+            payload = collector.step_finished(name, ctx, decision, step_ms)
+            if ctx.emit_trace:
+                ctx.emit("step", payload)
+
         try:
             assert ctx.principal is not None
             if not ref.new:
@@ -218,8 +254,9 @@ class QAService:
                                      ctx.principal.user_id) as conn:
                     pairs = await repo.recent_turns(conn, ctx.principal, ref.id, HISTORY_TURNS)
                 ctx.history = [(pii.mask_pii(q).text, pii.mask_pii(a).text) for q, a in pairs]
-            decision = await run_steps(self.steps(), ctx)
-            await self._shadow(ctx)
+            decision = await run_steps(self.steps(), ctx, on_step_start=on_start,
+                                       on_step_end=on_end)
+            await self._shadow(ctx, collector)
             return decision
         except Exception as exc:  # noqa: BLE001 - the client gets a fixed code, not the message
             # RerankError's message is a fixed code (RERANK_TIMEOUT, RERANK_HTTP_503, ...):
@@ -228,11 +265,16 @@ class QAService:
             log.error("qa_pipeline_failed", error=type(exc).__name__, detail=code,
                       last_step=(ctx.route_info.get("steps") or [None])[-1])
             ctx.error_code = "INTERNAL_ERROR"
+            if current_step is not None:
+                payload = collector.step_errored(current_step, code or "INTERNAL_ERROR")
+                if ctx.emit_trace:
+                    ctx.emit("step", payload)
             return refuse("ERROR", rule_id="internal")
         finally:
             queue.put_nowait(None)
 
-    async def _shadow(self, ctx: QAContext) -> None:
+    async def _shadow(self, ctx: QAContext,
+                      collector: TraceCollector | None = None) -> None:
         """Shadow mode (V2-44): record the classifier next to the rule decision, change nothing.
 
         Runs after the chain so that questions the rules decided are recorded too (the comparison
@@ -247,11 +289,17 @@ class QAService:
                 or not ctx.text.strip()):
             return
         try:
+            started = time.monotonic()
             await classify_question(self.classifier, ctx, "shadow")
             entry = ctx.route_info.get("classifier")
             if entry is not None:
                 entry["rule"] = {"decidedBy": ctx.route_info.get("decided_by"),
                                  "layer": ctx.route_info.get("layer")}
+            elapsed_ms = round((time.monotonic() - started) * 1000)
+            if collector is not None:
+                payload = collector.step_finished("setfit_router_shadow", ctx, None, elapsed_ms)
+                if ctx.emit_trace:
+                    ctx.emit("step", payload)
         except Exception as exc:  # noqa: BLE001 - shadow must never change a finished answer
             log.warning("router_classifier_shadow_failed", error=type(exc).__name__)
 
@@ -294,19 +342,52 @@ class QAService:
 
     @staticmethod
     def _citation(ctx: QAContext, c) -> dict:  # noqa: ANN001
+        src = next((s for s in ctx.sources if s.n == c.n), None)
+        chunks = (
+            [
+                {
+                    "subN": f"{c.n}.{idx}",
+                    "chunkId": str(ch.chunk_id),
+                    "sectionPath": list(ch.section_path),
+                    "page": ch.page_start,
+                    "charStart": ch.char_start,
+                    "charEnd": ch.char_end,
+                    "snippet": ch.content,
+                }
+                for idx, ch in enumerate(
+                    sorted(src.hit_chunks, key=lambda x: x.ordinal), start=1
+                )
+            ]
+            if src is not None
+            else []
+        )
+        section_path = list(src.section_path) if src is not None else []
         return {"n": c.n, "documentId": str(c.document_id), "versionId": str(c.version_id),
                 "title": ctx.titles.get(c.version_id), "page": c.page_start,
-                "charStart": c.char_start, "charEnd": c.char_end, "snippet": c.snippet}
+                "charStart": c.char_start, "charEnd": c.char_end, "snippet": c.snippet,
+                "sectionPath": section_path, "chunks": chunks}
 
     def _record(self, principal: Principal, ref: ConversationRef, ctx: QAContext, content: str,
                 user_id: UUID, assistant_id: UUID, user_created: datetime, started: float,
-                outcome: str, reason: str | None, text: str) -> repo.TurnRecord:
-        ctx.timings["total"] = round((time.monotonic() - started) * 1000)
+                outcome: str, reason: str | None, text: str,
+                collector: TraceCollector | None = None) -> repo.TurnRecord:
+        total_ms = round((time.monotonic() - started) * 1000)
+        ctx.timings["total"] = total_ms
         route = {**ctx.route_info, "llmCalls": ctx.llm_calls}
         result = ctx.retrieval
         end = self._now()
         if end <= user_created:  # the two rows must sort question first
             end = user_created + timedelta(milliseconds=1)
+        trace_json = (
+            collector.to_persisted_json(
+                outcome=outcome,
+                refusal_reason=reason,
+                total_ms=total_ms,
+                disclaimers=ctx.checks.get("disclaimers") or (),
+            )
+            if collector is not None
+            else None
+        )
         return repo.TurnRecord(
             conversation_id=ref.id, new_conversation=ref.new, title=make_title(content),
             user_message_id=user_id, assistant_message_id=assistant_id, question=content,
@@ -316,9 +397,11 @@ class QAService:
             retrieval_mode=result.mode if result else None,
             gate_score=result.gate_score if result else None,
             threshold=result.threshold if result else None, model=ctx.model,
-            prompt_version=PROMPT_VERSION if ctx.prompt else None, latency_ms=ctx.timings,
+            prompt_version=PROMPT_VERSION if ctx.prompt else None,
+            tokens_in=ctx.tokens_in, tokens_out=ctx.tokens_out, latency_ms=ctx.timings,
             context_sources=context_sources_json(ctx.sources) if ctx.sources else None,
-            citations=ctx.citations, guard_events=ctx.guard_events, retrieval=result)
+            citations=ctx.citations, guard_events=ctx.guard_events, retrieval=result,
+            trace=trace_json)
 
     async def _release(self, principal: Principal, ctx: QAContext):  # noqa: ANN202
         assert ctx.reservation is not None
@@ -331,13 +414,14 @@ class QAService:
 
     async def _store_aborted(self, principal: Principal, ref: ConversationRef, ctx: QAContext,
                              content: str, user_id: UUID, assistant_id: UUID,
-                             user_created: datetime, started: float) -> None:
+                             user_created: datetime, started: float,
+                             collector: TraceCollector | None = None) -> None:
         ctx.error_code = "INTERNAL_ERROR"
         ctx.route_info["aborted"] = True
         if ctx.reservation is not None:
             ctx.reservation = await self._release(principal, ctx)
         rec = self._record(principal, ref, ctx, content, user_id, assistant_id, user_created,
-                           started, "ERROR", None, ctx.answer_text)
+                           started, "ERROR", None, ctx.answer_text, collector)
         try:
             async with tenant_tx(self.engine, principal.workspace_id, principal.user_id) as conn:
                 await repo.save_turn(conn, principal, rec)

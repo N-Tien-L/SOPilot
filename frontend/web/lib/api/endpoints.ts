@@ -22,7 +22,9 @@ import type {
   MemberView,
   MyMemberView,
   OwnershipResponse,
+  PipelineTrace,
   PublishersOverview,
+  RetrievalOptions,
   TagView,
   VisibilityResponse,
   WorkspaceDetail,
@@ -221,11 +223,20 @@ export const getProcessingReport = (documentId: string, versionId: string, signa
 export const getProcessingChunk = (documentId: string, versionId: string, ordinal: number, signal?: AbortSignal) =>
   aiRequest<ChunkDetail>(`${reportPath(documentId, versionId)}?ordinal=${ordinal}`, { signal });
 
+// ---- retrieval options (V2-48) ----
+export const getRetrievalOptions = (signal?: AbortSignal) =>
+  aiRequest<RetrievalOptions>('/retrieval/options', { signal });
+
 // ---- conversations, feedback, knowledge gaps (ai-service) ----
 export const listConversations = (limit = 50) =>
   aiRequest<ConversationSummary[]>('/conversations', { query: { limit } });
 export const getConversation = (id: string) =>
   aiRequest<ConversationDetail>(`/conversations/${encodeURIComponent(id)}`);
+export const getMessageTrace = (conversationId: string, messageId: string, signal?: AbortSignal) =>
+  aiRequest<PipelineTrace>(
+    `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/trace`,
+    { signal },
+  );
 export const renameConversation = (id: string, title: string) =>
   aiRequest<{ id: string; title: string }>(`/conversations/${encodeURIComponent(id)}`, {
     method: 'PATCH',

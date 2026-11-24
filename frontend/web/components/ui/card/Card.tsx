@@ -1,73 +1,47 @@
 'use client';
 
 import React from 'react';
-import { clsx } from 'clsx';
-import styles from './card.module.css';
+import { cn } from '@/lib/utils';
 
-export interface CardProps {
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  className?: string;
-  padding?: 'none' | 'sm' | 'md' | 'lg';
-  onClick?: () => void;
-  style?: React.CSSProperties;
 }
+export type CardHeaderProps = React.HTMLAttributes<HTMLDivElement>;
+export type CardTitleProps = React.HTMLAttributes<HTMLHeadingElement>;
+export type CardDescriptionProps = React.HTMLAttributes<HTMLParagraphElement>;
+export type CardContentProps = React.HTMLAttributes<HTMLDivElement>;
+export type CardFooterProps = React.HTMLAttributes<HTMLDivElement>;
 
-export function Card({ children, className, padding = 'md', onClick, style }: CardProps) {
+export function Card({ className, ...props }: CardProps) {
   return (
     <div
-      className={clsx(styles.card, styles[`padding-${padding}`], className)}
-      onClick={onClick}
-      style={style}
-    >
-      {children}
-    </div>
+      className={cn(
+        'rounded-2xl border border-border bg-card text-card-foreground shadow-[var(--shadow-sm)]',
+        className,
+      )}
+      {...props}
+    />
   );
 }
 
-export interface CardHeaderProps {
-  children: React.ReactNode;
-  className?: string;
+export function CardHeader({ className, ...props }: CardHeaderProps) {
+  return <div className={cn('flex flex-col gap-1 p-5 pb-3', className)} {...props} />;
 }
 
-export function CardHeader({ children, className }: CardHeaderProps) {
-  return <div className={clsx(styles.header, className)}>{children}</div>;
+export function CardTitle({ className, ...props }: CardTitleProps) {
+  return <h3 className={cn('text-base font-bold tracking-tight text-foreground', className)} {...props} />;
 }
 
-export interface CardTitleProps {
-  children: React.ReactNode;
-  className?: string;
-  as?: 'h1' | 'h2' | 'h3' | 'h4';
+export function CardDescription({ className, ...props }: CardDescriptionProps) {
+  return <p className={cn('text-xs text-muted-foreground', className)} {...props} />;
 }
 
-export function CardTitle({ children, className, as: Tag = 'h3' }: CardTitleProps) {
-  return <Tag className={clsx(styles.title, className)}>{children}</Tag>;
+export function CardContent({ className, ...props }: CardContentProps) {
+  return <div className={cn('p-5 pt-0', className)} {...props} />;
 }
 
-export interface CardDescriptionProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-export function CardDescription({ children, className }: CardDescriptionProps) {
-  return <p className={clsx(styles.description, className)}>{children}</p>;
-}
-
-export interface CardContentProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-export function CardContent({ children, className }: CardContentProps) {
-  return <div className={clsx(styles.content, className)}>{children}</div>;
-}
-
-export interface CardFooterProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-export function CardFooter({ children, className }: CardFooterProps) {
-  return <div className={clsx(styles.footer, className)}>{children}</div>;
+export function CardFooter({ className, ...props }: CardFooterProps) {
+  return <div className={cn('flex items-center gap-2 border-t border-border/70 px-5 py-3.5', className)} {...props} />;
 }
 
 export default Card;
