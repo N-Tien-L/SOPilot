@@ -79,6 +79,14 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Splits a byte count into an animatable numeric value, unit suffix and decimal places. */
+export function splitBytes(bytes: number): { value: number; unit: string; decimals: number } {
+  if (bytes < 1024) return { value: bytes, unit: ' B', decimals: 0 };
+  if (bytes < 1024 * 1024) return { value: bytes / 1024, unit: ' KB', decimals: 1 };
+  if (bytes < 1024 * 1024 * 1024) return { value: bytes / (1024 * 1024), unit: ' MB', decimals: 1 };
+  return { value: bytes / (1024 * 1024 * 1024), unit: ' GB', decimals: 2 };
+}
+
 /** Header of the reasoning block: live while thinking, then the time it took. */
 export function thoughtLabel(durationMs: number | null, thinking: boolean): string {
   if (thinking) return 'Thinking…';

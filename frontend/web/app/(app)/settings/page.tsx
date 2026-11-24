@@ -2,15 +2,15 @@
 
 import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, HardDrive, LogOut, ShieldAlert } from 'lucide-react';
+import { FileText, HardDrive, LogOut, ShieldAlert, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { CountUp } from '@/components/effects';
 import { FadeIn } from '@/components/motion/Primitives';
 import { Button, ConfirmDialog, Input, Modal, PageHeader, Skeleton, StatCard } from '@/components/ui';
 import { deleteWorkspace, leaveWorkspace, renameWorkspace } from '@/lib/api/endpoints';
-import { formatBytes } from '@/lib/chat/labels';
-import { useInvalidate, useWorkspaceDetail } from '@/lib/query/hooks';
+import { splitBytes } from '@/lib/chat/labels';
+import { useInvalidate, useMembers, useWorkspaceDetail } from '@/lib/query/hooks';
 import { moveToAnotherWorkspace } from '@/lib/session/exit';
 import { confirmDiscardUploads } from '@/lib/upload/guard';
 import { useSessionStore } from '@/store/session-store';
@@ -18,7 +18,9 @@ import { useSessionStore } from '@/store/session-store';
 export default function SettingsPage() {
   const router = useRouter();
   const workspace = useSessionStore((s) => s.workspace);
+  const canSeeMembers = workspace?.role === 'OWNER' || workspace?.role === 'ADMIN';
   const { data, isLoading, isError, error } = useWorkspaceDetail();
+  const members = useMembers(canSeeMembers);
   const invalidate = useInvalidate();
   const [name, setName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -104,15 +106,27 @@ export default function SettingsPage() {
         />
       </FadeIn>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={`grid gap-3 ${canSeeMembers && members.data ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <StatCard
           label="Documents"
-          value={<CountUp to={data.documentCount} suffix={data.documentCount === 1 ? ' document' : ' documents'} />}
+          value={<CountUp to={data.documentCount} />}
+          hint={data.documentCount === 1 ? 'Indexed SOP document' : 'Indexed SOP documents'}
           icon={<FileText size={14} aria-hidden />}
         />
+        {canSeeMembers && members.data ? (
+          <StatCard
+            label="Members"
+            value={<CountUp to={members.data.length} />}
+            hint={`${members.data.filter((m) => m.status === 'ACTIVE').length} active`}
+            icon={<Users size={14} aria-hidden />}
+          />
+        ) : null}
         <StatCard
           label="Storage used"
-          value={formatBytes(data.bytesUsed)}
+          value={(() => {
+            const s = splitBytes(data.bytesUsed);
+            return <CountUp to={s.value} decimals={s.decimals} suffix={s.unit} />;
+          })()}
           hint="Stored in workspace bucket"
           icon={<HardDrive size={14} aria-hidden />}
         />

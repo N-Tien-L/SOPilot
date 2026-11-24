@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useMotionValue, useSpring } from 'motion/react';
+import { cn } from '@/lib/utils';
 
 export interface CountUpProps {
   to: number;
@@ -44,7 +45,7 @@ export function CountUp({
   }, [to, decimals, prefix, suffix, mv, spring]);
 
   return (
-    <span ref={spanRef} className={className}>
+    <span ref={spanRef} className={cn('tabular-nums', className)}>
       {prefix}
       {from.toFixed(decimals)}
       {suffix}

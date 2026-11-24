@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { ErrorNote } from '@/components/app/ErrorNote';
-import { Avatar, Badge, Button, Checkbox, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton } from '@/components/ui';
+import { CountUp } from '@/components/effects';
+import { Avatar, Badge, Button, Checkbox, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton, StatCard } from '@/components/ui';
 import { reactivateMember, removeMember, suspendMember, updateMember } from '@/lib/api/endpoints';
 import type { MemberView, WorkspaceRole } from '@/lib/api/types';
 import {
@@ -253,8 +254,33 @@ export function MembersPanel() {
     ...(departments.data ?? []).map((d) => ({ value: d.id, label: d.name })),
   ];
 
+  const activeCount = data.filter((m) => m.status === 'ACTIVE').length;
+  const suspendedCount = data.length - activeCount;
+  const adminCount = data.filter((m) => m.role === 'OWNER' || m.role === 'ADMIN').length;
+
   return (
     <>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Total members"
+          value={<CountUp to={data.length} />}
+          hint={withDepartments && departments.data ? `Across ${departments.data.length} departments` : 'In this workspace'}
+          icon={<Users size={14} aria-hidden />}
+        />
+        <StatCard
+          label="Active"
+          value={<CountUp to={activeCount} />}
+          hint={suspendedCount > 0 ? `${suspendedCount} suspended` : 'All members active'}
+          icon={<UserCheck size={14} aria-hidden />}
+        />
+        <StatCard
+          label="Owners & admins"
+          value={<CountUp to={adminCount} />}
+          hint="Workspace managers"
+          icon={<ShieldCheck size={14} aria-hidden />}
+        />
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-sm)]">
         <div className="relative min-w-[200px] flex-1">
           <Search size={14} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
