@@ -77,6 +77,7 @@ class QAContext(PipelineContext):
     history: list[tuple[str, str]] = field(default_factory=list)  # masked (question, answer)
     conversation_id: UUID | None = None  # None for a new conversation
     emit: Callable[[str, Any], None] = field(default=lambda name, data: None, repr=False)
+    rerank: bool | None = None  # V2-48: False turns the reranker off for this question only
 
     reservation: Reservation | None = None
     semantic: qa_router.SemanticDecision | None = None  # V2-27; None when the router is off
@@ -413,7 +414,8 @@ class RetrieveStep:
             reuse = c.query_vector if c.query_vector is not None and c.query == c.text else None
             result = await self.retriever.retrieve(conn, c.principal, c.query,
                                                    query_lang=c.frame.lang, query_vector=reuse,
-                                                   alt=c.alt_query, on_phase=c.on_retrieval_phase)
+                                                   alt=c.alt_query, on_phase=c.on_retrieval_phase,
+                                                   rerank=c.rerank)
             nearest_ids: list[UUID] = []
             if not result.passed:
                 nearest_ids = list(dict.fromkeys(

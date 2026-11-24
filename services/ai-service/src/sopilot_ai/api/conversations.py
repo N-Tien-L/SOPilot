@@ -22,6 +22,7 @@ from sopilot_ai.conversations import repository as repo
 from sopilot_ai.conversations.events import PING, Event
 from sopilot_ai.conversations.service import ConversationNotFound, QAService
 from sopilot_ai.db.engine import tenant_tx
+from sopilot_ai.providers.registry import ModelsConfig
 from sopilot_ai.retrieval.access_filter import Principal
 
 log = structlog.get_logger(__name__)
@@ -39,6 +40,8 @@ class MessageIn(BaseModel):
     content: str = Field(max_length=MAX_BODY_CHARS)
     lang: Literal["vi", "en"] | None = None
     includeTrace: bool = False  # noqa: N815 - matches camelCase JSON API convention
+    # V2-48: False skips the reranker for this question; True or absent keeps the configuration.
+    rerank: bool | None = None
 
 
 class ConversationPatch(BaseModel):
@@ -111,10 +114,19 @@ async def post_message(
     except ConversationNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "conversation not found") from exc
     stream = with_pings(
-        service.answer(principal, ref, body.content, body.lang, include_trace=body.includeTrace)
+        service.answer(principal, ref, body.content, body.lang, include_trace=body.includeTrace,
+                       rerank=body.rerank)
     )
     return StreamingResponse(stream, media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@router.get("/retrieval/options", dependencies=[Depends(current_principal)])
+async def retrieval_options(request: Request) -> dict[str, Any]:
+    """What the chat may offer. Read from the configuration alone: it must not build the
+    service (that loads the embedding model and the chains)."""
+    spec = ModelsConfig.load(request.app.state.models_config_path).rerank()
+    return {"rerank": {"available": spec.enabled and spec.provider != "none"}}
 
 
 @router.get("/conversations")

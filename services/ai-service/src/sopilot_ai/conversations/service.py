@@ -152,7 +152,8 @@ class QAService:
 
     async def answer(self, principal: Principal, ref: ConversationRef, content: str,
                      lang: str | None = None, *,
-                     include_trace: bool = False) -> AsyncIterator[Event]:
+                     include_trace: bool = False,
+                     rerank: bool | None = None) -> AsyncIterator[Event]:
         started = time.monotonic()
         user_created = self._now()
         queue: asyncio.Queue[Event | None] = asyncio.Queue()
@@ -162,7 +163,7 @@ class QAService:
             principal=principal, lang=detect_lang(content, lang), today=user_created.date(),
             conversation_id=None if ref.new else ref.id,
             emit=lambda name, data: queue.put_nowait(Event(name, data)),
-            emit_trace=include_trace)
+            emit_trace=include_trace, rerank=rerank)
 
         async def known_terms(words: Sequence[str]) -> set[str]:
             async with tenant_tx(self.engine, principal.workspace_id, principal.user_id) as conn:
@@ -170,11 +171,11 @@ class QAService:
 
         ctx.known_terms = known_terms
         user_id, assistant_id = uuid4(), uuid4()
+        mode = self.retriever.mode_for(rerank)  # this question's mode (V2-48)
         collector = TraceCollector(
-            message_id=assistant_id, conversation_id=ref.id,
-            mode=self.retriever.mode, lang=ctx.lang)
+            message_id=assistant_id, conversation_id=ref.id, mode=mode, lang=ctx.lang)
         yield Event("meta", {"conversationId": str(ref.id), "messageId": str(assistant_id),
-                             "mode": self.retriever.mode, "lang": ctx.lang})
+                             "mode": mode, "lang": ctx.lang})
         task = asyncio.create_task(self._run(ctx, ref, queue, collector))
         try:
             while (item := await queue.get()) is not None:

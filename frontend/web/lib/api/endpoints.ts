@@ -24,6 +24,7 @@ import type {
   OwnershipResponse,
   PipelineTrace,
   PublishersOverview,
+  RetrievalOptions,
   TagView,
   VisibilityResponse,
   WorkspaceDetail,
@@ -221,6 +222,10 @@ export const getProcessingReport = (documentId: string, versionId: string, signa
   aiRequest<ProcessingReport>(reportPath(documentId, versionId), { signal });
 export const getProcessingChunk = (documentId: string, versionId: string, ordinal: number, signal?: AbortSignal) =>
   aiRequest<ChunkDetail>(`${reportPath(documentId, versionId)}?ordinal=${ordinal}`, { signal });
+
+// ---- retrieval options (V2-48) ----
+export const getRetrievalOptions = (signal?: AbortSignal) =>
+  aiRequest<RetrievalOptions>('/retrieval/options', { signal });
 
 // ---- conversations, feedback, knowledge gaps (ai-service) ----
 export const listConversations = (limit = 50) =>

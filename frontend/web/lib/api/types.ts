@@ -468,6 +468,11 @@ export interface ChunkDetail {
   indexText: string;
 }
 
+/** GET /ai/v1/retrieval/options (V2-48). */
+export interface RetrievalOptions {
+  rerank: { available: boolean };
+}
+
 export interface ConversationSummary {
   id: string;
   title: string | null;

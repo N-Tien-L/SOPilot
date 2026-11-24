@@ -16,10 +16,10 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 49
+total_tickets: 50
 completed_tickets: 42
-implemented_tickets: 47
-review_tickets: 5
+implemented_tickets: 48
+review_tickets: 6
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -128,6 +128,7 @@ flowchart TD
     V47["V2-47: ai-service: chunk quality fixes found on the pilot corpus"]
     V49["V2-49: ai-service: per-message pipeline trace for the Pipeline Inspector"]
     V50["V2-50: web: design refresh and Pipeline Inspector UI"]
+    V48["V2-48: ai-service + web: per-question reranker toggle"]
     V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
     V01 --> V03
     V01 --> V04
@@ -258,6 +259,11 @@ flowchart TD
     V15 --> V50
     V49 --> V50
     V50 --> V18
+    V10 --> V48
+    V35 --> V48
+    V49 --> V48
+    V50 --> V48
+    V48 --> V18
 ```
 
 ---
@@ -336,8 +342,9 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-47` | ai-service: chunk quality fixes found on the pilot corpus | ai-qa | L | `V2-20`, `V2-21`, `V2-22`, `V2-46` | review |
 | `V2-49` | ai-service: per-message pipeline trace, token usage and the trace endpoint for the Pipeline Inspector | ai-qa | L | `V2-10` | review |
 | `V2-50` | web: design system refresh (light and dark, Tailwind + CVA + Radix) and the Pipeline Inspector UI | web | L | `V2-15`, `V2-49` | review |
+| `V2-48` | ai-service + web: per-question reranker toggle next to the chat input | web | M | `V2-10`, `V2-35`, `V2-49`, `V2-50` | review |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33`, `V2-42`, `V2-43` | done |
-| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41`, `V2-44`, `V2-45`, `V2-46`, `V2-47`, `V2-49`, `V2-50` | todo |
+| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41`, `V2-44`, `V2-45`, `V2-46`, `V2-47`, `V2-49`, `V2-50`, `V2-48` | todo |
 
 ---
 
@@ -507,3 +514,5 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 > **Owner decision 2026-11-24 (V2-49 added, recorded after the work was done):** [`V2-49`](tickets/V2-49-ai-service-pipeline-trace.md) (ai-qa, L, depends on `V2-10`) records work done after V2-47 by another agent session without a ticket: per-step `step` events, a stored sanitized trace per answer (`rag.message_traces`, migration `V005`), token usage on `messages` and `GET /conversations/{id}/messages/{id}/trace`. The same tree also carried three behaviour changes that are not tracing (rewrite prompt, no merging of adjacent sections in the prompt context, 300 s provider timeouts); the ticket lists them for the owner to accept or revert. `total_tickets`, `implemented_tickets` and `review_tickets` each grow by one; the ticket is `review`, not `done` (owner review of the evidence is pending).
 
 > **Owner decision 2026-11-24 (V2-50 added, recorded after the work was done):** [`V2-50`](tickets/V2-50-web-design-refresh-and-pipeline-inspector.md) (web, L, depends on `V2-15`, `V2-49`) records the frontend redesign and the Pipeline Inspector UI, also done without a ticket: light and dark themes, the `components/ui` primitives rebuilt on Tailwind 4 + CVA + Radix, motion and effects, a command palette and the Inspector panel. It adds 13 npm dependencies, listed in the ticket for the owner to confirm (CLAUDE.md constraint 12). `total_tickets`, `implemented_tickets` and `review_tickets` each grow by one; the ticket is `review`, not `done` (owner review of the evidence is pending).
+
+> **Owner decision 2026-11-24 (V2-48 added):** [`V2-48`](tickets/V2-48-ai-web-rerank-toggle.md) (web, M, depends on `V2-10`, `V2-35`, `V2-49`, `V2-50`) adds a per-question toggle next to the chat input that turns the reranker off for one question (plain `hybrid` mode), so the same question can be compared with and without it in the Pipeline Inspector during the acceptance demo. `total_tickets`, `implemented_tickets` and `review_tickets` each grow by one; the ticket is `review`, not `done` (owner review of the evidence is pending).

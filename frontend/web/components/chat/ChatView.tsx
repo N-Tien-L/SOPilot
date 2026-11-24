@@ -15,6 +15,7 @@ import {
 import { FadeIn } from '@/components/motion/Primitives';
 import { getConversation } from '@/lib/api/endpoints';
 import { applyEvent, endTurn, startTurn, type LiveTurn } from '@/lib/chat/live';
+import { effectiveRerank, readRerankPreference, writeRerankPreference } from '@/lib/chat/rerank-preference';
 import { recallNearest, recallWarnings, rememberNearest, rememberWarnings } from '@/lib/chat/warning-store';
 import { workspaceKey } from '@/lib/query/client';
 import { useConversation, useMessageTrace } from '@/lib/query/hooks';
@@ -22,6 +23,7 @@ import { streamAnswer } from '@/lib/sse/stream';
 import { useInspectorStore } from '@/store/inspector-store';
 import { useSessionStore } from '@/store/session-store';
 import { AnswerBlock } from './AnswerBlock';
+import { RerankToggle, useRerankOptions } from './RerankToggle';
 import { PipelineInspectorPanel } from './inspector/PipelineInspectorPanel';
 
 const STARTER_PROMPTS = [
@@ -93,6 +95,12 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
   const [finishing, setFinishing] = useState(false);
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
+  // Read after mount so the server-rendered markup matches the first client render.
+  const [rerankOn, setRerankOn] = useState(true);
+  const rerankOptions = useRerankOptions();
+  useEffect(() => {
+    setRerankOn(readRerankPreference());
+  }, []);
   const abort = useRef<AbortController | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -127,6 +135,7 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
     const end = await streamAnswer({
       conversationId: conversationId ?? createdId.current ?? 'new',
       content: question,
+      rerank: effectiveRerank(rerankOptions.available, rerankOn),
       signal: controller.signal,
       onEvent: (event) => {
         turn = applyEvent(turn, event);
@@ -459,7 +468,18 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
               )}
             </div>
             <div className="relative z-10 flex items-center justify-between border-t border-border/50 bg-muted/35 px-4 py-1.5 text-[11px] text-muted-foreground">
-              <span>Grounded only in documents you can access</span>
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span>Grounded only in documents you can access</span>
+                <RerankToggle
+                  {...rerankOptions}
+                  on={rerankOn}
+                  disabled={locked}
+                  onChange={(on) => {
+                    setRerankOn(on);
+                    writeRerankPreference(on);
+                  }}
+                />
+              </span>
               <span className="hidden sm:inline">
                 <kbd className="rounded border border-border bg-card px-1 font-mono text-[10px]">Enter</kbd> send ·{' '}
                 <kbd className="rounded border border-border bg-card px-1 font-mono text-[10px]">Shift+Enter</kbd> newline

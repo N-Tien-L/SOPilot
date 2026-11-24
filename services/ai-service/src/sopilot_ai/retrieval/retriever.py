@@ -108,6 +108,12 @@ class Retriever:
         """Mode of the gate: ``dense``, ``bm25``, ``hybrid`` or ``hybrid_rerank``."""
         return "hybrid_rerank" if self.reranker is not None else self.config.mode
 
+    def mode_for(self, rerank: bool | None) -> str:
+        """Gate mode of one question: ``rerank=False`` turns the reranker off for it (plain
+        ``hybrid``); ``True`` or ``None`` keep the configured mode (``True`` without a reranker
+        is not an error, there is simply nothing to turn on)."""
+        return self.config.mode if rerank is False else self.mode
+
     async def embed_query(self, query: str) -> np.ndarray:
         out = await asyncio.to_thread(self.embedder.embed, [query], is_query=True)
         return out[0]
@@ -116,7 +122,8 @@ class Retriever:
                        query_lang: str | None = None,
                        query_vector: np.ndarray | None = None,
                        alt: AltQuery | None = None,
-                       on_phase: PhaseHook | None = None) -> RetrievalResult:
+                       on_phase: PhaseHook | None = None,
+                       rerank: bool | None = None) -> RetrievalResult:
         def emit_phase(name: str, status: str, ms: int | None = None,
                        detail: dict[str, Any] | None = None) -> None:
             if on_phase is not None:
@@ -274,10 +281,22 @@ class Retriever:
             })
 
         # Phase 4: Cross-Encoder Reranker & Gate
-        emit_phase("retrieve_rerank", "running")
+        # ``rerank=False`` skips a configured reranker for this question only: it is never
+        # called and the gate uses the ``hybrid`` threshold.
+        use_rerank = self.reranker is not None and rerank is not False
+        if self.reranker is not None and not use_rerank:
+            emit_phase("retrieve_rerank", "skipped", 0, {
+                "skipped": True, "reason": "rerank_off_by_request",
+            })
+        elif self.reranker is None:
+            emit_phase("retrieve_rerank", "skipped", 0, {
+                "skipped": True, "reason": "rerank_not_configured",
+            })
+        else:
+            emit_phase("retrieve_rerank", "running")
         t_rerank = time.monotonic()
         gate_mode = base_mode
-        if self.reranker is not None and pool:
+        if self.reranker is not None and use_rerank and pool:
             texts = await search.index_texts(conn, principal, [c.chunk_id for c in pool])
             pool = [c for c in pool if c.chunk_id in texts]
             # A chunk is scored against the question in its own language (§6.4b): a pair in one
@@ -298,13 +317,16 @@ class Retriever:
             pool = [pool[int(j)] for j in np.argsort(-scores, kind="stable")]
             gate_mode = "hybrid_rerank"
         rerank_ms = _ms(t_rerank)
+        reranked = gate_mode == "hybrid_rerank"  # the reranker really scored this question's pool
+        if use_rerank:
+            emit_phase("retrieve_rerank", "passed", rerank_ms, {"rerankEnabled": reranked})
 
         for i, c in enumerate(pool, start=1):
             c.rank = i
         threshold = fusion.threshold_for(gate_mode, cfg.thresholds)
         gate = fusion.gate_score(gate_mode, pool[0]) if pool else None
         passed = bool(pool) and fusion.passes(gate, threshold)
-        rerank_model = getattr(self.reranker, "model", None) if self.reranker is not None else None
+        rerank_model = getattr(self.reranker, "model", None) if reranked else None
         stats = RetrievalStats(
             dense_count=len(dense_hits),
             bm25_count=len(bm25_hits),
@@ -317,7 +339,7 @@ class Retriever:
             bm25_ms=bm25_ms,
             rrf_ms=rrf_ms,
             rerank_ms=rerank_ms,
-            rerank_enabled=self.reranker is not None,
+            rerank_enabled=reranked,
             rerank_model=str(rerank_model) if rerank_model else None,
         )
         return RetrievalResult(

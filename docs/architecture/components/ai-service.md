@@ -886,7 +886,7 @@ The question's language is detected with a light rule (the share of Vietnamese c
 
 ### 7.2 SSE
 
-`POST /ai/v1/conversations/{conversationId}/messages` with `Accept: text/event-stream`. Body `{ "content": "…", "lang": "vi" | "en" | null }`. `conversationId = "new"` creates a new conversation.
+`POST /ai/v1/conversations/{conversationId}/messages` with `Accept: text/event-stream`. Body `{ "content": "…", "lang": "vi" | "en" | null, "rerank": true | false | null }`. `conversationId = "new"` creates a new conversation. `rerank` (V2-48) is per question: `false` skips the reranker for that question (no rerank call; the gate, the `meta` event, the `retrieve_rerank` trace phase and the stored `retrieval_mode` are plain `hybrid`, the live `retrieve_rerank` phase is `skipped` with reason `rerank_off_by_request`; a stored trace keeps `rerankEnabled: false` on the `retrieve_and_gate` step); `true` or absent keeps the configured behaviour, and on a service without a reranker it changes nothing. `GET /ai/v1/retrieval/options` (Bearer) returns `{"rerank": {"available": bool}}` from the configuration alone (`rerank.enabled` and a provider other than `none`); it does not build the QA service, so it loads no model. The toggle can only turn a configured reranker off for one question; it cannot enable one.
 
 | Event | Data | When |
 |---|---|---|

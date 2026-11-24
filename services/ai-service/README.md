@@ -69,11 +69,12 @@ Read from the routers in `src/sopilot_ai/api/`. User routes need `Authorization:
 | `GET /health` | Public | `{"status":"ok"}`, or `{"status":"degraded","staleVersions":N}` when chunks use another embedding model, revision or normalizer |
 | `GET /ai/v1/documents/{documentId}/versions/{versionId}/processing-report` | Bearer | Detected family, the evidence for it, the chunking rule ids with the current `chunking` config and the chunk layout (`ordinal`, `chunkType`, `sectionPath`, pages, code point range, tokens) of the **active** version; no chunk text. `?ordinal=N` returns that chunk's `content` and `indexText`. Same `404` rule as `/content` (TECH-V2-ai-service §7.7) |
 | `GET /ai/v1/documents/{documentId}/versions/{versionId}/content` | Bearer | Canonical Markdown of the **active** version of a document the caller may read; any other version, or a missing, unreadable, not `READY` or deleted document, is `404` |
-| `POST /ai/v1/conversations/{id}/messages` | Bearer | Body `{content, lang?}`; answers `text/event-stream`. `{id}` is a conversation UUID or `new`; another user's or workspace's conversation is `404`. Events and error codes: TECH-V2-ai-service §7.2 |
+| `POST /ai/v1/conversations/{id}/messages` | Bearer | Body `{content, lang?, rerank?}` (`rerank: false` skips the reranker for this question); answers `text/event-stream`. `{id}` is a conversation UUID or `new`; another user's or workspace's conversation is `404`. Events and error codes: TECH-V2-ai-service §7.2 |
 | `GET /ai/v1/conversations` | Bearer | `limit` (1-100, default 50), `offset` |
 | `GET /ai/v1/conversations/{id}` | Bearer | An answer from a document no longer readable comes back as `hidden` |
 | `PATCH /ai/v1/conversations/{id}` | Bearer | Title |
 | `DELETE /ai/v1/conversations/{id}` | Bearer | Soft delete, `204` |
+| `GET /ai/v1/retrieval/options` | Bearer | `{rerank: {available}}`: whether a reranker is configured (config only, loads no model) |
 | `PUT /ai/v1/messages/{messageId}/feedback` | Bearer | `{vote: -1\|1, comment?}` → `204`; `404` if not the owner's assistant message |
 | `GET /ai/v1/knowledge-gaps` | Bearer, OWNER/ADMIN | `status=open\|resolved`, `limit`, `offset`; MEMBER `403` |
 | `POST /ai/v1/knowledge-gaps/{messageId}/resolve` | Bearer, OWNER/ADMIN | `{note?}` |
