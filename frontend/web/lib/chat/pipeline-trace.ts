@@ -21,17 +21,17 @@ export interface StageDefinition {
 }
 
 export const PIPELINE_STAGES: readonly StageDefinition[] = [
-  { id: 'input_pii', index: 1, title: 'Input, Quota & PII Masking', subtitle: 'Validation, quota & PII redaction' },
-  { id: 'guard_rule', index: 2, title: 'Guardrails & Rule Router', subtitle: 'Safety rules, word stripping & templates' },
-  { id: 'classify_route', index: 3, title: 'Query Frame, Classify & Routing', subtitle: 'Signals, Semantic & SetFit routing' },
-  { id: 'rewrite_translate', index: 4, title: 'Query Rewrite & Translation', subtitle: 'Standalone rewrite & cross-lingual query' },
-  { id: 'retrieve_dense', index: 5, title: 'Dense Vector Search', subtitle: 'Semantic embedding cosine search (pgvector)' },
-  { id: 'retrieve_sparse', index: 6, title: 'Sparse Lexical Search (BM25)', subtitle: 'Exact keyword & term-frequency matching' },
-  { id: 'retrieve_rrf', index: 7, title: 'RRF Fusion & Boost', subtitle: 'Reciprocal rank fusion & doc-code boost' },
-  { id: 'retrieve_rerank', index: 8, title: 'Reranker & Relevance Gate', subtitle: 'Cross-encoder scoring, RLS & gate threshold' },
-  { id: 'context_prompt', index: 9, title: 'Context & Final Fusion Prompt', subtitle: 'Section expansion, token budget & prompt' },
-  { id: 'llm_generate', index: 10, title: 'LLM Processing (Modal)', subtitle: 'Streaming reasoning & answer generation' },
-  { id: 'post_checks', index: 11, title: 'Post-checks & Final Response', subtitle: 'OutputGuard, citations, self-refusal & numbers' },
+  { id: 'input_pii', index: 1, title: 'Input and personal data masking', subtitle: 'Checking length and personal data' },
+  { id: 'guard_rule', index: 2, title: 'Guardrails and rule router', subtitle: 'Safety rules and templates' },
+  { id: 'classify_route', index: 3, title: 'Question type and routing', subtitle: 'Language and classifier routing' },
+  { id: 'rewrite_translate', index: 4, title: 'Rewrite and translation', subtitle: 'Standalone rewrite and cross-lingual query' },
+  { id: 'retrieve_dense', index: 5, title: 'Meaning search (dense)', subtitle: 'Embedding cosine similarity search' },
+  { id: 'retrieve_sparse', index: 6, title: 'Keyword search (BM25)', subtitle: 'Lexical keyword matching' },
+  { id: 'retrieve_rrf', index: 7, title: 'Merge results (RRF)', subtitle: 'Reciprocal rank fusion and doc-code boost' },
+  { id: 'retrieve_rerank', index: 8, title: 'Reranker and relevance gate', subtitle: 'Cross-encoder scoring and threshold gate' },
+  { id: 'context_prompt', index: 9, title: 'Context and prompt', subtitle: 'Section expansion and prompt assembly' },
+  { id: 'llm_generate', index: 10, title: 'Answer generation', subtitle: 'Reasoning and streaming answer' },
+  { id: 'post_checks', index: 11, title: 'Citation and number checks', subtitle: 'Output guard, citations and numbers' },
 ] as const;
 
 export interface AggregatedStage {

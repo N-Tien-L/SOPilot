@@ -3,18 +3,18 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Download, FileCode2, FileText, Loader2, Pencil, Search, Sparkles, Upload } from 'lucide-react';
+import { CheckCircle2, Download, FileCode2, FileText, FolderKanban, HardDrive, Loader2, Pencil, Search, Sparkles, Upload } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { TabList } from '@/components/app/TabList';
 import { CategoriesPanel } from '@/components/documents/CategoriesPanel';
 import { MetadataDialog } from '@/components/documents/MetadataDialog';
-import { ShinyText } from '@/components/effects';
+import { CountUp, ShinyText } from '@/components/effects';
 import { FadeIn } from '@/components/motion/Primitives';
-import { Badge, Button, EmptyState, Select, Skeleton } from '@/components/ui';
+import { Badge, Button, EmptyState, Select, Skeleton, StatCard } from '@/components/ui';
 import { getDownloadUrl } from '@/lib/api/endpoints';
 import { classifyProcessingFailure } from '@/lib/upload/failure';
 import type { DocumentStatus, DocumentView } from '@/lib/api/types';
-import { documentStatusLabel, formatBytes } from '@/lib/chat/labels';
+import { documentStatusLabel, formatBytes, splitBytes } from '@/lib/chat/labels';
 import { canEditDetails, hasOpenSuggestion } from '@/lib/admin/metadata';
 import { documentsLayout, documentsTabs, uploadScopes, type DocumentsTab } from '@/lib/admin/documentsLayout';
 import { useCategories, useDocuments, useMyMember, usePublishers } from '@/lib/query/hooks';
@@ -98,7 +98,11 @@ function DocumentList({
     ...(department === WHOLE_WORKSPACE ? { visibility: 'WORKSPACE' as const } : {}),
   });
   const rows = docs.data?.pages.flatMap((p) => p.data) ?? [];
-  const processing = rows.some((d) => d.status === 'UPLOADED' || d.status === 'PROCESSING');
+  const readyCount = rows.filter((d) => d.status === 'READY').length;
+  const processingCount = rows.filter((d) => d.status === 'UPLOADED' || d.status === 'PROCESSING').length;
+  const totalBytes = rows.reduce((sum, d) => sum + (d.currentVersion?.sizeBytes ?? 0), 0);
+  const totalSize = splitBytes(totalBytes);
+  const processing = processingCount > 0;
   const filtered = Boolean(status || categoryId || department || q);
 
   const departmentOptions = [
@@ -129,6 +133,45 @@ function DocumentList({
           </Button>
         ) : null}
       </div>
+
+      {/* Summary Counters */}
+      {!docs.isLoading && !docs.isError ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label={filtered ? 'Matching documents' : 'Documents'}
+            value={<CountUp to={rows.length} suffix={docs.hasNextPage ? '+' : ''} />}
+            hint={filtered ? 'Filtered view' : 'Available in this view'}
+            icon={<FileText size={14} aria-hidden />}
+          />
+          <StatCard
+            label="Ready"
+            value={<CountUp to={readyCount} />}
+            hint="Indexed & searchable"
+            icon={<CheckCircle2 size={14} aria-hidden />}
+          />
+          <StatCard
+            label="Total size"
+            value={<CountUp to={totalSize.value} decimals={totalSize.decimals} suffix={totalSize.unit} />}
+            hint={docs.hasNextPage ? 'Loaded documents' : 'Original files combined'}
+            icon={<HardDrive size={14} aria-hidden />}
+          />
+          {processingCount > 0 ? (
+            <StatCard
+              label="Processing"
+              value={<CountUp to={processingCount} />}
+              hint="Auto-refreshing every 5s"
+              icon={<Loader2 size={14} className="animate-spin" aria-hidden />}
+            />
+          ) : (
+            <StatCard
+              label="Categories"
+              value={<CountUp to={categories.data?.length ?? 0} />}
+              hint="Active document groups"
+              icon={<FolderKanban size={14} aria-hidden />}
+            />
+          )}
+        </div>
+      ) : null}
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-sm)]">
