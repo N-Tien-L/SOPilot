@@ -2,8 +2,10 @@
 
 import { useRef, useState } from 'react';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui';
 import { ErrorNote } from '@/components/app/ErrorNote';
+import { CollapsiblePanel } from '@/components/motion/Primitives';
 import { sendFeedback } from '@/lib/api/endpoints';
 
 /** FR-16: thumbs up or down, with an optional comment sent as a second PUT (one vote per user). */
@@ -25,6 +27,7 @@ export function FeedbackBar({ messageId }: { messageId: string }) {
       savedComment.current = sent;
       setVote(next);
       setSaved(true);
+      toast.success(text ? 'Feedback comment saved' : 'Thanks for your feedback');
     } catch (e) {
       setError(e);
     } finally {
@@ -33,51 +36,57 @@ export function FeedbackBar({ messageId }: { messageId: string }) {
   }
 
   return (
-    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-      <div className="flex items-center gap-2">
+    <div className="mt-4 space-y-2.5 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Button
           size="sm"
-          variant={vote === 1 ? 'primaryOutline' : 'outline'}
+          variant={vote === 1 ? 'primaryOutline' : 'ghost'}
           aria-pressed={vote === 1}
           disabled={busy}
-          icon={<ThumbsUp size={14} aria-hidden />}
+          icon={<ThumbsUp size={13} aria-hidden />}
           onClick={() => void submit(1)}
         >
           Helpful
         </Button>
         <Button
           size="sm"
-          variant={vote === -1 ? 'primaryOutline' : 'outline'}
+          variant={vote === -1 ? 'dangerOutline' : 'ghost'}
           aria-pressed={vote === -1}
           disabled={busy}
-          icon={<ThumbsDown size={14} aria-hidden />}
+          icon={<ThumbsDown size={13} aria-hidden />}
           onClick={() => void submit(-1)}
         >
           Not helpful
         </Button>
-        {saved ? <span role="status">Thanks for the feedback.</span> : null}
+        {saved ? (
+          <span role="status" className="ml-1 text-xs font-medium text-primary-strong">
+            Thanks for the feedback.
+          </span>
+        ) : null}
       </div>
-      {vote !== null ? (
+
+      <CollapsiblePanel open={vote !== null}>
         <form
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 pt-0.5"
           onSubmit={(e) => {
             e.preventDefault();
-            if (comment.trim()) void submit(vote, comment.trim());
+            if (comment.trim()) void submit(vote!, comment.trim());
           }}
         >
           <input
             aria-label="Feedback comment (optional)"
-            placeholder="Add a comment (optional)"
+            placeholder="Add a comment (optional)…"
             maxLength={1000}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="min-w-0 flex-1 rounded-md border border-input bg-card px-3 py-1.5 text-sm text-foreground"
+            className="h-9 min-w-0 flex-1 rounded-xl border border-input bg-background px-3 text-xs text-foreground placeholder:text-placeholder outline-none focus:border-primary focus:ring-2 focus:ring-ring/20"
           />
           <Button size="sm" type="submit" variant="outline" disabled={busy || comment.trim().length === 0}>
             Send
           </Button>
         </form>
-      ) : null}
+      </CollapsiblePanel>
+
       {error ? <ErrorNote error={error} /> : null}
     </div>
   );

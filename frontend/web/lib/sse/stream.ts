@@ -37,7 +37,11 @@ export async function streamAnswer(options: StreamAnswerOptions): Promise<Stream
         `/conversations/${encodeURIComponent(options.conversationId)}/messages`,
         {
           method: 'POST',
-          body: { content: options.content, ...(options.lang ? { lang: options.lang } : {}) },
+          body: {
+            content: options.content,
+            includeTrace: true,
+            ...(options.lang ? { lang: options.lang } : {}),
+          },
           headers: { Accept: 'text/event-stream' },
           signal: controller.signal,
         },

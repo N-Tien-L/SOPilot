@@ -14,9 +14,18 @@ export interface ChunkGroup {
   /** `#3` for one chunk, `#12-#14` for several that share a range (ordinals shown from 1). */
   label: string;
   chunkType: ChunkType;
+  /** UTF-16 start/end offsets on canonical Markdown. */
   start: number;
   end: number;
+  /** Original Unicode code-point offsets from ai-service. */
+  charStart: number;
+  charEnd: number;
   tokens: number;
+  /** Heading hierarchy path from the first chunk in the group. */
+  sectionPath: string[];
+  /** Min/max page numbers covered by the group (null for Markdown documents without pages). */
+  pageStart: number | null;
+  pageEnd: number | null;
 }
 
 export interface ReportPage {
@@ -53,6 +62,18 @@ function labelOf(ordinals: number[]): string {
   return first === last ? `#${first}` : `#${first}-#${last}`;
 }
 
+function minPage(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.min(a, b);
+}
+
+function maxPage(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.max(a, b);
+}
+
 /** Chunks that share or overlap a range become one group; the result is sorted and disjoint. */
 export function groupChunks(chunks: readonly ProcessingChunk[], markdown: string): ChunkGroup[] {
   if (chunks.length === 0) return [];
@@ -72,10 +93,30 @@ export function groupChunks(chunks: readonly ProcessingChunk[], markdown: string
     if (last && start < last.end) {
       last.ordinals.push(c.ordinal);
       last.end = Math.max(last.end, end);
+      last.charStart = Math.min(last.charStart, c.charStart);
+      last.charEnd = Math.max(last.charEnd, c.charEnd);
       last.tokens += c.tokenCount;
+      last.pageStart = minPage(last.pageStart, c.pageStart);
+      last.pageEnd = maxPage(last.pageEnd, c.pageEnd);
+      if (last.sectionPath.length === 0 && c.sectionPath.length > 0) {
+        last.sectionPath = [...c.sectionPath];
+      }
       continue;
     }
-    groups.push({ key: c.ordinal, ordinals: [c.ordinal], label: '', chunkType: c.chunkType, start, end, tokens: c.tokenCount });
+    groups.push({
+      key: c.ordinal,
+      ordinals: [c.ordinal],
+      label: '',
+      chunkType: c.chunkType,
+      start,
+      end,
+      charStart: c.charStart,
+      charEnd: c.charEnd,
+      tokens: c.tokenCount,
+      sectionPath: [...c.sectionPath],
+      pageStart: c.pageStart,
+      pageEnd: c.pageEnd,
+    });
   }
   for (const g of groups) {
     g.ordinals.sort((a, b) => a - b);
@@ -83,6 +124,31 @@ export function groupChunks(chunks: readonly ProcessingChunk[], markdown: string
     g.label = labelOf(g.ordinals);
   }
   return groups;
+}
+
+/** Formats a group's page range as `p.3`, `p.3–4`, or null when the document has no page numbers. */
+export function formatPageRange(pageStart: number | null, pageEnd: number | null): string | null {
+  if (pageStart === null && pageEnd === null) return null;
+  const start = pageStart ?? pageEnd!;
+  const end = pageEnd ?? start;
+  return start === end ? `p.${start}` : `p.${start}–${end}`;
+}
+
+/** Client-side filter over chunk groups by ChunkType and substring match on sectionPath, label, or text. */
+export function filterChunkGroups(
+  groups: readonly ChunkGroup[],
+  markdown: string,
+  opts: { type?: ChunkType | 'ALL'; query?: string },
+): ChunkGroup[] {
+  const type = opts.type ?? 'ALL';
+  const needle = (opts.query ?? '').trim().toLowerCase();
+  return groups.filter((g) => {
+    if (type !== 'ALL' && g.chunkType !== type) return false;
+    if (!needle) return true;
+    if (g.label.toLowerCase().includes(needle)) return true;
+    if (g.sectionPath.some((p) => p.toLowerCase().includes(needle))) return true;
+    return markdown.slice(g.start, g.end).toLowerCase().includes(needle);
+  });
 }
 
 /**

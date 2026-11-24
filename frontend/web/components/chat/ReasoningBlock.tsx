@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { ShinyText } from '@/components/effects';
+import { CollapsiblePanel } from '@/components/motion/Primitives';
 import { SafeMarkdown } from '@/components/viewer/SafeMarkdown';
 import { thoughtLabel } from '@/lib/chat/labels';
 
@@ -30,27 +32,32 @@ export function ReasoningBlock({
   }, [text, thinking, open]);
 
   return (
-    <div className="mb-3">
+    <div className="mb-3.5">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setManual(!open)}
-        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+        className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border/80 bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <ChevronRight size={14} aria-hidden className={`transition-transform motion-reduce:transition-none ${open ? 'rotate-90' : ''}`} />
-        {thinking ? <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-primary motion-safe:animate-pulse" /> : null}
-        <span>{thoughtLabel(durationMs, thinking)}</span>
+        <ChevronRight
+          size={13}
+          aria-hidden
+          className={`transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-90' : ''}`}
+        />
+        {thinking ? (
+          <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-primary motion-safe:animate-pulse" />
+        ) : null}
+        <ShinyText active={thinking}>{thoughtLabel(durationMs, thinking)}</ShinyText>
       </button>
-      {open ? (
+      <CollapsiblePanel open={open} id={panelId}>
         <div
-          id={panelId}
           ref={scroller}
-          className="prose prose-sm mt-1 max-h-64 max-w-none overflow-y-auto border-l-2 border-border pl-3 text-muted-foreground prose-p:my-1.5 prose-headings:text-muted-foreground"
+          className="prose prose-sm mt-2 max-h-64 max-w-none overflow-y-auto rounded-xl border border-border/70 bg-muted/40 px-3.5 py-2.5 text-xs text-muted-foreground prose-p:my-1.5 prose-headings:text-muted-foreground"
         >
           {text ? <SafeMarkdown text={text} /> : <p>…</p>}
         </div>
-      ) : null}
+      </CollapsiblePanel>
     </div>
   );
 }

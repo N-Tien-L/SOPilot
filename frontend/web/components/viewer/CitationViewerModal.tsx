@@ -8,13 +8,22 @@ import { ContentViewer } from './ContentViewer';
  * FR-14: opens the cited document at the cited passage. Only for a citation of the current
  * version (the caller checks `canOpenViewer`); an old version never reaches this component.
  */
-export function CitationViewerModal({ citation, onClose }: { citation: Citation | null; onClose: () => void }) {
+export function CitationViewerModal({
+  citation,
+  label,
+  onClose,
+}: {
+  citation: Citation | null;
+  /** Optional chunk label such as `1.2` when viewing a single cited chunk. */
+  label?: string;
+  onClose: () => void;
+}) {
   return (
     <Modal
       open={citation !== null}
       onClose={onClose}
       size="full"
-      title={citation ? `[${citation.n}] ${citation.title}` : undefined}
+      title={citation ? `[${label ?? citation.n}] ${citation.title}` : undefined}
       description="The text the system recognized, with the cited passage highlighted."
     >
       {citation ? (

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { Check, Copy, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { Badge, Button, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton } from '@/components/ui';
 import { createInvitation, revokeInvitation } from '@/lib/api/endpoints';
@@ -24,6 +25,7 @@ function CreatedLink({ created, email, onDone }: { created: CreatedInvitation; e
       await navigator.clipboard.writeText(created.inviteUrl);
       setCopied(true);
       setCopyFailed(false);
+      toast.success('Invitation link copied');
     } catch {
       setCopyFailed(true);
     }
@@ -154,32 +156,34 @@ export function InvitationsPanel() {
       {isError ? <ErrorNote error={error} /> : null}
       {data && data.length === 0 ? <EmptyState title="No pending invitations" description="Invite someone to share this workspace." /> : null}
       {data && data.length > 0 ? (
-        <div className="relative overflow-x-auto rounded-lg border border-border bg-card">
+        <div className="relative overflow-x-auto rounded-2xl border border-border bg-card shadow-[var(--shadow-sm)]">
           <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="border-b border-border bg-muted/60 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th scope="col" className="px-3 py-2">Email</th>
-                <th scope="col" className="px-3 py-2">Role</th>
-                <th scope="col" className="px-3 py-2">Department</th>
-                <th scope="col" className="px-3 py-2">Status</th>
-                <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>
+                <th scope="col" className="px-4 py-3">Email</th>
+                <th scope="col" className="px-4 py-3">Role</th>
+                <th scope="col" className="px-4 py-3">Department</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border/70">
               {data.map((i) => {
                 const left = daysLeft(i.expiresAt);
                 return (
-                  <tr key={i.id} className="border-t border-border">
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{i.email}</div>
+                  <tr key={i.id} className="transition-colors hover:bg-muted/35">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-foreground">{i.email}</div>
                       {i.displayName ? <div className="text-xs text-muted-foreground">{i.displayName}</div> : null}
                     </td>
-                    <td className="px-3 py-2">{ROLE_LABEL[i.role] ?? i.role}</td>
-                    <td className="px-3 py-2">{i.departmentName ?? '-'}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-3">
+                      <Badge variant={i.role === 'ADMIN' ? 'info' : 'neutral'}>{ROLE_LABEL[i.role] ?? i.role}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-foreground">{i.departmentName ?? '-'}</td>
+                    <td className="px-4 py-3">
                       {left > 0 ? <Badge variant="info">Pending, {left}d left</Badge> : <Badge variant="neutral">Expired</Badge>}
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-4 py-3 text-right">
                       <Button
                         size="sm"
                         variant="ghost"

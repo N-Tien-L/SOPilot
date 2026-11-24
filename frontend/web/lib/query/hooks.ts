@@ -164,6 +164,18 @@ export function useConversation(id: string | null) {
   });
 }
 
+/** Pipeline trace for a persisted assistant message; re-checked on mount for access changes (FR-25). */
+export function useMessageTrace(conversationId: string | null, messageId: string | null) {
+  const wid = useWid();
+  return useQuery({
+    queryKey: workspaceKey(wid, 'message-trace', conversationId, messageId),
+    queryFn: ({ signal }) => api.getMessageTrace(conversationId as string, messageId as string, signal),
+    enabled: conversationId !== null && messageId !== null,
+    retry: false,
+    staleTime: 0,
+  });
+}
+
 export function useKnowledgeGaps(status: 'open' | 'resolved', pageSize: number, enabled = true) {
   const wid = useWid();
   return useInfiniteQuery({

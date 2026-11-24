@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProcessingChunk } from '@/lib/api/types';
-import { groupChunks, piecesOf, reportPages, utf16Offsets } from './chunks';
+import { filterChunkGroups, formatPageRange, groupChunks, piecesOf, reportPages, utf16Offsets } from './chunks';
 import { signalLines, ruleLabel } from './report-labels';
 
 function chunk(ordinal: number, charStart: number, charEnd: number, chunkType: ProcessingChunk['chunkType'] = 'SECTION', tokenCount = 10): ProcessingChunk {
@@ -57,6 +57,55 @@ describe('groupChunks', () => {
 
   it('drops a chunk whose range is empty after clamping', () => {
     expect(groupChunks([chunk(0, 500, 600)], text)).toEqual([]);
+  });
+
+  it('preserves sectionPath and merges page ranges across grouped chunks', () => {
+    const c1: ProcessingChunk = {
+      ordinal: 0,
+      chunkType: 'TABLE',
+      sectionPath: ['3. Procedure', '3.2 Tolerance'],
+      pageStart: 2,
+      pageEnd: 3,
+      charStart: 0,
+      charEnd: 40,
+      tokenCount: 20,
+    };
+    const c2: ProcessingChunk = {
+      ordinal: 1,
+      chunkType: 'TABLE',
+      sectionPath: [],
+      pageStart: 3,
+      pageEnd: 4,
+      charStart: 0,
+      charEnd: 40,
+      tokenCount: 15,
+    };
+    const [g] = groupChunks([c1, c2], text);
+    expect(g.sectionPath).toEqual(['3. Procedure', '3.2 Tolerance']);
+    expect(g.pageStart).toBe(2);
+    expect(g.pageEnd).toBe(4);
+    expect(formatPageRange(g.pageStart, g.pageEnd)).toBe('p.2–4');
+    expect(formatPageRange(3, 3)).toBe('p.3');
+    expect(formatPageRange(null, null)).toBeNull();
+  });
+});
+
+describe('filterChunkGroups', () => {
+  const md = 'Intro text about scope.\n| A | B |\nCalibration steps here.';
+  const groups = groupChunks(
+    [
+      { ordinal: 0, chunkType: 'SECTION', sectionPath: ['1. Scope'], pageStart: 1, pageEnd: 1, charStart: 0, charEnd: 23, tokenCount: 12 },
+      { ordinal: 1, chunkType: 'TABLE', sectionPath: ['2. Limits'], pageStart: 1, pageEnd: 1, charStart: 24, charEnd: 33, tokenCount: 8 },
+      { ordinal: 2, chunkType: 'PROCEDURE_STEP', sectionPath: ['3. Calibration'], pageStart: 2, pageEnd: 2, charStart: 34, charEnd: 57, tokenCount: 15 },
+    ],
+    md,
+  );
+
+  it('filters by chunk type and by sectionPath or text query', () => {
+    expect(filterChunkGroups(groups, md, { type: 'TABLE' }).map((g) => g.label)).toEqual(['#2']);
+    expect(filterChunkGroups(groups, md, { query: 'limits' }).map((g) => g.label)).toEqual(['#2']);
+    expect(filterChunkGroups(groups, md, { query: 'calibration' }).map((g) => g.label)).toEqual(['#3']);
+    expect(filterChunkGroups(groups, md, { query: '#1' }).map((g) => g.label)).toEqual(['#1']);
   });
 });
 

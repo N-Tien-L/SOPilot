@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { MailCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { ErrorNote } from '@/components/app/ErrorNote';
+import { ThemeToggle } from '@/components/app/ThemeToggle';
 import { useAction } from '@/components/admin/useAction';
-import { Button } from '@/components/ui';
+import { AuroraBackdrop, BorderBeam, SpotlightCard } from '@/components/effects';
+import { BrandMark } from '@/components/motion/Primitives';
+import { Button, Spinner } from '@/components/ui';
 import { acceptInvitation } from '@/lib/api/endpoints';
 import { clearInviteToken, holdInviteToken, peekInviteToken, readInviteToken } from '@/lib/admin/invite';
 import { ApiError } from '@/lib/api/errors';
@@ -47,6 +52,7 @@ export default function InvitePage() {
     if (ok && payload) {
       clearInviteToken();
       adoptSession(payload);
+      toast.success('Joined workspace');
       router.replace('/chat');
     }
   }
@@ -66,29 +72,44 @@ export default function InvitePage() {
 
   let body: React.ReactNode;
   if (status === 'unknown') {
-    body = <p className="text-sm text-muted-foreground">Loading…</p>;
+    body = (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Spinner size="sm" />
+        <span>Loading…</span>
+      </div>
+    );
   } else if (status === 'unreachable') {
-    body = <p role="alert" className="text-sm">The server could not be reached. Reload to try again.</p>;
+    body = <p role="alert" className="text-sm text-danger-foreground">The server could not be reached. Reload to try again.</p>;
   } else if (status === 'anonymous') {
     body = token ? (
       <div className="space-y-4">
-        <p className="text-sm">You have been invited to a SOPilot workspace. Sign in with the invited account to join it.</p>
-        <Button variant="primary" onClick={() => router.push('/login')}>
+        <p className="text-sm text-muted-foreground">
+          You have been invited to a SOPilot workspace. Sign in with the invited account to join it.
+        </p>
+        <Button variant="primary" fullWidth onClick={() => router.push('/login')}>
           Sign in to accept
         </Button>
       </div>
     ) : (
       <p className="text-sm text-muted-foreground">
-        This page needs the invitation link you were sent. Open that link again, or <Link href="/login" className="underline">sign in</Link>.
+        This page needs the invitation link you were sent. Open that link again, or{' '}
+        <Link href="/login" className="font-semibold text-primary-strong underline underline-offset-2">
+          sign in
+        </Link>
+        .
       </p>
     );
   } else {
     body = (
       <div className="space-y-6">
         {token ? (
-          <section aria-labelledby="link-invite" className="space-y-3">
-            <h2 id="link-invite" className="text-lg font-semibold">Invitation link</h2>
-            <p className="text-sm text-muted-foreground">Accepting adds you to the workspace and switches this session to it.</p>
+          <section aria-labelledby="link-invite" className="space-y-3 rounded-xl border border-border bg-muted/45 p-4">
+            <h2 id="link-invite" className="text-base font-semibold text-foreground">
+              Invitation link
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Accepting adds you to the workspace and switches this session to it.
+            </p>
             <Button variant="primary" loading={busy} onClick={() => void accept({ invitationToken: token })}>
               Accept invitation
             </Button>
@@ -96,13 +117,15 @@ export default function InvitePage() {
         ) : null}
         {pending.length > 0 ? (
           <section aria-labelledby="pending-invites" className="space-y-3">
-            <h2 id="pending-invites" className="text-lg font-semibold">Invitations for your account</h2>
-            <ul className="divide-y divide-border rounded-lg border border-border bg-card text-sm">
+            <h2 id="pending-invites" className="text-base font-semibold text-foreground">
+              Invitations for your account
+            </h2>
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background text-sm">
               {pending.map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                  <span>
-                    <span className="font-medium">{p.workspaceName}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">as {ROLE_LABEL[p.role] ?? p.role}</span>
+                <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-foreground">{p.workspaceName}</span>
+                    <span className="text-xs text-muted-foreground">as {ROLE_LABEL[p.role] ?? p.role}</span>
                   </span>
                   <Button size="sm" variant="primary" disabled={busy} onClick={() => void accept({ invitationId: p.id })}>
                     Accept
@@ -114,13 +137,16 @@ export default function InvitePage() {
         ) : null}
         {!token && pending.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No invitation to accept. If you were sent a link, open it again. <Link href="/chat" className="underline">Back to chat</Link>
+            No invitation to accept. If you were sent a link, open it again.{' '}
+            <Link href="/chat" className="font-semibold text-primary-strong underline underline-offset-2">
+              Back to chat
+            </Link>
           </p>
         ) : null}
         {error ? <ErrorNote error={error} /> : null}
         {wrongAccount ? (
-          <div className="space-y-2 rounded-lg border border-border bg-muted p-3 text-sm">
-            <p>
+          <div className="space-y-2.5 rounded-xl border border-border bg-muted/60 p-4 text-sm">
+            <p className="text-foreground">
               You are signed in as <strong>{email ?? 'this account'}</strong>. Sign in with the account the invitation was sent to.
             </p>
             <Button variant="secondary" size="sm" onClick={() => void switchAccount()}>
@@ -133,9 +159,27 @@ export default function InvitePage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center p-8">
-      <h1 className="text-2xl font-bold">Join a workspace</h1>
-      <div className="mt-6">{body}</div>
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background p-6">
+      <AuroraBackdrop variant="subtle" />
+      <div className="absolute right-5 top-5 z-20">
+        <ThemeToggle />
+      </div>
+
+      <div className="relative z-10 w-full max-w-lg">
+        <SpotlightCard
+          overlay={<BorderBeam durationSec={10} rx={16} />}
+          className="rounded-2xl p-7 sm:p-8"
+        >
+          <div className="flex items-center gap-3">
+            <BrandMark className="h-9 w-9" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary-strong">
+              <MailCheck size={13} aria-hidden /> Workspace invitation
+            </span>
+          </div>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Join a workspace</h1>
+          <div className="mt-5">{body}</div>
+        </SpotlightCard>
+      </div>
     </main>
   );
 }

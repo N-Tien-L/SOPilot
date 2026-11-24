@@ -110,15 +110,20 @@ export function NamedListPanel({ noun, items, loading, error, api, invalidate, e
       {action.error && !deleting ? <ErrorNote error={action.error} className="mb-2" /> : null}
       {loading ? <Skeleton count={3} height={40} /> : null}
       {error ? <ErrorNote error={error} /> : null}
-      {items && items.length === 0 ? <EmptyState title={`No ${noun}s yet`} description={emptyHint} /> : null}
+      {items && items.length === 0 ? (
+        <EmptyState
+          title={`No ${noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s`} yet`}
+          description={emptyHint}
+        />
+      ) : null}
       {items && items.length > 0 ? (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card text-sm">
+        <ul className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border bg-card text-sm shadow-[var(--shadow-sm)]">
           {items.map((item) => {
             const archived = item.status === 'ARCHIVED';
             return (
-              <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 transition-colors hover:bg-muted/35">
                 <span className="flex items-center gap-2">
-                  <span className={archived ? 'text-muted-foreground' : 'font-medium'}>{item.name}</span>
+                  <span className={archived ? 'text-muted-foreground' : 'font-semibold text-foreground'}>{item.name}</span>
                   {archived ? <Badge variant="neutral">Archived</Badge> : null}
                 </span>
                 <span className="flex gap-1">

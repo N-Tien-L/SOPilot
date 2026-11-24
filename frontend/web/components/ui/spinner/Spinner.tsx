@@ -2,30 +2,22 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { clsx } from 'clsx';
-import styles from './spinner.module.css';
-
-type SpinnerSize = 'xs' | 'sm' | 'md' | 'lg';
+import { cn } from '@/lib/utils';
 
 export interface SpinnerProps {
-  size?: SpinnerSize;
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
-  label?: string;
 }
 
-const sizeMap: Record<SpinnerSize, number> = {
-  xs: 12,
-  sm: 16,
-  md: 24,
-  lg: 32,
-};
+const SIZE_PX = { sm: 14, md: 20, lg: 28 };
 
-export function Spinner({ size = 'md', className, label }: SpinnerProps) {
+export function Spinner({ size = 'md', className }: SpinnerProps) {
   return (
-    <div className={clsx(styles.wrapper, className)} role="status" aria-label={label || 'Loading'}>
-      <Loader2 size={sizeMap[size]} className={styles.spinner} />
-      {label && <span className={styles.label}>{label}</span>}
-    </div>
+    <Loader2
+      size={SIZE_PX[size]}
+      aria-label="Loading"
+      className={cn('animate-spin text-primary', className)}
+    />
   );
 }
 

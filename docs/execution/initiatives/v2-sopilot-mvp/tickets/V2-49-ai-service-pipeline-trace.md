@@ -11,7 +11,7 @@ priority: P1
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-10]
-blocks: [V2-18]
+blocks: [V2-18, V2-50]
 blocked_reason: ""
 branch: "feat/ai-rerank-toggle"
 refs:

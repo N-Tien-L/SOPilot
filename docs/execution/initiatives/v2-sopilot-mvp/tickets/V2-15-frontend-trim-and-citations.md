@@ -11,7 +11,7 @@ priority: P0
 size: L
 parent_plan: PLAN-V2-SOPILOT-MVP
 depends_on: [V2-10, V2-11, V2-13, V2-29, V2-30, V2-38]
-blocks: [V2-17, V2-31, V2-32, V2-33]
+blocks: [V2-17, V2-31, V2-32, V2-33, V2-50]
 branch: "feat/web-v2-workspace-citations"
 assignee: pair
 ---

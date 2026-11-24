@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Plus } from 'lucide-react';
+import { Building2, Plus, ShieldCheck } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
+import { SpotlightCard } from '@/components/effects';
 import { Badge, Button, Checkbox, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton } from '@/components/ui';
 import {
   assignDepartmentPublisher,
@@ -323,32 +324,51 @@ export function DepartmentsPanel() {
         </div>
       ) : null}
 
-      <ul className="divide-y divide-border rounded-lg border border-border bg-card text-sm">
-        <li className="px-3 py-3">
-          <div className="font-medium">Whole workspace</div>
-          <div className="mb-2 text-xs text-muted-foreground">Documents visible to everyone in the workspace.</div>
-          <PublisherControl
-            label="the whole workspace"
-            publisherName={overview.data?.workspace?.displayName ?? null}
-            candidates={active.map(memberOption)}
-            canEdit={isOwner}
-            onAssign={assignWorkspacePublisher}
-            onClear={unassignWorkspacePublisher}
-          />
+      <ul className="space-y-3 text-sm">
+        <li>
+          <SpotlightCard className="rounded-2xl p-5">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
+                <ShieldCheck size={18} aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-foreground">Whole workspace</div>
+                <div className="mb-2.5 text-xs text-muted-foreground">Documents visible to everyone in the workspace.</div>
+                <PublisherControl
+                  label="the whole workspace"
+                  publisherName={overview.data?.workspace?.displayName ?? null}
+                  candidates={active.map(memberOption)}
+                  canEdit={isOwner}
+                  onAssign={assignWorkspacePublisher}
+                  onClear={unassignWorkspacePublisher}
+                />
+              </div>
+            </div>
+          </SpotlightCard>
         </li>
         {list.map((d) => {
           const archived = d.status === 'ARCHIVED';
           const people = active.filter((m) => m.departmentId === d.id);
           return (
-            <li key={d.id} className="px-3 py-3">
+            <li
+              key={d.id}
+              className={`rounded-2xl border bg-card p-5 shadow-[var(--shadow-sm)] transition-colors ${
+                archived ? 'border-dashed border-border opacity-80' : 'border-border hover:border-primary/40'
+              }`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={archived ? 'text-muted-foreground' : 'font-medium'}>{d.name}</span>
-                    {archived ? <Badge variant="neutral">Archived</Badge> : null}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {people.length} member{people.length === 1 ? '' : 's'} · documents limited to this department
+                <div className="flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-primary-strong">
+                    <Building2 size={16} aria-hidden />
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={archived ? 'text-muted-foreground' : 'font-bold text-foreground'}>{d.name}</span>
+                      {archived ? <Badge variant="neutral">Archived</Badge> : null}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {people.length} member{people.length === 1 ? '' : 's'} · documents limited to this department
+                    </div>
                   </div>
                 </div>
                 <span className="flex gap-1">
@@ -364,7 +384,7 @@ export function DepartmentsPanel() {
                 </span>
               </div>
               {archived ? null : (
-                <div className="mt-2">
+                <div className="mt-3.5 border-t border-border/70 pt-3">
                   <PublisherControl
                     label={d.name}
                     publisherName={publisherOf.get(d.id) ?? null}
