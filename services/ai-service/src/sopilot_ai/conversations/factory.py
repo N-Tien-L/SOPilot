@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from dataclasses import replace
 
 import numpy as np
 import structlog
@@ -95,13 +96,20 @@ async def build_service(settings: Settings, engine: AsyncEngine) -> QAService:
     embedder = await asyncio.to_thread(build_embedding_provider, config, settings.profile)
     reranker = await asyncio.to_thread(build_rerank_provider, config, settings.profile)
     retriever = Retriever(embedder, config.retrieval(), reranker)
-    for client in {id(c): c for c in (*generate.clients, *rewrite.clients)}.values():
-        await asyncio.to_thread(check_model, client)  # warns, never fails (V2-10)
+    # Run the startup model check in the background, deduplicated by (base_url, model), so a
+    # Modal GPU cold start never stalls the first user request for 2-4 minutes (V2-10).
+    seen_endpoints: set[tuple[str, str]] = set()
+    for client in (*generate.clients, *rewrite.clients):
+        key = (client.spec.base_url, client.spec.model)
+        if key not in seen_endpoints:
+            seen_endpoints.add(key)
+            asyncio.create_task(asyncio.to_thread(check_model, client))
     semantic = (await build_router(engine, embedder)
                 if settings.semantic_router_enabled else None)
     classifier = await _build_classifier(config, settings)
     return QAService(
-        engine, retriever, generate, rewrite, context=config.context(),
+        engine, retriever, generate, rewrite,
+        context=replace(config.context(), merge_adjacent_sections=False),
         quota=QuotaCounter(engine, per_user_day=settings.quota_questions_per_user_day,
                            system_day=settings.quota_questions_system_day),
         max_question_chars=settings.max_question_chars,

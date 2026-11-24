@@ -199,6 +199,8 @@ class OpenAICompatibleLLM:
             "max_tokens": self.spec.max_output_tokens,
             "stream": stream,
         })
+        if stream and "stream_options" not in body:
+            body["stream_options"] = {"include_usage": True}
         return body
 
     def complete(self, messages: Sequence[Message], *, temperature: float | None = None) -> str:
@@ -217,7 +219,8 @@ class OpenAICompatibleLLM:
                 AttributeError) as exc:
             raise LLMError("LLM_UNAVAILABLE") from exc
 
-    def stream(self, messages: Sequence[Message]) -> Iterator[str]:
+    def stream(self, messages: Sequence[Message], *,
+               on_usage: Callable[[int, int], None] | None = None) -> Iterator[str]:
         """Yield text deltas; reasoning deltas are :class:`Thought`. Errors before the first
         delta are raised as :class:`LLMError`."""
         import httpx
@@ -233,7 +236,9 @@ class OpenAICompatibleLLM:
                     payload = line[5:].strip()
                     if payload == "[DONE]":
                         break
-                    reasoning, content, finish = _delta_parts(payload)
+                    reasoning, content, finish, usage = _parse_stream_event(payload)
+                    if usage is not None and on_usage is not None:
+                        on_usage(usage[0], usage[1])
                     if finish == "length":  # the output ceiling cut the stream (V2-43)
                         log.warning("llm_output_truncated", provider=self.spec.provider,
                                     model=self.spec.model,
@@ -259,26 +264,49 @@ class OpenAICompatibleLLM:
             raise LLMError("LLM_UNAVAILABLE") from exc
 
 
-def _delta_parts(payload: str) -> tuple[str, str, str | None]:
-    """``(reasoning, content, finish_reason)`` of one SSE ``data:`` event; a malformed event is
-    ``LLM_UNAVAILABLE``. vLLM names the reasoning field ``reasoning_content`` (older builds
-    ``reasoning``) when a reasoning parser runs; without one it is empty. ``finish_reason`` is
-    ``"length"`` when ``max_tokens`` cut the output (V2-43)."""
+def _usage_tuple(obj: dict[str, Any]) -> tuple[int, int] | None:
+    usage = obj.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    prompt = usage.get("prompt_tokens")
+    completion = usage.get("completion_tokens")
+    if isinstance(prompt, int) and isinstance(completion, int):
+        return prompt, completion
+    return None
+
+
+def _parse_stream_event(
+    payload: str,
+) -> tuple[str, str, str | None, tuple[int, int] | None]:
+    """``(reasoning, content, finish_reason, usage)`` of one SSE ``data:`` event.
+
+    With ``stream_options.include_usage``, the final chunk carries ``usage`` with empty
+    ``choices``.
+    """
     obj = json.loads(payload)
     if not isinstance(obj, dict):
         raise LLMError("LLM_UNAVAILABLE")
-    choices = obj["choices"]
+    usage = _usage_tuple(obj)
+    choices = obj.get("choices")
+    if isinstance(choices, list) and not choices and usage is not None:
+        return "", "", None, usage
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
         raise LLMError("LLM_UNAVAILABLE")
     finish = choices[0].get("finish_reason")
     finish = str(finish) if finish else None
     delta = choices[0].get("delta")
     if delta is None:
-        return "", "", finish
+        return "", "", finish, usage
     if not isinstance(delta, dict):
         raise LLMError("LLM_UNAVAILABLE")
     reasoning = delta.get("reasoning_content") or delta.get("reasoning") or ""
-    return str(reasoning), str(delta.get("content") or ""), finish
+    return str(reasoning), str(delta.get("content") or ""), finish, usage
+
+
+def _delta_parts(payload: str) -> tuple[str, str, str | None]:
+    """``(reasoning, content, finish_reason)`` of one SSE ``data:`` event."""
+    reasoning, content, finish, _ = _parse_stream_event(payload)
+    return reasoning, content, finish
 
 
 def _raise_for_status(status: int) -> None:
@@ -331,7 +359,8 @@ class LLMChain:
         return out
 
     def stream(self, messages: Sequence[Message], *, tokens: int,
-               on_start: Callable[[str], None] | None = None) -> Iterator[str]:
+               on_start: Callable[[str], None] | None = None,
+               on_usage: Callable[[int, int], None] | None = None) -> Iterator[str]:
         """``on_start(model)`` runs once, when the first delta arrives: the model that answers."""
         last: LLMError | None = None
         for client, limiter in self._eligible(tokens):
@@ -341,7 +370,11 @@ class LLMChain:
                 last = exc
                 continue
             started = False
-            gen = client.stream(messages)
+            gen = (
+                client.stream(messages, on_usage=on_usage)
+                if on_usage is not None
+                else client.stream(messages)
+            )
             try:
                 for delta in gen:
                     if not started and on_start is not None:

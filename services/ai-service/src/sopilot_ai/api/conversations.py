@@ -38,6 +38,7 @@ TITLE_MAX = 200
 class MessageIn(BaseModel):
     content: str = Field(max_length=MAX_BODY_CHARS)
     lang: Literal["vi", "en"] | None = None
+    includeTrace: bool = False  # noqa: N815 - matches camelCase JSON API convention
 
 
 class ConversationPatch(BaseModel):
@@ -109,7 +110,9 @@ async def post_message(
         ref = await service.open(principal, _conversation_id(conversation_id))
     except ConversationNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "conversation not found") from exc
-    stream = with_pings(service.answer(principal, ref, body.content, body.lang))
+    stream = with_pings(
+        service.answer(principal, ref, body.content, body.lang, include_trace=body.includeTrace)
+    )
     return StreamingResponse(stream, media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -138,6 +141,20 @@ async def get_conversation(
     if detail is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "conversation not found")
     return detail
+
+
+@router.get("/conversations/{conversation_id}/messages/{message_id}/trace")
+async def get_message_trace(
+    conversation_id: UUID,
+    message_id: UUID,
+    principal: Annotated[Principal, Depends(current_principal)],
+    engine: Annotated[AsyncEngine, Depends(get_engine)],
+) -> dict[str, Any]:
+    async with tenant_tx(engine, principal.workspace_id, principal.user_id) as conn:
+        trace = await repo.message_trace(conn, principal, conversation_id, message_id)
+    if trace is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "message not found")
+    return trace
 
 
 @router.patch("/conversations/{conversation_id}")

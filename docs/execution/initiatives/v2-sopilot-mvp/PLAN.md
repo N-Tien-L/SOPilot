@@ -3,7 +3,7 @@ id: PLAN-V2-SOPILOT-MVP
 title: "V2 SOPilot execution plan: eval first, local only, research handover"
 status: approved
 created: 2026-10-17
-updated: 2026-11-22
+updated: 2026-11-24
 author: "Owner"
 refs:
   - docs/product/prd-v2-sopilot-mvp.md
@@ -16,10 +16,10 @@ refs:
   - docs/archive/01-requirements/PRD-V2-ingestion-mvp-scope.md
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
-total_tickets: 47
+total_tickets: 48
 completed_tickets: 42
-implemented_tickets: 45
-review_tickets: 3
+implemented_tickets: 46
+review_tickets: 4
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -126,6 +126,7 @@ flowchart TD
     V45["V2-45: eval: expand the retrieval eval set to 500+ questions (sop-main-v3)"]
     V46["V2-46: ai-service + web: processing report (detected type, chunking strategy, sample page with chunks)"]
     V47["V2-47: ai-service: chunk quality fixes found on the pilot corpus"]
+    V49["V2-49: ai-service: per-message pipeline trace for the Pipeline Inspector"]
     V41["V2-41: core-api: out-of-order version status callbacks (409 INVALID_TRANSITION) leave a failed document PROCESSING"]
     V01 --> V03
     V01 --> V04
@@ -251,6 +252,8 @@ flowchart TD
     V46 --> V47
     V46 --> V18
     V47 --> V18
+    V10 --> V49
+    V49 --> V18
 ```
 
 ---
@@ -327,8 +330,9 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
 | `V2-46` | ai-service + web: processing report (detected type, chunking strategy, sample page with chunks) | web | M | `V2-22`, `V2-32` | review |
 | `V2-47` | ai-service: chunk quality fixes found on the pilot corpus | ai-qa | L | `V2-20`, `V2-21`, `V2-22`, `V2-46` | review |
+| `V2-49` | ai-service: per-message pipeline trace, token usage and the trace endpoint for the Pipeline Inspector | ai-qa | L | `V2-10` | review |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33`, `V2-42`, `V2-43` | done |
-| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41`, `V2-44`, `V2-45`, `V2-46`, `V2-47` | todo |
+| `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41`, `V2-44`, `V2-45`, `V2-46`, `V2-47`, `V2-49` | todo |
 
 ---
 
@@ -494,3 +498,5 @@ Auth update 2026-10-15: [Google identity/admission and tests](../../../archive/0
 > **Owner decision 2026-11-22 (V2-46 added):** [`V2-46`](tickets/V2-46-processing-report-chunks-view.md) (web, P2, M, depends on `V2-22`, `V2-32`) adds a processing report tab: detected document family and evidence, chunking rules, and a Markdown page with chunks outlined. Decisions: Markdown slice (no PDF boxes), tab on the document page, same read rule as `/content`, addition to FR-31. `total_tickets` 45 → 46; other counters unchanged (`todo` is not counted). **Update 2026-11-22:** `V2-46` → `review` (endpoint, tab, tests and browser check done); `implemented_tickets` 43 → 44, `review_tickets` 1 → 2. Not `done`: owner acceptance needed.
 
 > **Owner decision 2026-11-22 (V2-47 added):** [`V2-47`](tickets/V2-47-ai-service-chunk-quality-fixes.md) (ai-qa, P1, L, depends on `V2-20`, `V2-21`, `V2-22`, `V2-46`) fixes the chunk defects found when the pilot corpus was run through the pipeline (TEST-REPORT-005): false headings, letterhead tables and split step rows, a table of contents indexed as content, tiny legal fragments. It changes the stored Markdown and chunks, so `NORMALIZER_VERSION` is bumped and a reindex is needed; RQ numbers measured with the old chunker are not comparable. `V2-46` and `V2-47` both block `V2-18` (the plan check requires the handover to wait for every ticket). `total_tickets` 46 → 47; other counters unchanged (`todo` is not counted).
+
+> **Owner decision 2026-11-24 (V2-49 added, recorded after the work was done):** [`V2-49`](tickets/V2-49-ai-service-pipeline-trace.md) (ai-qa, L, depends on `V2-10`) records work done after V2-47 by another agent session without a ticket: per-step `step` events, a stored sanitized trace per answer (`rag.message_traces`, migration `V005`), token usage on `messages` and `GET /conversations/{id}/messages/{id}/trace`. The same tree also carried three behaviour changes that are not tracing (rewrite prompt, no merging of adjacent sections in the prompt context, 300 s provider timeouts); the ticket lists them for the owner to accept or revert. `total_tickets`, `implemented_tickets` and `review_tickets` each grow by one; the ticket is `review`, not `done` (owner review of the evidence is pending).

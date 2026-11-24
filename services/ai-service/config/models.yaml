@@ -17,7 +17,7 @@ rerank:
   model: BAAI/bge-reranker-v2-m3
   revision: ${RERANK_REVISION:}
   max_pairs: 25
-  timeout_s: ${RERANK_TIMEOUT_S:30}    # modal only; cold start of the GPU container can exceed this
+  timeout_s: ${RERANK_TIMEOUT_S:300}   # modal only; 300 s covers GPU cold start without failing
 llm:
   # Owner chốt 2026-11-01 (ADR-006 §4.4) and 2026-11-04 (V2-10): one self-hosted model behind an
   # OpenAI-compatible server (vLLM on Modal). No fallback chain yet; a second endpoint is added here
@@ -26,6 +26,7 @@ llm:
   # budget under the served --max-model-len 65536 minus max_output_tokens, with margin (ADR-011 §5):
   # 57000 + 8192 = 65192 for the answer task (V2-43).
   generate:
+    timeout_s: ${SOPILOT_LLM_TIMEOUT_S:300}
     chain:
       - provider: modal
         model: "${SOPILOT_LLM_MODEL:}"
@@ -39,6 +40,7 @@ llm:
     temperature: 0.2
     max_output_tokens: ${SOPILOT_LLM_MAX_OUTPUT_TOKENS:8192}
   rewrite:
+    timeout_s: ${SOPILOT_LLM_REWRITE_TIMEOUT_S:300}
     chain:
       - provider: modal
         model: "${SOPILOT_LLM_MODEL:}"
