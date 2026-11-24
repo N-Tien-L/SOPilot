@@ -1,5 +1,7 @@
 # Environment variables
 .env
+**/.env
+temp/.env
 .env.local
 .env.*.local
 
@@ -135,3 +137,10 @@ datasets/
 
 # SetFit router artifact (V2-44, ADR-012): 2.3 GB, built by eval/experiments/routing/modal_setfit_app.py
 services/ai-service/models/
+
+# End-to-end suite (tests/e2e): run output and the throwaway world
+tests/e2e/.world.json
+tests/e2e/report/
+tests/e2e/test-results/
+tests/e2e/results.json
+/artifacts/
