@@ -2,7 +2,7 @@
 id: V2-48
 title: "ai-service + web: per-question reranker on/off toggle next to the chat input"
 type: feature
-status: review # todo | in_progress | review | done | blocked
+status: done # todo | in_progress | review | done | blocked
 created: 2026-11-24
 updated: 2026-11-24
 author: "Owner"

@@ -2,7 +2,7 @@
 id: V2-45
 title: "eval: expand the retrieval eval set to 500+ questions (sop-main-v3) with a Haiku → Sonnet → Opus pipeline"
 type: test
-status: review # todo | in_progress | review | done | blocked
+status: done # todo | in_progress | review | done | blocked
 created: 2026-11-17
 updated: 2026-11-17
 author: "Owner"

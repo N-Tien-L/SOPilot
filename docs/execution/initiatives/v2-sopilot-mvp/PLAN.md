@@ -17,9 +17,9 @@ refs:
   - docs/research/audit-markdown-normalization-and-preview-2026-10-21.md
 milestone: "V2: SOPilot MVP"
 total_tickets: 50
-completed_tickets: 42
+completed_tickets: 48
 implemented_tickets: 48
-review_tickets: 6
+review_tickets: 0
 ---
 
 > Translated from Vietnamese on 2026-11-13 without changing decisions, statuses or counters. The status tables in §3 and the Mermaid edges in §2 keep the exact format `eval/sopilot_eval/plan_check.py` parses. Owner decisions are quoted as recorded ("Owner decision" = *Owner chốt*).
@@ -285,7 +285,7 @@ flowchart TD
 | `V2-06` | Multilingual (VI, EN) corpus and reviewed question set | tests | L | None | done |
 | `V2-07` | Run RQ1–RQ3 and RQ5, write the report | tests | M | `V2-05`, `V2-06`, `V2-22` | done |
 | `V2-37` | Retrieval configuration matrix and answer-level eval with an independent judge | tests | L | `V2-07`, `V2-10`, `V2-13`, `V2-27`, `V2-35`, `V2-40` | todo |
-| `V2-45` | eval: expand the retrieval eval set to 500+ questions (sop-main-v3) | tests | L | `V2-06`, `V2-07` | review |
+| `V2-45` | eval: expand the retrieval eval set to 500+ questions (sop-main-v3) | tests | L | `V2-06`, `V2-07` | done |
 
 ### Phase 2: Foundation and ai-service
 | Ticket | Title | Scope | Size | Depends on | Status |
@@ -338,11 +338,11 @@ Contextual retrieval (step 10 of the audit) has no ticket; it is considered only
 | `V2-32` | Frontend: recognized content and the citation viewer | web | L | `V2-10`, `V2-12`, `V2-15` | done |
 | `V2-33` | Frontend: members, departments and document metadata | web | L | `V2-15`, `V2-23`, `V2-24`, `V2-25`, `V2-30`, `V2-36` | done |
 | `V2-16` | Demo data and a one-command docker compose | platform | M | `V2-10`, `V2-12`, `V2-21`, `V2-24`, `V2-36` | done |
-| `V2-46` | ai-service + web: processing report (detected type, chunking strategy, sample page with chunks) | web | M | `V2-22`, `V2-32` | review |
-| `V2-47` | ai-service: chunk quality fixes found on the pilot corpus | ai-qa | L | `V2-20`, `V2-21`, `V2-22`, `V2-46` | review |
-| `V2-49` | ai-service: per-message pipeline trace, token usage and the trace endpoint for the Pipeline Inspector | ai-qa | L | `V2-10` | review |
-| `V2-50` | web: design system refresh (light and dark, Tailwind + CVA + Radix) and the Pipeline Inspector UI | web | L | `V2-15`, `V2-49` | review |
-| `V2-48` | ai-service + web: per-question reranker toggle next to the chat input | web | M | `V2-10`, `V2-35`, `V2-49`, `V2-50` | review |
+| `V2-46` | ai-service + web: processing report (detected type, chunking strategy, sample page with chunks) | web | M | `V2-22`, `V2-32` | done |
+| `V2-47` | ai-service: chunk quality fixes found on the pilot corpus | ai-qa | L | `V2-20`, `V2-21`, `V2-22`, `V2-46` | done |
+| `V2-49` | ai-service: per-message pipeline trace, token usage and the trace endpoint for the Pipeline Inspector | ai-qa | L | `V2-10` | done |
+| `V2-50` | web: design system refresh (light and dark, Tailwind + CVA + Radix) and the Pipeline Inspector UI | web | L | `V2-15`, `V2-49` | done |
+| `V2-48` | ai-service + web: per-question reranker toggle next to the chat input | web | M | `V2-10`, `V2-35`, `V2-49`, `V2-50` | done |
 | `V2-17` | Parity check, remove the 8 old services, update guidance docs | platform | L | `V2-14`, `V2-15`, `V2-16`, `V2-26`, `V2-31`, `V2-32`, `V2-33`, `V2-42`, `V2-43` | done |
 | `V2-18` | Research report and handover package | docs | M | `V2-04`, `V2-07`, `V2-14`, `V2-17`, `V2-27`, `V2-28`, `V2-35`, `V2-37`, `V2-39`, `V2-40`, `V2-41`, `V2-44`, `V2-45`, `V2-46`, `V2-47`, `V2-49`, `V2-50`, `V2-48` | todo |
 

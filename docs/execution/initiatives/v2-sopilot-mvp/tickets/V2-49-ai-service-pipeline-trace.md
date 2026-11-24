@@ -2,7 +2,7 @@
 id: V2-49
 title: "ai-service: per-message pipeline trace, token usage and the trace endpoint for the Pipeline Inspector"
 type: feature
-status: review # todo | in_progress | review | done | blocked
+status: done # todo | in_progress | review | done | blocked
 created: 2026-11-24
 updated: 2026-11-24
 author: "Owner"

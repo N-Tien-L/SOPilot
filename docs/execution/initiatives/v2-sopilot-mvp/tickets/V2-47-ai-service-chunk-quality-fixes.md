@@ -2,7 +2,7 @@
 id: V2-47
 title: "ai-service: chunk quality fixes found on the pilot corpus (false headings, letterhead tables, split step rows, table of contents, tiny legal fragments)"
 type: fix
-status: review # todo | in_progress | review | done | blocked
+status: done # todo | in_progress | review | done | blocked
 created: 2026-11-22
 updated: 2026-11-23
 author: "Owner"

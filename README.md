@@ -1,133 +1,137 @@
 # SOPilot
 
-SOPilot answers questions about internal procedures and policies (SOPs). Employees ask in Vietnamese or English and are meant to get a cited answer drawn only from documents their role and department may read. Administrators upload and version documents and review questions the system could not answer.
+**Ask questions about your company's procedures (SOPs) and get answers that cite the exact source.**
 
-It is a personal project, built to learn and demonstrate backend engineering: service boundaries, asynchronous ingestion, retrieval, and access control. A reviewer can use it to look at how those problems were handled and where they were not.
+Employees ask in Vietnamese or English. SOPilot answers only from documents that their workspace, role and department are allowed to read. Every claim links to the passage in its source document. When the documents do not hold the answer, SOPilot says so, and the question is listed as a knowledge gap for admins.
 
-**Start here:** [Engineering case study](docs/portfolio/engineering-case-study.md) · [Implementation evidence and status](docs/portfolio/implementation-evidence.md) · [Documentation hub](docs/README.md)
+University research project (NCKH) and portfolio piece, built and run **locally only** (no hosted demo). License: [MIT](LICENSE).
 
-## Current status
+![SOPilot V2 components: web, core-api, ai-service, ai-worker, Postgres, MinIO and the external Modal endpoint](docs/architecture/diagrams/assets/readme-architecture.svg)
 
-- **V2 (active):** a rebuild into two services (`core-api`, `ai-service`) that trims and reworks almost all of V1. Per the [PLAN](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md) (37 tickets: 25 `done`, 5 `review`, the rest `todo`): specifications ([PRD](docs/product/prd-v2-sopilot-mvp.md), [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md) and others), a retrieval-evaluation harness, local database/storage infrastructure, and both services (core-api identity, workspaces, departments, documents and outbox; ai-service ingestion, extraction, chunking, retrieval and the question-answering pipeline). The V2 web app (sign-in, chat with citations, documents, members, knowledge gaps) is built; the V2-17 parity record ([TEST-REPORT-001](docs/quality/test-reports/parity-v2-17-2026-11-16.md)) checks every use case and P0 requirement against tests and a throwaway stack. Nothing here has been verified end to end by an outside reviewer. Ticket counts are not a completion measure; status per capability is in [implementation evidence](docs/portfolio/implementation-evidence.md).
-- **V1 (removed in V2-17, kept at tag [`v1-final`](https://github.com/N-Tien-L/SOPilot/tree/v1-final)):** eight services, from a course project built with a classmate. I audited it and found problems on its question-answering path (below); those findings drove V2.
-- **Source is public** at [N-Tien-L/SOPilot](https://github.com/N-Tien-L/SOPilot). There is no live demo or screenshot set.
-- No evidence of real users, deployment or measured performance exists.
+| Component | Stack | Job |
+|---|---|---|
+| `web` | Next.js 16, React 19 | Chat with citations, documents, members, knowledge gaps |
+| `core-api` | Spring Boot 3.5, Java 21 | Sign-in, workspaces, departments, document upload and access |
+| `ai-service` + `ai-worker` | FastAPI, Python 3.11+ | Extraction, chunking, embeddings, hybrid retrieval, answers |
+| Postgres 16 + pgvector | Flyway migrations | Two schemas (`core`, `rag`) with row-level security per workspace |
+| MinIO | S3 API | Uploaded files |
+| Modal (external) | vLLM on a GPU | Answer model and reranker ([setup](infrastructure/modal/README.md)) |
 
-## My contribution
+## Quick start
 
-I own V2 and am building it alone. In V1 I wrote the AI module (full RAG path), document ingestion and preprocessing, the database design, the unanswered-question feature and the related frontend. A classmate worked on the rest of V1. I use AI tools while building this project.
+**You need:** Docker Engine 24+ with Compose v2, 4 CPU cores and 8 GB RAM (an estimate), PowerShell for the seed script, and a running Modal endpoint for answers.
 
-## What V2 is meant to show
+**1. Configure.** Copy the sample file, then replace every `<placeholder>` in `.env`:
 
-| Backend | Applied AI |
-|---|---|
-| Transactional outbox, honest consistency boundaries | Evaluation before implementation |
-| Tenant isolation with row-level security | Hybrid retrieval with BM25 matched to the harness |
-| Versioned migrations, ADRs with rejected options | Refusal-threshold calibration, Vietnamese and cross-lingual handling |
-
-These are design goals; [implementation evidence](docs/portfolio/implementation-evidence.md) shows what exists.
-
-## Architecture (V2)
-
-```mermaid
-flowchart LR
-    B["Browser"] --> W["web (Next.js)<br/>same-origin proxy"]
-    W -- "/api/v1" --> C["core-api<br/>identity, workspaces, documents"]
-    W -- "/ai/v1" --> A["ai-service<br/>retrieval, answers"]
-    C -- "outbox" --> A
-    A -- "/internal callbacks" --> C
-    C --> P[("Postgres + pgvector<br/>schemas core, rag (RLS)")]
-    A --> P
-    C --> S[("MinIO")]
-    K["ai-worker<br/>ingest, embed"] --> P
-    K --> S
-    A -.-> M["answer model<br/>vLLM on Modal"]
+```bash
+cp .env.example .env
 ```
 
-Details: [system overview](docs/architecture/system-overview.md) and [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md).
-
-### History: V1
-
-V1 had eight services behind a NestJS API gateway, with RabbitMQ between upload and ingestion and Redis. It was removed in ticket V2-17 and is preserved at git tag [`v1-final`](https://github.com/N-Tien-L/SOPilot/tree/v1-final). The audit of its question-answering path is the motivation for V2; the findings are in the [engineering case study](docs/portfolio/engineering-case-study.md) and summarised under "Known limitations" below.
-
-## Engineering highlights
-
-1. **Upload-to-index consistency.** Object storage, database, broker and index cannot share a transaction. The case study traces where V1 is atomic (the chunk swap in one database transaction) and where it is not (storage write before commit, swallowed publish failures): [section 1](docs/portfolio/engineering-case-study.md#1-upload-to-searchable-chunks-consistency-at-the-boundaries).
-2. **Permission-aware retrieval and honest naming.** Access rules are applied inside the retrieval SQL, before ranking. The "BM25" side is actually PostgreSQL `ts_rank`, and the reranker is not on the active path: [section 2](docs/portfolio/engineering-case-study.md#2-retrieval-and-permission-aware-access).
-3. **Evaluation scope.** A retrieval-only harness with real BM25, guard rails against silent fallbacks, and results explicitly limited to document/page proxies: [section 3](docs/portfolio/engineering-case-study.md#3-evaluation-what-the-metrics-measure).
-
-Each highlight pairs the V1 finding with the proposed V2 design. For the V2 consolidation and its reasons, see the case study's V2 section and [ADR-004](docs/architecture/decisions/adr-004-two-service-architecture.md). The V2 services are only partly implemented (see the status above).
-
-## Where to read next
-
-| Document | Purpose |
+| Variables | Value |
 |---|---|
-| [Engineering case study](docs/portfolio/engineering-case-study.md) | Decisions, trade-offs and failure modes |
-| [Implementation evidence](docs/portfolio/implementation-evidence.md) | Per-capability status, source paths, tests, evaluation scope |
-| [Documentation hub](docs/README.md) | PRDs, ADRs, technical designs, plans, test reports and research (English; archived V1 material may be Vietnamese) |
-| [CLAUDE.md](CLAUDE.md) | Repository layout, rules and commands (Claude Code; details in `.claude/`) |
-| [`eval/README.md`](eval/README.md) | Evaluation harness usage |
-| [Operations runbooks](docs/operations/local-development.md) | Running, troubleshooting and re-indexing the local stack |
-| [Testing strategy](docs/quality/testing-strategy.md) | Test layers, what runs in CI, where evidence goes |
+| `V2_POSTGRES_SUPERUSER_PASSWORD`, `V2_DB_*_PASSWORD`, `V2_MINIO_ROOT_PASSWORD`, `SOPILOT_S3_*_SECRET_KEY`, `SOPILOT_INTERNAL_TOKEN` | Random secrets: `openssl rand -hex 32` |
+| `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_API_KEY` | Your Modal endpoint (ends in `/v1`) and its `VLLM_API_KEY` |
+| `GOOGLE_CLIENT_ID` | Required by the build. Any value works if you only use Dev sign-in |
+| `SOPILOT_GROQ_API_KEY` | Optional. Without it, metadata suggestions use rules only |
 
-## Getting started
+Compose refuses to start and names the missing variable if one is unset.
 
-### SOPilot V2 (One-Command Stack)
+**2. Start everything** (Postgres, migrations, MinIO, core-api, ai-service, ai-worker, web):
 
-> [!NOTE]
-> System Requirements: Minimum 4 CPU cores, 8GB RAM, Docker Engine 24+ and Docker Compose v2.
+```bash
+docker compose up -d --build
+```
 
-1. **Configure Environment:**
-   Copy the root `.env.example` to `.env` (Git-ignored) and replace every `<placeholder>`. Compose refuses to start unless these are set:
-   - `V2_POSTGRES_SUPERUSER_PASSWORD`, `V2_DB_MIGRATOR_PASSWORD`, `V2_DB_CORE_APP_PASSWORD`, `V2_DB_AI_APP_PASSWORD`
-   - `V2_MINIO_ROOT_USER`, `V2_MINIO_ROOT_PASSWORD`, `SOPILOT_S3_ACCESS_KEY`, `SOPILOT_S3_SECRET_KEY`, `SOPILOT_S3_AI_ACCESS_KEY`, `SOPILOT_S3_AI_SECRET_KEY`
-   - `SOPILOT_INTERNAL_TOKEN` (shared secret between core-api and ai-service)
-   - `SOPILOT_LLM_BASE_URL` (Modal endpoint, ending in `/v1`) and `SOPILOT_LLM_API_KEY` (the Modal `VLLM_API_KEY`)
+**3. Load demo data** once core-api is healthy (safe to run again):
 
-   Generate secrets with `openssl rand -hex 32`. Optional: `SOPILOT_GROQ_API_KEY` for metadata suggestions (see step 5).
-   ```bash
-   cp .env.example .env
-   ```
-2. **Start the Entire V2 Stack:**
-   One command builds and runs Postgres (with pgvector), Flyway migrations, MinIO object storage, `core-api` (Spring Boot), `ai-service` (FastAPI), `ai-worker`, and the `web` image:
-   ```bash
-   docker compose up -d --build
-   ```
-   > [!NOTE]
-   > The `web` image serves the V2 screens on `http://localhost:3000` (dev sign-in; Google sign-in needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build time). The APIs are on `http://localhost:8080` (core-api) and `http://localhost:8000` (ai-service).
-   >
-   > The embedding model `BAAI/bge-m3` is downloaded from Hugging Face on the first ingest and cached in the container; the first upload is slow and needs network access.
-3. **Seed Demo Data:**
-   Run the idempotent seeding script once core-api is healthy. It creates the demo workspace `SOPilot Demo Workspace`, departments "Kỹ thuật" and "Nhân sự", and two members who are invited and then accept through dev login: `engineer@sopilot.local` ("Kỹ thuật", made the department's publisher, ADR-009) and `hr@sopilot.local` ("Nhân sự"). The owner uploads two workspace-wide SOPs; the engineer uploads one SOP limited to "Kỹ thuật" (UC-10: the engineer sees 3 documents, the HR member sees 2). All files are tracked in `eval/datasets/`. A second run changes nothing. The final output prints the actual counts and the exit code is 1 if any step failed.
-   ```powershell
-   ./scripts/seed-demo.ps1
-   ```
-   Three documents are far below the default document limits (50 documents / 200 MB, FR-09), so no limit variable needs to be set.
-4. **Dev Login (No Google OAuth Required):**
-   In `local` profile, use the built-in dev login endpoint:
-   ```http
-   POST http://localhost:8080/api/v1/auth/dev-login
-   Content-Type: application/json
+```powershell
+./scripts/seed-demo.ps1
+```
 
-   { "email": "demo-owner@sopilot.local", "displayName": "Demo Owner" }
-   ```
-   The `local` profile generates the JWT signing key in memory at each core-api start. A restart invalidates all issued tokens; sign in again (dev login) after a restart. Data in Postgres and MinIO is kept.
-5. **LLM Provider Configuration & Missing Key Behavior:**
-   - Answers: `ai-service` calls one OpenAI-compatible endpoint (self-hosted vLLM on Modal, ADR-006 §4.4) configured by `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_API_KEY` and `SOPILOT_LLM_MODEL` (default `Qwen/Qwen3.5-9B` in compose). `SOPILOT_LLM_BASE_URL` and `SOPILOT_LLM_API_KEY` are required: compose stops with a message naming the missing variable instead of starting with a dummy endpoint.
-   - Metadata suggestions (V2-25): `ai-worker` reads `SOPILOT_GROQ_API_KEY`. It is optional. Without it the worker logs `suggest_key_missing` and suggestions fall back to rules only (no LLM call); the rest of the stack works.
-   - If the Modal endpoint is unreachable or times out, a question fails with the stable code `LLM_UNAVAILABLE` and is not retried against another provider after the first token. The Modal container cold start can take minutes; warm it before a demo (`infrastructure/modal/README.md`).
-   - Time to first answer has not been measured on a clean clone; no latency figure is claimed here.
-6. **Measure time to first token (optional, real provider):** with the stack up, the demo seeded and the Modal endpoint warm, `./scripts/measure-ttft.ps1` asks 15 questions in new conversations and 15 follow-ups (with the rewrite call) through `POST /ai/v1/conversations/{id}/messages` and writes P50/P95, spread, hardware and outcomes to `eval/results/ttft/` (PRD-V2 NFR target: P95 < 3 s). `./scripts/measure-ingest-latency.ps1` does the same for upload, READY and suggestion times.
+**4. Open http://localhost:3000**, click **Dev sign-in**, and use one of the demo accounts:
 
-### Evaluation Harness & Development
+| Account | Role | Sees |
+|---|---|---|
+| `demo-owner@sopilot.local` | Workspace owner | All 3 documents, admin pages |
+| `engineer@sopilot.local` | Member of "Kỹ thuật", department publisher | 3 documents (2 shared + 1 for "Kỹ thuật") |
+| `hr@sopilot.local` | Member of "Nhân sự" | 2 shared documents only |
 
-- **Evaluation harness:** `cd eval && uv sync --extra dev && uv run pytest -q`, per [eval/README.md](eval/README.md).
-- Build, lint and test commands per service are in [CLAUDE.md](CLAUDE.md); running the stack from source: [local development](docs/operations/local-development.md).
+The seed creates the workspace "SOPilot Demo Workspace", the two departments, both members, and three SOPs from `eval/datasets/`. It prints the final counts and exits with code 1 if any step failed.
 
-## Known limitations and next steps
+### Ports
 
-- V1 audit findings (history, at tag `v1-final`): its answer path imported a `build_sources` function I could not find, the reranker was not connected, document/category filters looked unreachable from the chat request, and document access rules were copied onto chunks with no update path when visibility changed. V2 rebuilt these parts instead of fixing them. The configuration drift found in V1 (bucket names, exchange names, a retired-model list) is listed in the [V1-frozen rule at `v1-final`](https://github.com/N-Tien-L/SOPilot/blob/v1-final/.claude/rules/v1-frozen.md).
-- No official retrieval results exist; the evaluation datasets are drafts.
-- Next: first official retrieval results (BM25 vs dense vs hybrid on a reviewed dataset), then the two V2 services ([PLAN-V2](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md)).
+| URL | Service |
+|---|---|
+| http://localhost:3000 | Web app |
+| http://localhost:8080 | core-api (`/actuator/health`) |
+| http://localhost:8000 | ai-service (`/health`) |
+| `127.0.0.1:55432` | Postgres |
+| http://127.0.0.1:59001 | MinIO console (API on `59000`) |
 
-Licensed under the [MIT License](LICENSE). Third-party material in the repository (GitLab Handbook excerpts under CC BY-SA 4.0) is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Each port can be changed with the `V2_*_PORT` variables in `.env`.
+
+### Good to know
+
+- **The first upload is slow.** It downloads the embedding model `BAAI/bge-m3` from Hugging Face (needs network access). After that, the model is cached in a volume.
+- **Warm up Modal before a demo.** A cold start takes minutes. If the endpoint is down, a question fails with `LLM_UNAVAILABLE`.
+- **A core-api restart signs everyone out.** The local profile creates its signing key in memory. Your data is kept.
+- **Use Chrome, Edge or Firefox.** Safari drops the auth cookie on plain `http://localhost`.
+- **Stop with `docker compose down`. Never add `-v`:** it deletes the database and the uploaded files.
+
+Running services from source, health checks and fixes: [local development](docs/operations/local-development.md) · [troubleshooting](docs/operations/troubleshooting.md).
+
+## How it works
+
+### 1. Upload: from a file to searchable chunks
+
+![Upload flow: core-api validates and stores the file and writes an outbox event in one transaction; the worker extracts, chunks, embeds and activates the version](docs/architecture/diagrams/assets/readme-ingest-flow.svg)
+
+core-api never calls ai-service inside the upload transaction. It records an outbox event, and a dispatcher delivers it after commit, with retries. Supported files: PDF with a text layer, and Markdown.
+
+### 2. Question: from a question to a cited answer
+
+![Question flow: rule checks, rewrite, permission-filtered hybrid retrieval, evidence gate, generation on Modal, citation check](docs/architecture/diagrams/assets/readme-question-flow.svg)
+
+The permission filter runs inside the retrieval SQL, before ranking, so the model never sees a chunk the asker may not read. Every step is described in [TECH-V2-ai-service §7.1](docs/architecture/components/ai-service.md#71-steps). The detailed as-built view is [qa-lifecycle-current.svg](docs/architecture/diagrams/assets/qa-lifecycle-current.svg).
+
+### Tenant isolation
+
+Every tenant table is protected twice: by Postgres row-level security and by an explicit `workspace_id` filter in every query. Another workspace's resource returns `404`. CI runs a database suite, a negative control with RLS turned off, and API-level isolation tests ([system overview §4](docs/architecture/system-overview.md#4-tenant-isolation-fr-19)).
+
+## Development
+
+| Purpose | Command (repo root, PowerShell) |
+|---|---|
+| Build + lint one part | `./scripts/validate-build.ps1 -Scope core\|ai\|web` |
+| core-api tests | `./scripts/run-tests.ps1 -Scope core-api -Type unit` (`-Type all` needs Docker) |
+| ai-service tests | `./scripts/run-tests.ps1 -Scope ai-service -Type unit\|integration\|all` |
+| Tenant isolation suite | `cd tests/tenant-isolation; uv run pytest -v` (Docker) |
+| Retrieval evaluation | `cd eval; uv sync --extra dev; uv run pytest -q` ([eval/README.md](eval/README.md)) |
+| Check `.env` files (prints no values) | `./scripts/check-env.ps1` |
+| Before a commit | `./scripts/pre-commit-check.ps1` |
+
+```text
+services/core-api      Spring Boot service, schema core
+services/ai-service    FastAPI service and ingest worker, schema rag
+frontend/web           Next.js app
+infrastructure/        Postgres migrations, MinIO setup, Modal deployment
+eval/                  Retrieval and answer evaluation harness
+docs/                  Product, architecture, ADRs, plans, test reports
+```
+
+## Status
+
+V2 is a rebuild of an earlier eight-service V1 (kept at tag [`v1-final`](https://github.com/N-Tien-L/SOPilot/tree/v1-final)) into two services. Every V2 use case and P0 requirement is checked against tests in the [V2-17 parity report](docs/quality/test-reports/parity-v2-17-2026-11-16.md) (verdict: passed with warnings). Per-capability status: [implementation evidence](docs/portfolio/implementation-evidence.md); remaining tickets: [PLAN-V2](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md).
+
+**Not claimed:** real users, a deployment, or official retrieval numbers (the evaluation datasets are still drafts). No outside reviewer has verified it end to end. Time to first token can be measured with `./scripts/measure-ttft.ps1` (results in `eval/results/ttft/`).
+
+## Read more
+
+| Document | For |
+|---|---|
+| [Documentation hub](docs/README.md) | PRD, ADRs, technical designs, plans, test reports |
+| [System overview](docs/architecture/system-overview.md) | Components, communication, flows, tenancy |
+| [Testing strategy](docs/quality/testing-strategy.md) | Test layers and what CI runs |
+| [CLAUDE.md](CLAUDE.md) | Repository rules for AI coding agents |
+
+I built V2 alone, with AI coding tools. V1 was a course project with a classmate; my part was the RAG path, ingestion, database design and the unanswered-question feature. Third-party material (GitLab Handbook excerpts, CC BY-SA 4.0) is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
