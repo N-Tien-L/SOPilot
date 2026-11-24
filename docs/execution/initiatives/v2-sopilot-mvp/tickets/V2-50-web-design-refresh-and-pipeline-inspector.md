@@ -2,7 +2,7 @@
 id: V2-50
 title: "web: design system refresh (light and dark, Tailwind + CVA + Radix) and the Pipeline Inspector UI"
 type: feature
-status: review # todo | in_progress | review | done | blocked
+status: done # todo | in_progress | review | done | blocked
 created: 2026-11-24
 updated: 2026-11-24
 author: "Owner"

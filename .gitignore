@@ -144,3 +144,6 @@ tests/e2e/report/
 tests/e2e/test-results/
 tests/e2e/results.json
 /artifacts/
+
+# Local-only portfolio case study (not published to remote)
+docs/portfolio/engineering-case-study.md

@@ -2,7 +2,7 @@
 id: V2-46
 title: "ai-service + web: processing report (detected document type, chunking strategy, sample page with chunks outlined)"
 type: feature
-status: review # todo | in_progress | review | done | blocked
+status: done # todo | in_progress | review | done | blocked
 created: 2026-11-22
 updated: 2026-11-22
 author: "Owner"
