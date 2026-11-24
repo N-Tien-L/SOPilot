@@ -1,0 +1,17 @@
+# V2-35 RQ2/RQ2b with the reranker on the Modal A10 GPU (same model, revision, 512 tokens, fp32 logits + client sigmoid).
+# Needs SOPILOT_RERANK_BASE_URL and SOPILOT_LLM_API_KEY in the environment (same values as ai-service). Chunk text goes to Modal.
+# Run: python -m sopilot_eval.run --dataset datasets/sop-main --config configs/rq2-rerank-modal.yaml --split dev|test --repeats 3
+chunking:
+  mode: docproc
+  target_tokens: 384
+  max_tokens: 512
+  structured_dir: results/extraction-clean/structured
+  pilot_dataset: datasets/sop-pilot
+configs:
+  - {name: hybrid, retriever: hybrid, k: 5, embedder: &e {provider: sentence-transformers, model: BAAI/bge-m3, revision: 5617a9f61b028005a4858fdac845db406aefb181}, weights: [1.0, 1.0]}
+  - name: hybrid-rerank-modal
+    retriever: hybrid
+    k: 5
+    embedder: *e
+    weights: [1.0, 1.0]
+    rerank: {provider: modal, model: BAAI/bge-reranker-v2-m3, revision: 953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e, timeout_s: 600}

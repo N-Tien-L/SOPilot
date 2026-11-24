@@ -1,0 +1,121 @@
+# core-api (V2)
+
+Spring Boot 3.5, Java 21. Owns schema `core` and is the only writer of `core.users`
+([TECH-V2-core-api](../../docs/architecture/components/core-api.md), ADR-004/005).
+Package: `com.sopilot.core` (modules `common`, `config`, `security`, `tenancy`, `identity`, `workspace`, `member`,
+`department`, `document`, `outbox`, `storage`, `audit`).
+
+Implemented so far (V2-11): Google login with nonce, JIT user + PERSONAL workspace + OWNER
+membership, RS256 access token (≤ 15 min, claims `wid`/`wrole`/`wdept`), JWKS, dev login for
+`local`/`test`.
+
+Added by V2-29: rotating refresh tokens (`sp_refresh` cookie, replay detection, membership re-read on every refresh),
+logout, workspace switch, workspace CRUD (create TEAM, list, current, rename, soft delete), refresh revoked on
+suspend/remove/leave, and JWKS that also publishes the previous signing key during a rotation.
+
+Added by V2-36 (ADR-009): document writes belong to publishers, not roles: the publisher of the owning department or
+of the workspace (`DocumentWritePolicy`); OWNER recalls (delete) and transfers (`PUT /documents/{id}/ownership`);
+ADMIN has no document write access. OWNER assigns publishers; the creator of a workspace is its first workspace publisher.
+Added by V2-30: invitation links (7 days, single use, revocable, carry the member profile), accept with the same
+session switch as V2-29, `pendingInvitations` at login, role changes with the OWNER rules (acting role read from the
+database; every role change revokes the member's refresh chains). No email is sent.
+Added by V2-23: flat departments, member profiles, suspend/reactivate/remove/leave with the last-owner and
+admin-vs-owner rules, `wdept` from the database at token re-issue (`SessionTokenService`).
+Added by V2-12: documents (PDF with a text layer, Markdown), versions, quota, outbox to ai-service, status callbacks,
+S3 storage and orphan janitor, audit log. Every `/api/v1/**` route except `/api/v1/auth/**` needs a bearer token
+(`JwtAuthFilter`); `/internal/**` needs `X-Internal-Token`.
+
+## Endpoints
+
+| Method & path | Access | Notes |
+|---|---|---|
+| `POST /api/v1/auth/google/nonce` | Public | `{data:{nonce}}` + HttpOnly cookie `sp_nonce` (5 min, HMAC-signed) |
+| `POST /api/v1/auth/google` | Public | `{idToken}` + cookie `sp_nonce`; `401 INVALID_GOOGLE_TOKEN` on any failure |
+| `POST /api/v1/auth/dev-login` | Public, **`local`/`test` profile only** | `{email, displayName?}`; issuer `sopilot-dev`; `404` in any other profile |
+| `POST /api/v1/auth/refresh` | Cookie `sp_refresh` + `Origin` = `SOPILOT_FRONTEND_ORIGIN` | Rotates the cookie, returns the same body as login; replay revokes the chain; `401 UNAUTHENTICATED\|MEMBERSHIP_LOST`, `403 MEMBERSHIP_SUSPENDED` (only if the chain was not revoked; suspending through the API revokes it, so the next refresh is `401 UNAUTHENTICATED`); a rejection also clears the cookie |
+| `POST /api/v1/auth/logout` | Cookie + `Origin` | Always `204`; revokes the chain and clears the cookie |
+| `POST /api/v1/auth/switch-workspace` | Bearer | `{workspaceId}`; `404` if not a member (or deleted), `403 MEMBERSHIP_SUSPENDED`; ends the old chain, starts a new one |
+| `GET /api/v1/workspaces`, `GET\|PATCH\|DELETE /api/v1/workspaces/current` | Member; PATCH/DELETE OWNER | `/current` is the token's workspace, no id in the path; PERSONAL cannot be deleted (`409 PERSONAL_WORKSPACE`) |
+| `POST /api/v1/workspaces` | Bearer | `{name}` creates a TEAM workspace with the caller as OWNER; `201` with tokens for it |
+| `GET /.well-known/jwks.json` | Public | Current and, during a rotation, previous public signing key for ai-service |
+| `GET /actuator/health` | Public | No details |
+| `GET/POST /api/v1/departments`, `PATCH/DELETE /api/v1/departments/{id}` | Member read; OWNER/ADMIN write | `409 DEPARTMENT_NAME_TAKEN`, `409 DEPARTMENT_IN_USE` (counts) |
+| `GET /api/v1/members`, `PATCH /members/{userId}`, `POST /members/{userId}/suspend\|reactivate`, `DELETE /members/{userId}` | OWNER/ADMIN | `PATCH` takes `role`; only an OWNER can make or change an OWNER (`403` for ADMIN); `409 LAST_OWNER` |
+| `GET/POST /api/v1/invitations`, `DELETE /invitations/{id}` | OWNER/ADMIN | `POST` returns `inviteUrl` once (`201`); `409 ALREADY_MEMBER\|INVITATION_PENDING\|EMPLOYEE_CODE_TAKEN\|DEPARTMENT_ARCHIVED`; `DELETE` is idempotent, `409 INVITATION_ALREADY_USED` once accepted |
+| `POST /api/v1/invitations/accept` | Bearer | `{invitationToken}` or `{invitationId}`; returns the login body for the joined workspace + `sp_refresh` cookie; `409 INVITATION_EMAIL_MISMATCH\|INVITATION_ALREADY_USED\|EMPLOYEE_CODE_TAKEN`, `410 INVITATION_EXPIRED\|INVITATION_REVOKED` |
+| `GET /api/v1/members/me`, `POST /api/v1/members/leave` | Member | `me` also returns `publisherOf {workspace, departmentId}`; a PERSONAL workspace cannot be left |
+| `GET/POST /api/v1/categories`, `PATCH/DELETE /api/v1/categories/{id}` | Member read; OWNER/ADMIN write | `409 CATEGORY_NAME_TAKEN`; deleting sets document category to null without altering access |
+| `GET /api/v1/tags` | Member | List tags in current workspace |
+| `POST /api/v1/documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/retry`, `PATCH`, `DELETE /documents/{id}` | Publisher of the owning department / workspace; `DELETE` also OWNER (recall); others `403 NOT_PUBLISHER` (`404` if the document is not readable) | PDF/MD <= 20 MB; `415`, `413`, `409 DUPLICATE_DOCUMENT\|QUOTA_EXCEEDED\|VERSION_IN_PROGRESS\|DOCUMENT_UNCHANGED\|VERSION_NOT_FAILED`; upload takes `file` and a required `visibility` (`WORKSPACE|DEPARTMENTS`, else `400 VALIDATION_FAILED`), plus optional `ownerDepartmentId` (default: the caller's department), `departmentIds` (duplicates ignored), `title` (1-200 chars, becomes a `USER` title), `categoryId`, `tags`; PATCH updates metadata + `categoryId`, `tags` (sets field sources to `USER`) |
+| `PUT /api/v1/documents/{id}/ownership` | OWNER | `{visibility, ownerDepartmentId, departmentIds[]}`: moves responsibility (`WORKSPACE` <-> departments, or another owner department); `400 OWNER_DEPARTMENT_NOT_IN_SCOPE`, `409 DEPARTMENT_ARCHIVED`; returns `{accessSync, publisherAssigned}`; audit `DOCUMENT_OWNERSHIP_CHANGED` |
+| `GET /api/v1/publishers` | Member | Workspace publisher and each department's publisher (id and display name, no email) |
+| `PUT\|DELETE /api/v1/publishers/workspace`, `PUT\|DELETE /api/v1/departments/{id}/publisher` | OWNER | `{userId}`; `409 MEMBER_NOT_ACTIVE\|PUBLISHER_NOT_IN_DEPARTMENT\|DEPARTMENT_ARCHIVED`; `DELETE` is idempotent |
+| `PUT /api/v1/documents/{id}/visibility` | Responsible publisher | `{visibility, departmentIds[]}` within the same kind, keeping the owner department (`409 OWNERSHIP_CHANGE_REQUIRES_OWNER`); bumps `access_revision`, writes `ACCESS_UPDATED`, after commit it is sent to ai-service on the request thread with a 2 s timeout: `APPLIED` when delivered, `PENDING` when the dispatcher will retry; returns `{accessSync: APPLIED\|PENDING}` |
+| `GET /api/v1/documents`, `GET /documents/{id}`, `GET /documents/{id}/download-url` | Member (read scope) | Cursor paging, filters `categoryId`, `tag`; `download-url` takes optional `?disposition=attachment\|inline` (default `attachment`, other values `400`); another workspace's id or unpermitted department doc is `404`; members see masked `departments`/`fieldSources` |
+| `GET /api/v1/documents/{id}/versions` | OWNER/ADMIN, responsible publisher | History, failure reasons, `uploadedBy`, `uploadedAt` |
+| `GET /api/v1/audit-logs` | OWNER | Filters `action`, `actorId`, `from`, `to`, `cursor` |
+| `PATCH /internal/documents/{id}/versions/{versionId}/status` | `X-Internal-Token` | ai-service callback; a stale `attempt`, or a `PROCESSING` for a version that is already `PROCESSING`, `READY`, `SUPERSEDED` or `FAILED` (same attempt), is ignored with `200 {applied:false}` (V2-41) |
+
+## Configuration
+
+No profile is active by default. Outside `local`/`test` the service refuses to start without
+`SOPILOT_JWT_PRIVATE_KEY_PATH` and `SOPILOT_NONCE_HMAC_KEY`, and dev login does not exist.
+
+Copy `.env.example` in this directory to `.env`; it lists the variables below with local values and the PowerShell line that loads them into the shell (Spring does not read `.env` itself).
+
+| Env | Default | Notes |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | none | `local` for development, `test` for automated tests/eval |
+| `SOPILOT_DB_URL`, `SOPILOT_DB_USER`, `SOPILOT_DB_PASSWORD` | `jdbc:postgresql://localhost:55432/sopilot`, `sopilot_core_app`, — | Use the `sopilot_core_app` role from `docker-compose.yml` |
+| `GOOGLE_CLIENT_ID` | — | Blank rejects every Google login |
+| `SOPILOT_JWT_PRIVATE_KEY_PATH`, `SOPILOT_JWT_KID` | in-memory key in `local`/`test` | Unencrypted PKCS#8 PEM, RSA ≥ 2048; kid defaults to the key thumbprint |
+| `SOPILOT_ACCESS_TTL` | `PT15M` | Startup fails above 15 minutes |
+| `SOPILOT_REFRESH_TTL` | `P14D` | Refresh-token lifetime |
+| `SOPILOT_REFRESH_GRACE` | `PT10S` | How long an exchanged refresh token is accepted once more while its successor is unused (a reload aborted the refresh response); `0` turns it off |
+| `SOPILOT_FRONTEND_ORIGIN` | `http://localhost:3000` | The only `Origin` accepted by refresh and logout |
+| `SOPILOT_JWT_PREVIOUS_PUBLIC_KEY_PATH` | unset | X.509 PEM public key of the key being replaced; keep it for one access-token lifetime after rotating (`openssl pkey -in old.pem -pubout`) |
+| `SOPILOT_NONCE_HMAC_KEY` | random in `local`/`test` | ≥ 32 bytes |
+| `SOPILOT_INTERNAL_TOKEN`, `SOPILOT_AI_BASE_URL` | blank (rejects every `/internal` call), `http://ai-service:8000` | One token shared with ai-service |
+| `SOPILOT_S3_ENDPOINT`, `SOPILOT_S3_BUCKET`, `SOPILOT_S3_ACCESS_KEY`, `SOPILOT_S3_SECRET_KEY`, `SOPILOT_S3_REGION` | blank, blank, blank, blank, `us-east-1` | Unset storage fails document operations with `503`, not startup |
+| `SOPILOT_S3_PUBLIC_ENDPOINT` | blank (= `SOPILOT_S3_ENDPOINT`) | Host a browser can reach, used only to sign `download-url` links (compose sets `http://localhost:${V2_MINIO_API_PORT:-59000}` because core-api itself reaches MinIO as `minio:9000`) |
+| `SOPILOT_QUOTA_DOCS_PER_WORKSPACE`, `SOPILOT_QUOTA_BYTES_PER_WORKSPACE` | `50`, `209715200` | `0` turns a limit off |
+| `SOPILOT_OUTBOX_POLL`, `SOPILOT_OUTBOX_MAX_ATTEMPTS` | `PT5S`, `20` | Backoff `2^attempts` s, cap 10 min, jitter |
+
+Generate a signing key (keep it outside the repo; `*.pem` is ignored here):
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out core-api-jwt.pem
+```
+
+## Commands
+
+Run from the repository root unless noted.
+
+```powershell
+./scripts/validate-build.ps1 -Scope core                  # mvnw compile
+./scripts/run-tests.ps1 -Scope core-api -Type unit        # unit tests (no Docker)
+./scripts/run-tests.ps1 -Scope core-api -Type all         # + *IT integration tests (Docker required)
+
+cd services/core-api
+./mvnw test                                               # unit tests
+./mvnw verify                                             # unit + Testcontainers integration tests
+./mvnw spring-boot:run "-Dspring-boot.run.profiles=local" # needs the V2 Postgres from docker-compose.yml
+```
+
+Integration tests (`*IT`) cover departments/members, the document lifecycle, concurrent quota and duplicate
+uploads, the outbox, MinIO (`minio/minio:RELEASE.2024-05-10T01-41-38Z`, the tag `docker-compose.yml` pins) and
+tenant isolation through the API (`TenantIsolationApiIT`). S3 and ai-service are in-process fakes except in
+`S3StorageClientIT` and `HttpAiServiceClientTest`.
+
+Integration tests start a disposable `pgvector/pgvector:0.8.0-pg16` container, run the real
+`infrastructure/db/init/01-roles.sh`, apply both Flyway chains as `sopilot_migrator` and connect
+as `sopilot_core_app` with random passwords. They never touch the `sopilot-v2` volumes.
+
+## Rules
+
+- Errors use `{"error": {"code", "message", "details"}, "traceId"}`; messages are fixed text,
+  never `e.getMessage()` (A8). Google rejections log only a reason code.
+- Never log ID tokens, access tokens, nonce cookies or keys.
+- RLS variables are set per transaction (`RlsContext`, `set_config(..., true)`), from verified
+  identity only. Cross-workspace operations go through reviewed `SECURITY DEFINER` functions.
+- Schema changes are new files in `infrastructure/db/migrations/core/`; the app role never runs Flyway.

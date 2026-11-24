@@ -1,0 +1,6 @@
+# Offline smoke run with the hash embedder. Validates the harness only; numbers are NOT research results.
+chunking: {size: 500, overlap: 50}
+configs:
+  - {name: dense,  retriever: dense,  embedder: &e {provider: hash, dim: 512}}
+  - {name: bm25,   retriever: bm25,   embedder: *e}
+  - {name: hybrid, retriever: hybrid, embedder: *e, weights: [1.0, 1.0]}

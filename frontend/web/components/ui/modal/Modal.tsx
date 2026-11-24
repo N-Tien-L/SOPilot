@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useCallback, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
-import { clsx } from 'clsx';
-import styles from './modal.module.css';
+import { cn } from '@/lib/utils';
 
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
@@ -22,6 +22,14 @@ export interface ModalProps {
   className?: string;
 }
 
+const SIZE_CLASSES: Record<ModalSize, string> = {
+  sm: 'w-[min(92vw,26rem)]',
+  md: 'w-[min(92vw,32rem)]',
+  lg: 'w-[min(92vw,42rem)]',
+  xl: 'w-[min(94vw,60rem)]',
+  full: 'w-[min(96vw,78rem)]',
+};
+
 export function Modal({
   open,
   onClose,
@@ -35,77 +43,93 @@ export function Modal({
   closeOnEscape = true,
   className,
 }: ModalProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (closeOnEscape && e.key === 'Escape') {
-        onClose();
-      }
-    },
-    [closeOnEscape, onClose]
-  );
-
-  useEffect(() => {
-    if (open) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [open, handleKeyDown]);
-
-  if (!open || !mounted) return null;
-
-  const modalContent = (
-    <div className={styles.overlay} onClick={closeOnOverlayClick ? onClose : undefined}>
-      <div
-        className={clsx(styles.modal, styles[size], className)}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
-        aria-describedby={description ? 'modal-description' : undefined}
-      >
-        {(title || !hideCloseButton) && (
-          <div className={styles.header}>
-            <div className={styles.headerContent}>
-              {title && (
-                <h2 id="modal-title" className={styles.title}>
-                  {title}
-                </h2>
-              )}
-              {description && (
-                <p id="modal-description" className={styles.description}>
-                  {description}
-                </p>
-              )}
-            </div>
-            {!hideCloseButton && (
-              <button
-                type="button"
-                className={styles.closeButton}
-                onClick={onClose}
-                aria-label="Close modal"
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <AnimatePresence>
+        {open ? (
+          <Dialog.Portal forceMount>
+            <Dialog.Overlay asChild>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16 }}
+                className="fixed inset-0 z-50 bg-overlay backdrop-blur-xs"
+              />
+            </Dialog.Overlay>
+            <Dialog.Content
+              asChild
+              onPointerDownOutside={(e) => {
+                if (!closeOnOverlayClick) e.preventDefault();
+              }}
+              onInteractOutside={(e) => {
+                if (!closeOnOverlayClick) e.preventDefault();
+              }}
+              onEscapeKeyDown={(e) => {
+                if (!closeOnEscape) e.preventDefault();
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className={cn(
+                  'fixed left-1/2 top-1/2 z-50 flex max-h-[88dvh] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-card-elevated text-card-foreground shadow-[var(--shadow-lg)] focus:outline-none',
+                  SIZE_CLASSES[size],
+                  className,
+                )}
               >
-                <X size={20} />
-              </button>
-            )}
-          </div>
-        )}
-        <div className={styles.content}>{children}</div>
-        {footer && <div className={styles.footer}>{footer}</div>}
-      </div>
-    </div>
-  );
+                {title || description || !hideCloseButton ? (
+                  <div className="flex items-start justify-between gap-4 border-b border-border/80 px-6 py-4">
+                    <div className="min-w-0">
+                      {title ? (
+                        <Dialog.Title className="text-lg font-bold tracking-tight text-foreground">
+                          {title}
+                        </Dialog.Title>
+                      ) : (
+                        <Dialog.Title className="sr-only">Dialog</Dialog.Title>
+                      )}
+                      {description ? (
+                        <Dialog.Description className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                          {description}
+                        </Dialog.Description>
+                      ) : null}
+                    </div>
+                    {!hideCloseButton ? (
+                      <Dialog.Close asChild>
+                        <button
+                          type="button"
+                          aria-label="Close modal"
+                          data-modal-close
+                          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          <X size={18} aria-hidden />
+                        </button>
+                      </Dialog.Close>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Dialog.Title className="sr-only">Dialog</Dialog.Title>
+                )}
 
-  return createPortal(modalContent, document.body);
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+
+                {footer ? (
+                  <div className="border-t border-border/80 bg-muted/35 px-6 py-3.5">{footer}</div>
+                ) : null}
+              </motion.div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        ) : null}
+      </AnimatePresence>
+    </Dialog.Root>
+  );
 }
 
 export default Modal;

@@ -1,20 +1,26 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
-import { QueryProvider, ThemeProvider, LanguageProvider } from '@/providers';
-import { Toaster } from 'react-hot-toast';
+import { QueryProvider, SessionProvider, ThemeProvider } from '@/providers';
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: 'Poliwise - AI-powered Enterprise Knowledge Platform',
-  description: 'AI-powered Enterprise Knowledge Platform',
-  icons: {
-    icon: [
-      {
-        url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234f46e5'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white' font-family='system-ui'>P</text></svg>",
-        type: 'image/svg+xml',
-      },
-    ],
-  },
+  title: 'SOPilot',
+  description: 'Questions and answers over your company SOPs, with verified citations',
 };
 
 export default function RootLayout({
@@ -23,58 +29,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var stored = localStorage.getItem('preferences-storage');
-                  if (stored) {
-                    var state = JSON.parse(stored).state;
-                    if (state && state.theme === 'dark') {
-                      document.documentElement.classList.add('dark');
-                    }
-                  }
-                } catch(e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
-      <body>
-        <QueryProvider>
-          <ThemeProvider>
-            <LanguageProvider>
-              {children}
-            </LanguageProvider>
-          </ThemeProvider>
-        </QueryProvider>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-              borderRadius: '8px',
-              fontSize: '14px',
-            },
-            success: {
-              iconTheme: {
-                primary: '#22c55e',
-                secondary: '#fff',
-              },
-            },
-            error: {
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
-              },
-            },
-          }}
-        />
+    <html lang="en" suppressHydrationWarning className={`${plusJakarta.variable} ${jetbrainsMono.variable}`}>
+      <body className="antialiased selection:bg-primary-soft selection:text-primary-strong">
+        <ThemeProvider>
+          <QueryProvider>
+            <SessionProvider>{children}</SessionProvider>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

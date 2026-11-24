@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duyệt nhãn PDF V2-19</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --ink: #1c2330; --muted: #5d6778; --line: #dfe3ea;
+    --accent: #2457d6; --ok: #1a7f4b; --ok-bg: #e6f5ec; --bad: #b3261e; --bad-bg: #fdeceb;
+    --edit: #8a5a00; --edit-bg: #fff3d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171d; --panel: #1d222b; --ink: #e8ebf1; --muted: #9aa4b5; --line: #2c3340;
+      --accent: #7aa2ff; --ok: #5fd08f; --ok-bg: #16301f; --bad: #ff8f87; --bad-bg: #3a1c1a;
+      --edit: #ffc766; --edit-bg: #3a2f12; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  header { display: flex; gap: 16px; align-items: center; padding: 10px 16px; background: var(--panel);
+    border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .spacer { flex: 1; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  input[type=text], select, textarea { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 4px 8px; width: 100%; }
+  textarea { min-height: 70px; resize: vertical; }
+  main { display: grid; grid-template-columns: 220px minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding: 12px; height: calc(100vh - 56px); }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; height: auto; } }
+  .col { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: auto; min-height: 0; }
+  .docs { padding: 6px; }
+  .doc { display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 8px; }
+  .doc.active { border-color: var(--accent); background: var(--bg); }
+  .doc small { color: var(--muted); display: block; }
+  .bar { height: 5px; background: var(--line); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--ok); }
+  .chip { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: var(--line); }
+  .chip.done { background: var(--ok-bg); color: var(--ok); }
+  .viewer-tools { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); flex-wrap: wrap; align-items: center; }
+  .viewer-img { padding: 8px; overflow: auto; }
+  .viewer-img img { display: block; max-width: none; border: 1px solid var(--line); }
+  .section { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .section h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .item { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+  .item.ok { border-color: var(--ok); background: var(--ok-bg); }
+  .item.reject { border-color: var(--bad); background: var(--bad-bg); }
+  .item.edit { border-color: var(--edit); background: var(--edit-bg); }
+  .item.focus { outline: 2px solid var(--accent); }
+  .row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+  .row label { color: var(--muted); font-size: 12px; min-width: 52px; }
+  .row > input[type=text], .row > select { flex: 1; min-width: 90px; }
+  .row > input.num { flex: 0 0 64px; min-width: 64px; }
+  .decide button.sel-ok { background: var(--ok); color: #fff; border-color: var(--ok); }
+  .decide button.sel-reject { background: var(--bad); color: #fff; border-color: var(--bad); }
+  .hint { color: var(--muted); font-size: 12px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .note { background: var(--edit-bg); border: 1px solid var(--edit); border-radius: 6px; padding: 8px; margin: 8px 12px; font-size: 13px; }
+  kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; background: var(--bg); font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Duyệt nhãn PDF V2-19</h1>
+  <span id="overall" class="hint"></span>
+  <span class="spacer"></span>
+  <label class="hint">Mã người duyệt <input id="reviewer" type="text" style="width:150px" placeholder="vd. owner"></label>
+  <button id="export" class="primary">Tải file kết quả (.json)</button>
+</header>
+<main>
+  <section class="col docs" id="docs"></section>
+  <section class="col" id="viewer"></section>
+  <section class="col" id="editor"></section>
+</main>
+
+<script id="payload" type="application/json">__DATA__</script>
+<script>
+"use strict";
+const DATA = JSON.parse(document.getElementById("payload").textContent);
+const KEY = "sopilot-v2-19-review-" + DATA.label_version;
+let state = load();
+let current = DATA.docs[0].doc_id;
+let page = null;
+let zoom = 1;
+let focusIdx = -1;
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || { reviewer: "", docs: {} }; }
+  catch (e) { return { reviewer: "", docs: {} }; }
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ } }
+function doc(id) { return DATA.docs.find(d => d.doc_id === id); }
+
+// Per-document review state, created lazily from the draft labels.
+function review(id) {
+  if (!state.docs[id]) {
+    const d = doc(id);
+    state.docs[id] = {
+      headings: d.headings.map(h => ({ ...h, decision: null, added: false })),
+      tables: d.tables.map(t => ({ ...t, cell_spans_text: spansToText(t.cell_spans), column_titles_text: (t.column_titles || []).join(" | "), decision: null })),
+      furniture: d.furniture.map(f => ({ ...f, decision: null })),
+      metadata: { ...(d.metadata || {}) },
+      metadata_decision: null,
+      cross_references_text: JSON.stringify(d.cross_references || []),
+      checks: [false, false, false],
+      notes: "",
+      finished: false,
+    };
+  }
+  return state.docs[id];
+}
+function spansToText(spans) { return (spans || []).map(s => [s.row, s.col, s.rowspan, s.colspan].join(",")).join("\n"); }
+function textToSpans(t) {
+  return t.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+    const [row, col, rowspan, colspan] = l.split(",").map(n => parseInt(n, 10));
+    return { row, col, rowspan, colspan };
+  }).filter(s => [s.row, s.col, s.rowspan, s.colspan].every(Number.isInteger));
+}
+
+function items(r) {
+  return [...r.headings, ...r.tables, ...r.furniture];
+}
+function progress(id) {
+  const r = review(id);
+  const all = items(r);
+  const decided = all.filter(i => i.decision).length + (r.metadata_decision ? 1 : 0);
+  const total = all.length + 1;
+  return { decided, total, ready: decided === total && r.checks.every(Boolean) };
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function renderDocs() {
+  document.getElementById("docs").innerHTML = DATA.docs.map(d => {
+    const p = progress(d.doc_id), r = review(d.doc_id);
+    const pct = Math.round(100 * p.decided / p.total);
+    return `<button class="doc ${d.doc_id === current ? "active" : ""}" data-doc="${d.doc_id}">
+      <b>${esc(d.doc_id)}</b> ${r.finished ? '<span class="chip done">đã duyệt</span>' : ""}
+      <small>${esc(d.family || "")} · trang nhãn: ${d.annotated_pages.join(", ") || "-"}</small>
+      <small>${p.decided}/${p.total} mục</small><div class="bar"><i style="width:${pct}%"></i></div></button>`;
+  }).join("");
+  document.querySelectorAll(".doc").forEach(b => b.onclick = () => { current = b.dataset.doc; page = null; focusIdx = -1; renderAll(); });
+  const done = DATA.docs.filter(d => review(d.doc_id).finished).length;
+  document.getElementById("overall").textContent = `${done}/${DATA.docs.length} file đã duyệt`;
+}
+
+function renderViewer() {
+  const d = doc(current);
+  const pages = Object.keys(d.images).map(Number).sort((a, b) => a - b);
+  if (page === null || !pages.includes(page)) page = pages.includes(d.annotated_pages[0]) ? d.annotated_pages[0] : pages[0];
+  const tabs = pages.map(p => `<button data-page="${p}" ${p === page ? 'class="primary"' : ""}>Trang ${p}${d.annotated_pages.includes(p) ? " ✓" : ""}</button>`).join("");
+  const link = d.pdf_href ? `<a href="${esc(d.pdf_href)}#page=${page || d.annotated_pages[0] || 1}" target="_blank">Mở PDF gốc</a>` : "";
+  document.getElementById("viewer").innerHTML = `
+    <div class="viewer-tools">${tabs}<span style="flex:1"></span>
+      <button id="zout">−</button><span id="zv">${Math.round(zoom * 100)}%</span><button id="zin">+</button>
+      <button id="zfit">Vừa chiều ngang</button>${link}</div>
+    <div class="viewer-img">${page ? `<img id="pimg" src="${d.images[page]}" style="width:${zoom * 100}%" alt="trang ${page}">` : '<p class="hint">Chưa có ảnh trang. Mở PDF gốc.</p>'}</div>`;
+  document.querySelectorAll("[data-page]").forEach(b => b.onclick = () => { page = +b.dataset.page; renderViewer(); });
+  const setZ = z => { zoom = Math.min(4, Math.max(.3, z)); renderViewer(); };
+  document.getElementById("zin").onclick = () => setZ(zoom + .2);
+  document.getElementById("zout").onclick = () => setZ(zoom - .2);
+  document.getElementById("zfit").onclick = () => setZ(1);
+}
+
+function decideBar(kind, i, dec) {
+  return `<div class="decide row">
+    <button data-act="ok" data-kind="${kind}" data-i="${i}" class="${dec === "ok" ? "sel-ok" : ""}">✓ Đúng</button>
+    <button data-act="edit" data-kind="${kind}" data-i="${i}" class="${dec === "edit" ? "sel-ok" : ""}">✎ Đã sửa</button>
+    <button data-act="reject" data-kind="${kind}" data-i="${i}" class="${dec === "reject" ? "sel-reject" : ""}">✗ Loại</button></div>`;
+}
+function cls(dec) { return dec === "ok" ? "ok" : dec === "reject" ? "reject" : dec === "edit" ? "edit" : ""; }
+
+function renderEditor() {
+  const d = doc(current), r = review(current);
+  const p = progress(current);
+  const keepScroll = document.getElementById("editor").scrollTop;
+  let n = 0;
+  const heads = r.headings.map((h, i) => `<div class="item ${cls(h.decision)}" data-n="${n++}">
+      <div class="row"><label>Trang</label><input class="num" type="text" data-f="headings.${i}.page" value="${esc(h.page)}">
+      <label>Cấp</label><select data-f="headings.${i}.level">${[1, 2, 3, 4, 5, 6].map(l => `<option ${l == h.level ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div class="row"><input type="text" data-f="headings.${i}.text" value="${esc(h.text)}"></div>
+      ${decideBar("headings", i, h.decision)}</div>`).join("");
+  const tabs = r.tables.map((t, i) => `<div class="item ${cls(t.decision)}" data-n="${n++}">
+      <div class="row"><b>Bảng ${i + 1}</b> <span class="chip">${esc(t.annotation_scope || "")}</span> <span class="hint">Trang</span>
+        <input class="num" type="text" data-f="tables.${i}.page" value="${esc(t.page)}">
+        <span class="hint">Hàng dữ liệu</span><input class="num" type="text" data-f="tables.${i}.rows" value="${esc(t.rows)}">
+        <span class="hint">Cột</span><input class="num" type="text" data-f="tables.${i}.cols" value="${esc(t.cols)}"></div>
+      <div class="row"><label>Tiêu đề cột</label><input type="text" data-f="tables.${i}.column_titles_text" value="${esc(t.column_titles_text)}"></div>
+      <div class="row"><label>Ô gộp</label><textarea data-f="tables.${i}.cell_spans_text" placeholder="hàng,cột,số hàng gộp,số cột gộp (mỗi ô một dòng; hàng tính từ 0, không tính tiêu đề)">${esc(t.cell_spans_text)}</textarea></div>
+      ${decideBar("tables", i, t.decision)}</div>`).join("");
+  const furn = r.furniture.map((f, i) => `<div class="item ${cls(f.decision)}" data-n="${n++}">
+      <div class="row"><label>Trang</label><input class="num" type="text" data-f="furniture.${i}.page" value="${esc(f.page)}">
+      <input type="text" data-f="furniture.${i}.text" value="${esc(f.text)}"></div>
+      ${decideBar("furniture", i, f.decision)}</div>`).join("");
+  const metaKeys = Object.keys(r.metadata);
+  const meta = metaKeys.map(k => `<div class="row"><label>${esc(k)}</label><input type="text" data-f="metadata.${k}" value="${esc(r.metadata[k])}"></div>`).join("") || '<p class="hint">Không có metadata dự thảo.</p>';
+  document.getElementById("editor").innerHTML = `
+    <div class="note"><b>Nhãn nháp do ${esc(d.drafted_by || "Codex")} soạn.</b> ${esc(d.coverage_note || "")}
+      Chỉ duyệt phần nhìn thấy trên các trang đã chọn. Phím tắt: <kbd>J</kbd>/<kbd>K</kbd> mục kế/trước, <kbd>Y</kbd> đúng, <kbd>E</kbd> đã sửa, <kbd>N</kbd> loại.</div>
+    <div class="section"><h2>Tiêu đề (heading) · ${r.headings.length}</h2>${heads || '<p class="hint">Không có.</p>'}
+      <button id="addh">+ Thêm heading bị thiếu</button></div>
+    <div class="section"><h2>Bảng · ${r.tables.length}</h2>${tabs || '<p class="hint">Không có.</p>'}</div>
+    <div class="section"><h2>Khối cần bỏ (header, footer, quốc hiệu, chữ ký…) · ${r.furniture.length}</h2>${furn || '<p class="hint">Không có.</p>'}</div>
+    <div class="section"><h2>Metadata</h2>${meta}
+      <div class="decide row">
+        <button data-act="ok" data-kind="metadata" class="${r.metadata_decision === "ok" ? "sel-ok" : ""}">✓ Đúng</button>
+        <button data-act="edit" data-kind="metadata" class="${r.metadata_decision === "edit" ? "sel-ok" : ""}">✎ Đã sửa</button>
+        <button data-act="reject" data-kind="metadata" class="${r.metadata_decision === "reject" ? "sel-reject" : ""}">✗ Loại</button></div>
+      <div class="row"><label>Tham chiếu chéo (JSON)</label><input type="text" data-f="cross_references_text" value="${esc(r.cross_references_text)}"></div></div>
+    <div class="section checks"><h2>Xác nhận cho file này</h2>
+      ${["Số trang là trang vật lý của PDF, không phải số in ở chân trang.", "Heading/cấp, bảng/hàng/cột/ô gộp đúng trên các trang đã chọn.", "Metadata, khối cần bỏ và tham chiếu chéo đúng."].map((t, i) => `<label><input type="checkbox" data-check="${i}" ${r.checks[i] ? "checked" : ""}> ${t}</label>`).join("")}
+      <div class="row"><label>Ghi chú</label><textarea data-f="notes" placeholder="Sửa, loại hoặc đồng ý với phần nhãn đã xem; ghi rõ phần chưa xem.">${esc(r.notes)}</textarea></div>
+      <p class="hint">Đã quyết định ${p.decided}/${p.total} mục. Cần quyết định hết mọi mục và tick 3 ô trên.</p>
+      <button id="finish" class="primary" ${p.ready ? "" : "disabled"}>${r.finished ? "Đã duyệt xong (bấm để mở lại)" : "Đánh dấu đã duyệt file này"}</button></div>`;
+  bindEditor();
+  document.getElementById("editor").scrollTop = keepScroll;
+  const f = document.querySelector(`[data-n="${focusIdx}"]`);
+  if (f) f.classList.add("focus");
+}
+
+function setField(path, value) {
+  const r = review(current);
+  const parts = path.split(".");
+  let o = r;
+  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+  const last = parts[parts.length - 1];
+  const prev = o[last];
+  o[last] = value;
+  // Editing a field marks the item as edited unless it was rejected.
+  if (parts.length === 3 && prev !== value) {
+    const item = r[parts[0]][+parts[1]];
+    if (item && item.decision !== "reject") item.decision = "edit";
+  }
+  if (parts[0] === "metadata" && prev !== value && r.metadata_decision !== "reject") r.metadata_decision = "edit";
+  save();
+}
+function bindEditor() {
+  document.querySelectorAll("[data-f]").forEach(el => el.onchange = () => { setField(el.dataset.f, el.value); renderAll(false); });
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => {
+    const r = review(current), v = b.dataset.act;
+    if (b.dataset.kind === "metadata") r.metadata_decision = v;
+    else r[b.dataset.kind][+b.dataset.i].decision = v;
+    save(); renderAll(false);
+  });
+  document.querySelectorAll("[data-check]").forEach(c => c.onchange = () => { review(current).checks[+c.dataset.check] = c.checked; save(); renderAll(false); });
+  const add = document.getElementById("addh");
+  if (add) add.onclick = () => { review(current).headings.push({ text: "", level: 1, page: page || 1, decision: "edit", added: true }); save(); renderAll(false); };
+  const fin = document.getElementById("finish");
+  fin.onclick = () => { const r = review(current); r.finished = !r.finished; save(); renderAll(false); };
+}
+
+function renderAll(resetFocus = true) {
+  if (resetFocus) focusIdx = -1;
+  renderDocs(); renderViewer(); renderEditor();
+  document.getElementById("reviewer").value = state.reviewer || "";
+}
+
+document.getElementById("reviewer").onchange = e => { state.reviewer = e.target.value.trim(); save(); };
+document.addEventListener("keydown", e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  const nodes = [...document.querySelectorAll("#editor .item")];
+  const k = e.key.toLowerCase();
+  if (k === "j" || k === "k") {
+    focusIdx = Math.max(0, Math.min(nodes.length - 1, focusIdx + (k === "j" ? 1 : -1)));
+    nodes.forEach((n, i) => n.classList.toggle("focus", i === focusIdx));
+    nodes[focusIdx]?.scrollIntoView({ block: "center" });
+  } else if (["y", "e", "n"].includes(k) && focusIdx >= 0) {
+    const btn = nodes[focusIdx]?.querySelector(`[data-act="${{ y: "ok", e: "edit", n: "reject" }[k]}"]`);
+    if (btn) { btn.click(); }
+  }
+});
+
+document.getElementById("export").onclick = () => {
+  const incomplete = DATA.docs.filter(d => !review(d.doc_id).finished).map(d => d.doc_id);
+  if (!state.reviewer) { alert("Nhập mã người duyệt trước khi tải kết quả."); return; }
+  if (incomplete.length && !confirm("Chưa duyệt xong: " + incomplete.join(", ") + ".\nVẫn tải? Các file chưa duyệt sẽ giữ trạng thái draft.")) return;
+  const out = { label_version: DATA.label_version, reviewer_id: state.reviewer, exported_at: new Date().toISOString(), docs: {} };
+  for (const d of DATA.docs) {
+    const r = review(d.doc_id);
+    out.docs[d.doc_id] = {
+      finished: r.finished,
+      notes: r.notes,
+      checks: r.checks,
+      metadata_decision: r.metadata_decision,
+      metadata: r.metadata,
+      cross_references: (() => { try { return JSON.parse(r.cross_references_text); } catch (e) { return d.cross_references || []; } })(),
+      headings: r.headings.map(h => ({ text: h.text, level: +h.level, page: +h.page, decision: h.decision, added: !!h.added })),
+      tables: r.tables.map(t => ({
+        page: +t.page, rows: +t.rows, cols: +t.cols, annotation_scope: t.annotation_scope,
+        column_titles: t.column_titles_text.split("|").map(s => s.trim()).filter(Boolean),
+        cell_spans: textToSpans(t.cell_spans_text), decision: t.decision })),
+      furniture: r.furniture.map(f => ({ page: +f.page, text: f.text, decision: f.decision })),
+    };
+  }
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "annotations.review.json";
+  a.click();
+};
+
+renderAll();
+</script>
+</body>
+</html>

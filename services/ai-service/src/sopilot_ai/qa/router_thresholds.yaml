@@ -1,0 +1,15 @@
+# Thresholds and margins for the semantic router (V2-27, TECH §7.1 step 3).
+# Routing condition (router.py SemanticLayer.decide):
+#   max_cosine(intent) >= threshold AND (max_cosine(intent) - max_cosine(sop_question)) >= margin
+# Otherwise the question goes to RAG as before.
+#
+# Tuned on dev only (eval/configs/routing-rules-router.yaml --split dev, 2026-11-12): with the
+# earlier 0.82-0.86 values almost nothing routed (greeting recall 0.57, thanks 0.38 on dev). On dev
+# no sop_question row routes at >= 0.70, so 0.75 keeps the sop_question false route at 0 and
+# gives 36 correct routes and 2 wrong template choices. 0.70 would add 5 hits and 2
+# wrong choices; the owner decides. Per-intent overrides are empty until the owner asks for them.
+default:
+  threshold: 0.75
+  margin: 0.05
+
+intents: {}

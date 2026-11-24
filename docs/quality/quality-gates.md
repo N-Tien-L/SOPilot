@@ -1,0 +1,69 @@
+---
+title: "Quality gates"
+status: draft
+created: 2026-11-13
+updated: 2026-11-14
+author: "Owner"
+---
+
+# Quality gates
+
+The checks a change passes, in order, and what each one does and does not prove. Layers and where evidence goes: [testing strategy](testing-strategy.md).
+
+## 1. Per-scope checks (while working)
+
+Run the narrowest check first, then the suite of the touched scope.
+
+| Scope | Build / lint | Tests |
+|---|---|---|
+| core-api | `./scripts/validate-build.ps1 -Scope core` (`mvnw compile`) | `./scripts/run-tests.ps1 -Scope core-api -Type unit`; `-Type all` for the Docker-backed ITs |
+| ai-service | `./scripts/validate-build.ps1 -Scope ai` (`compileall src`, `ruff check`) | `./scripts/run-tests.ps1 -Scope ai-service -Type unit\|integration\|all` |
+| frontend | `./scripts/validate-build.ps1 -Scope web` (`pnpm build`, `pnpm lint`) | none exists; browser check by hand |
+| schema | `./scripts/check-migrations.ps1` | `tests/tenant-isolation` (Docker) |
+| docs | `./scripts/docs/check-docs.ps1` | n/a |
+
+## 2. Pre-commit check
+
+`./scripts/pre-commit-check.ps1` is run before proposing a commit. It reads the staged files (or the diff against `HEAD` when nothing is staged) and runs seven steps:
+
+1. Lists the changed files.
+2. Scans added lines (outside `scripts/`, `docs/` and `*.md`) for debug output (`console.log`, `System.out.println`, `print(`), hard-coded secrets, committed `.env` files, and `TODO`/`FIXME` without a ticket-style id.
+3. For every touched `services/<name>/` and for `frontend/web/`, calls `run-tests.ps1` with the default `-Type all`. For `core-api` that is `mvnw verify`, so **Docker is needed** when core-api changed. For `ai-service` it runs all of `tests/`, integration included; without Docker those tests skip and the step still passes. A touched (not deleted) `services/<name>/` that is not a V2 service fails the step. For `frontend/web/` it runs `validate-build.ps1 -Scope web` (`pnpm build`, `pnpm lint`, `pnpm test`).
+4. Validates `docker-compose.yml` with `docker compose config` against `.env.example` (never `.env`).
+5. Runs `check-migrations.ps1`.
+6. Runs the docs check (`scripts/docs/check-docs.ps1`, strict mode).
+7. Prints the summary and exits non-zero if any step failed.
+
+It does **not** run `ruff`, `validate-build.ps1` for `core` or `ai` (only `-Scope web`, step 3), the eval harness, the tenant-isolation suite or the browser checks.
+
+## 3. Continuous integration
+
+`ci.yml` runs on pull requests and pushes to `main`/`develop`; `tenant-isolation.yml` runs on every pull request and on pushes to `main`/`develop`.
+
+| Workflow | Jobs that gate V2 |
+|---|---|
+| `ci.yml` | `secret-scan`, `migrations`, `docs`, `guard-selftest`, `core-api-unit`, `ai-service-unit`, `frontend` (`pnpm install --frozen-lockfile`, build, lint, Vitest) |
+| `tenant-isolation.yml` | `database`, `negative-control`, `core-api`, `ai-service`, `department-authorization` |
+
+CI proves unit-level behaviour and the isolation claims (FR-19, FR-29). The `docs` job runs `./scripts/docs/check-docs.ps1` under `pwsh` (errors fail, warnings do not), then `eval/sopilot_eval/plan_check.py` (PLAN table, Mermaid DAG, handover closure); the check-docs step first passed on GitHub on PR #14, which is the evidence that the checker works under pwsh 7 on Linux. CI does not run the full core-api IT set, the full ai-service integration set, the eval harness, a browser, or any live provider. See the table in [testing strategy](testing-strategy.md#what-runs-where).
+
+## 4. Review
+
+Before a non-trivial commit or PR, run the read-only agent `v2-reviewer` (`.claude/agents/v2-reviewer.md`) on the diff. It reports evidence-backed findings and never edits. Findings are fixed or answered before merging. It covers what automation does not: error text that leaks internals (constraint 6), tenant binding on new queries, contract drift between services, docs that describe the changed behaviour.
+
+Tickets run through skill `execute-ticket` use an agent team: the orchestrating session plans and owns status and git, `v2-coder` implements one work packet, `v2-runner` runs long commands and returns raw output, and a fresh `v2-reviewer` reviews. The hook `.claude/hooks/guard.py` enforces the roles (`--coder`, `--runner`, `--readonly`; cases in `test_guard.py`). Coder and runner reports are claims: ticket evidence is only output the orchestrator has seen.
+
+## 5. Ticket status
+
+| Status | Meaning |
+|---|---|
+| `in_progress` | Work started |
+| `review` | Code is committed; evidence is written and waits for the owner |
+| `todo` / `blocked` | Not started / waiting; `blocked` requires `blocked_reason` |
+| `done` | Evidence linked in the ticket ("Evidence": commands with results) **and** owner review |
+
+Agents may propose `review` and `done`; the owner decides `done`. A status change updates the PLAN table and counters in the same edit (`completed` = done, `review` = review, `implemented` = done + review). Rules: [`docs/README.md`](../README.md#lifecycle).
+
+## Not covered by any gate
+
+Browser behaviour (Playwright is not installed), measured latency or quality on the research corpus (evaluated in `eval/`, reported in `docs/research/`), live Modal or Groq providers, and anything that needs Docker when Docker was not running. State these in the report instead of implying they passed.

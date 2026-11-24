@@ -1,129 +1,137 @@
-# SOPilot 🧭
+# SOPilot
 
-> **Your Autonomous SOP & Enterprise Policy AI Copilot**  
-> *Transform complex internal policies into verified, instant answers with department-level RBAC & semantic search.*
+**Ask questions about your company's procedures (SOPs) and get answers that cite the exact source.**
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?logo=next.js)](https://nextjs.org/)
-[![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot%203.2-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
-[![FastAPI](https://img.shields.io/badge/AI%20Engine-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![NestJS](https://img.shields.io/badge/Gateway-NestJS-E0234E?logo=nestjs)](https://nestjs.com/)
-[![PostgreSQL](https://img.shields.io/badge/Vector%20DB-pgvector-4169E1?logo=postgresql)](https://github.com/pgvector/pgvector)
-[![Docker](https://img.shields.io/badge/Deployment-Docker%20Compose-2496ED?logo=docker)](https://www.docker.com/)
+Employees ask in Vietnamese or English. SOPilot answers only from documents that their workspace, role and department are allowed to read. Every claim links to the passage in its source document. When the documents do not hold the answer, SOPilot says so, and the question is listed as a knowledge gap for admins.
 
----
+University research project (NCKH) and portfolio piece, built and run **locally only** (no hosted demo). License: [MIT](LICENSE).
 
-## 📖 Overview
+![SOPilot V2 components: web, core-api, ai-service, ai-worker, Postgres, MinIO and the external Modal endpoint](docs/architecture/diagrams/assets/readme-architecture.svg)
 
-**SOPilot** is a production-ready, cloud-native Enterprise Knowledge & Policy Assistant. It resolves the classic organization problem: *policies, guidelines, and SOPs buried inside 50-page PDFs across Google Drive, Notion, and email threads where nobody reads them and HR/Operations teams spend hours answering repetitive questions*.
+| Component | Stack | Job |
+|---|---|---|
+| `web` | Next.js 16, React 19 | Chat with citations, documents, members, knowledge gaps |
+| `core-api` | Spring Boot 3.5, Java 21 | Sign-in, workspaces, departments, document upload and access |
+| `ai-service` + `ai-worker` | FastAPI, Python 3.11+ | Extraction, chunking, embeddings, hybrid retrieval, answers |
+| Postgres 16 + pgvector | Flyway migrations | Two schemas (`core`, `rag`) with row-level security per workspace |
+| MinIO | S3 API | Uploaded files |
+| Modal (external) | vLLM on a GPU | Answer model and reranker ([setup](infrastructure/modal/README.md)) |
 
-With **SOPilot**, employees ask in natural language (Vietnamese or English) and receive concise, evidence-backed answers in 1–2 seconds, complete with document citations, page references, and in-app previews—all protected by strict **Department-level Role-Based Access Control (RBAC)**.
+## Quick start
 
----
+**You need:** Docker Engine 24+ with Compose v2, 4 CPU cores and 8 GB RAM (an estimate), PowerShell for the seed script, and a running Modal endpoint for answers.
 
-## 🏗️ System Architecture
+**1. Configure.** Copy the sample file, then replace every `<placeholder>` in `.env`:
 
-SOPilot is designed as an **Event-Driven Microservices Architecture** optimized for high performance and low resource footprint:
-
-```mermaid
-flowchart TD
-    Client["Next.js 16 Web Client (Desktop / Mobile)"] -->|HTTP / SSE / REST| Gateway["API Gateway (NestJS :3000)"]
-
-    subgraph Core Services
-        Gateway -->|Reverse Proxy / JWT Auth| AuthSvc["Auth Service (Spring Boot :8081)"]
-        Gateway -->|User Management| UserSvc["User Service (Spring Boot :8082)"]
-        Gateway -->|Documents & Storage| KnowSvc["Knowledge Service (Spring Boot :8083)"]
-        Gateway -->|Categories & Tags| MetaSvc["Metadata Service (Spring Boot :8084)"]
-        Gateway -->|Analytics & Audit| FeedSvc["Feedback Service (Spring Boot :8085)"]
-        Gateway -->|Streaming SSE / Chat| AISvc["AI Q&A Service (FastAPI :8086)"]
-    end
-
-    subgraph Ingestion Pipeline
-        KnowSvc -->|Document Upload Event| RabbitMQ[("RabbitMQ Message Broker :5672")]
-        RabbitMQ --> IngestSvc["Ingestion Service (FastAPI :8088)"]
-        IngestSvc -->|Cloud Embedding| JinaAPI["Jina AI Embeddings v3 (1024-dim)"]
-        IngestSvc -->|Store Chunks & Vectors| Postgres[("PostgreSQL 16 + pgvector :5432")]
-    end
-
-    subgraph AI RAG & Retrieval
-        AISvc -->|Hybrid Search: Vector + BM25 RRF| Postgres
-        AISvc -->|Query Embedding| JinaAPI
-        AISvc -->|Streaming Synthesis| Groq["Groq API (Llama 3.3 70B Versatile)"]
-        AISvc -->|Session & Cache| Redis[("Redis 7 :6379")]
-    end
-
-    subgraph Storage
-        KnowSvc --> MinIO[("MinIO S3 Object Storage :9000")]
-        IngestSvc --> MinIO
-    end
-```
-
----
-
-## ✨ Key Features
-
-- **⚡ Blazing Fast Streaming RAG:** Hybrid retrieval (Dense vector search via pgvector + Sparse BM25 via Reciprocal Rank Fusion) synthesized through Groq Llama 3.3 70B in under 2 seconds.
-- **🛡️ Multi-Tenant Departmental RBAC:** Documents are classified by department (Engineering, HR, Finance, Operations). Sales employees cannot retrieve sensitive Finance or Executive salary policies.
-- **📄 Native Document Preview:** Built-in PDF and DOCX reader (`mammoth`) with highlighted source citations—no heavy external document server required.
-- **🔄 Closed-Loop Feedback & Unanswered Queue:** Questions that the AI cannot answer are automatically dispatched to the `/admin/unanswered` dashboard for HR managers to review, resolve, and update policies.
-- **🌱 Low-Resource Profile:** Engineered to run on standard low-spec VPS (2GB–4GB RAM) using JVM Serial Garbage Collection (`-XX:+UseSerialGC`) and Cloud Embedding API (saving 12GB+ RAM).
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- [Docker](https://docs.docker.com/get-docker/) & Docker Compose (v2.20+)
-- [Git](https://git-scm.com/)
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/<your-username>/sopilot.git
-cd sopilot
-```
-
-### 2. Configure Environment
-Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Ensure you provide your **Groq API Key** and **Jina AI Embedding Key** in `.env`:
-```env
-EMBEDDING_URL=https://api.jina.ai
-EMBEDDING_API_KEY=your_jina_api_key_here
-EMBEDDING_MODEL=jina-embeddings-v3
-GROQ_API_KEY=your_groq_api_key_here
-```
 
-### 3. Launch Services
+| Variables | Value |
+|---|---|
+| `V2_POSTGRES_SUPERUSER_PASSWORD`, `V2_DB_*_PASSWORD`, `V2_MINIO_ROOT_PASSWORD`, `SOPILOT_S3_*_SECRET_KEY`, `SOPILOT_INTERNAL_TOKEN` | Random secrets: `openssl rand -hex 32` |
+| `SOPILOT_LLM_BASE_URL`, `SOPILOT_LLM_API_KEY` | Your Modal endpoint (ends in `/v1`) and its `VLLM_API_KEY` |
+| `GOOGLE_CLIENT_ID` | Required by the build. Any value works if you only use Dev sign-in |
+| `SOPILOT_GROQ_API_KEY` | Optional. Without it, metadata suggestions use rules only |
+
+Compose refuses to start and names the missing variable if one is unset.
+
+**2. Start everything** (Postgres, migrations, MinIO, core-api, ai-service, ai-worker, web):
+
 ```bash
 docker compose up -d --build
 ```
 
-### 4. Access Application
-- **Web Portal:** [http://localhost:3000](http://localhost:3000)
-- **API Gateway:** [http://localhost:3001](http://localhost:3001)
-- **Default Admin Account:** `admin` / `Admin@123456`
-- **MinIO Storage Console:** [http://localhost:9001](http://localhost:9001)
-- **RabbitMQ Management:** [http://localhost:15672](http://localhost:15672)
+**3. Load demo data** once core-api is healthy (safe to run again):
 
----
+```powershell
+./scripts/seed-demo.ps1
+```
 
-## 🛠️ Technology Stack
+**4. Open http://localhost:3000**, click **Dev sign-in**, and use one of the demo accounts:
 
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend** | Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS, Lucide |
-| **API Gateway** | NestJS 11, RxJS, Opossum Circuit Breaker, Winston Logger |
-| **Microservices** | Spring Boot 3.2 (Java 17), Spring Data JPA, Spring Security, Feign Client |
-| **AI / NLP Engine** | FastAPI, Python 3.12, LangChain, Tiktoken, Groq SDK |
-| **Database & Vector** | PostgreSQL 16, `pgvector` (1024-dim cosine distance), HNSW indexing |
-| **Embeddings** | Jina AI Embeddings v3 (Cloud API) |
-| **LLM Provider** | Groq Llama 3.3 70B Versatile, Llama 3.1 8B Instant |
-| **Message Broker** | RabbitMQ 3.13 (Topic Exchange, Dead Letter Exchange) |
-| **Cache & Session** | Redis 7.2 Alpine |
-| **Object Storage** | MinIO (S3 Compatible) |
+| Account | Role | Sees |
+|---|---|---|
+| `demo-owner@sopilot.local` | Workspace owner | All 3 documents, admin pages |
+| `engineer@sopilot.local` | Member of "Kỹ thuật", department publisher | 3 documents (2 shared + 1 for "Kỹ thuật") |
+| `hr@sopilot.local` | Member of "Nhân sự" | 2 shared documents only |
 
----
+The seed creates the workspace "SOPilot Demo Workspace", the two departments, both members, and three SOPs from `eval/datasets/`. It prints the final counts and exits with code 1 if any step failed.
 
-## 📄 License
-This project is licensed under the MIT License.
+### Ports
+
+| URL | Service |
+|---|---|
+| http://localhost:3000 | Web app |
+| http://localhost:8080 | core-api (`/actuator/health`) |
+| http://localhost:8000 | ai-service (`/health`) |
+| `127.0.0.1:55432` | Postgres |
+| http://127.0.0.1:59001 | MinIO console (API on `59000`) |
+
+Each port can be changed with the `V2_*_PORT` variables in `.env`.
+
+### Good to know
+
+- **The first upload is slow.** It downloads the embedding model `BAAI/bge-m3` from Hugging Face (needs network access). After that, the model is cached in a volume.
+- **Warm up Modal before a demo.** A cold start takes minutes. If the endpoint is down, a question fails with `LLM_UNAVAILABLE`.
+- **A core-api restart signs everyone out.** The local profile creates its signing key in memory. Your data is kept.
+- **Use Chrome, Edge or Firefox.** Safari drops the auth cookie on plain `http://localhost`.
+- **Stop with `docker compose down`. Never add `-v`:** it deletes the database and the uploaded files.
+
+Running services from source, health checks and fixes: [local development](docs/operations/local-development.md) · [troubleshooting](docs/operations/troubleshooting.md).
+
+## How it works
+
+### 1. Upload: from a file to searchable chunks
+
+![Upload flow: core-api validates and stores the file and writes an outbox event in one transaction; the worker extracts, chunks, embeds and activates the version](docs/architecture/diagrams/assets/readme-ingest-flow.svg)
+
+core-api never calls ai-service inside the upload transaction. It records an outbox event, and a dispatcher delivers it after commit, with retries. Supported files: PDF with a text layer, and Markdown.
+
+### 2. Question: from a question to a cited answer
+
+![Question flow: rule checks, rewrite, permission-filtered hybrid retrieval, evidence gate, generation on Modal, citation check](docs/architecture/diagrams/assets/readme-question-flow.svg)
+
+The permission filter runs inside the retrieval SQL, before ranking, so the model never sees a chunk the asker may not read. Every step is described in [TECH-V2-ai-service §7.1](docs/architecture/components/ai-service.md#71-steps). The detailed as-built view is [qa-lifecycle-current.svg](docs/architecture/diagrams/assets/qa-lifecycle-current.svg).
+
+### Tenant isolation
+
+Every tenant table is protected twice: by Postgres row-level security and by an explicit `workspace_id` filter in every query. Another workspace's resource returns `404`. CI runs a database suite, a negative control with RLS turned off, and API-level isolation tests ([system overview §4](docs/architecture/system-overview.md#4-tenant-isolation-fr-19)).
+
+## Development
+
+| Purpose | Command (repo root, PowerShell) |
+|---|---|
+| Build + lint one part | `./scripts/validate-build.ps1 -Scope core\|ai\|web` |
+| core-api tests | `./scripts/run-tests.ps1 -Scope core-api -Type unit` (`-Type all` needs Docker) |
+| ai-service tests | `./scripts/run-tests.ps1 -Scope ai-service -Type unit\|integration\|all` |
+| Tenant isolation suite | `cd tests/tenant-isolation; uv run pytest -v` (Docker) |
+| Retrieval evaluation | `cd eval; uv sync --extra dev; uv run pytest -q` ([eval/README.md](eval/README.md)) |
+| Check `.env` files (prints no values) | `./scripts/check-env.ps1` |
+| Before a commit | `./scripts/pre-commit-check.ps1` |
+
+```text
+services/core-api      Spring Boot service, schema core
+services/ai-service    FastAPI service and ingest worker, schema rag
+frontend/web           Next.js app
+infrastructure/        Postgres migrations, MinIO setup, Modal deployment
+eval/                  Retrieval and answer evaluation harness
+docs/                  Product, architecture, ADRs, plans, test reports
+```
+
+## Status
+
+V2 is a rebuild of an earlier eight-service V1 (kept at tag [`v1-final`](https://github.com/N-Tien-L/SOPilot/tree/v1-final)) into two services. Every V2 use case and P0 requirement is checked against tests in the [V2-17 parity report](docs/quality/test-reports/parity-v2-17-2026-11-16.md) (verdict: passed with warnings). Per-capability status: [implementation evidence](docs/portfolio/implementation-evidence.md); remaining tickets: [PLAN-V2](docs/execution/initiatives/v2-sopilot-mvp/PLAN.md).
+
+**Not claimed:** real users, a deployment, or official retrieval numbers (the evaluation datasets are still drafts). No outside reviewer has verified it end to end. Time to first token can be measured with `./scripts/measure-ttft.ps1` (results in `eval/results/ttft/`).
+
+## Read more
+
+| Document | For |
+|---|---|
+| [Documentation hub](docs/README.md) | PRD, ADRs, technical designs, plans, test reports |
+| [System overview](docs/architecture/system-overview.md) | Components, communication, flows, tenancy |
+| [Testing strategy](docs/quality/testing-strategy.md) | Test layers and what CI runs |
+| [CLAUDE.md](CLAUDE.md) | Repository rules for AI coding agents |
+
+I built V2 alone, with AI coding tools. V1 was a course project with a classmate; my part was the RAG path, ingestion, database design and the unanswered-question feature. Third-party material (GitLab Handbook excerpts, CC BY-SA 4.0) is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

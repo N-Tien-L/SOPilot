@@ -1,12 +1,5 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { MainLayout } from '@/components/layout';
-import { ChatContainer } from '@/components/chat';
-
-export default function ChatPage() {
-  return (
-    <MainLayout>
-      <ChatContainer />
-    </MainLayout>
-  );
+export default function HomePage() {
+  redirect('/chat');
 }

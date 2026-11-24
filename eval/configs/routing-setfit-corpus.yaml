@@ -1,0 +1,16 @@
+# Config (c) on the corpus-specific set (V2-44): rules + the SetFit classifier through the service
+# module. The richer report (rule layer alone, with/without history, latency, memory) is
+#   cd eval; uv run --extra local python -m sopilot_eval.routing_corpus_report
+name: routing-setfit-corpus
+split: test
+datasets:
+  dev: eval/datasets/routing/corpus-test.jsonl
+  test: eval/datasets/routing/corpus-test.jsonl
+vocabulary: eval/datasets/sop-main-v2/corpus
+semantic_router_enabled: false
+router_classifier:
+  models_config: services/ai-service/config/models.yaml
+  artifact_dir: eval/results/routing/setfit-router-model-histaug/setfit-router
+baseline: eval/configs/routing-rules.yaml
+acceptance:
+  sop_misroute_max: 0.02

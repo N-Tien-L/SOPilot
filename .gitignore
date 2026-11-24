@@ -1,5 +1,7 @@
 # Environment variables
 .env
+**/.env
+temp/.env
 .env.local
 .env.*.local
 
@@ -10,6 +12,7 @@
 data/minio/
 data/postgres/
 data/
+!docs/architecture/data/
 
 # Token files
 *.token.txt
@@ -54,8 +57,17 @@ environment_setup/
 # AI/Editor rules
 .cursor/
 .roo/
-.claude/
-.agent/
+# Local Claude Code state; the shared project config is tracked
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/rules/
+!.claude/skills/
+.claude/skills/impeccable/scripts/bin/
+!.claude/agents/
+.claude/hooks/__pycache__/
+.agents/
+scratch/
 .agentrules/
 .idea/
 *.iml
@@ -83,10 +95,10 @@ opencode.json
 *_download.sql
 
 # Root package files (monorepo uses individual service package.json)
-package.json
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
+/package.json
+/package-lock.json
+/pnpm-lock.yaml
+/yarn.lock
 
 # Environment configs (local overrides)
 config/rabbitmq.env
@@ -95,12 +107,15 @@ config/rabbitmq.env
 reports/
 
 # Test artifacts
-test-*.ps1
-test-*.bat
-test-*.js
-test-*.ts
-test-*.md
+/test-*.ps1
+/test-*.bat
+/test-*.js
+/test-*.ts
+/test-*.md
 !codebase-map.json
+
+# Generated test evidence: screenshots, videos, traces, logs (reports live in docs/quality/test-reports/)
+/artifacts/
 
 # Database backups (local only)
 *.sql.bak
@@ -108,3 +123,27 @@ poliwise-database-backup.sql
 infrastructure/init-db/010_seed_data.sql
 infrastructure/seed/seed_data.sql
 .agentrules
+
+temp/
+# Python virtualenvs
+.venv/
+*.egg-info/
+
+# Extraction pilot corpus: source PDFs and derived text, redistribution not confirmed
+datasets/
+
+# Local screenshots kept as ticket evidence (not committed)
+/docs/quality/evidence/
+
+# SetFit router artifact (V2-44, ADR-012): 2.3 GB, built by eval/experiments/routing/modal_setfit_app.py
+services/ai-service/models/
+
+# End-to-end suite (tests/e2e): run output and the throwaway world
+tests/e2e/.world.json
+tests/e2e/report/
+tests/e2e/test-results/
+tests/e2e/results.json
+/artifacts/
+
+# Local-only portfolio case study (not published to remote)
+docs/portfolio/engineering-case-study.md

@@ -1,6 +1,0 @@
-export enum ChunkingStrategy {
-  RECURSIVE = "RECURSIVE",
-  SEMANTIC = "SEMANTIC",
-  FIXED_SIZE = "FIXED_SIZE",
-  SENTENCE = "SENTENCE",
-}

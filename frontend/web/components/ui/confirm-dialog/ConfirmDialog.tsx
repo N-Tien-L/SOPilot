@@ -1,11 +1,10 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, AlertCircle, Info, HelpCircle } from 'lucide-react';
-import { Modal } from '../modal';
+import { AlertCircle, AlertTriangle, HelpCircle, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '../button';
-import { clsx } from 'clsx';
-import styles from './confirm-dialog.module.css';
+import { Modal } from '../modal';
 
 type ConfirmVariant = 'danger' | 'warning' | 'info' | 'help';
 
@@ -23,21 +22,28 @@ export interface ConfirmDialogProps {
   hideConfirm?: boolean;
 }
 
-const variantConfig: Record<ConfirmVariant, { icon: React.ReactNode; buttonVariant: 'destructive' | 'secondary' | 'primary' }> = {
+const variantConfig: Record<
+  ConfirmVariant,
+  { icon: React.ReactNode; tone: string; buttonVariant: 'destructive' | 'secondary' | 'primary' }
+> = {
   danger: {
-    icon: <AlertCircle size={24} />,
+    icon: <AlertCircle size={22} aria-hidden />,
+    tone: 'bg-danger-soft text-danger-foreground',
     buttonVariant: 'destructive',
   },
   warning: {
-    icon: <AlertTriangle size={24} />,
+    icon: <AlertTriangle size={22} aria-hidden />,
+    tone: 'bg-warning-soft text-warning-foreground',
     buttonVariant: 'destructive',
   },
   info: {
-    icon: <Info size={24} />,
+    icon: <Info size={22} aria-hidden />,
+    tone: 'bg-info-soft text-info-foreground',
     buttonVariant: 'primary',
   },
   help: {
-    icon: <HelpCircle size={24} />,
+    icon: <HelpCircle size={22} aria-hidden />,
+    tone: 'bg-primary-soft text-primary-strong',
     buttonVariant: 'primary',
   },
 };
@@ -48,8 +54,8 @@ export function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmLabel = 'Xác nhận',
-  cancelLabel = 'Hủy',
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
   variant = 'danger',
   loading = false,
   hideCancel = false,
@@ -66,21 +72,28 @@ export function ConfirmDialog({
       closeOnOverlayClick={!loading}
       closeOnEscape={!loading}
     >
-      <div className={clsx(styles.wrapper, styles[variant])}>
-        <div className={styles.iconWrapper}>{config.icon}</div>
-        <h2 className={styles.title}>{title}</h2>
-        <div className={styles.message}>{message}</div>
-        <div className={styles.actions}>
-          {!hideCancel && (
-            <Button variant="secondary" onClick={onClose} disabled={loading}>
+      <div className="flex flex-col items-center text-center">
+        <div
+          className={cn(
+            'flex h-12 w-12 items-center justify-center rounded-2xl',
+            config.tone,
+          )}
+        >
+          {config.icon}
+        </div>
+        <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">{title}</h2>
+        <div className="mt-2 text-sm leading-relaxed text-muted-foreground">{message}</div>
+        <div className="mt-6 flex w-full justify-end gap-2">
+          {!hideCancel ? (
+            <Button variant="outline" onClick={onClose} disabled={loading}>
               {cancelLabel}
             </Button>
-          )}
-          {!hideConfirm && (
+          ) : null}
+          {!hideConfirm ? (
             <Button variant={config.buttonVariant} onClick={onConfirm} loading={loading}>
               {confirmLabel}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </Modal>

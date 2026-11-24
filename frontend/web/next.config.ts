@@ -2,13 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  async rewrites() {
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: 'http://api-gateway:3001/api/v1/:path*',
-      },
-    ];
+  // SSE through the proxy must not be gzip-buffered (ADR-010 §4.3).
+  compress: false,
+  experimental: {
+    // Above core-api's 20 MB upload limit; the default 10 MB cuts larger multipart bodies.
+    proxyClientMaxBodySize: '25mb',
+    // Idle-socket limit of the proxied request (Next default 30 s). Raised to 10 min to tolerate
+    // Modal GPU cold starts; SSE sends a ping every 15 s once streaming begins.
+    proxyTimeout: 600_000,
   },
 };
 

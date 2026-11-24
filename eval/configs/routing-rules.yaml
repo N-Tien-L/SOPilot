@@ -1,0 +1,15 @@
+# Config (a): rules only, the V2-10 rule router (SOPILOT_SEMANTIC_ROUTER_ENABLED=false). No model.
+# Paths are repository-relative (resolved against the repo root, see sopilot_eval/routing.py).
+name: routing-rules
+split: test
+datasets:
+  dev: eval/datasets/routing/dev.jsonl
+  test: eval/datasets/routing/test.jsonl
+# Words the asker can use without being "not understood" (ai-service: rag.chunk_terms).
+vocabulary: eval/datasets/sop-main-v2/corpus
+semantic_router_enabled: false
+# Used only for the exemplar/threshold loaders; config (a) never embeds.
+exemplars: services/ai-service/src/sopilot_ai/qa/router_exemplars.yaml
+thresholds: services/ai-service/src/sopilot_ai/qa/router_thresholds.yaml
+acceptance:
+  sop_misroute_max: 0.02

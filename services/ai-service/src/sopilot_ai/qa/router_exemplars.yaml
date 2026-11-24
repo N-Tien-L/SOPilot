@@ -1,0 +1,85 @@
+# Exemplars for Semantic Router (V2-27, TECH §7.1)
+# Each intent contains representative canonical sentences (VI and EN).
+# `sop_question` serves as the negative contrast class.
+
+sop_question:
+  - "Quy trình xin nghỉ phép gồm những bước nào?"
+  - "Thời gian thử việc tối đa của nhân viên kỹ thuật là bao lâu?"
+  - "Ai có thẩm quyền phê duyệt chi phí công tác trên 50 triệu?"
+  - "Quy định về bảo hộ lao động tại xưởng sản xuất"
+  - "Mã văn bản của quy chế an toàn thông tin là gì?"
+  - "What are the requirements for annual leave carry-over?"
+  - "What is the procedure for reporting a security breach?"
+  - "Who is responsible for performance reviews in engineering?"
+  - "How many days in advance must a resignation notice be submitted?"
+
+greeting:
+  - "Xin chào bạn"
+  - "Chào buổi sáng bot"
+  - "Hello there"
+  - "Hi assistant"
+  - "Alo bot ơi"
+  - "Good morning SOPilot"
+
+thanks:
+  - "Cảm ơn bạn nhiều"
+  - "Thank you so much"
+  - "Thanks bot nha"
+  - "Rất biết ơn câu trả lời của bạn"
+  - "Appreciate your help"
+
+about_bot:
+  - "Bạn là ai thế"
+  - "Bot này có chức năng gì"
+  - "Who are you"
+  - "What can you do"
+  - "SOPilot là hệ thống gì"
+  - "What is your main purpose"
+
+abuse_only:
+  - "Đồ ngu ngốc"
+  - "Mày vô dụng thật sự"
+  - "You are completely useless"
+  - "Shut up idiot"
+  - "Bot trả lời như shit"
+
+off_topic:
+  - "Thời tiết hôm nay thế nào?"
+  - "Viết cho tôi một bài thơ về mùa thu"
+  - "What is the capital of France?"
+  - "Gợi ý quán cà phê ngon gần Quận 1"
+  - "Tell me a joke about programmers"
+  - "Ai vô địch World Cup 2022"
+
+action_request:
+  - "Hãy gửi email nộp đơn xin nghỉ hộ tôi"
+  - "Đặt phòng họp vào lúc 2 giờ chiều mai"
+  - "Book a meeting room for tomorrow"
+  - "Duyệt phiếu mua sắm này ngay lập tức"
+  - "Cancel my appointment with HR"
+
+personal_data:
+  - "Mức lương cơ bản của giám đốc là bao nhiêu?"
+  - "Cho tôi số điện thoại và địa chỉ nhà riêng của đồng nghiệp"
+  - "What is the private salary of John Doe?"
+  - "Tra cứu số CCCD và tài khoản ngân hàng của nhân viên"
+
+legal_medical:
+  - "Tôi bị đau ngực khó thở dữ dội thì nên uống thuốc gì?"
+  - "Công ty trừ lương như vậy có vi phạm Luật Lao động không?"
+  - "Can I sue the company in court for harassment?"
+  - "Triệu chứng sốt cao co giật cần cấp cứu thế nào"
+
+feedback_in_chat:
+  - "Câu trả lời sai rồi bot ơi"
+  - "That answer is completely incorrect"
+  - "Thông tin trích dẫn không liên quan"
+  - "This does not answer what I asked"
+  - "Bot trả lời rất hay và chuẩn"
+
+about_source:
+  - "Quy định đó được lấy từ tài liệu nào vậy?"
+  - "Thông tin vừa rồi trích từ trang nào của văn bản?"
+  - "Cho tôi xin đường dẫn hoặc tên file của nguồn đó"
+  - "Which document did that answer come from?"
+  - "Can you tell me the source of that rule?"

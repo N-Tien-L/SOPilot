@@ -1,0 +1,8 @@
+{
+  "status": "reviewed",
+  "reviewed_by": "Owner",
+  "reviewed_on": "2026-11-09",
+  "drafted_on": "2026-11-09",
+  "ticket": "V2-10",
+  "note": "Reviewed by the owner on 2026-11-09 (cases and labels). 'holdout' cases are never used to tune guard_rules.yaml. Cases with 'known_gap' are accepted known limits, not expected passes. Separate from eval/provider_check/prompt_guard_cases.jsonl."
+}

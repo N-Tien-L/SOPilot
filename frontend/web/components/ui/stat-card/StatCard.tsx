@@ -1,68 +1,31 @@
 'use client';
 
 import React from 'react';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { clsx } from 'clsx';
-import styles from './stat-card.module.css';
-
-type TrendDirection = 'up' | 'down' | 'neutral';
-type StatTone = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
+import { SpotlightCard } from '@/components/effects';
+import { cn } from '@/lib/utils';
 
 export interface StatCardProps {
   label: string;
-  value: string | number;
-  change?: number;
-  changeLabel?: string;
+  value: React.ReactNode;
+  hint?: string;
   icon?: React.ReactNode;
-  trend?: TrendDirection;
-  tone?: StatTone;
-  meta?: React.ReactNode;
-  status?: React.ReactNode;
   className?: string;
 }
 
-export function StatCard({
-  label,
-  value,
-  change,
-  changeLabel,
-  icon,
-  trend,
-  tone = 'default',
-  meta,
-  status,
-  className,
-}: StatCardProps) {
-  const resolvedTrend = trend || (change !== undefined ? (change > 0 ? 'up' : change < 0 ? 'down' : 'neutral') : 'neutral');
-
+export function StatCard({ label, value, hint, icon, className }: StatCardProps) {
   return (
-    <div className={clsx(styles.card, styles[tone], className)}>
-      <div className={styles.header}>
-        <span className={styles.label}>{label}</span>
-        {icon && <div className={styles.icon}>{icon}</div>}
+    <SpotlightCard className={cn('p-4', className)}>
+      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+        <span>{label}</span>
+        {icon ? (
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-soft text-primary-strong">
+            {icon}
+          </span>
+        ) : null}
       </div>
-      <div className={styles.body}>
-        <span className={styles.value}>{value}</span>
-        {change !== undefined && (
-          <div className={clsx(styles.change, styles[resolvedTrend])}>
-            {resolvedTrend === 'up' && <TrendingUp size={14} />}
-            {resolvedTrend === 'down' && <TrendingDown size={14} />}
-            {resolvedTrend === 'neutral' && <Minus size={14} />}
-            <span>
-              {change > 0 ? '+' : ''}
-              {change}
-              {changeLabel && ` ${changeLabel}`}
-            </span>
-          </div>
-        )}
-      </div>
-      {(meta || status) && (
-        <div className={styles.footer}>
-          {meta && <span className={styles.meta}>{meta}</span>}
-          {status && <span className={styles.status}>{status}</span>}
-        </div>
-      )}
-    </div>
+      <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</div>
+      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+    </SpotlightCard>
   );
 }
 

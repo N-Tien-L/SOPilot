@@ -1,0 +1,119 @@
+"""Build the :class:`QAService` from settings and ``config/models.yaml``.
+
+Done on the first question, not at startup: it loads the embedding model and needs the LLM
+endpoint, and the API must still start (and serve documents, health and conversation reads)
+when either is not set up. A configuration problem surfaces as a ``503`` on the first question
+and is logged without any value.
+"""
+from __future__ import annotations
+
+import asyncio
+import hashlib
+from dataclasses import replace
+
+import numpy as np
+import structlog
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from sopilot_ai.config import SERVICE_ROOT, Settings
+from sopilot_ai.conversations.service import QAService
+from sopilot_ai.db.engine import system_tx
+from sopilot_ai.db.repositories import embedding_cache
+from sopilot_ai.providers.embedding import EmbeddingProvider, build_embedding_provider
+from sopilot_ai.providers.llm import build_chain, check_model
+from sopilot_ai.providers.registry import ModelsConfig
+from sopilot_ai.providers.rerank import build_rerank_provider
+from sopilot_ai.qa import router, setfit_router
+from sopilot_ai.quota.counters import QuotaCounter
+from sopilot_ai.retrieval.retriever import Retriever
+
+log = structlog.get_logger(__name__)
+
+# Exemplars are embedded as queries; the prefix keeps their cache rows apart from the passage
+# vectors of ingest, which are keyed by the same (model, revision, sha256) columns.
+EXEMPLAR_CACHE_PREFIX = "router-exemplar-query:"
+
+
+def exemplar_hash(text: str) -> bytes:
+    return hashlib.sha256((EXEMPLAR_CACHE_PREFIX + text).encode("utf-8")).digest()
+
+
+async def build_router(engine: AsyncEngine, embedder: EmbeddingProvider) -> router.SemanticLayer:
+    """The V2-27 layer, its exemplar vectors read from and written to ``rag.embedding_cache``.
+
+    The cache key holds the active model and revision, so a changed embedding model embeds the
+    exemplars again; vectors of two models are never compared.
+    """
+    exemplars = router.load_exemplars()
+    model_id = f"{embedder.model}@{embedder.revision}"
+    hashes = {t: exemplar_hash(t) for ts in exemplars.values() for t in ts}
+    async with system_tx(engine) as conn:
+        stored = await embedding_cache.get_many(conn, embedder.model, embedder.revision,
+                                                list(set(hashes.values())))
+    cache: dict[tuple[str, str], np.ndarray] = {
+        (model_id, t): stored[h] for t, h in hashes.items() if h in stored}
+    known = set(cache)
+    layer = await asyncio.to_thread(
+        router.SemanticLayer, embedder, model_id=model_id, exemplars=exemplars,
+        thresholds=router.load_thresholds(), cache=cache)
+    fresh = [(hashes[t], v) for (_, t), v in cache.items() if (model_id, t) not in known]
+    if fresh:
+        async with system_tx(engine) as conn:
+            await embedding_cache.put_many(conn, embedder.model, embedder.revision, fresh)
+    log.info("semantic_router_ready", exemplars=len(hashes), embedded=len(fresh))
+    return layer
+
+
+async def _build_classifier(config: ModelsConfig,
+                            settings: Settings) -> setfit_router.SetFitClassifier | None:
+    """The V2-44 classifier, loaded once on the first question (about 3 s, about 2.9 GB).
+
+    ``off`` loads nothing. In ``shadow`` a missing or broken artifact is logged and the service
+    runs without it (the questions are unaffected); in ``on`` it is a startup error, like a missing
+    LLM endpoint, because the routing would silently change.
+    """
+    mode = settings.router_classifier_mode
+    if mode == "off":
+        return None
+    try:
+        spec = config.router_classifier(SERVICE_ROOT)
+        classifier = await asyncio.to_thread(setfit_router.load_classifier, spec)
+    except Exception as exc:  # noqa: BLE001 - shadow never takes questions down; only the type is logged
+        if mode == "on":
+            raise
+        log.warning("router_classifier_unavailable", mode=mode, error=type(exc).__name__,
+                    reason=str(exc) if isinstance(exc, setfit_router.ClassifierUnavailable) else "")
+        return None
+    log.info("router_classifier_ready", mode=mode, labels=len(spec.labels))
+    return classifier
+
+
+async def build_service(settings: Settings, engine: AsyncEngine) -> QAService:
+    config = ModelsConfig.load(settings.models_config)
+    # Chains first: a missing endpoint or model id fails here, before the embedding model loads.
+    generate = build_chain(config, "generate")
+    rewrite = build_chain(config, "rewrite")
+    embedder = await asyncio.to_thread(build_embedding_provider, config, settings.profile)
+    reranker = await asyncio.to_thread(build_rerank_provider, config, settings.profile)
+    retriever = Retriever(embedder, config.retrieval(), reranker)
+    # Run the startup model check in the background, deduplicated by (base_url, model), so a
+    # Modal GPU cold start never stalls the first user request for 2-4 minutes (V2-10).
+    seen_endpoints: set[tuple[str, str]] = set()
+    for client in (*generate.clients, *rewrite.clients):
+        key = (client.spec.base_url, client.spec.model)
+        if key not in seen_endpoints:
+            seen_endpoints.add(key)
+            asyncio.create_task(asyncio.to_thread(check_model, client))
+    semantic = (await build_router(engine, embedder)
+                if settings.semantic_router_enabled else None)
+    classifier = await _build_classifier(config, settings)
+    return QAService(
+        engine, retriever, generate, rewrite,
+        context=replace(config.context(), merge_adjacent_sections=False),
+        quota=QuotaCounter(engine, per_user_day=settings.quota_questions_per_user_day,
+                           system_day=settings.quota_questions_system_day),
+        max_question_chars=settings.max_question_chars,
+        followup_max_tokens=settings.followup_max_tokens,
+        support_contact=settings.support_contact, timezone=settings.timezone,
+        semantic=semantic, classifier=classifier,
+        classifier_mode=settings.router_classifier_mode)

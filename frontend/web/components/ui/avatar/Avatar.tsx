@@ -1,59 +1,46 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
-import { clsx } from 'clsx';
-import styles from './avatar.module.css';
-
-type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+import { cn } from '@/lib/utils';
 
 export interface AvatarProps {
-  src?: string;
   name?: string;
-  size?: AvatarSize;
+  src?: string | null;
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
+const SIZE_MAP = {
+  sm: 'h-7 w-7 text-[11px]',
+  md: 'h-9 w-9 text-xs',
+  lg: 'h-11 w-11 text-sm',
+};
+
+function initialsOf(name?: string): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-function getColorFromName(name: string): string {
-  const colors = [
-    '#4f46e5', '#7c3aed', '#db2777', '#ea580c',
-    '#16a34a', '#0891b2', '#4338ca', '#9333ea',
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
-export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
-  const initials = name ? getInitials(name) : '?';
-  const bgColor = name ? getColorFromName(name) : 'var(--muted-foreground)';
-
+export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
   return (
-    <div className={clsx(styles.avatar, styles[size], className)}>
-      {src ? (
-        <Image
-          src={src}
-          alt={name || 'Avatar'}
-          fill
-          className={styles.image}
-          unoptimized
-        />
-      ) : (
-        <div className={styles.fallback} style={{ background: bgColor }}>
-          <span className={styles.initials}>{initials}</span>
-        </div>
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-primary-strong ring-1 ring-primary/20',
+        SIZE_MAP[size],
+        className,
       )}
-    </div>
+      aria-label={name}
+    >
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={name ?? ''} className="h-full w-full object-cover" />
+      ) : (
+        initialsOf(name)
+      )}
+    </span>
   );
 }
 

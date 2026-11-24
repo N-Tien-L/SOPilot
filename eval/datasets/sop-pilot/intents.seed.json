@@ -1,0 +1,383 @@
+{
+  "drafted_by": "Codex",
+  "human_reviewed": false,
+  "spans": [
+    {
+      "span_id": "risk-plan-owner",
+      "doc_id": "nb-qt02",
+      "section_id": "content/step1",
+      "quote": "Ban chỉ đạo ISO có trách nhiệm căn cứ tình hình chung về hoạt động của Sở",
+      "page": 4
+    },
+    {
+      "span_id": "risk-plan-time",
+      "doc_id": "nb-qt02",
+      "section_id": "content/step1",
+      "quote": "Quý I hàng năm hoặc đột xuất",
+      "page": 4
+    },
+    {
+      "span_id": "risk-approval-owner",
+      "doc_id": "nb-qt02",
+      "section_id": "content/step2",
+      "quote": "Lãnh đạo Sở xem xét và phê duyệt:",
+      "page": 4
+    },
+    {
+      "span_id": "risk-approval-time",
+      "doc_id": "nb-qt02",
+      "section_id": "content/step2",
+      "quote": "Sau 7 ngày tiếp nhận kế hoạch",
+      "page": 4
+    },
+    {
+      "span_id": "risk-revision",
+      "doc_id": "nb-qt02",
+      "section_id": "content/step2",
+      "quote": "- Ngược lại, Ban chỉ đạo ISO điều chỉnh phù hợp nhằm xác định rõ việc phân tích rủi ro, cơ hội và đưa ra hành động giải quyết.",
+      "page": 4
+    },
+    {
+      "span_id": "risk-team-time",
+      "doc_id": "nb-qt02",
+      "section_id": "content/step3",
+      "quote": "Trước kế hoạch phân tích 3 ngày",
+      "page": 4
+    },
+    {
+      "span_id": "audit-frequency",
+      "doc_id": "nb-qt03",
+      "section_id": "content/step1",
+      "quote": "Hoạt động đánh giá phải thể hiện được tất cả các yêu cầu của hệ thống quản lý chất lượng, thực hiện tối thiểu một năm 01 lần. Đối với những yêu cầu quan trọng hoặc thường xảy ra sai lỗi thì chu kỳ đánh giá có thể ngắn lại.",
+      "page": 4
+    },
+    {
+      "span_id": "audit-team-time",
+      "doc_id": "nb-qt03",
+      "section_id": "content/step2",
+      "quote": "Trước đánh giá theo kế hoạch 10 ngày",
+      "page": 4
+    },
+    {
+      "span_id": "audit-notice",
+      "doc_id": "nb-qt03",
+      "section_id": "content/step3",
+      "quote": "Trưởng đoàn đánh giá được chỉ định có trách nhiệm lập thông báo về chương trình và nội dung đánh giá và gửi trước đến các phòng được đánh giá trước thời gian ít nhất 01 tuần.",
+      "page": 4
+    },
+    {
+      "span_id": "buddy-first",
+      "doc_id": "gitlab-buddies",
+      "section_id": "Buddy Responsibilities",
+      "quote": "1. **The first and most important thing a buddy should do is schedule a call with the GitLab team-member.** You can do this in the days leading up to a new team member starting at GitLab by asking their manager for the new starter's personal email address. Introduce yourself and ask them when a good time to schedule an initial coffee chat would be. Consider picking a time towards the end of their first day so they have time to digest some of the onboarding issue and can come to the coffee chat with questions. We attempt to match (as best as possible, anyway) time zones between the GitLab team-member and their buddy so that as soon as the GitLab team-member logs on, you, the buddy, can be there ready and waiting to welcome them to the team."
+    },
+    {
+      "span_id": "buddy-followups",
+      "doc_id": "gitlab-buddies",
+      "section_id": "Buddy Responsibilities",
+      "quote": "1. **Check in regularly.** You may very well be the first friend the new GitLab team-member makes on the team. Checking in with them regularly will help them feel welcome and supported. Reach out via Slack, and schedule at least two follow-up calls for the week after their start date, and at least one follow-up call for the rest of the first month. But since it differs from one person to another, you may also ask them if they prefer more or less frequent calls per week."
+    },
+    {
+      "span_id": "buddy-criteria",
+      "doc_id": "gitlab-buddies",
+      "section_id": "Managers",
+      "quote": "Ideally an onboarding buddy:\n\n- has been at GitLab longer than 3 months\n- shares the same department or division with the onboarding team member\n- shares a similar timezone\n- available during the first two weeks (no major PTO events or leave)\n- is someone who can support the adjustment to GitLab and knows a bit about the applications / tools the new team member may be using in the course of their role\n\nThese guidelines have been developed from the feedback we receive in the Onboarding Survey and feedback from onboarding buddies. It is not always possible to achieve all of these guidelines depending on the team or location."
+    },
+    {
+      "span_id": "meeting-invite",
+      "doc_id": "gitlab-meetings",
+      "section_id": "before",
+      "quote": "1. **Send the meeting invite with proper advance notice.**  A meeting with team members will usually traverse multiple time zones. We recommend you send meeting invites 72 hours (minimum 24 hours) in advance of the meeting to give people time to respond to the invite. In addition, consider who is required in the meeting and mark non-essential participants as optional."
+    },
+    {
+      "span_id": "meeting-agenda",
+      "doc_id": "gitlab-meetings",
+      "section_id": "before",
+      "quote": "1. **Include a link to an agenda document in the invite.** Team members should be able to get context before the meeting through reviewing agendas, supporting materials, etc. [Meeting agendas](meetings/#4-all-meetings-must-have-an-agenda) should be shared 72 hours (minimum 24 hours) in advance of the meeting. Team members will need to know what is being discussed to decide if their participation is needed or [whether their meeting attendance is optional](meetings/#1-make-meeting-attendance-optional)."
+    },
+    {
+      "span_id": "meeting-decisions",
+      "doc_id": "gitlab-meetings",
+      "section_id": "after",
+      "quote": "1. **Consider important decisions.**  When the meeting takes place outside of some participants' time zones, consider confirming decisions and actions for 24-48 hours. This will allow participants to contribute asynchronously."
+    },
+    {
+      "span_id": "meeting-recording",
+      "doc_id": "gitlab-meetings",
+      "section_id": "after",
+      "quote": "1. **Upload recording.** When the meeting is recorded, add the recording link and password in the agenda with in 12 hours after the meeting to allow for async consumption for people in different time zones. Also consider uploading to YouTube if it can be done so consistent with SAFE guidelines."
+    }
+  ],
+  "intents": [
+    {
+      "intent_id": "risk-planning",
+      "policy_family_id": "nb-iso-risk",
+      "corpus_lang": "vi",
+      "questions": {
+        "vi": "Theo QT-02 của Sở Xây dựng Ninh Bình, ai lập kế hoạch phân tích bối cảnh và thực hiện vào thời điểm nào?",
+        "en": "Under Ninh Binh Department of Construction QT-02, who plans the context analysis and when?"
+      },
+      "answers": {
+        "vi": "Ban chỉ đạo ISO; Quý I hằng năm hoặc đột xuất.",
+        "en": "The ISO steering committee; in the first quarter annually or on an ad hoc basis."
+      },
+      "query_types": [
+        "responsibility",
+        "number_deadline",
+        "multi_passage"
+      ],
+      "evidence_sets": [
+        [
+          "risk-plan-owner",
+          "risk-plan-time"
+        ]
+      ]
+    },
+    {
+      "intent_id": "risk-approval",
+      "policy_family_id": "nb-iso-risk",
+      "corpus_lang": "vi",
+      "questions": {
+        "vi": "QT-02 ghi ai xem xét phê duyệt kế hoạch, mốc thời gian nào, và nếu kế hoạch chưa phù hợp thì xử lý ra sao?",
+        "en": "In QT-02, who reviews and approves the plan, what timing is stated, and what happens if the plan is unsuitable?"
+      },
+      "answers": {
+        "vi": "Lãnh đạo Sở xem xét, phê duyệt; mốc được ghi là sau 7 ngày tiếp nhận kế hoạch. Nếu chưa phù hợp, Ban chỉ đạo ISO điều chỉnh để làm rõ phân tích rủi ro, cơ hội và hành động giải quyết.",
+        "en": "Department leadership reviews and approves it; the stated timing is after 7 days of receiving the plan. If unsuitable, the ISO steering committee revises it to clarify risk and opportunity analysis and response actions."
+      },
+      "query_types": [
+        "procedure",
+        "condition_exception",
+        "responsibility",
+        "number_deadline",
+        "multi_passage"
+      ],
+      "evidence_sets": [
+        [
+          "risk-approval-owner",
+          "risk-approval-time",
+          "risk-revision"
+        ]
+      ]
+    },
+    {
+      "intent_id": "risk-team",
+      "policy_family_id": "nb-iso-risk",
+      "corpus_lang": "vi",
+      "questions": {
+        "vi": "Theo QT-02, mốc thời gian thành lập nhóm phân tích là bao lâu trước kế hoạch phân tích?",
+        "en": "Under QT-02, how far ahead of the analysis plan is the analysis team formed?"
+      },
+      "answers": {
+        "vi": "Trước kế hoạch phân tích 3 ngày.",
+        "en": "3 days before the analysis plan."
+      },
+      "query_types": [
+        "fact",
+        "number_deadline"
+      ],
+      "evidence_sets": [
+        [
+          "risk-team-time"
+        ]
+      ]
+    },
+    {
+      "intent_id": "audit-frequency",
+      "policy_family_id": "nb-iso-audit",
+      "corpus_lang": "vi",
+      "questions": {
+        "vi": "Theo QT-03 của Sở Xây dựng Ninh Bình, tần suất đánh giá tối thiểu là bao nhiêu và trường hợp nào chu kỳ có thể ngắn hơn?",
+        "en": "Under Ninh Binh Department of Construction QT-03, what is the minimum audit frequency and when may the interval be shorter?"
+      },
+      "answers": {
+        "vi": "Tối thiểu một lần mỗi năm; với yêu cầu quan trọng hoặc thường xảy ra sai lỗi, chu kỳ có thể ngắn lại.",
+        "en": "At least once a year; the interval may be shorter for important requirements or those with frequent errors."
+      },
+      "query_types": [
+        "comparison",
+        "condition_exception",
+        "number_deadline"
+      ],
+      "evidence_sets": [
+        [
+          "audit-frequency"
+        ]
+      ]
+    },
+    {
+      "intent_id": "audit-preparation",
+      "policy_family_id": "nb-iso-audit",
+      "corpus_lang": "vi",
+      "questions": {
+        "vi": "Trong QT-03, đoàn đánh giá được thành lập trước bao nhiêu ngày và ai phải gửi thông báo chương trình trước ít nhất một tuần?",
+        "en": "In QT-03, how many days before the planned audit is the team formed, and who must send the programme notice at least one week beforehand?"
+      },
+      "answers": {
+        "vi": "Đoàn được thành lập trước đánh giá theo kế hoạch 10 ngày; Trưởng đoàn đánh giá được chỉ định lập và gửi thông báo trước ít nhất một tuần.",
+        "en": "The team is formed 10 days before the planned audit; the appointed audit team leader prepares and sends the programme notice at least one week beforehand."
+      },
+      "query_types": [
+        "procedure",
+        "responsibility",
+        "number_deadline",
+        "multi_passage"
+      ],
+      "evidence_sets": [
+        [
+          "audit-team-time",
+          "audit-notice"
+        ]
+      ]
+    },
+    {
+      "intent_id": "risk-travel-allowance",
+      "policy_family_id": "nb-iso-risk",
+      "corpus_lang": "vi",
+      "questions": {
+        "vi": "Theo bộ tài liệu pilot, người của nhóm phân tích rủi ro được hưởng mức phụ cấp đi công tác bao nhiêu tiền mỗi ngày?",
+        "en": "According to this pilot corpus, how much daily travel allowance is paid to a risk-analysis team member?"
+      },
+      "answers": {
+        "vi": "",
+        "en": ""
+      },
+      "query_types": [
+        "number_deadline"
+      ],
+      "evidence_sets": []
+    },
+    {
+      "intent_id": "buddy-first-call",
+      "policy_family_id": "gitlab-buddy",
+      "corpus_lang": "en",
+      "questions": {
+        "vi": "Theo hướng dẫn GitLab, việc đầu tiên quan trọng nhất onboarding buddy nên làm là gì, và nên cân nhắc thời điểm nào trong ngày đầu?",
+        "en": "According to GitLab, what is the first and most important task for an onboarding buddy, and what time on the first day should they consider?"
+      },
+      "answers": {
+        "vi": "Lên lịch cuộc gọi với thành viên mới; cân nhắc cuối ngày làm việc đầu tiên để họ có thời gian đọc nội dung onboarding và chuẩn bị câu hỏi.",
+        "en": "Schedule a call with the new team member; consider toward the end of the first day so they can digest onboarding material and bring questions."
+      },
+      "query_types": [
+        "procedure"
+      ],
+      "evidence_sets": [
+        [
+          "buddy-first"
+        ]
+      ]
+    },
+    {
+      "intent_id": "buddy-call-frequency",
+      "policy_family_id": "gitlab-buddy",
+      "corpus_lang": "en",
+      "questions": {
+        "vi": "GitLab hướng dẫn buddy lên lịch cuộc gọi tiếp theo thế nào trong tuần sau ngày bắt đầu so với phần còn lại của tháng đầu?",
+        "en": "How does GitLab compare the follow-up call schedule for the week after the start date with the rest of the first month?"
+      },
+      "answers": {
+        "vi": "Ít nhất hai cuộc gọi trong tuần sau ngày bắt đầu và ít nhất một cuộc gọi cho phần còn lại của tháng đầu; có thể hỏi người mới muốn gọi thường xuyên hơn hay ít hơn.",
+        "en": "At least two follow-up calls for the week after the start date and at least one for the rest of the first month; ask whether the person prefers more or less frequent calls."
+      },
+      "query_types": [
+        "comparison",
+        "number_deadline",
+        "condition_exception"
+      ],
+      "evidence_sets": [
+        [
+          "buddy-followups"
+        ]
+      ]
+    },
+    {
+      "intent_id": "buddy-selection",
+      "policy_family_id": "gitlab-buddy",
+      "corpus_lang": "en",
+      "questions": {
+        "vi": "Theo GitLab, một onboarding buddy lý tưởng nên có các đặc điểm gì?",
+        "en": "According to GitLab, what characteristics should an ideal onboarding buddy have?"
+      },
+      "answers": {
+        "vi": "Đã ở GitLab hơn 3 tháng, cùng phòng ban hoặc khối, múi giờ tương tự, sẵn sàng trong hai tuần đầu và có thể hỗ trợ thích nghi cùng các công cụ cần dùng. Đây là đặc điểm lý tưởng, không phải điều kiện luôn đạt được.",
+        "en": "More than 3 months at GitLab, the same department or division, a similar time zone, availability during the first two weeks, and the ability to support adjustment and relevant tools. These are ideal guidelines rather than conditions always met."
+      },
+      "query_types": [
+        "fact",
+        "responsibility"
+      ],
+      "evidence_sets": [
+        [
+          "buddy-criteria"
+        ]
+      ]
+    },
+    {
+      "intent_id": "meeting-before",
+      "policy_family_id": "gitlab-meeting",
+      "corpus_lang": "en",
+      "questions": {
+        "vi": "Trước cuộc họp GitLab, thư mời và agenda nên được gửi trước bao lâu, và agenda cần được liên kết ở đâu?",
+        "en": "Before a GitLab meeting, how far ahead should the invite and agenda be shared, and where should the agenda be linked?"
+      },
+      "answers": {
+        "vi": "Khuyến nghị 72 giờ, tối thiểu 24 giờ, cho cả thư mời và agenda; đặt liên kết tài liệu agenda trong thư mời.",
+        "en": "72 hours is recommended, with a minimum of 24 hours, for both invite and agenda; link the agenda document in the invite."
+      },
+      "query_types": [
+        "procedure",
+        "number_deadline",
+        "multi_passage"
+      ],
+      "evidence_sets": [
+        [
+          "meeting-invite",
+          "meeting-agenda"
+        ]
+      ]
+    },
+    {
+      "intent_id": "meeting-after",
+      "policy_family_id": "gitlab-meeting",
+      "corpus_lang": "en",
+      "questions": {
+        "vi": "Theo GitLab, sau cuộc họp nằm ngoài múi giờ của một số người, nên cân nhắc xác nhận quyết định trong khoảng nào; nếu có ghi hình thì thêm liên kết và mật khẩu vào agenda trong bao lâu?",
+        "en": "According to GitLab, after a meeting outside some participants' time zones, what decision-confirmation window should be considered, and how soon should a recording link and password be added to the agenda if recorded?"
+      },
+      "answers": {
+        "vi": "Cân nhắc xác nhận quyết định và hành động trong 24–48 giờ; nếu có ghi hình, thêm liên kết và mật khẩu vào agenda trong vòng 12 giờ sau cuộc họp.",
+        "en": "Consider confirming decisions and actions for 24–48 hours; if recorded, add the recording link and password to the agenda within 12 hours after the meeting."
+      },
+      "query_types": [
+        "condition_exception",
+        "number_deadline",
+        "multi_passage"
+      ],
+      "evidence_sets": [
+        [
+          "meeting-decisions",
+          "meeting-recording"
+        ]
+      ]
+    },
+    {
+      "intent_id": "buddy-bonus",
+      "policy_family_id": "gitlab-buddy",
+      "corpus_lang": "en",
+      "questions": {
+        "vi": "Theo bộ tài liệu pilot, GitLab trả thưởng bao nhiêu tiền cho buddy với mỗi nhân viên mới được hỗ trợ?",
+        "en": "According to this pilot corpus, how much cash bonus does GitLab pay a buddy for each new hire supported?"
+      },
+      "answers": {
+        "vi": "",
+        "en": ""
+      },
+      "query_types": [
+        "fact",
+        "number_deadline"
+      ],
+      "evidence_sets": []
+    }
+  ]
+}

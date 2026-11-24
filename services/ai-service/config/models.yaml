@@ -1,0 +1,117 @@
+# The only place that declares models (ADR-006 §4.1.2, TECH-V2-ai-service §4.2).
+# ${VAR} and ${VAR:default} are expanded from the environment when the file is loaded.
+embedding:
+  active: bge-m3
+  models:
+    bge-m3:
+      provider: local                  # local | cloudflare | openai_compatible
+      model: BAAI/bge-m3
+      revision: ${EMBEDDING_REVISION:}  # pin the HF commit; empty is a startup error in profile eval
+      dim: 1024
+      max_tokens: 8192
+      query_prefix: ""
+      batch_size: 16
+rerank:
+  enabled: ${RERANK_ENABLED:false}
+  provider: ${RERANK_PROVIDER:local}   # local | modal | none (modal: POST {providers.modal.rerank_base_url}/rerank, V2-35)
+  model: BAAI/bge-reranker-v2-m3
+  revision: ${RERANK_REVISION:}
+  max_pairs: 25
+  timeout_s: ${RERANK_TIMEOUT_S:300}   # modal only; 300 s covers GPU cold start without failing
+llm:
+  # Owner chốt 2026-11-01 (ADR-006 §4.4) and 2026-11-04 (V2-10): one self-hosted model behind an
+  # OpenAI-compatible server (vLLM on Modal). No fallback chain yet; a second endpoint is added here
+  # only when the owner asks for one. Model id, URL and key come from the environment.
+  # rpm/tpm are our own server limits: placeholders until measured. The context ceiling is the prompt
+  # budget under the served --max-model-len 65536 minus max_output_tokens, with margin (ADR-011 §5):
+  # 57000 + 8192 = 65192 for the answer task (V2-43).
+  generate:
+    timeout_s: ${SOPILOT_LLM_TIMEOUT_S:300}
+    chain:
+      - provider: modal
+        model: "${SOPILOT_LLM_MODEL:}"
+        rpm: "${SOPILOT_LLM_RPM:60}"
+        tpm: "${SOPILOT_LLM_TPM:200000}"
+        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:57000}"
+        # Thinking is on for answers (owner decision 2026-11-15); SOPILOT_LLM_THINKING=false turns it
+        # off. The reasoning shares max_output_tokens with the answer, hence the larger ceiling:
+        # 3000 ran out inside the reasoning and left no answer (V2-43).
+        extra_body: {chat_template_kwargs: {enable_thinking: "${SOPILOT_LLM_THINKING:true}"}}
+    temperature: 0.2
+    max_output_tokens: ${SOPILOT_LLM_MAX_OUTPUT_TOKENS:8192}
+  rewrite:
+    timeout_s: ${SOPILOT_LLM_REWRITE_TIMEOUT_S:300}
+    chain:
+      - provider: modal
+        model: "${SOPILOT_LLM_MODEL:}"
+        rpm: "${SOPILOT_LLM_RPM:60}"
+        tpm: "${SOPILOT_LLM_TPM:200000}"
+        context_max_tokens: "${SOPILOT_LLM_CONTEXT_MAX_TOKENS:60000}"
+        extra_body: {chat_template_kwargs: {enable_thinking: false}}
+    temperature: 0
+    max_output_tokens: 200
+  # V2-25 metadata suggestions (TECH-V2-ai-service §5.7). Owner chose Groq for this task (2026-11-11);
+  # the answer model stays on Modal. Model id is an env default so it can be changed without a code change.
+  suggest:
+    timeout_s: ${SOPILOT_SUGGEST_TIMEOUT_S:20}
+    chain:
+      - provider: groq
+        model: "${SOPILOT_SUGGEST_MODEL:qwen/qwen3.8-27b}"
+        rpm: "${SOPILOT_SUGGEST_RPM:30}"
+        tpm: "${SOPILOT_SUGGEST_TPM:60000}"
+        context_max_tokens: "${SOPILOT_SUGGEST_CONTEXT_MAX_TOKENS:}"
+        extra_body: {reasoning_format: hidden}
+    temperature: 0
+    max_output_tokens: 400
+providers:
+  modal: {base_url: "${SOPILOT_LLM_BASE_URL:}", rerank_base_url: "${SOPILOT_RERANK_BASE_URL:}", api_key_env: SOPILOT_LLM_API_KEY}
+  groq: {base_url: "${SOPILOT_GROQ_BASE_URL:https://api.groq.com/openai/v1}", api_key_env: SOPILOT_GROQ_API_KEY}
+  # Embedding endpoints for the non-local providers (unused while bge-m3 runs locally).
+  openai_compatible: {base_url: "${EMBEDDING_BASE_URL:http://tei:80/v1}", api_key_env: EMBEDDING_API_KEY}
+  cloudflare: {base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID:}/ai/run", api_key_env: CLOUDFLARE_API_TOKEN}
+retrieval:
+  candidate_pool: 50
+  rerank_pool: 25
+  context_k: 8            # ADR-011 §2.4 / V2-40: sized for the 64K context
+  rrf_k: 60
+  rrf_weights: [1.0, 1.0]
+  doc_code_boost: 0.02
+  cross_lingual_bm25_factor: 1.0
+  # V2-47 / §6.4b: a question in vi or en is also asked in the other language when that language
+  # holds at least this share of the documents the asker can read (one short call of the rewrite
+  # model). Measured: Vietnamese over English pages passed the rerank gate 6 of 15 times, 12 of 15
+  # with the translation. Empty switches it off.
+  query_translation_min_share: "${SOPILOT_QUERY_TRANSLATION_MIN_SHARE:0.2}"
+  context:
+    expand: true
+    section_max_tokens: 3000
+    max_tokens: 16000
+  thresholds:            # placeholders until calibrated on the V2-06 dev set (V2-07)
+    dense: 0.45
+    bm25: null
+    hybrid: 0.45
+    hybrid_rerank: 0.30
+  mode: hybrid
+# V2-44 / ADR-012: SetFit intent classifier behind the rules (mode: SOPILOT_ROUTER_CLASSIFIER_MODE).
+# The artifact is not in git: services/ai-service/README.md says how to obtain it. The labels must
+# equal labels.json of the artifact (checked at load). input.with_previous is the training format.
+router_classifier:
+  artifact_dir: ${SOPILOT_ROUTER_CLASSIFIER_DIR:models/setfit-router}  # relative to services/ai-service
+  max_seq_length: 128
+  max_input_chars: 2000
+  input:
+    with_previous: "Previous message: {previous}\nCurrent message: {current}"
+    previous_max_chars: 200      # the first sentence of the last answer, cut here (owner 2026-11-17)
+  labels: [greeting, thanks, about_bot, abuse_only, abuse_with_question, harmful, followup,
+           sop_question, off_topic, action_request, personal_data, legal_medical, about_source,
+           feedback_in_chat]
+  template_labels: [greeting, thanks, about_bot, abuse_only]
+  # two_group+ (ADR-012 §2): decided by retrieval, never routed before it. harmful stays with the
+  # guard rules and feedback_in_chat is not routed; both simply go to retrieval.
+  deferred_labels: [off_topic, legal_medical, personal_data, abuse_with_question, about_source]
+  disclaimer_labels: [action_request, legal_medical, personal_data]
+  out_of_scope_label: off_topic
+chunking:
+  target_tokens: 384
+  max_tokens: 512
+  min_tokens: 64

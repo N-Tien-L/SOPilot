@@ -1,0 +1,20 @@
+# Config (c): rules + the SetFit classifier of V2-44 (SOPILOT_ROUTER_CLASSIFIER_MODE=on), through the
+# service module sopilot_ai.qa.setfit_router, with the labels and groups of config/models.yaml.
+# Also reports config (a) as `baseline`:
+#   cd eval; uv run --extra local python -m sopilot_eval.routing --config configs/routing-setfit.yaml
+# The artifact is not in git (services/ai-service/README.md). Paths are repository-relative.
+# `--split test` here is the frozen split, a reproduction of the ADR-012 figures; the decision to
+# switch to `on` needs the corpus-specific set (V2-44), for which only `datasets.test` changes.
+name: routing-setfit
+split: test
+datasets:
+  dev: eval/datasets/routing/dev.jsonl
+  test: eval/datasets/routing/test.jsonl
+vocabulary: eval/datasets/sop-main-v2/corpus
+semantic_router_enabled: false
+router_classifier:
+  models_config: services/ai-service/config/models.yaml
+  artifact_dir: eval/results/routing/setfit-router-model-histaug/setfit-router
+baseline: eval/configs/routing-rules.yaml
+acceptance:
+  sop_misroute_max: 0.02

@@ -1,0 +1,18 @@
+# V2-07 RQ2 (rerank, ~16 s/question on CPU, kept apart from rq1-rq3) on sop-main (docproc chunks, span gold). Needs: uv sync --extra local
+# Revisions pinned to HF commit hashes (checked 2026-10-20, V2-05). Change only together with the report.
+# Run: python -m sopilot_eval.run --dataset datasets/sop-main --config configs/rq2-rerank-bge-m3.yaml --split dev|test --repeats 3
+chunking:
+  mode: docproc                      # sopilot_ai.docproc, target 384 / max 512 tokens of the model tokenizer
+  target_tokens: 384
+  max_tokens: 512
+  structured_dir: results/extraction-clean/structured   # cached Docling extraction (byte-checked vs corpus)
+  pilot_dataset: datasets/sop-pilot                      # Markdown sources of the two GitLab pages
+configs:
+  - {name: hybrid, retriever: hybrid, k: 5, embedder: &e {provider: sentence-transformers, model: BAAI/bge-m3, revision: 5617a9f61b028005a4858fdac845db406aefb181}, weights: [1.0, 1.0]}
+  # RQ2: same hybrid pool (25), reranked; metrics at k=5 and k=10 are both reported
+  - name: hybrid-rerank
+    retriever: hybrid
+    k: 5
+    embedder: *e
+    weights: [1.0, 1.0]
+    rerank: {model: BAAI/bge-reranker-v2-m3, revision: 953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e}

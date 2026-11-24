@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { clsx } from 'clsx';
-import styles from './skeleton.module.css';
+import { cn } from '@/lib/utils';
 
 type SkeletonVariant = 'text' | 'circular' | 'rectangular';
 type SkeletonSize = 'sm' | 'md' | 'lg';
@@ -16,6 +15,12 @@ export interface SkeletonProps {
   count?: number;
 }
 
+const SIZE_HEIGHT: Record<SkeletonSize, string> = {
+  sm: '0.75rem',
+  md: '1rem',
+  lg: '1.5rem',
+};
+
 export function Skeleton({
   variant = 'text',
   width,
@@ -27,29 +32,22 @@ export function Skeleton({
   const style: React.CSSProperties = {};
   if (width) style.width = typeof width === 'number' ? `${width}px` : width;
   if (height) style.height = typeof height === 'number' ? `${height}px` : height;
+  else if (variant === 'text') style.height = SIZE_HEIGHT[size];
 
-  const sizeMap: Record<SkeletonSize, React.CSSProperties> = {
-    sm: { height: '0.75rem' },
-    md: { height: '1rem' },
-    lg: { height: '1.5rem' },
-  };
-
-  const variantClasses: Record<SkeletonVariant, string> = {
-    text: styles.text,
-    circular: styles.circular,
-    rectangular: styles.rectangular,
-  };
+  const radius =
+    variant === 'circular' ? 'rounded-full' : variant === 'rectangular' ? 'rounded-xl' : 'rounded-lg';
 
   const elements = Array.from({ length: count }, (_, i) => (
     <div
       key={i}
-      className={clsx(styles.skeleton, variantClasses[variant], className)}
-      style={{ ...(variant === 'text' ? sizeMap[size] : {}), ...style }}
+      aria-hidden
+      className={cn('animate-shimmer w-full', radius, count > 1 && i > 0 && 'mt-2.5', className)}
+      style={style}
     />
   ));
 
   if (count === 1) return elements[0];
-  return <>{elements}</>;
+  return <div>{elements}</div>;
 }
 
 export default Skeleton;

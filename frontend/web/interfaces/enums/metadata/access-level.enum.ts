@@ -1,5 +1,0 @@
-export enum AccessLevel {
-  PUBLIC = "PUBLIC",
-  DEPARTMENT_ONLY = "DEPARTMENT_ONLY",
-  RESTRICTED = "RESTRICTED",
-}

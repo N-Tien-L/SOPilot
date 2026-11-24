@@ -1,0 +1,645 @@
+"""Answer-level evaluation of the QA pipeline (V2-10; RQ3 at answer level, context ablation).
+
+Two commands (``python -m sopilot_eval.answers coverage|answers --help``):
+
+* ``coverage``: no LLM. For every answerable question, how much of the gold evidence ends up in the
+  context the model would be given, with ``context.expand`` on and off (TECH-V2-ai-service §6.4a).
+* ``answers``: needs the answer LLM (and a judge). Citation precision, refusal accuracy with the
+  gate (``NO_EVIDENCE``) and the model's own refusal (``GENERATOR_NOT_FOUND``) kept apart,
+  faithfulness on a fixed subset (``temperature = 0``), and the same numbers for ``expand`` on/off.
+
+The context assembly, prompt, citation clean-up and number check are the ai-service functions
+(``sopilot_ai.retrieval.context``, ``sopilot_ai.qa``), imported, not copied, so the harness measures
+what the service runs (token counts are those of ``index_text``, as the service stores them).
+Citation precision: a cited source is *correct* when a **hit** chunk of it overlaps a gold span
+(strict); ``citation_precision_source`` accepts any chunk of the source (expanded sections count).
+Differences from the service, stated so nobody reads more into the numbers:
+the index is in memory (no access filter, one workspace), the prompt has no ``code``/``rev``/
+``effective`` attributes (the frozen corpus keeps no extracted metadata), and there is no output
+guard (a canary leak is tested in ai-service, not measured here).
+"""
+from __future__ import annotations
+
+import argparse
+import copy
+import hashlib
+import json
+import re
+import sys
+import time
+import uuid
+from collections import defaultdict
+from collections.abc import Callable, Sequence
+from concurrent.futures import FIRST_EXCEPTION, ThreadPoolExecutor, wait
+from dataclasses import dataclass, field, replace
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+from sopilot_ai.providers.llm import LLMError
+from sopilot_ai.qa import checks as qa_checks
+from sopilot_ai.qa import citations as qa_citations
+from sopilot_ai.qa import prompt as qa_prompt
+from sopilot_ai.retrieval import fusion
+from sopilot_ai.retrieval.context import (
+    ChunkInfo,
+    ContextConfig,
+    GroupKey,
+    Source,
+    build_sources,
+)
+
+from .corpus import Chunk
+from .metrics import SPAN_COVER, _covered
+from .retrievers import Index, retrieve_candidates
+
+ROOT = Path(__file__).resolve().parents[1]
+EVAL_TODAY = date(2026, 11, 9)  # the prompt's "today" line: fixed so a rerun builds the same prompt
+CHUNK_TYPES = {"SECTION", "PROCEDURE_STEP", "TABLE", "PROSE"}
+GROUPS = ("condition_exception", "multi_passage")  # reported apart (V2-10 ablation)
+
+Complete = Callable[[Sequence[dict[str, str]]], str]
+
+
+@dataclass(frozen=True)
+class _Range:
+    """What ``metrics._covered`` reads from a chunk: document and character range."""
+
+    doc_id: str
+    char_start: int
+    char_end: int
+
+
+@dataclass
+class Setup:
+    """The retrieval side of one run: chunks, index, retrieval settings and context settings."""
+
+    chunks: list[Chunk]
+    index: Index
+    retrieval: dict[str, Any]  # one entry of ``configs`` (retriever, k, weights, ...)
+    thresholds: dict[str, float | None]
+    context: ContextConfig
+    count_tokens: Callable[[str], int]
+    spans: dict[str, dict]
+    reranker: Any = None
+    pool: int = 25
+    infos: list[ChunkInfo] = field(init=False)
+    groups: dict[GroupKey, list[ChunkInfo]] = field(init=False)
+    doc_of: dict[uuid.UUID, str] = field(init=False)
+
+    def __post_init__(self) -> None:
+        if any(c.char_start is None or c.doc_id is None for c in self.chunks):
+            raise ValueError("answer evaluation needs docproc chunks (char offsets and doc_id)")
+        ordinal: dict[str, int] = defaultdict(int)
+        order = sorted(range(len(self.chunks)),
+                       key=lambda i: (self.chunks[i].doc_id, self.chunks[i].char_start))
+        ords = {}
+        for i in order:
+            ords[i] = ordinal[self.chunks[i].doc_id]
+            ordinal[self.chunks[i].doc_id] += 1
+        self.doc_of = {}
+        self.infos = []
+        for i, c in enumerate(self.chunks):
+            doc = uuid.uuid5(uuid.NAMESPACE_URL, f"doc:{c.doc_id}")
+            self.doc_of[doc] = c.doc_id
+            self.infos.append(ChunkInfo(
+                chunk_id=uuid.uuid5(uuid.NAMESPACE_URL, f"chunk:{c.doc_id}:{c.char_start}"),
+                document_id=doc, version_id=doc, ordinal=ords[i],
+                chunk_type=c.kind if c.kind in CHUNK_TYPES else "PROSE",
+                section_path=tuple(c.section_path), page_start=c.page, char_start=c.char_start,
+                char_end=c.char_end, content=c.text,
+                token_count=self.count_tokens(c.index_text or c.text)))  # as the service
+        self.groups = defaultdict(list)
+        for info in sorted(self.infos, key=lambda x: (x.version_id, x.ordinal)):
+            self.groups[(info.version_id, info.section_path)].append(info)
+
+    @property
+    def gate_mode(self) -> str:
+        mode = self.retrieval["retriever"]
+        return "hybrid_rerank" if self.reranker is not None else mode
+
+
+@dataclass
+class Retrieved:
+    cands: list[dict]
+    gate: float | None
+    threshold: float | None
+    passed: bool
+
+
+def retrieve(setup: Setup, question: dict) -> Retrieved:
+    cands = retrieve_candidates(setup.index, question["question"], setup.retrieval, setup.reranker,
+                                pool=max(setup.pool, setup.retrieval.get("k", 5)),
+                                query_lang=question.get("lang"))
+    gate = cands[0]["gate"] if cands else None
+    threshold = fusion.threshold_for(setup.gate_mode, setup.thresholds)
+    return Retrieved(cands, gate, threshold, bool(cands) and fusion.passes(gate, threshold))
+
+
+def context_for(setup: Setup, retrieved: Retrieved, *, expand: bool) -> list[Source]:
+    """The sources the service would put in the prompt for these candidates (§6.4a)."""
+    k = setup.retrieval.get("k", 5)
+    hits = [setup.infos[c["idx"]] for c in retrieved.cands[:k]]
+    cfg = replace(setup.context, expand=expand)
+    # Same call as the service; with expand off the groups are ignored (the old behaviour).
+    return build_sources(hits, setup.groups, cfg)
+
+
+def _ranges(setup: Setup, sources: Sequence[Source]) -> list[_Range]:
+    return [_Range(setup.doc_of[c.document_id], c.char_start, c.char_end)
+            for s in sources for c in s.chunks]
+
+
+def evidence_in_context(setup: Setup, sources: Sequence[Source], question: dict) -> dict[str, float]:
+    """``span_recall`` (best alternative) and ``full`` (some alternative fully covered)."""
+    ranges = _ranges(setup, sources)
+    best = 0.0
+    for es in question["evidence_sets"]:
+        covered = sum(_covered(setup.spans[sid], ranges) >= SPAN_COVER for sid in es)
+        best = max(best, covered / len(es))
+    return {"span_recall": best, "full": 1.0 if best == 1.0 else 0.0}
+
+
+def _group_names(question: dict) -> list[str]:
+    return [g for g in GROUPS if g in question.get("query_types", [])]
+
+
+def _mean(values: Sequence[float]) -> float | None:
+    return round(float(np.mean(values)), 4) if values else None
+
+
+# -- coverage (no LLM) --------------------------------------------------------------------------
+
+def coverage_report(setup: Setup, questions: Sequence[dict]) -> dict[str, Any]:
+    """Evidence coverage and prompt size with ``expand`` on and off, over answerable questions.
+
+    The gate is not applied (coverage is about what the top candidates would put in the prompt);
+    ``gate_pass_rate`` says how many of these questions the gate lets through."""
+    answerable = [q for q in questions if q["answerable"] and q.get("evidence_sets")]
+    retrieved = {q["id"]: retrieve(setup, q) for q in answerable}
+    out: dict[str, Any] = {"n_questions": len(answerable), "context_k": setup.retrieval.get("k", 5),
+                           "gate_pass_rate": _mean([float(r.passed) for r in retrieved.values()]),
+                           "section_max_tokens": setup.context.section_max_tokens,
+                           "max_tokens": setup.context.max_tokens, "by_expand": {}}
+    for expand in (True, False):
+        rows: dict[str, list[dict]] = defaultdict(list)
+        for q in answerable:
+            sources = context_for(setup, retrieved[q["id"]], expand=expand)
+            row = {**evidence_in_context(setup, sources, q),
+                   "context_tokens": float(sum(s.tokens for s in sources)),
+                   "sources": float(len(sources))}
+            for name in ("all", *_group_names(q)):
+                rows[name].append(row)
+        out["by_expand"]["on" if expand else "off"] = {
+            name: {"n": len(rs), **{k: _mean([r[k] for r in rs]) for k in rs[0]}}
+            for name, rs in sorted(rows.items())}
+    return out
+
+
+# -- answers ------------------------------------------------------------------------------------
+
+JUDGE_SYSTEM = (
+    "You check whether an answer is supported by the given sources. Read the question, the "
+    "sources and the answer. Decide only from the sources, never from your own knowledge. "
+    'Reply with JSON only: {"verdict": "supported" | "partial" | "unsupported"}. '
+    '"supported": every claim of the answer is in the sources. "partial": some claims are, '
+    'some are not. "unsupported": the answer says things the sources do not.')
+VERDICT_SCORE = {"supported": 1.0, "partial": 0.5, "unsupported": 0.0}
+
+
+JUDGE_MAX_SOURCE_CHARS = 16_000  # the judge serves 8192 tokens; the answer prompt may hold 16K tokens
+
+
+def judge_sources(sources: Sequence[qa_prompt.SourceText], answer: str,
+                  max_chars: int = JUDGE_MAX_SOURCE_CHARS) -> tuple[list[str], bool]:
+    """Rendered sources that fit ``max_chars``, the ones the answer cites first; and whether any was cut.
+
+    The answer model sees up to 16K tokens of context, the independent judge only 8192, so the judge
+    reads the cited sources first and the rest while they fit. A cut is reported, not hidden."""
+    cited = {int(n) for n in re.findall(r"\[(\d+)\]", answer)}
+    ordered = sorted(sources, key=lambda t: (t.n not in cited, t.n))
+    out: list[str] = []
+    used = 0
+    for source in ordered:
+        text = qa_prompt.render_source(source)
+        room = max_chars - used
+        if len(text) > room:
+            if room > 500 and not out:  # at least a piece of the first source
+                out.append(text[:room])
+            return out, True
+        out.append(text)
+        used += len(text)
+    return out, False
+
+
+def judge_messages(question: str, sources: Sequence[qa_prompt.SourceText], answer: str,
+                   max_source_chars: int = JUDGE_MAX_SOURCE_CHARS) -> list[dict[str, str]]:
+    rendered, _cut = judge_sources(sources, answer, max_source_chars)
+    body = "\n\n".join(rendered)
+    user = f"Question:\n{question}\n\nSources:\n{body}\n\nAnswer:\n{answer}"
+    return [{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": user}]
+
+
+def parse_verdict(raw: str) -> str | None:
+    """``supported`` / ``partial`` / ``unsupported`` from the judge's reply, else ``None``."""
+    start, end = raw.find("{"), raw.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        verdict = json.loads(raw[start:end + 1]).get("verdict")
+    except (ValueError, AttributeError):
+        return None
+    return verdict if verdict in VERDICT_SCORE else None
+
+
+CORRECTNESS_SYSTEM = (
+    "You grade an answer against a reference answer written by a reviewer. Read the question, the "
+    "reference answer and the answer. Judge only whether the answer states the same facts as the "
+    "reference (numbers, dates, conditions, exceptions); ignore wording, length and citation markers "
+    "such as [1]. "
+    'Reply with JSON only: {"correctness": "correct" | "partial" | "wrong"}. '
+    '"correct": every fact of the reference is in the answer and nothing contradicts it. '
+    '"partial": some facts are missing or one condition or exception is left out. '
+    '"wrong": a key fact is missing or contradicts the reference.')
+CORRECTNESS_SCORE = {"correct": 1.0, "partial": 0.5, "wrong": 0.0}
+
+
+def correctness_messages(question: str, reference: str, answer: str) -> list[dict[str, str]]:
+    user = f"Question:\n{question}\n\nReference answer:\n{reference}\n\nAnswer:\n{answer}"
+    return [{"role": "system", "content": CORRECTNESS_SYSTEM}, {"role": "user", "content": user}]
+
+
+def parse_correctness(raw: str) -> str | None:
+    """``correct`` / ``partial`` / ``wrong`` from the judge's reply, else ``None``."""
+    start, end = raw.find("{"), raw.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        value = json.loads(raw[start:end + 1]).get("correctness")
+    except (ValueError, AttributeError):
+        return None
+    return value if value in CORRECTNESS_SCORE else None
+
+
+def fixed_subset(ids: Sequence[str], n: int, seed: str) -> list[str]:
+    """``n`` ids chosen by hash order: the same ids for the same seed, whatever the file order."""
+    keyed = sorted(ids, key=lambda i: hashlib.sha256(f"{seed}:{i}".encode()).hexdigest())
+    return sorted(keyed[:n])
+
+
+@dataclass
+class AnswerRow:
+    id: str
+    answerable: bool
+    outcome: str  # ANSWERED | NO_EVIDENCE | GENERATOR_NOT_FOUND
+    gate: float | None
+    answer: str = ""
+    cited: int = 0
+    cited_correct: int = 0  # a hit chunk of the cited source overlaps gold
+    cited_correct_source: int = 0  # any chunk of the cited source overlaps gold
+    number_warned: bool = False
+    verdict: str | None = None
+    judge_attempted: bool = False
+    correctness: str | None = None  # judge verdict against ``reference_answer``
+    correctness_attempted: bool = False
+    judge_truncated: bool = False  # the sources did not all fit the judge's context
+    judge_error: str | None = None  # the judge call failed (code): counted, not fatal
+    in_judged_subset: bool = False
+    cite_recall: float | None = None  # best evidence set: share of its spans a cited source covers
+    cite_set_complete: bool = False  # every span of one evidence set is covered by cited sources
+    context: dict[str, Any] | None = None  # question, reference and rendered sources (--dump-context)
+    context_tokens: int = 0
+    llm_calls: int = 0
+    groups: list[str] = field(default_factory=list)
+
+
+def answer_one(setup: Setup, question: dict, generate: Complete, *, expand: bool,
+               retrieved: Retrieved | None = None) -> tuple[AnswerRow, list[Source], list[qa_prompt.SourceText]]:
+    retrieved = retrieved or retrieve(setup, question)
+    row = AnswerRow(question["id"], bool(question["answerable"]), "NO_EVIDENCE", retrieved.gate,
+                    groups=_group_names(question))
+    if not retrieved.passed:
+        return row, [], []
+    sources = context_for(setup, retrieved, expand=expand)
+    texts = [qa_prompt.SourceText(n=s.n, text=s.text, title=setup.doc_of[s.document_id],
+                                  page=s.page) for s in sources]
+    bundle = qa_prompt.build_prompt(question=question["question"], sources=texts,
+                                    lang=question.get("lang") or "vi", today=EVAL_TODAY)
+    raw = generate(bundle.messages)
+    row.llm_calls = 1
+    row.context_tokens = sum(s.tokens for s in sources)
+    final, used = qa_citations.clean_markers(raw, {s.n for s in sources})
+    row.answer = final.strip()
+    if qa_checks.is_generator_not_found(row.answer):
+        row.outcome = "GENERATOR_NOT_FOUND"
+        return row, sources, texts
+    row.outcome = "ANSWERED"
+    cites = qa_citations.build_citations(sources, used)
+    gold = [setup.spans[sid] for es in question.get("evidence_sets", []) for sid in es]
+    by_n = {s.n: s for s in sources}
+    for c in cites:
+        hit = [_Range(setup.doc_of[x.document_id], x.char_start, x.char_end)
+               for x in by_n[c.n].hit_chunks]
+        whole = [_Range(setup.doc_of[x.document_id], x.char_start, x.char_end)
+                 for x in by_n[c.n].chunks]
+        row.cited += 1
+        row.cited_correct += any(_covered(span, hit) > 0 for span in gold)
+        row.cited_correct_source += any(_covered(span, whole) > 0 for span in gold)
+    held = [qa_prompt.render_source(t) for t in texts] + [question["question"],
+                                                          f"Hôm nay là {EVAL_TODAY.isoformat()}"]
+    row.number_warned = qa_checks.check_numbers(row.answer, held).warned
+    if question.get("evidence_sets"):
+        # Source level, like ``citation_precision_source``: the user is shown the whole cited section.
+        cited_hits = [_Range(setup.doc_of[x.document_id], x.char_start, x.char_end)
+                      for c in cites for x in by_n[c.n].chunks]
+        best = 0.0
+        for evidence_set in question["evidence_sets"]:
+            got = sum(_covered(setup.spans[sid], cited_hits) >= SPAN_COVER for sid in evidence_set)
+            best = max(best, got / len(evidence_set))
+        row.cite_recall = best
+        row.cite_set_complete = best == 1.0
+    return row, sources, texts
+
+
+def summarize(rows: Sequence[AnswerRow]) -> dict[str, Any]:
+    ans = [r for r in rows if r.answerable]
+    una = [r for r in rows if not r.answerable]
+
+    def rate(group: Sequence[AnswerRow], outcome: str) -> float | None:
+        return _mean([float(r.outcome == outcome) for r in group])
+
+    # Precision is over answerable questions: an unanswerable question has no gold, so any
+    # citation on it would count as wrong; those are reported apart.
+    cited = sum(r.cited for r in ans)
+    correct = sum(r.cited_correct for r in ans)
+    correct_source = sum(r.cited_correct_source for r in ans)
+    judged = [r for r in rows if r.verdict is not None]
+    graded = [r for r in rows if r.correctness is not None]
+    cite = [r for r in ans if r.outcome == "ANSWERED" and r.cite_recall is not None]
+    flagged = [VERDICT_SCORE[r.verdict] for r in judged if r.number_warned]
+    clean = [VERDICT_SCORE[r.verdict] for r in judged if not r.number_warned]
+    return {
+        "n": len(rows), "n_answerable": len(ans), "n_unanswerable": len(una),
+        "answerable": {"answered": rate(ans, "ANSWERED"),
+                       "false_refusal_gate": rate(ans, "NO_EVIDENCE"),
+                       "false_refusal_generator": rate(ans, "GENERATOR_NOT_FOUND")},
+        "unanswerable": {"correct_refusal_gate": rate(una, "NO_EVIDENCE"),
+                         "correct_refusal_generator": rate(una, "GENERATOR_NOT_FOUND"),
+                         "false_answer": rate(una, "ANSWERED")},
+        "citation_precision": round(correct / cited, 4) if cited else None,
+        "citation_precision_source": round(correct_source / cited, 4) if cited else None,
+        "citations": cited,
+        "citations_on_unanswerable": sum(r.cited for r in una),
+        "answered_without_citation": _mean(
+            [float(r.cited == 0) for r in rows if r.outcome == "ANSWERED"]),
+        "faithfulness": _mean([VERDICT_SCORE[r.verdict] for r in judged]),
+        "judged": len(judged),
+        "judge_unparsed": sum(r.judge_attempted and r.verdict is None and r.judge_error is None
+                              for r in rows),
+        "judge_errors": sum(r.judge_error is not None for r in rows),
+        "judge_truncated": sum(r.judge_truncated for r in rows),
+        "correctness": _mean([CORRECTNESS_SCORE[r.correctness] for r in graded]),
+        "correctness_judged": len(graded),
+        "correctness_unparsed": sum(r.correctness_attempted and r.correctness is None for r in rows),
+        # Over the answerable questions in the judged subset; a refusal or an unparsed verdict is
+        # not correct, so this is the share the user would actually have been answered right.
+        "correct_end_to_end": _mean([float(r.correctness == "correct")
+                                     for r in ans if r.in_judged_subset]),
+        "citation_recall": _mean([r.cite_recall for r in cite]),
+        "citation_set_complete": _mean([float(r.cite_set_complete) for r in cite]),
+        "faithfulness_number_flagged": _mean(flagged), "n_number_flagged": len(flagged),
+        "faithfulness_number_clean": _mean(clean),
+        "context_tokens_mean": _mean([float(r.context_tokens) for r in rows if r.llm_calls]),
+        "llm_calls": sum(r.llm_calls for r in rows),
+    }
+
+
+def run_ordered(fn: Callable[[Any], Any], items: Sequence[Any], concurrency: int) -> list[Any]:
+    """``[fn(i) for i in items]`` with up to ``concurrency`` calls in flight, results in input order.
+
+    The order of the results never depends on which call finishes first, so a concurrent run writes
+    the same ``per_question.jsonl`` as a sequential one (ADR-011 §2.2). The first failure, wherever it
+    is in the list, cancels the calls that have not started and is raised as in the sequential loop."""
+    if concurrency < 1:
+        raise ValueError("concurrency must be at least 1")
+    if concurrency == 1:
+        return [fn(i) for i in items]
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        futures = [pool.submit(fn, i) for i in items]
+        try:
+            wait(futures, return_when=FIRST_EXCEPTION)  # a failure anywhere stops the queue
+            return [f.result() for f in futures]
+        except BaseException:
+            for f in futures:
+                f.cancel()
+            raise
+
+
+def answers_report(setup: Setup, questions: Sequence[dict], generate: Complete, judge: Complete | None,
+                   subset: Sequence[str], concurrency: int = 1, *,
+                   grade_correctness: bool = True, dump_context: bool = False) -> tuple[dict[str, Any], list[dict]]:
+    """Run every question for ``expand`` on and off; judge only the fixed ``subset``.
+
+    ``concurrency`` > 1 sends that many questions at once. Quality metrics do not depend on it;
+    latency does (requests share the GPU), so time a run only at ``concurrency`` 1."""
+    chosen = set(subset)
+    retrieved = {q["id"]: retrieve(setup, q) for q in questions}
+    out: dict[str, Any] = {"n_questions": len(questions), "judged_subset": sorted(chosen),
+                           "concurrency": concurrency, "by_expand": {}}
+    per_question: list[dict] = []
+    verdicts: dict[bool, dict[str, str]] = {}
+    for expand in (True, False):
+        def one(q: dict, expand: bool = expand) -> AnswerRow:
+            row, _sources, texts = answer_one(setup, q, generate, expand=expand,
+                                              retrieved=retrieved[q["id"]])
+            if dump_context and row.outcome == "ANSWERED":  # what a human grader needs to see
+                row.context = {"question": q["question"], "reference_answer": q.get("reference_answer", ""),
+                               "sources": [qa_prompt.render_source(t) for t in texts]}
+            row.in_judged_subset = judge is not None and q["id"] in chosen
+            if row.in_judged_subset and row.outcome == "ANSWERED":
+                row.judge_attempted = True
+                row.judge_truncated = judge_sources(texts, row.answer)[1]
+                reference = (q.get("reference_answer") or "").strip()
+                try:
+                    row.verdict = parse_verdict(judge(judge_messages(q["question"], texts, row.answer)))
+                    if grade_correctness and reference:
+                        row.correctness_attempted = True
+                        row.correctness = parse_correctness(
+                            judge(correctness_messages(q["question"], reference, row.answer)))
+                except LLMError as exc:  # one failed judge call must not lose the whole run
+                    row.judge_error = str(exc)
+            return row
+
+        rows = run_ordered(one, questions, concurrency)
+        per_question.extend({"expand": expand, **row.__dict__} for row in rows)
+        entry = {"all": summarize(rows)}
+        for name in GROUPS:
+            sub = [r for r in rows if name in r.groups]
+            if sub:
+                entry[name] = summarize(sub)
+        out["by_expand"]["on" if expand else "off"] = entry
+        verdicts[expand] = {r.id: r.verdict for r in rows if r.verdict is not None}
+    # Faithfulness on the questions judged in both modes: on and off may answer different ones.
+    common = sorted(set(verdicts[True]) & set(verdicts[False]))
+    out["faithfulness_common"] = {
+        "n": len(common),
+        "on": _mean([VERDICT_SCORE[verdicts[True][i]] for i in common]),
+        "off": _mean([VERDICT_SCORE[verdicts[False][i]] for i in common])}
+    return out, per_question
+
+
+# -- CLI ----------------------------------------------------------------------------------------
+
+def _build_setup(args: argparse.Namespace) -> tuple[Setup, list[dict], dict[str, Any]]:
+    import yaml
+    from sopilot_ai.providers.registry import ModelsConfig
+
+    from .embedders import build_embedder
+    from .run import _chunks_for, _git_state, load_questions
+
+    cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    conf = next(c for c in cfg["configs"] if c["name"] == args.name)
+    questions, spans, data_info = load_questions(args.dataset, args.split, args.allow_draft)
+    chunks, chunk_info = _chunks_for(args.dataset, cfg.get("chunking", {}), conf["embedder"])
+    index = Index(chunks, build_embedder(conf["embedder"], ROOT / ".cache"))
+    models = ModelsConfig.load(args.models)
+    tok = conf["embedder"].get("tokenizer") or {"model": conf["embedder"]["model"],
+                                                 "revision": conf["embedder"].get("revision")}
+    from sopilot_ai.docproc.tokens import HFTokenizer
+
+    counter = HFTokenizer(tok["model"], tok.get("revision"), local_files_only=True).count
+    # The service's own ``context_k`` decides how many hits reach the prompt, so eval and the demo
+    # cannot drift apart (ADR-011 section 2.4); the config's ``k`` stays for the retrieval metrics.
+    retrieval = {**conf, "k": models.retrieval().context_k}
+    reranker = None
+    if conf.get("rerank"):  # same builder as run.py: local cross-encoder or the Modal reranker
+        from .retrievers import build_reranker
+        reranker = build_reranker(conf["rerank"])
+    setup = Setup(chunks, index, retrieval, models.retrieval().thresholds, models.context(), counter,
+                  spans, reranker=reranker)
+    provenance = {"git": _git_state(), "dataset": str(args.dataset),
+                  "dataset_info": data_info, "chunking": chunk_info, "split": args.split,
+                  "allow_draft": bool(args.allow_draft),
+                  "reviewed": bool(data_info.get("reviewed", False)),
+                  "context": {"expand_default": setup.context.expand,
+                              "context_k": setup.retrieval["k"], "config_k": conf.get("k"),
+                              "section_max_tokens": setup.context.section_max_tokens,
+                              "max_tokens": setup.context.max_tokens},
+                  "token_count": "index_text (title path + content), as ai-service stores it"}
+    return setup, questions, provenance
+
+
+# Client-side limits for a concurrent eval run against our own endpoint. The service defaults
+# (60 rpm, 200K tpm, 120 s) fit one chat user, not eight long prompts at once: the limiter counts
+# two characters per token, so eight ~16K-token prompts exceed 200K at once and the limiter raises
+# RATE_LIMITED, and a non-streamed answer under load can take longer than 120 s.
+EVAL_RPM = 600
+EVAL_TPM = 10_000_000
+EVAL_TIMEOUT_S = 900.0
+EVAL_CALL_ATTEMPTS = 3  # tries per LLM call; a failure after the last one is recorded
+EVAL_RETRY_BASE_S = 5.0
+
+
+def relax_client_limits(raw: dict[str, Any], task: str) -> dict[str, Any]:
+    """A copy of ``raw`` whose ``llm.<task>`` limits are at least the eval values (never lower)."""
+    out = copy.deepcopy(raw)
+    section = out["llm"][task]
+    section["timeout_s"] = max(float(section.get("timeout_s") or 120.0), EVAL_TIMEOUT_S)
+    for entry in section["chain"]:
+        entry["rpm"] = max(int(entry.get("rpm") or 60), EVAL_RPM)
+        entry["tpm"] = max(int(entry.get("tpm") or 200_000), EVAL_TPM)
+    return out
+
+
+def _chain_fn(models_path: Path, task: str, concurrency: int = 1) -> Complete:
+    from sopilot_ai.providers.llm import build_chain, estimate_tokens
+    from sopilot_ai.providers.registry import ModelsConfig
+
+    models = ModelsConfig.load(models_path)
+    if concurrency > 1:
+        models = ModelsConfig(raw=relax_client_limits(models.raw, task))
+    chain = build_chain(models, task)
+    for client in chain.clients:
+        # Modal answers a web request that runs longer than ~150 s with a 303 to the result URL; the
+        # service client does not follow it, which would turn every slow thinking answer into
+        # LLM_UNAVAILABLE. Eval-only: the service code is not changed here.
+        client._client.follow_redirects = True
+
+    def call(messages: Sequence[dict[str, str]]) -> str:
+        tokens = estimate_tokens(" ".join(m["content"] for m in messages))
+        # A transient failure (cold start, dropped connection) is retried with backoff; the last
+        # error keeps its cause so the report says why a call failed, not only LLM_UNAVAILABLE.
+        last: LLMError | None = None
+        for attempt in range(EVAL_CALL_ATTEMPTS):
+            try:
+                return chain.complete(messages, tokens=tokens, temperature=0.0)
+            except LLMError as exc:
+                last = exc
+                time.sleep(EVAL_RETRY_BASE_S * 2 ** attempt)
+        cause = last.__cause__ if last else None
+        raise LLMError(f"{last}: {type(cause).__name__}: {str(cause)[:120]}") from cause
+
+    return call
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = ap.add_subparsers(dest="command", required=True)
+    for name in ("coverage", "answers"):
+        p = sub.add_parser(name)
+        p.add_argument("--dataset", type=Path, required=True)
+        p.add_argument("--config", type=Path, required=True, help="retrieval config (eval/configs)")
+        p.add_argument("--name", required=True, help="entry of `configs` to use, e.g. hybrid")
+        p.add_argument("--split", choices=["dev", "test", "all"], required=True)
+        p.add_argument("--models", type=Path,
+                       default=ROOT.parent / "services/ai-service/config/models.yaml")
+        p.add_argument("--out", type=Path, default=ROOT / "results")
+        p.add_argument("--allow-draft", action="store_true")
+        if name == "answers":
+            p.add_argument("--subset-size", type=int, default=30)
+            p.add_argument("--subset-seed", default="v2-10-faithfulness")
+            p.add_argument("--judge-all", action="store_true",
+                           help="judge every answerable question, not only the fixed subset (V2-37 E)")
+            p.add_argument("--dump-context", action="store_true",
+                           help="keep question, reference and sources in per_question.jsonl "
+                                "(for hand grading; large)")
+            p.add_argument("--no-correctness", action="store_true",
+                           help="skip the correctness-against-reference call (faithfulness only)")
+            p.add_argument("--judge", choices=["judge", "generate", "none"], default="judge",
+                           help="`generate` = the answer model judges itself (stated in the report)")
+            p.add_argument("--concurrency", type=int, default=1,
+                           help="requests in flight (ADR-011 §2.2). Quality metrics come from a "
+                                "concurrent run; time latency only with 1")
+    a = ap.parse_args()
+    if a.command == "answers" and a.concurrency < 1:
+        ap.error("--concurrency must be at least 1")
+    setup, questions, provenance = _build_setup(a)
+    out = a.out / f"answers-{a.command}-{a.name}-{a.split}"
+    out.mkdir(parents=True, exist_ok=True)
+    if a.command == "coverage":
+        report = coverage_report(setup, questions)
+    else:
+        answerable_ids = [q["id"] for q in questions if q["answerable"]]
+        subset = (answerable_ids if a.judge_all
+                  else fixed_subset(answerable_ids, a.subset_size, a.subset_seed))
+        judge = None if a.judge == "none" else _chain_fn(a.models, a.judge, a.concurrency)
+        report, rows = answers_report(setup, questions, _chain_fn(a.models, "generate", a.concurrency),
+                                      judge, subset, a.concurrency,
+                                      grade_correctness=not a.no_correctness,
+                                      dump_context=a.dump_context)
+        report["client_limits_raised"] = ({"rpm": EVAL_RPM, "tpm": EVAL_TPM, "timeout_s": EVAL_TIMEOUT_S}
+                                          if a.concurrency > 1 else None)
+        report["judge"] = a.judge
+        report["judge_is_the_answer_model"] = a.judge == "generate"
+        (out / "per_question.jsonl").write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in rows), encoding="utf-8")
+    report["retrieval_config"] = setup.retrieval
+    report["provenance"] = provenance
+    (out / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False),
+                                     encoding="utf-8")
+    sys.stdout.write(str(out) + "\n")
+
+
+if __name__ == "__main__":
+    main()
