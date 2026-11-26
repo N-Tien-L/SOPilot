@@ -108,6 +108,28 @@ export interface PipelineDecision {
   templateKey?: string | null;
 }
 
+export interface StageChunkRef {
+  chunkId: string;
+  rank: number;
+  score: number;
+  source?: 'orig' | 'alt' | 'both';
+  docCodeMatch?: boolean;
+  inPool?: boolean;
+}
+
+export interface StageChunkBody {
+  chunkId: string;
+  documentId: string;
+  versionId: string;
+  title: string | null;
+  sectionPath: string[];
+  page: number | null;
+  chunkType: string;
+  tokenCount: number;
+  preview: string;
+  content: string;
+}
+
 export interface RetrievedChunkTrace {
   rank: number;
   chunkId: string;
@@ -126,6 +148,8 @@ export interface RetrievedChunkTrace {
   inContext: boolean;
   preview: string;
   content: string;
+  source?: 'orig' | 'alt' | 'both';
+  inPool?: boolean;
 }
 
 export interface ContextSourceTrace {
@@ -175,6 +199,7 @@ export interface PipelineTrace {
   hiddenReason?: HiddenReason | string | null;
   steps: PipelineStepEntry[];
   chunks: RetrievedChunkTrace[];
+  stageChunks?: Record<string, StageChunkBody>;
   promptMessages: PromptMessageTrace[] | null;
   live?: boolean;
 }

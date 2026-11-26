@@ -152,6 +152,12 @@ function ChunkExplorer({
                   </span>
                   {c.inContext ? (
                     <Badge variant="success">In context</Badge>
+                  ) : stageKind === 'chunks-rrf' && c.inPool ? (
+                    <Badge variant="info">In pool</Badge>
+                  ) : (stageKind === 'chunks-dense' || stageKind === 'chunks-bm25') && c.source === 'alt' ? (
+                    <Badge variant="info">Translated</Badge>
+                  ) : (stageKind === 'chunks-dense' || stageKind === 'chunks-bm25') && c.source === 'both' ? (
+                    <Badge variant="info">Orig + Alt</Badge>
                   ) : (
                     <Badge variant="default">Candidate</Badge>
                   )}
@@ -192,34 +198,90 @@ function ChunkExplorer({
           </div>
         </div>
 
-        <dl className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {(
-            [
-              ['Rerank', active.rerankScore, 3, 'rerankScore'],
-              ['Merged', active.fusionScore, 4, 'fusionScore'],
-              ['Dense', active.denseScore, 4, 'denseScore'],
-              ['BM25', active.bm25Score, 2, 'bm25Score'],
-            ] as const
-          ).map(([label, v, d, key]) => {
-            const isPrimary = key === metric;
-            return (
-              <div
-                key={label}
-                className={cn(
-                  'rounded-lg px-2.5 py-1.5',
-                  isPrimary ? 'border border-primary/35 bg-primary-soft/50' : 'bg-muted/60',
-                )}
-              >
-                <dt className={cn('text-xs', isPrimary ? 'font-medium text-primary-strong' : 'text-muted-foreground')}>
-                  {label}
-                </dt>
-                <dd className="font-mono text-[13px] tabular-nums text-foreground">
-                  {v !== null ? v.toFixed(d) : '–'}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
+        {stageKind === 'chunks-dense' || stageKind === 'chunks-bm25' ? (
+          <dl className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-primary/35 bg-primary-soft/50 px-2.5 py-1.5">
+              <dt className="text-xs font-medium text-primary-strong">
+                {stageKind === 'chunks-dense' ? 'Cosine similarity' : 'BM25 score'}
+              </dt>
+              <dd className="font-mono text-[13px] tabular-nums text-foreground">
+                {active[metric] !== null ? active[metric]!.toFixed(digits) : '–'}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2.5 py-1.5">
+              <dt className="text-xs text-muted-foreground">Stage rank</dt>
+              <dd className="font-mono text-[13px] tabular-nums text-foreground">
+                #{active.rank} / {sorted.length}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2.5 py-1.5">
+              <dt className="text-xs text-muted-foreground">Query branch</dt>
+              <dd className="font-mono text-[13px] text-foreground">
+                {active.source === 'alt'
+                  ? 'Translated'
+                  : active.source === 'both'
+                    ? 'Original + Translated'
+                    : 'Original'}
+              </dd>
+            </div>
+          </dl>
+        ) : stageKind === 'chunks-rrf' ? (
+          <dl className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-lg border border-primary/35 bg-primary-soft/50 px-2.5 py-1.5">
+              <dt className="text-xs font-medium text-primary-strong">Merged (RRF)</dt>
+              <dd className="font-mono text-[13px] tabular-nums text-foreground">
+                {active.fusionScore !== null ? active.fusionScore.toFixed(4) : '–'}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2.5 py-1.5">
+              <dt className="text-xs text-muted-foreground">Dense</dt>
+              <dd className="font-mono text-[13px] tabular-nums text-foreground">
+                {active.denseScore !== null ? active.denseScore.toFixed(4) : '–'}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2.5 py-1.5">
+              <dt className="text-xs text-muted-foreground">BM25</dt>
+              <dd className="font-mono text-[13px] tabular-nums text-foreground">
+                {active.bm25Score !== null ? active.bm25Score.toFixed(2) : '–'}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2.5 py-1.5">
+              <dt className="text-xs text-muted-foreground">Rerank pool</dt>
+              <dd className="font-mono text-[13px] text-foreground">
+                {active.inPool ? 'Selected' : 'Not selected'}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <dl className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(
+              [
+                ['Rerank', active.rerankScore, 3, 'rerankScore'],
+                ['Merged', active.fusionScore, 4, 'fusionScore'],
+                ['Dense', active.denseScore, 4, 'denseScore'],
+                ['BM25', active.bm25Score, 2, 'bm25Score'],
+              ] as const
+            ).map(([label, v, d, key]) => {
+              const isPrimary = key === metric;
+              return (
+                <div
+                  key={label}
+                  className={cn(
+                    'rounded-lg px-2.5 py-1.5',
+                    isPrimary ? 'border border-primary/35 bg-primary-soft/50' : 'bg-muted/60',
+                  )}
+                >
+                  <dt className={cn('text-xs', isPrimary ? 'font-medium text-primary-strong' : 'text-muted-foreground')}>
+                    {label}
+                  </dt>
+                  <dd className="font-mono text-[13px] tabular-nums text-foreground">
+                    {v !== null ? v.toFixed(d) : '–'}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        )}
 
         <p className="mt-3 text-xs text-muted-foreground">
           {active.sectionPath.length > 0 ? `${active.sectionPath.join(' › ')} · ` : ''}

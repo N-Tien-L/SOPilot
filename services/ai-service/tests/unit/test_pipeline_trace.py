@@ -149,3 +149,58 @@ def test_collector_errored_step_records_fixed_code() -> None:
     fin = collector.step_finished("guard", ctx, d, 1)
     assert fin["status"] == "blocked"
     assert fin["decision"]["ruleId"] == "guard.injection"
+
+
+def test_merge_branch_hits_dedups_and_orders_by_score() -> None:
+    from sopilot_ai.retrieval.retriever import _merge_branch_hits
+    from sopilot_ai.retrieval.search import Hit
+
+    c1, c2, c3 = uuid4(), uuid4(), uuid4()
+    doc, ver = uuid4(), uuid4()
+    orig = [Hit(c1, doc, ver, "en", 0.72), Hit(c2, doc, ver, "en", 0.65)]
+    alt = [Hit(c2, doc, ver, "en", 0.88), Hit(c3, doc, ver, "en", 0.70)]
+    merged = _merge_branch_hits(orig, alt)
+    assert [(h.chunk_id, h.rank, round(h.score, 2), h.source) for h in merged] == [
+        (c2, 1, 0.88, "both"),
+        (c1, 2, 0.72, "orig"),
+        (c3, 3, 0.70, "alt"),
+    ]
+
+
+def test_persisted_trace_strips_stage_chunks_but_keeps_stage_item_refs() -> None:
+    from sopilot_ai.retrieval.retriever import RetrievalResult
+
+    cid, mid = uuid4(), uuid4()
+    ch_id, doc_id, ver_id = uuid4(), uuid4(), uuid4()
+    ctx = QAContext(question="What is the SLA?", today=date(2026, 11, 24))
+    ctx.retrieval = RetrievalResult(
+        mode="hybrid_rerank", candidates=[], gate_score=0.8, threshold=0.3, passed=True,
+    )
+    ctx.stage_chunks = {
+        str(ch_id): {
+            "chunkId": str(ch_id), "documentId": str(doc_id), "versionId": str(ver_id),
+            "title": "Secret SOP", "sectionPath": ["1"], "page": 1, "chunkType": "SECTION",
+            "tokenCount": 20, "preview": "Top secret body", "content": "Top secret body",
+        },
+    }
+    collector = TraceCollector(message_id=mid, conversation_id=cid, mode="hybrid_rerank", lang="en")
+    collector.record_phase("retrieve_dense", "passed", 12, {
+        "denseCount": 1, "altDenseCount": 0, "uniqueCount": 1, "topScore": 0.91,
+        "items": [{"chunkId": str(ch_id), "rank": 1, "score": 0.91, "source": "orig"}],
+    })
+    rg_evt = collector.step_finished("retrieve_and_gate", ctx, None, 30)
+    assert str(ch_id) in rg_evt["detail"]["stageChunks"]
+
+    persisted = collector.to_persisted_json(outcome="ANSWERED", refusal_reason=None, total_ms=42)
+    assert "Top secret body" not in json.dumps(persisted)
+    dense_step = next(s for s in persisted["steps"] if s["step"] == "retrieve_dense")
+    assert dense_step["detail"]["items"] == [
+        {"chunkId": str(ch_id), "rank": 1, "score": 0.91, "source": "orig"},
+    ]
+    rg_step = next(s for s in persisted["steps"] if s["step"] == "retrieve_and_gate")
+    assert "stageChunks" not in rg_step["detail"]
+    assert "chunks" not in rg_step["detail"]
+
+    hidden = strip_document_data(persisted, reason="DOCUMENT_DELETED")
+    assert hidden["stageChunks"] == {}
+    assert str(ch_id) not in json.dumps(hidden)

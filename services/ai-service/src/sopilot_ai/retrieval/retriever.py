@@ -82,6 +82,48 @@ def _ms(started: float) -> int:
     return round((time.monotonic() - started) * 1000)
 
 
+@dataclass(frozen=True)
+class StageHit:
+    """One chunk's rank and score within an individual retrieval stage (dense, sparse or RRF)."""
+
+    chunk_id: UUID
+    document_id: UUID
+    version_id: UUID
+    score: float
+    rank: int
+    source: str = "orig"  # "orig" | "alt" | "both"
+    doc_code_match: bool = False
+    in_pool: bool = False
+
+
+def _merge_branch_hits(orig: list[search.Hit], alt: list[search.Hit]) -> list[StageHit]:
+    """Deduplicate original + translated branch hits by chunk_id, keeping the higher score."""
+    merged: dict[UUID, tuple[search.Hit, str]] = {}
+    for h in orig:
+        prev = merged.get(h.chunk_id)
+        if prev is None or h.score > prev[0].score:
+            merged[h.chunk_id] = (h, "orig")
+    for h in alt:
+        prev = merged.get(h.chunk_id)
+        if prev is None:
+            merged[h.chunk_id] = (h, "alt")
+        else:
+            best = h if h.score > prev[0].score else prev[0]
+            merged[h.chunk_id] = (best, "both")
+    ordered = sorted(merged.values(), key=lambda pair: (-pair[0].score, str(pair[0].chunk_id)))
+    return [
+        StageHit(
+            chunk_id=h.chunk_id,
+            document_id=h.document_id,
+            version_id=h.version_id,
+            score=float(h.score),
+            rank=idx,
+            source=src,
+        )
+        for idx, (h, src) in enumerate(ordered, start=1)
+    ]
+
+
 @dataclass
 class RetrievalResult:
     mode: str  # dense | bm25 | hybrid | hybrid_rerank (the gate's mode)
@@ -92,6 +134,9 @@ class RetrievalResult:
     hits: list[Candidate] = field(default_factory=list)  # first context_k when passed
     doc_codes: set[str] = field(default_factory=set)
     stats: RetrievalStats = field(default_factory=RetrievalStats)
+    dense_stage: list[StageHit] = field(default_factory=list)
+    sparse_stage: list[StageHit] = field(default_factory=list)
+    rrf_stage: list[StageHit] = field(default_factory=list)
 
 
 class Retriever:
@@ -138,6 +183,7 @@ class Retriever:
         alt_vec: np.ndarray | None = None
         dense_hits: list[search.Hit] = []
         alt_dense: list[search.Hit] = []
+        dense_stage: list[StageHit] = []
         dense_ms = 0
         if base_mode in ("dense", "hybrid"):
             emit_phase("retrieve_dense", "running")
@@ -150,13 +196,24 @@ class Retriever:
                 alt_dense = await search.dense(conn, principal, alt_vec, model=model,
                                                revision=revision, pool=cfg.candidate_pool)
             dense_ms = _ms(t0)
-            top_dense = max((h.score for h in [*dense_hits, *alt_dense]), default=None)
+            dense_stage = _merge_branch_hits(dense_hits, alt_dense)
+            top_dense = dense_stage[0].score if dense_stage else None
             emit_phase("retrieve_dense", "passed", dense_ms, {
                 "model": model,
                 "reusedVector": query_vector is not None,
                 "denseCount": len(dense_hits),
                 "altDenseCount": len(alt_dense),
+                "uniqueCount": len(dense_stage),
                 "topScore": round(float(top_dense), 4) if top_dense is not None else None,
+                "items": [
+                    {
+                        "chunkId": str(h.chunk_id),
+                        "rank": h.rank,
+                        "score": round(h.score, 4),
+                        "source": h.source,
+                    }
+                    for h in dense_stage
+                ],
             })
         else:
             emit_phase("retrieve_dense", "skipped", 0, {
@@ -166,6 +223,7 @@ class Retriever:
         # Phase 2: Sparse Lexical Search (BM25)
         bm25_hits: list[search.Hit] = []
         alt_bm25: list[search.Hit] = []
+        sparse_stage: list[StageHit] = []
         bm25_ms = 0
         if base_mode in ("bm25", "hybrid"):
             emit_phase("retrieve_sparse", "running")
@@ -176,13 +234,24 @@ class Retriever:
                 alt_bm25 = await search.bm25(conn, principal, tokenize(alt.text, role="query"),
                                              pool=cfg.candidate_pool)
             bm25_ms = _ms(t0)
-            top_bm25 = max((h.score for h in [*bm25_hits, *alt_bm25]), default=None)
+            sparse_stage = _merge_branch_hits(bm25_hits, alt_bm25)
+            top_bm25 = sparse_stage[0].score if sparse_stage else None
             emit_phase("retrieve_sparse", "passed", bm25_ms, {
                 "bm25Count": len(bm25_hits),
                 "altBm25Count": len(alt_bm25),
+                "uniqueCount": len(sparse_stage),
                 "terms": q_terms[:20],
                 "termCount": len(q_terms),
                 "topScore": round(float(top_bm25), 4) if top_bm25 is not None else None,
+                "items": [
+                    {
+                        "chunkId": str(h.chunk_id),
+                        "rank": h.rank,
+                        "score": round(h.score, 4),
+                        "source": h.source,
+                    }
+                    for h in sparse_stage
+                ],
             })
         else:
             emit_phase("retrieve_sparse", "skipped", 0, {
@@ -262,8 +331,22 @@ class Retriever:
             # than gate on a missing score (the startup check reports such versions).
             pool = [c for c in pool if c.dense_score is not None]
 
+        rrf_stage: list[StageHit] = []
         rrf_ms = _ms(t_rrf) if base_mode == "hybrid" else 0
         if base_mode == "hybrid":
+            pool_ids = {c.chunk_id for c in pool}
+            rrf_stage = [
+                StageHit(
+                    chunk_id=k,
+                    document_id=cands[k].document_id,
+                    version_id=cands[k].version_id,
+                    score=float(cands[k].fusion_score or 0.0),
+                    rank=idx,
+                    doc_code_match=cands[k].doc_code_match,
+                    in_pool=k in pool_ids,
+                )
+                for idx, k in enumerate(order, start=1)
+            ]
             emit_phase("retrieve_rrf", "passed", rrf_ms, {
                 "denseCount": len(dense_hits) + len(alt_dense),
                 "bm25Count": len(bm25_hits) + len(alt_bm25),
@@ -274,6 +357,16 @@ class Retriever:
                 "docCodes": sorted(codes),
                 "docCodeMatches": sum(1 for c in pool if c.doc_code_match),
                 "docCodeBoost": cfg.doc_code_boost,
+                "items": [
+                    {
+                        "chunkId": str(h.chunk_id),
+                        "rank": h.rank,
+                        "score": round(h.score, 4),
+                        "docCodeMatch": h.doc_code_match,
+                        "inPool": h.in_pool,
+                    }
+                    for h in rrf_stage
+                ],
             })
         else:
             emit_phase("retrieve_rrf", "skipped", 0, {
@@ -345,4 +438,4 @@ class Retriever:
         return RetrievalResult(
             mode=gate_mode, candidates=pool, gate_score=gate, threshold=threshold,
             passed=passed, hits=pool[:cfg.context_k] if passed else [], doc_codes=codes,
-            stats=stats)
+            stats=stats, dense_stage=dense_stage, sparse_stage=sparse_stage, rrf_stage=rrf_stage)

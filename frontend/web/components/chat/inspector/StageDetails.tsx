@@ -9,7 +9,7 @@ import type {
   PromptMessageTrace,
   RetrievedChunkTrace,
 } from '@/lib/api/types';
-import { formatMs, type AggregatedStage } from '@/lib/chat/pipeline-trace';
+import { formatMs, resolveStageChunks, type AggregatedStage } from '@/lib/chat/pipeline-trace';
 import { cn } from '@/lib/utils';
 import type { InspectorModalTarget } from './InspectorDetailModal';
 
@@ -359,7 +359,7 @@ function buildStageDetails(
       if (d.reusedVector === true) {
         details.push({ kind: 'kv', label: 'Embedding vector', value: 'Reused from router', tone: 'success' });
       }
-      const denseChunks = trace.chunks.filter((c) => c.denseScore !== null);
+      const denseChunks = resolveStageChunks('dense', trace, d);
       if (denseChunks.length > 0) {
         modalTarget = { kind: 'chunks-dense', chunks: denseChunks };
       }
@@ -393,7 +393,7 @@ function buildStageDetails(
           mono: true,
         });
       }
-      const bm25Chunks = trace.chunks.filter((c) => c.bm25Score !== null);
+      const bm25Chunks = resolveStageChunks('bm25', trace, s);
       if (bm25Chunks.length > 0) {
         modalTarget = { kind: 'chunks-bm25', chunks: bm25Chunks };
       }
@@ -434,7 +434,7 @@ function buildStageDetails(
       if (docCodes.length > 0) {
         details.push({ kind: 'chips', label: 'Matched codes', items: docCodes, mono: true });
       }
-      const rrfChunks = trace.chunks.filter((c) => c.fusionScore !== null);
+      const rrfChunks = resolveStageChunks('rrf', trace, rrf);
       if (rrfChunks.length > 0) {
         modalTarget = { kind: 'chunks-rrf', chunks: rrfChunks };
       }

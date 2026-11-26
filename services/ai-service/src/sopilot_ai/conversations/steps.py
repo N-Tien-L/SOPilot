@@ -109,6 +109,7 @@ class QAContext(PipelineContext):
     emit_trace: bool = False
     on_retrieval_phase: PhaseHook | None = field(default=None, repr=False)
     retrieved_chunks: list[dict[str, Any]] = field(default_factory=list)
+    stage_chunks: dict[str, dict[str, Any]] = field(default_factory=dict)
     context_budget_used: int | None = None
     invalid_citations_removed: int = 0
     tokens_in: int | None = None
@@ -420,35 +421,48 @@ class RetrieveStep:
             if not result.passed:
                 nearest_ids = list(dict.fromkeys(
                     x.document_id for x in result.candidates))[:NEAREST_DOCUMENTS]
+            all_stage_hits = [*result.dense_stage, *result.sparse_stage, *result.rrf_stage]
             cand_doc_ids = list(dict.fromkeys([
                 *(x.document_id for x in result.candidates),
+                *(x.document_id for x in all_stage_hits),
                 *nearest_ids,
             ]))
+            all_chunk_ids = list(dict.fromkeys([
+                *(x.chunk_id for x in result.candidates),
+                *(x.chunk_id for x in all_stage_hits),
+            ]))
             titles = await search.document_titles(conn, c.principal, cand_doc_ids)
-            loaded = await context_store.load_chunks(
-                conn, c.principal, [x.chunk_id for x in result.candidates])
+            loaded = await context_store.load_chunks(conn, c.principal, all_chunk_ids)
         c.timings["retrieval"] = _ms(start)
         c.retrieval = result
         hit_ids = {h.chunk_id for h in result.hits}
         by_chunk_id = {ch.chunk_id: ch for ch in loaded}
+        c.stage_chunks = {}
+        for ch in loaded:
+            clean_preview = " ".join(ch.content.split())
+            preview = (clean_preview[:180].rstrip() + "…"
+                       if len(clean_preview) > 180 else clean_preview)
+            c.stage_chunks[str(ch.chunk_id)] = {
+                "chunkId": str(ch.chunk_id),
+                "documentId": str(ch.document_id),
+                "versionId": str(ch.version_id),
+                "title": titles.get(ch.document_id),
+                "sectionPath": list(ch.section_path),
+                "page": ch.page_start,
+                "chunkType": ch.chunk_type,
+                "tokenCount": ch.token_count,
+                "preview": preview,
+                "content": ch.content,
+            }
         c.retrieved_chunks = []
         for cand in result.candidates:
             ch = by_chunk_id.get(cand.chunk_id)
             if ch is None:
                 continue
-            clean_preview = " ".join(ch.content.split())
-            preview = (clean_preview[:180].rstrip() + "…"
-                       if len(clean_preview) > 180 else clean_preview)
+            body = c.stage_chunks[str(cand.chunk_id)]
             c.retrieved_chunks.append({
                 "rank": cand.rank,
-                "chunkId": str(cand.chunk_id),
-                "documentId": str(cand.document_id),
-                "versionId": str(cand.version_id),
-                "title": titles.get(cand.document_id),
-                "sectionPath": list(ch.section_path),
-                "page": ch.page_start,
-                "chunkType": ch.chunk_type,
-                "tokenCount": ch.token_count,
+                **body,
                 "denseScore": round(cand.dense_score, 4) if cand.dense_score is not None else None,
                 "bm25Score": round(cand.bm25_score, 4) if cand.bm25_score is not None else None,
                 "fusionScore": (round(cand.fusion_score, 4)
@@ -457,8 +471,6 @@ class RetrieveStep:
                                 if cand.rerank_score is not None else None),
                 "docCodeMatch": cand.doc_code_match,
                 "inContext": cand.chunk_id in hit_ids,
-                "preview": preview,
-                "content": ch.content,
             })
         c.route_info["gate"] = {"score": result.gate_score, "threshold": result.threshold,
                                 "mode": result.mode, "passed": result.passed}

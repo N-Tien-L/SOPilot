@@ -315,6 +315,7 @@ def _step_summary_and_detail(
             "docCodes": sorted(r.doc_codes),
             "nearestDocuments": list(ctx.nearest),
             "chunks": list(ctx.retrieved_chunks),
+            "stageChunks": dict(ctx.stage_chunks),
         }
         score_txt = f"{r.gate_score:.3f}" if r.gate_score is not None else "n/a"
         thr_txt = f"{r.threshold:.3f}" if r.threshold is not None else "n/a"
@@ -557,6 +558,7 @@ class TraceCollector:
             detail = dict(entry.get("detail") or {})
             if entry.get("step") == "retrieve_and_gate":
                 detail.pop("chunks", None)
+                detail.pop("stageChunks", None)
             elif entry.get("step") == "build_prompt":
                 detail.pop("messages", None)  # stored once at top-level promptMessages
             stored_steps.append({**entry, "detail": detail})
@@ -634,6 +636,7 @@ def strip_document_data(trace: dict[str, Any], *, reason: str) -> dict[str, Any]
         "hiddenReason": reason,
         "steps": safe_steps,
         "chunks": [],
+        "stageChunks": {},
         "promptMessages": None,
     }
 

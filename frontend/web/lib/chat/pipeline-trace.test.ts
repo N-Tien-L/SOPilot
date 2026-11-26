@@ -6,6 +6,7 @@ import {
   createInitialTrace,
   finalizeAbortedTrace,
   reducePipelineTrace,
+  resolveStageChunks,
 } from './pipeline-trace';
 
 describe('decodeStreamEvent for step events', () => {
@@ -148,5 +149,111 @@ describe('reducePipelineTrace & aggregateStages', () => {
     const stages = aggregateStages(stopped);
     expect(stages[7].status).toBe('error');
     expect(stages[7].summary).toBe('Stopped by user');
+  });
+
+  it('resolves independent per-stage candidate lists for dense, sparse and RRF', () => {
+    const makeBody = (id: string, title: string) => ({
+      chunkId: id,
+      documentId: `doc-${id}`,
+      versionId: `ver-${id}`,
+      title,
+      sectionPath: ['1'],
+      page: 1,
+      chunkType: 'SECTION',
+      tokenCount: 80,
+      preview: `Preview ${id}`,
+      content: `Content ${id}`,
+    });
+    const trace = run([
+      {
+        type: 'step',
+        step: 'retrieve_dense',
+        stage: 'retrieve_dense',
+        status: 'passed',
+        durationMs: 12,
+        detail: {
+          items: [
+            { chunkId: 'd-only', rank: 1, score: 0.91, source: 'orig' },
+            { chunkId: 'shared', rank: 2, score: 0.77, source: 'both' },
+          ],
+        },
+      },
+      {
+        type: 'step',
+        step: 'retrieve_sparse',
+        stage: 'retrieve_sparse',
+        status: 'passed',
+        durationMs: 8,
+        detail: {
+          items: [
+            { chunkId: 's-only', rank: 1, score: 11.4, source: 'orig' },
+            { chunkId: 'shared', rank: 2, score: 6.2, source: 'alt' },
+          ],
+        },
+      },
+      {
+        type: 'step',
+        step: 'retrieve_rrf',
+        stage: 'retrieve_rrf',
+        status: 'passed',
+        durationMs: 2,
+        detail: {
+          items: [
+            { chunkId: 'shared', rank: 1, score: 0.0322, docCodeMatch: true, inPool: true },
+            { chunkId: 'd-only', rank: 2, score: 0.0163, docCodeMatch: false, inPool: false },
+            { chunkId: 's-only', rank: 3, score: 0.0163, docCodeMatch: false, inPool: false },
+          ],
+        },
+      },
+      {
+        type: 'step',
+        step: 'retrieve_and_gate',
+        stage: 'retrieve_rerank',
+        status: 'passed',
+        durationMs: 50,
+        detail: {
+          chunks: [
+            {
+              rank: 1,
+              ...makeBody('shared', 'Shared SOP'),
+              denseScore: 0.77,
+              bm25Score: 6.2,
+              fusionScore: 0.0322,
+              rerankScore: 0.95,
+              docCodeMatch: true,
+              inContext: true,
+            },
+          ],
+          stageChunks: {
+            shared: makeBody('shared', 'Shared SOP'),
+            'd-only': makeBody('d-only', 'Dense Only SOP'),
+            's-only': makeBody('s-only', 'Sparse Only SOP'),
+          },
+        },
+      },
+    ]);
+
+    const denseDetail = trace.steps.find((s) => s.step === 'retrieve_dense')?.detail;
+    const sparseDetail = trace.steps.find((s) => s.step === 'retrieve_sparse')?.detail;
+    const rrfDetail = trace.steps.find((s) => s.step === 'retrieve_rrf')?.detail;
+
+    const dense = resolveStageChunks('dense', trace, denseDetail);
+    expect(dense.map((c) => [c.chunkId, c.denseScore, c.source])).toEqual([
+      ['d-only', 0.91, 'orig'],
+      ['shared', 0.77, 'both'],
+    ]);
+
+    const sparse = resolveStageChunks('bm25', trace, sparseDetail);
+    expect(sparse.map((c) => [c.chunkId, c.bm25Score, c.source])).toEqual([
+      ['s-only', 11.4, 'orig'],
+      ['shared', 6.2, 'alt'],
+    ]);
+
+    const rrf = resolveStageChunks('rrf', trace, rrfDetail);
+    expect(rrf.map((c) => [c.chunkId, c.fusionScore, c.denseScore, c.bm25Score, c.inPool])).toEqual([
+      ['shared', 0.0322, 0.77, 6.2, true],
+      ['d-only', 0.0163, 0.91, null, false],
+      ['s-only', 0.0163, null, 11.4, false],
+    ]);
   });
 });

@@ -172,6 +172,14 @@ SELECT rr.rank, rr.chunk_id, rr.dense_score, rr.bm25_score, rr.fusion_score,
  WHERE rr.workspace_id = :wid AND rr.message_id = :mid
  ORDER BY rr.rank
 """)
+_STAGE_CHUNKS = text(f"""
+WITH {allowed_cte()}
+SELECT c.id AS chunk_id, c.document_id, c.version_id, c.chunk_type, c.section_path,
+       c.page_start, c.token_count, c.content, a.title
+  FROM rag.chunks c
+  JOIN allowed a ON a.document_id = c.document_id AND a.active_version_id = c.version_id
+ WHERE c.workspace_id = :wid AND c.id = ANY (CAST(:ids AS uuid[]))
+""")
 
 
 def _json(value: Any) -> str | None:
@@ -489,6 +497,61 @@ async def message_trace(conn: AsyncConnection, principal: Principal,
 
     if trace_row is not None and isinstance(trace_row.trace, dict):
         data = dict(trace_row.trace)
+        stage_chunks: dict[str, dict[str, Any]] = {
+            c["chunkId"]: {
+                "chunkId": c["chunkId"],
+                "documentId": c["documentId"],
+                "versionId": c["versionId"],
+                "title": c["title"],
+                "sectionPath": c["sectionPath"],
+                "page": c["page"],
+                "chunkType": c["chunkType"],
+                "tokenCount": c["tokenCount"],
+                "preview": c["preview"],
+                "content": c["content"],
+            }
+            for c in chunks
+        }
+        missing_ids: list[str] = []
+        seen_ids = set(stage_chunks)
+        for step in data.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            if step.get("step") not in ("retrieve_dense", "retrieve_sparse", "retrieve_rrf"):
+                continue
+            detail = step.get("detail")
+            if not isinstance(detail, dict):
+                continue
+            for item in detail.get("items") or []:
+                if not isinstance(item, dict):
+                    continue
+                cid = item.get("chunkId")
+                if isinstance(cid, str) and cid not in seen_ids:
+                    try:
+                        UUID(cid)
+                    except ValueError:
+                        continue
+                    seen_ids.add(cid)
+                    missing_ids.append(cid)
+        if missing_ids:
+            extra_rows = (await conn.execute(_STAGE_CHUNKS, {
+                **access_params(principal), "ids": missing_ids})).all()
+            for r in extra_rows:
+                clean = " ".join(r.content.split())
+                preview = clean[:180].rstrip() + "…" if len(clean) > 180 else clean
+                cid_str = str(r.chunk_id)
+                stage_chunks[cid_str] = {
+                    "chunkId": cid_str,
+                    "documentId": str(r.document_id),
+                    "versionId": str(r.version_id),
+                    "title": r.title,
+                    "sectionPath": list(r.section_path or []),
+                    "page": r.page_start,
+                    "chunkType": r.chunk_type,
+                    "tokenCount": r.token_count,
+                    "preview": preview,
+                    "content": r.content,
+                }
         data.update({
             "messageId": str(message_id),
             "conversationId": str(conversation_id),
@@ -496,6 +559,7 @@ async def message_trace(conn: AsyncConnection, principal: Principal,
             "hidden": False,
             "hiddenReason": None,
             "chunks": chunks,
+            "stageChunks": stage_chunks,
         })
         return data
 

@@ -9,6 +9,8 @@ import type {
   PipelineTrace,
   PromptMessageTrace,
   RetrievedChunkTrace,
+  StageChunkBody,
+  StageChunkRef,
   StreamEvent,
 } from '@/lib/api/types';
 import type { StreamEnd } from '@/lib/sse/stream';
@@ -61,6 +63,7 @@ export function createInitialTrace(question: string): PipelineTrace {
     hiddenReason: null,
     steps: [],
     chunks: [],
+    stageChunks: {},
     promptMessages: null,
     live: true,
   };
@@ -85,9 +88,97 @@ function extractChunks(detail: Record<string, unknown> | undefined): RetrievedCh
   return detail.chunks as RetrievedChunkTrace[];
 }
 
+function extractStageChunks(detail: Record<string, unknown> | undefined): Record<string, StageChunkBody> | null {
+  if (!detail || typeof detail.stageChunks !== 'object' || detail.stageChunks === null || Array.isArray(detail.stageChunks)) {
+    return null;
+  }
+  return detail.stageChunks as Record<string, StageChunkBody>;
+}
+
 function extractPromptMessages(detail: Record<string, unknown> | undefined): PromptMessageTrace[] | null {
   if (!detail || !Array.isArray(detail.messages)) return null;
   return detail.messages as PromptMessageTrace[];
+}
+
+function parseStageRefs(raw: unknown): StageChunkRef[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StageChunkRef[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r.chunkId !== 'string' || typeof r.score !== 'number') continue;
+    out.push({
+      chunkId: r.chunkId,
+      rank: typeof r.rank === 'number' ? r.rank : out.length + 1,
+      score: r.score,
+      source: r.source === 'orig' || r.source === 'alt' || r.source === 'both' ? r.source : undefined,
+      docCodeMatch: r.docCodeMatch === true,
+      inPool: r.inPool === true,
+    });
+  }
+  return out;
+}
+
+/**
+ * Hydrate a retrieval stage's own candidate list (dense, bm25, or rrf) from its `detail.items`
+ * using `trace.stageChunks` (with fallback to `trace.chunks` for pre-upgrade stored traces).
+ */
+export function resolveStageChunks(
+  kind: 'dense' | 'bm25' | 'rrf',
+  trace: PipelineTrace,
+  stepDetail?: Record<string, unknown>,
+): RetrievedChunkTrace[] {
+  const refs = parseStageRefs(stepDetail?.items);
+  if (refs.length === 0) {
+    if (kind === 'dense') return trace.chunks.filter((c) => c.denseScore !== null);
+    if (kind === 'bm25') return trace.chunks.filter((c) => c.bm25Score !== null);
+    return trace.chunks.filter((c) => c.fusionScore !== null);
+  }
+
+  const catalog = trace.stageChunks ?? {};
+  const byChunkId = new Map<string, RetrievedChunkTrace>();
+  const inContextIds = new Set<string>();
+  for (const c of trace.chunks) {
+    byChunkId.set(c.chunkId, c);
+    if (c.inContext) inContextIds.add(c.chunkId);
+  }
+
+  const denseScores = new Map<string, number>();
+  const bm25Scores = new Map<string, number>();
+  if (kind === 'rrf') {
+    const denseStep = trace.steps.find((s) => s.step === 'retrieve_dense');
+    for (const r of parseStageRefs(denseStep?.detail?.items)) denseScores.set(r.chunkId, r.score);
+    const sparseStep = trace.steps.find((s) => s.step === 'retrieve_sparse');
+    for (const r of parseStageRefs(sparseStep?.detail?.items)) bm25Scores.set(r.chunkId, r.score);
+  }
+
+  const resolved: RetrievedChunkTrace[] = [];
+  for (const ref of refs) {
+    const body = catalog[ref.chunkId] ?? byChunkId.get(ref.chunkId);
+    if (!body) continue;
+    resolved.push({
+      rank: ref.rank,
+      chunkId: body.chunkId,
+      documentId: body.documentId,
+      versionId: body.versionId,
+      title: body.title,
+      sectionPath: body.sectionPath,
+      page: body.page,
+      chunkType: body.chunkType,
+      tokenCount: body.tokenCount,
+      denseScore: kind === 'dense' ? ref.score : kind === 'rrf' ? (denseScores.get(ref.chunkId) ?? null) : null,
+      bm25Score: kind === 'bm25' ? ref.score : kind === 'rrf' ? (bm25Scores.get(ref.chunkId) ?? null) : null,
+      fusionScore: kind === 'rrf' ? ref.score : null,
+      rerankScore: null,
+      docCodeMatch: Boolean(ref.docCodeMatch),
+      inContext: inContextIds.has(ref.chunkId),
+      preview: body.preview,
+      content: body.content,
+      source: ref.source,
+      inPool: ref.inPool,
+    });
+  }
+  return resolved;
 }
 
 export function reducePipelineTrace(trace: PipelineTrace, event: StreamEvent): PipelineTrace {
@@ -112,9 +203,13 @@ export function reducePipelineTrace(trace: PipelineTrace, event: StreamEvent): P
       };
       const steps = upsertStep(trace.steps, entry);
       const chunks = event.step === 'retrieve_and_gate' ? (extractChunks(event.detail) ?? trace.chunks) : trace.chunks;
+      const stageChunks =
+        event.step === 'retrieve_and_gate'
+          ? (extractStageChunks(event.detail) ?? trace.stageChunks)
+          : trace.stageChunks;
       const promptMessages =
         event.step === 'build_prompt' ? (extractPromptMessages(event.detail) ?? trace.promptMessages) : trace.promptMessages;
-      return { ...trace, steps, chunks, promptMessages };
+      return { ...trace, steps, chunks, stageChunks, promptMessages };
     }
     case 'reasoning': {
       const existing = trace.steps.find((s) => s.step === 'generate_and_stream');
