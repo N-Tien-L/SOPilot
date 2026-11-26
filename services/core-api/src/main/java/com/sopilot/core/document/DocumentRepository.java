@@ -108,11 +108,11 @@ public class DocumentRepository {
 
     /** Locks the document row, serializing concurrent version changes of the same document. */
     public Optional<DocumentHead> lockDocument(UUID workspaceId, UUID documentId) {
-        return jdbc.query("SELECT id, title, visibility, access_revision, current_version_id, latest_version_id, "
+        return jdbc.query("SELECT id, title, title_source, visibility, access_revision, current_version_id, latest_version_id, "
                         + "owner_department_id "
                         + "FROM core.documents WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE",
                 (rs, i) -> new DocumentHead(rs.getObject("id", UUID.class), rs.getString("title"),
-                        rs.getString("visibility"), rs.getLong("access_revision"),
+                        rs.getString("title_source"), rs.getString("visibility"), rs.getLong("access_revision"),
                         rs.getObject("current_version_id", UUID.class), rs.getObject("latest_version_id", UUID.class),
                         rs.getObject("owner_department_id", UUID.class)),
                 workspaceId, documentId).stream().findFirst();
@@ -313,13 +313,16 @@ public class DocumentRepository {
     }
 
     /** Makes {@code versionId} the Q&A version and supersedes every older version, FAILED ones included. */
-    public List<String> activate(UUID workspaceId, UUID documentId, UUID versionId, int versionNo, String detectedLanguage) {
+    public List<String> activate(UUID workspaceId, UUID documentId, UUID versionId, int versionNo,
+                                 String detectedLanguage, String syncedTitle) {
         List<String> superseded = jdbc.queryForList("UPDATE core.document_versions SET status = 'SUPERSEDED' "
                 + "WHERE workspace_id = ? AND document_id = ? AND version_no < ? AND status <> 'SUPERSEDED' RETURNING object_key",
                 String.class, workspaceId, documentId, versionNo);
         jdbc.update("UPDATE core.documents SET current_version_id = ?, "
+                        + "title = CASE WHEN title_source = 'SYSTEM' AND ?::text IS NOT NULL THEN ? ELSE title END, "
                         + "language = CASE WHEN language_source = 'SYSTEM' AND ?::text IS NOT NULL THEN ? ELSE language END "
-                        + "WHERE workspace_id = ? AND id = ?", versionId, detectedLanguage, detectedLanguage, workspaceId, documentId);
+                        + "WHERE workspace_id = ? AND id = ?",
+                versionId, syncedTitle, syncedTitle, detectedLanguage, detectedLanguage, workspaceId, documentId);
         return superseded;
     }
 
@@ -438,8 +441,8 @@ public class DocumentRepository {
     public record FieldSources(String title, String description, String category, String tags, String language) {
     }
 
-    public record DocumentHead(UUID id, String title, String visibility, long accessRevision, UUID currentVersionId,
-                               UUID latestVersionId, UUID ownerDepartmentId) {
+    public record DocumentHead(UUID id, String title, String titleSource, String visibility, long accessRevision,
+                               UUID currentVersionId, UUID latestVersionId, UUID ownerDepartmentId) {
     }
 
     /**

@@ -235,8 +235,9 @@ public class DocumentService {
             docs.insertVersion(versionId, wid, documentId, versionNo, file.originalName(), file.type().mimeType(),
                     file.type().name(), file.size(), file.sha256(), objectKey, principal.userId());
             docs.setLatestVersion(wid, documentId, versionId);
+            String ingestTitle = "SYSTEM".equals(head.titleSource()) ? titleFrom(file.originalName()) : head.title();
             outbox.enqueue(wid, documentId, OutboxEvent.Type.INGEST_REQUESTED,
-                    ingestPayload(wid, documentId, versionId, versionNo, objectKey, file, 0, head.title(),
+                    ingestPayload(wid, documentId, versionId, versionNo, objectKey, file, 0, ingestTitle,
                             head.visibility(), docs.departmentIds(wid, documentId), head.accessRevision(),
                             suggestSpec(wid)));
             audit.record(principal, "DOCUMENT_VERSION_UPLOADED", "DOCUMENT", documentId,
@@ -264,9 +265,10 @@ public class DocumentService {
             docs.resetForRetry(wid, latest.id(), attempt);
             Validated file = new Validated(UploadValidator.FileType.valueOf(latest.fileType()), latest.originalName(),
                     latest.sha256(), latest.sizeBytes());
+            String ingestTitle = "SYSTEM".equals(head.titleSource()) ? titleFrom(latest.originalName()) : head.title();
             outbox.enqueue(wid, documentId, OutboxEvent.Type.INGEST_REQUESTED,
                     ingestPayload(wid, documentId, latest.id(), latest.versionNo(), latest.objectKey(), file, attempt,
-                            head.title(), head.visibility(), docs.departmentIds(wid, documentId),
+                            ingestTitle, head.visibility(), docs.departmentIds(wid, documentId),
                             head.accessRevision(), suggestSpec(wid)));
             audit.record(principal, "DOCUMENT_RETRY_REQUESTED", "DOCUMENT", documentId,
                     details(head.ownerDepartmentId(), locked.acting(), "versionId", latest.id(), "attempt", attempt));

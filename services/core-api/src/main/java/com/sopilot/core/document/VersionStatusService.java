@@ -126,7 +126,7 @@ public class VersionStatusService {
                 extracted == null ? null : parseDate(extracted.effectiveDate()),
                 u.warningCodes() == null ? new String[0] : u.warningCodes().toArray(String[]::new));
         List<String> supersededKeys = docs.activate(wid, version.documentId(), version.id(), version.versionNo(),
-                u.detectedLanguage());
+                u.detectedLanguage(), DocumentService.titleFrom(version.originalName()));
         // The previous version's file is not needed any more (TECH §11 Q4); a failed delete is best-effort.
         AfterCommit.run("delete superseded objects", () -> supersededKeys.forEach(storage::delete));
     }

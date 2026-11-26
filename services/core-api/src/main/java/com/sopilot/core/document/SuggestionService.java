@@ -88,7 +88,8 @@ public class SuggestionService {
 
             UUID categoryId = cur.categoryId();
             String categorySource = cur.categorySource();
-            if (!USER.equals(categorySource) && u.categoryId() != null && activeCategory(wid, u.categoryId())) {
+            // Inherit the document's existing category across versions instead of overwriting it with a new suggestion.
+            if (categoryId == null && !USER.equals(categorySource) && u.categoryId() != null && activeCategory(wid, u.categoryId())) {
                 categoryId = u.categoryId();
                 categorySource = SUGGESTED;
             }

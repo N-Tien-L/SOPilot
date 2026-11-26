@@ -155,7 +155,7 @@ class DocumentServiceTest {
 
     private void stubExistingDocument(MetaSources sources) {
         when(docs.lockDocument(wid, docId)).thenReturn(Optional.of(
-                new DocumentHead(docId, sources.title(), "WORKSPACE", 1, null, UUID.randomUUID(), null)));
+                new DocumentHead(docId, sources.title(), sources.titleSource(), "WORKSPACE", 1, null, UUID.randomUUID(), null)));
         when(docs.metaSources(wid, docId)).thenReturn(sources);
         when(docs.findDetail(wid, docId)).thenReturn(Optional.of(detail("WORKSPACE", List.of())));
     }
@@ -439,7 +439,7 @@ class DocumentServiceTest {
     void duplicateDepartmentIdsOnVisibilityChangeAreStoredOnce() {
         when(departments.find(wid, deptA)).thenReturn(Optional.of(department(deptA, DepartmentStatus.ACTIVE)));
         when(docs.lockDocument(wid, docId)).thenReturn(Optional.of(
-                new DocumentHead(docId, "T", "DEPARTMENTS", 1, null, UUID.randomUUID(), deptA)));
+                new DocumentHead(docId, "T", "SYSTEM", "DEPARTMENTS", 1, null, UUID.randomUUID(), deptA)));
 
         service.updateVisibility(owner, docId, "DEPARTMENTS", List.of(deptA, deptA));
 
@@ -452,7 +452,7 @@ class DocumentServiceTest {
         when(departments.find(wid, deptA)).thenReturn(Optional.empty());
         when(departments.find(wid, deptB)).thenReturn(Optional.of(department(deptB, DepartmentStatus.ARCHIVED)));
         when(docs.lockDocument(wid, docId)).thenReturn(Optional.of(
-                new DocumentHead(docId, "T", "WORKSPACE", 1, null, UUID.randomUUID(), null)));
+                new DocumentHead(docId, "T", "SYSTEM", "WORKSPACE", 1, null, UUID.randomUUID(), null)));
 
         for (UUID bad : List.of(deptA, deptB)) {
             assertThatThrownBy(() -> service.updateVisibility(owner, docId, "DEPARTMENTS", List.of(bad)))
@@ -462,5 +462,36 @@ class DocumentServiceTest {
                     });
         }
         verify(docs, never()).updateVisibility(any(), any(), anyString(), anyLong());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void uploadVersionSendsNewFileTitleWhenTitleSourceIsSystemAndKeepsUserTitleOtherwise() {
+        VersionRow readyV1 = version();
+        UUID v1 = readyV1.id();
+        when(docs.findVersion(wid, docId, v1)).thenReturn(Optional.of(readyV1));
+        when(docs.findDuplicate(eq(wid), any(), eq(docId))).thenReturn(Optional.empty());
+        when(docs.maxVersionNo(wid, docId)).thenReturn(1);
+        when(docs.departmentIds(wid, docId)).thenReturn(List.of());
+        when(docs.findDetail(wid, docId)).thenReturn(Optional.of(detail("WORKSPACE", List.of())));
+        when(categories.list(wid, false)).thenReturn(List.of());
+        when(tags.names(wid)).thenReturn(List.of());
+
+        var payloadCaptor = org.mockito.ArgumentCaptor.forClass(Map.class);
+
+        when(docs.lockDocument(wid, docId)).thenReturn(Optional.of(
+                new DocumentHead(docId, "policy-v1", "SYSTEM", "WORKSPACE", 1, v1, v1, null)));
+        service.uploadVersion(owner, docId, "policy-2026.md", "# v2\n".getBytes(StandardCharsets.UTF_8));
+        verify(outbox).enqueue(eq(wid), eq(docId), eq(com.sopilot.core.outbox.OutboxEvent.Type.INGEST_REQUESTED),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue().get("title")).isEqualTo("policy-2026");
+
+        org.mockito.Mockito.reset(outbox);
+        when(docs.lockDocument(wid, docId)).thenReturn(Optional.of(
+                new DocumentHead(docId, "Canonical Policy", "USER", "WORKSPACE", 1, v1, v1, null)));
+        service.uploadVersion(owner, docId, "policy-2026.md", "# v2\n".getBytes(StandardCharsets.UTF_8));
+        verify(outbox).enqueue(eq(wid), eq(docId), eq(com.sopilot.core.outbox.OutboxEvent.Type.INGEST_REQUESTED),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue().get("title")).isEqualTo("Canonical Policy");
     }
 }

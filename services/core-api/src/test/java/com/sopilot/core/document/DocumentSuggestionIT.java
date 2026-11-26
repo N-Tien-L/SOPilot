@@ -223,4 +223,40 @@ class DocumentSuggestionIT extends ApiIT {
                 suggestion(owner, doc[1], Map.of("method", "GUESS")));
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
+
+    @Test
+    void newVersionInheritsCategoryAndSyncsSystemTitleOnActivation() {
+        Actor owner = newTeamWorkspace("sgv");
+        UUID catV1 = id(post("/api/v1/categories", owner, Map.of("name", "Mua sắm")), "id");
+        UUID catV2 = id(post("/api/v1/categories", owner, Map.of("name", "Tài chính")), "id");
+        UUID[] doc = readyDocument(owner, "policy-2025.md");
+
+        // v1 receives a SUGGESTED category
+        internal(HttpMethod.PUT, "/internal/documents/" + doc[0] + "/suggestions",
+                suggestion(owner, doc[1], Map.of("categoryId", catV1.toString())));
+        assertThat(document(owner, doc[0]).path("category").path("id").asText()).isEqualTo(catV1.toString());
+        assertThat(document(owner, doc[0]).path("title").asText()).isEqualTo("policy-2025");
+
+        // Upload v2 with a different filename: while v2 is still UPLOADED, title stays v1's title
+        byte[] v2Bytes = "# Quy trình mua hàng 2026\n\nSố liệu mới.\n".getBytes(StandardCharsets.UTF_8);
+        ResponseEntity<JsonNode> uploadedV2 = upload("/api/v1/documents/" + doc[0] + "/versions", owner,
+                "policy-2026.md", v2Bytes, new org.springframework.util.LinkedMultiValueMap<>());
+        assertThat(uploadedV2.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID v2Id = UUID.fromString(uploadedV2.getBody().at("/data/latestVersion/id").asText());
+        assertThat(document(owner, doc[0]).path("title").asText()).isEqualTo("policy-2025");
+
+        // Activate v2 -> SYSTEM title syncs to v2's filename
+        internal(HttpMethod.PATCH, "/internal/documents/" + doc[0] + "/versions/" + v2Id + "/status",
+                Map.of("workspaceId", owner.workspaceId().toString(), "status", "READY", "attempt", 0,
+                        "pageCount", 1, "detectedLanguage", "vi", "chunkCount", 1));
+        assertThat(document(owner, doc[0]).path("title").asText()).isEqualTo("policy-2026");
+
+        // Suggestion for v2 tries to set a different category -> v1's category is preserved
+        internal(HttpMethod.PUT, "/internal/documents/" + doc[0] + "/suggestions",
+                suggestion(owner, v2Id, Map.of("categoryId", catV2.toString(), "proposedCategoryName", "Khác")));
+        JsonNode after = document(owner, doc[0]);
+        assertThat(after.path("category").path("id").asText()).isEqualTo(catV1.toString());
+        assertThat(after.path("suggestions").path("proposedCategoryName").isMissingNode()
+                || after.path("suggestions").path("proposedCategoryName").isNull()).isTrue();
+    }
 }
