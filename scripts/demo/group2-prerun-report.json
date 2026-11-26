@@ -1,0 +1,272 @@
+[
+  {
+    "id": "fda-storage-only-en",
+    "category": "single_doc",
+    "question": "Do samples from non-FDA agencies that are received only for storage have to be entered into FACTS?",
+    "rerank_off": {
+      "elapsed_s": 121.77,
+      "conversation_id": "b04be8ff-0084-400a-9c99-1a59b14e4b3e",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "No, samples from non-FDA agencies received for storage purposes only do not need to be entered into FACTS. Instead, they are tracked using local procedures, and the unique identifier used is the requesting or collecting agency's identificat",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 9.95,
+      "conversation_id": "f9f30cfe-5590-4ee8-8f2a-2f131edffd2f",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "No, samples from non-FDA agencies received for storage purposes only do not need to be entered into FACTS.  According to the document: *   Samples from non-FDA agencies received for storage purposes only are not entered into FACTS but are t",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "cv10065-holidays-2027-vi",
+    "category": "single_doc",
+    "question": "Theo phương án được đồng ý tại Công văn 10065/VPCP-KGVX, năm 2027 được nghỉ bao nhiêu ngày dịp Tết Âm lịch và bao nhiêu ngày dịp Quốc khánh?",
+    "rerank_off": {
+      "elapsed_s": 10.11,
+      "conversation_id": "d00be208-35a0-4d68-bb56-3c2947daba42",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Theo phương án được đồng ý tại Công văn 10065/VPCP-KGVX (thực tế là Công văn số vn-cv10065 do Văn phòng Chính phủ ban hành):  1.  **Dịp Tết Âm lịch năm 2027:** Được nghỉ **07 ngày**.     *   *Cơ sở:* Phó Thủ tướng Chính phủ đồng ý với đề xu",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 10.34,
+      "conversation_id": "3673ad0f-5ee7-4233-b423-261795e6a1c6",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Theo phương án được đồng ý tại Công văn 10065/VPCP-KGVX:  1.  **Dịp Tết Âm lịch năm 2027:** Được nghỉ **07 ngày**.     *   Cơ sở: Phó Thủ tướng Chính phủ đồng ý với đề xuất của Bộ Nội vụ về phương án nghỉ 07 ngày trong dịp Tết Âm lịch năm 2",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "v3b04-sick-leave-annual-and-topup-vi",
+    "category": "multi_passage",
+    "question": "Thành viên GitLab Canada được nghỉ ốm bao nhiêu ngày mỗi năm, và nếu ốm kéo dài thì công ty bù lương đến mức nào trong tối đa bao lâu?",
+    "rerank_off": {
+      "elapsed_s": 9.45,
+      "conversation_id": "4f5a6b67-4282-4610-b417-a33d566e2c45",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Dựa trên các tài liệu nội bộ, dưới đây là thông tin về quyền lợi nghỉ ốm cho thành viên GitLab Canada:  1.  **Hạn mức hằng năm:** Thành viên được nghỉ ốm **10 ngày mỗi năm** (trong đó 3 ngày có thể sử dụng sau tháng làm việc đầu tiên). [1] ",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 10.33,
+      "conversation_id": "0803dd26-bc80-4553-b671-45607e8342ac",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Thành viên GitLab Canada được nghỉ ốm và mức bù lương như sau:  *   **Hạn mức hằng năm:** 10 ngày mỗi năm (trong đó 3 ngày có thể sử dụng sau tháng làm việc đầu tiên) [1]. *   **Mức bù lương khi ốm kéo dài:**     *   GitLab bù thêm đến **10",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "tbqt05-notice-vi",
+    "category": "multi_passage",
+    "question": "Trước cuộc họp xem xét của lãnh đạo ở Cảng vụ Hàng hải Thái Bình, thông báo họp phải gửi trước ít nhất mấy ngày và báo cáo bằng văn bản của các phòng phải gửi Ban ISO trước mấy ngày?",
+    "rerank_off": {
+      "elapsed_s": 9.88,
+      "conversation_id": "c77fc99f-cfee-4dfe-91a0-43b1c5440566",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Dựa trên quy trình \"Họp xem xét của lãnh đạo về hệ thống quản lý chất lượng\" (Mã hiệu: QT.05) tại Cảng vụ Hàng hải Thái Bình, các thời hạn cụ thể như sau:  1.  **Thời gian gửi thông báo họp:**     Thông báo họp cần được gửi tới các cá nhân ",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 10.33,
+      "conversation_id": "7da081e7-965d-40d8-8ace-77420a46e138",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Dựa trên quy trình \"Quy trình họp xem xét của lãnh đạo về hệ thống quản lý chất lượng\" (Mã hiệu: QT.05) của Cảng vụ Hàng hải Thái Bình, các yêu cầu về thời gian gửi thông báo và báo cáo như sau:  1.  **Thời gian gửi thông báo họp:**     Thô",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "v3b06-neg-story-length-vi",
+    "category": "unanswerable_negative",
+    "question": "Phần tiểu sử cá nhân trong hồ sơ dữ liệu thành viên được viết tối đa bao nhiêu ký tự?",
+    "rerank_off": {
+      "elapsed_s": 8.25,
+      "conversation_id": "2b765c1f-2891-4833-8cbe-fc7b0a5b89f3",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "REFUSED_NO_EVIDENCE",
+      "refusal_reason": "GENERATOR_NOT_FOUND",
+      "citation_count": 0,
+      "answer_preview": "Không tìm thấy thông tin này trong các tài liệu hiện có.",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 5.91,
+      "conversation_id": "490edc8d-de98-417d-84e5-62af7252a159",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "REFUSED_NO_EVIDENCE",
+      "refusal_reason": "NO_EVIDENCE",
+      "citation_count": 0,
+      "answer_preview": "Mình không tìm thấy thông tin phù hợp trong các tài liệu bạn được phép xem.",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "neg-nb-overtime-vi",
+    "category": "unanswerable_negative",
+    "question": "Cán bộ Sở Xây dựng Ninh Bình làm thêm giờ được tính tiền lương như thế nào?",
+    "rerank_off": {
+      "elapsed_s": 4.69,
+      "conversation_id": "1c3ea892-4d07-4c0d-853a-1cd840b87b1d",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "REFUSED_NO_EVIDENCE",
+      "refusal_reason": "NO_EVIDENCE",
+      "citation_count": 0,
+      "answer_preview": "Mình không tìm thấy thông tin phù hợp trong các tài liệu bạn được phép xem.",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 5.47,
+      "conversation_id": "4365516c-6fc0-4515-a1d4-dec4de8dec66",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "REFUSED_NO_EVIDENCE",
+      "refusal_reason": "NO_EVIDENCE",
+      "citation_count": 0,
+      "answer_preview": "Mình không tìm thấy thông tin phù hợp trong các tài liệu bạn được phép xem.",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "v3b01-session-length-workshop-vs-enablement-vi",
+    "category": "rerank_flip",
+    "question": "CSM tổ chức workshop hay buổi enablement thông thường thì mất nhiều thời gian hơn, và mỗi loại kéo dài khoảng bao lâu?",
+    "rerank_off": {
+      "elapsed_s": 10.78,
+      "conversation_id": "dcf9ec24-73b5-47c9-bc53-62c37fa75076",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Dựa trên các tài liệu nội bộ, dưới đây là so sánh về thời gian tổ chức cho hai loại phiên:  1.  **Workshop:** Loại này thường mất nhiều thời gian hơn, kéo dài khoảng **1,5 đến 2 giờ**. Loại này bao gồm phần trình bày, demo và Q&A, đòi hỏi s",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 11.89,
+      "conversation_id": "266a64c6-b662-445f-bcbc-87069aca1cdc",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Dựa trên các tài liệu nội bộ, dưới đây là thông tin về thời lượng và mức độ chuẩn bị của hai loại phiên làm việc:  1.  **Workshop (Buổi hội thảo):**     *   **Thời lượng:** Thường kéo dài từ **1,5 đến 2 giờ**.     *   **Mức độ chuẩn bị:** Y",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "v3b01-session-length-workshop-vs-enablement-en",
+    "category": "rerank_flip",
+    "question": "Which takes longer for a CSM to run, a workshop or a regular enablement session, and roughly how long is each?",
+    "rerank_off": {
+      "elapsed_s": 9.23,
+      "conversation_id": "a9864213-36c5-41f0-9bfd-6304e99cb942",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Based on the available documents, here is the comparison regarding the duration of workshops versus regular enablement sessions:  *   **Workshops** take longer. They are generally scheduled for **1.5 to 2 hours** and typically include a pre",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 11.98,
+      "conversation_id": "37667d8d-820d-4b5a-a426-8511372fc6e1",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Based on the provided documents, here is the comparison between workshops and enablement sessions regarding duration and preparation:  *   **Workshops** generally take longer to run and require more preparation. They are typically **1.5 to ",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "v2-tb-audit-program-retention-vi",
+    "category": "rerank_flip",
+    "question": "Chương trình đánh giá năm của Cảng vụ Hàng hải Thái Bình do ai lưu và lưu mấy năm?",
+    "rerank_off": {
+      "elapsed_s": 7.44,
+      "conversation_id": "72758d67-c4be-4cba-854a-fd4f7c757bc3",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "REFUSED_NO_EVIDENCE",
+      "refusal_reason": "GENERATOR_NOT_FOUND",
+      "citation_count": 0,
+      "answer_preview": "Không tìm thấy thông tin này trong các tài liệu hiện có.",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 8.34,
+      "conversation_id": "8673e32e-811b-4cba-a981-22b45404dae3",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Chương trình đánh giá năm của Cảng vụ Hàng hải Thái Bình được lưu trữ và thời gian lưu như sau:  *   **Người chịu trách nhiệm lưu:** Ban ISO [2]. *   **Thời gian lưu:** 3 năm [2].  Thông tin này dựa trên hồ sơ có tên \"Chương trình đánh giá ",
+      "trace_summary": {}
+    }
+  },
+  {
+    "id": "v3b04-sick-leave-annual-and-topup-en",
+    "category": "rerank_flip",
+    "question": "How many sick days per year do GitLab Canada team members get, and for a prolonged illness up to what pay level and for how long does the company top up?",
+    "rerank_off": {
+      "elapsed_s": 9.94,
+      "conversation_id": "9abc6c53-816e-4392-a509-d0b6c4b01858",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Based on the provided documents, here are the details regarding sick leave for GitLab Canada team members:  *   **Annual Sick Days:** GitLab Canada team members receive a limit of **10 days per year** (with 3 days usable after the first mon",
+      "trace_summary": {}
+    },
+    "rerank_on": {
+      "elapsed_s": 13.83,
+      "conversation_id": "1d02caf6-9d19-46ee-8d9c-eddeff39ceff",
+      "message_id": null,
+      "retrieval_mode": null,
+      "outcome": "ANSWERED",
+      "refusal_reason": null,
+      "citation_count": 0,
+      "answer_preview": "Based on the provided documents, here is the information regarding sick leave for GitLab Canada team members:  *   **Annual Sick Days:** GitLab Canada team members receive a limit of **10 days per year**. Of these, 3 days can be used after ",
+      "trace_summary": {}
+    }
+  }
+]
