@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertCircle, CheckCircle2, FileText, Loader2, UploadCloud } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, FileText, Loader2, RefreshCw, UploadCloud } from 'lucide-react';
 import { Button, Input, Modal } from '@/components/ui';
 import { formatBytes } from '@/lib/chat/labels';
 import {
@@ -20,6 +20,7 @@ import { batchSize, countItems, MAX_FILES_PER_BATCH } from '@/lib/upload/queue';
 import { uploadScopes } from '@/lib/admin/documentsLayout';
 import { useMyMember, usePublishers } from '@/lib/query/hooks';
 import { useUploadStore } from '@/store/upload-store';
+import { VersionUploadPanel } from './VersionUploadPanel';
 
 const ACCEPT = '.pdf,.md,.markdown,application/pdf,text/markdown';
 
@@ -68,8 +69,13 @@ function UploadRow({ item }: { item: UploadItem }) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const failure = item.failure;
   const stored = item.documentId !== null;
-  // The document exists, so it can be deleted whatever the last failure was, unless nothing can be done (duplicate, unchanged).
-  const deletable = stored && (item.stage === 'processing' || failure?.action !== 'none');
+  const isNewVersion = item.kind === 'new_version';
+  // Safety: never allow deleting a pre-existing document from a failed new-version upload item.
+  const deletable = !isNewVersion && stored && (item.stage === 'processing' || failure?.action !== 'none');
+  const canReplace =
+    failure?.action === 'replace' ||
+    deletable ||
+    (isNewVersion && (item.stage === 'processing' || failure?.code === 'DOCUMENT_UNCHANGED'));
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -101,9 +107,20 @@ function UploadRow({ item }: { item: UploadItem }) {
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
         <div className="flex min-w-0 items-start gap-2.5">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-strong">
-            <FileText size={15} aria-hidden />
+            {isNewVersion ? <RefreshCw size={15} aria-hidden /> : <FileText size={15} aria-hidden />}
           </span>
           <div className="min-w-0">
+            {isNewVersion && item.targetTitle ? (
+              <p className="mb-0.5 flex flex-wrap items-center gap-1 text-xs font-medium text-primary-strong">
+                <span className="truncate">New version for {item.targetTitle}</span>
+                {item.targetVersionNo != null ? (
+                  <span className="inline-flex items-center gap-0.5 font-mono">
+                    (v{item.targetVersionNo}
+                    <ArrowRight size={10} aria-hidden />v{item.targetVersionNo + 1})
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
             <p className="break-words text-sm font-semibold text-foreground">{item.file.name}</p>
             <p className="text-xs text-muted-foreground">{formatBytes(item.file.size)}</p>
           </div>
@@ -138,7 +155,14 @@ function UploadRow({ item }: { item: UploadItem }) {
       ) : null}
 
       {item.status === 'processing' ? (
-        <p className="mt-1.5 text-xs text-muted-foreground">You can close this window; processing continues.</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {isNewVersion
+            ? 'You can close this window; the previous version stays active until processing finishes.'
+            : 'You can close this window; processing continues.'}
+        </p>
+      ) : null}
+      {isNewVersion && item.status === 'failed' ? (
+        <p className="mt-1.5 text-xs text-muted-foreground">The previous version of this document was not affected.</p>
       ) : null}
 
       <div className="mt-2.5 flex flex-wrap gap-2">
@@ -154,7 +178,7 @@ function UploadRow({ item }: { item: UploadItem }) {
                 {retryLabel}
               </Button>
             ) : null}
-            {failure.action === 'replace' || deletable ? (
+            {canReplace ? (
               <>
                 <Button size="sm" variant="outline" disabled={busy} onClick={() => replaceInput.current?.click()}>
                   Replace file
@@ -210,6 +234,8 @@ function UploadRow({ item }: { item: UploadItem }) {
 export function UploadDialog() {
   const open = useUploadStore((s) => s.dialogOpen);
   const setOpen = useUploadStore((s) => s.setDialogOpen);
+  const mode = useUploadStore((s) => s.dialogMode);
+  const setMode = useUploadStore((s) => s.setDialogMode);
   const queue = useUploadStore((s) => s.queue);
   const notice = useUploadStore((s) => s.notice);
   const picker = useRef<HTMLInputElement>(null);
@@ -239,8 +265,12 @@ export function UploadDialog() {
     <Modal
       open={open}
       onClose={() => setOpen(false)}
-      title="Upload documents"
-      description={`PDF with a text layer or Markdown, up to 20 MB each, ${MAX_FILES_PER_BATCH} files per batch.`}
+      title={mode === 'version' ? 'Upload new version' : 'Upload documents'}
+      description={
+        mode === 'version'
+          ? 'Select an existing document and upload a replacement PDF or Markdown file (up to 20 MB).'
+          : `PDF with a text layer or Markdown, up to 20 MB each, ${MAX_FILES_PER_BATCH} files per batch.`
+      }
       size="lg"
       footer={
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
@@ -268,94 +298,131 @@ export function UploadDialog() {
             You are not a publisher here. Ask an owner to make you the publisher of your department or the workspace.
           </p>
         ) : (
-          <fieldset className="space-y-1.5 rounded-xl border border-border bg-muted/40 p-3.5">
-            <legend className="px-1 text-xs font-semibold text-foreground">Who can read these documents</legend>
-            {choices.length === 1 ? (
-              <p className="text-sm font-medium text-foreground">{choiceLabel(choices[0])}</p>
-            ) : (
-              <div role="radiogroup" aria-label="Who can read these documents" className="space-y-1.5 text-sm">
-                {choices.map((c) => (
-                  <label key={c.key} className="flex cursor-pointer items-center gap-2 text-foreground">
-                    <input
-                      type="radio"
-                      name="upload-scope"
-                      checked={choice?.key === c.key}
-                      onChange={() => setScopeKey(c.key)}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    {choiceLabel(c)}
-                  </label>
-                ))}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Only an owner can change this after upload. It applies to files you add from now on.
-            </p>
-          </fieldset>
+          <div role="tablist" aria-label="Upload mode" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/50 p-1">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'new'}
+              onClick={() => setMode('new')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
+                mode === 'new'
+                  ? 'bg-card text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              New documents
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'version'}
+              onClick={() => setMode('version')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
+                mode === 'version'
+                  ? 'bg-card text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              New version
+            </button>
+          </div>
         )}
 
-        {choice ? (
-          <Input
-            label="Prepared by (optional)"
-            maxLength={100}
-            value={preparedBy}
-            onChange={(e) => setPreparedBy(e.target.value)}
-            placeholder={choice.scope.kind === 'DEPARTMENT' ? departmentName(choice.scope.departmentId) : 'For example: HR department'}
-            helperText={
-              choice.scope.kind === 'DEPARTMENT'
-                ? 'Who drafted these documents. Left empty, it is your department.'
-                : 'Who drafted these documents, so readers know where they come from. Applies to files you add from now on.'
-            }
-          />
-        ) : null}
+        {choices.length > 0 && mode === 'version' ? (
+          <VersionUploadPanel publisherOf={me.data?.publisherOf} full={full} />
+        ) : (
+          <>
+            {choices.length > 0 ? (
+              <fieldset className="space-y-1.5 rounded-xl border border-border bg-muted/40 p-3.5">
+                <legend className="px-1 text-xs font-semibold text-foreground">Who can read these documents</legend>
+                {choices.length === 1 ? (
+                  <p className="text-sm font-medium text-foreground">{choiceLabel(choices[0])}</p>
+                ) : (
+                  <div role="radiogroup" aria-label="Who can read these documents" className="space-y-1.5 text-sm">
+                    {choices.map((c) => (
+                      <label key={c.key} className="flex cursor-pointer items-center gap-2 text-foreground">
+                        <input
+                          type="radio"
+                          name="upload-scope"
+                          checked={choice?.key === c.key}
+                          onChange={() => setScopeKey(c.key)}
+                          className="h-4 w-4 accent-primary"
+                        />
+                        {choiceLabel(c)}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Only an owner can change this after upload. It applies to files you add from now on.
+                </p>
+              </fieldset>
+            ) : null}
 
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            addFilesToScope(Array.from(e.dataTransfer.files));
-          }}
-          className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 border-dashed text-center text-sm transition-all ${
-            choice ? '' : 'pointer-events-none opacity-50 '
-          }${full ? 'p-4' : 'p-6'} ${
-            dragging
-              ? 'border-primary bg-primary-soft/60 shadow-[0_0_0_4px_rgba(20,184,166,0.12)]'
-              : 'border-border-strong bg-muted/40 hover:border-primary/50'
-          }`}
-        >
-          {full ? null : (
-            <>
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
-                <UploadCloud size={22} aria-hidden />
-              </span>
-              <p className="font-medium text-foreground">Drop files here, or</p>
-              <Button variant="primary" size="sm" onClick={() => picker.current?.click()}>
-                Choose files
-              </Button>
-            </>
-          )}
-          <input
-            ref={picker}
-            type="file"
-            multiple
-            accept={ACCEPT}
-            className="sr-only"
-            tabIndex={-1}
-            aria-label="Files to upload"
-            onChange={(e) => {
-              addFilesToScope(Array.from(e.target.files ?? []));
-              e.target.value = '';
-            }}
-          />
-          {full ? (
-            <p className="text-xs text-muted-foreground">The batch is full. Clear finished files to add more.</p>
-          ) : null}
-        </div>
+            {choice ? (
+              <Input
+                label="Prepared by (optional)"
+                maxLength={100}
+                value={preparedBy}
+                onChange={(e) => setPreparedBy(e.target.value)}
+                placeholder={choice.scope.kind === 'DEPARTMENT' ? departmentName(choice.scope.departmentId) : 'For example: HR department'}
+                helperText={
+                  choice.scope.kind === 'DEPARTMENT'
+                    ? 'Who drafted these documents. Left empty, it is your department.'
+                    : 'Who drafted these documents, so readers know where they come from. Applies to files you add from now on.'
+                }
+              />
+            ) : null}
+
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                addFilesToScope(Array.from(e.dataTransfer.files));
+              }}
+              className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 border-dashed text-center text-sm transition-all ${
+                choice ? '' : 'pointer-events-none opacity-50 '
+              }${full ? 'p-4' : 'p-6'} ${
+                dragging
+                  ? 'border-primary bg-primary-soft/60 shadow-[0_0_0_4px_rgba(20,184,166,0.12)]'
+                  : 'border-border-strong bg-muted/40 hover:border-primary/50'
+              }`}
+            >
+              {full ? null : (
+                <>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
+                    <UploadCloud size={22} aria-hidden />
+                  </span>
+                  <p className="font-medium text-foreground">Drop files here, or</p>
+                  <Button variant="primary" size="sm" onClick={() => picker.current?.click()}>
+                    Choose files
+                  </Button>
+                </>
+              )}
+              <input
+                ref={picker}
+                type="file"
+                multiple
+                accept={ACCEPT}
+                className="sr-only"
+                tabIndex={-1}
+                aria-label="Files to upload"
+                onChange={(e) => {
+                  addFilesToScope(Array.from(e.target.files ?? []));
+                  e.target.value = '';
+                }}
+              />
+              {full ? (
+                <p className="text-xs text-muted-foreground">The batch is full. Clear finished files to add more.</p>
+              ) : null}
+            </div>
+          </>
+        )}
 
         {notice ? (
           <p role="status" className="rounded-xl bg-warning-soft px-3 py-2 text-xs font-medium text-warning-foreground">

@@ -12,6 +12,8 @@ export const MAX_CONCURRENT_UPLOADS = 3;
 
 export type UploadStatus = 'queued' | 'uploading' | 'processing' | 'ready' | 'failed';
 
+export type UploadKind = 'new_document' | 'new_version';
+
 /** Where a failed item failed: before it was stored (`upload`) or while processing a stored document. */
 export type FailureStage = 'client' | 'upload' | 'processing';
 
@@ -24,8 +26,16 @@ export type UploadScope = { kind: 'WORKSPACE' } | { kind: 'DEPARTMENT'; departme
 
 export const WORKSPACE_SCOPE: UploadScope = { kind: 'WORKSPACE' };
 
+/** Existing document chosen for a new-version upload. */
+export interface VersionTarget {
+  documentId: string;
+  title: string;
+  currentVersionNo: number;
+}
+
 export interface UploadItem {
   id: string;
+  kind: UploadKind;
   scope: UploadScope;
   /** Who drafted the content, typed once for the batch; empty lets core-api default it (a department document gets its department). */
   preparedBy: string | null;
@@ -35,6 +45,9 @@ export interface UploadItem {
   stage: FailureStage | null;
   /** Set once the document exists; later uploads of the same item become new versions of it. */
   documentId: string | null;
+  /** Only set when `kind === 'new_version'`: display info for the document being updated. */
+  targetTitle: string | null;
+  targetVersionNo: number | null;
 }
 
 export interface UploadQueue {
@@ -89,11 +102,76 @@ export function addFiles(
   const accepted = candidates.slice(0, room);
   const added: UploadItem[] = accepted.map(({ id, file }) => {
     const problem = checkFile(file);
-    const base: UploadItem = { id, scope, preparedBy, file, status: 'queued', failure: null, stage: null, documentId: null };
+    const base: UploadItem = {
+      id,
+      kind: 'new_document',
+      scope,
+      preparedBy,
+      file,
+      status: 'queued',
+      failure: null,
+      stage: null,
+      documentId: null,
+      targetTitle: null,
+      targetVersionNo: null,
+    };
     if (!problem) return base;
     return failed(base, 'client', { message: problem.message, action: 'replace', code: problem.code, traceId: null });
   });
   return { queue: { items: [...queue.items, ...added] }, notAdded: candidates.length - accepted.length };
+}
+
+export type AddVersionResult =
+  | { queue: UploadQueue; added: true; reason: null }
+  | { queue: UploadQueue; added: false; reason: 'batch_full' | 'already_in_queue' };
+
+/** Document ids that currently have an active (queued, uploading, or processing) upload item. */
+export function activeDocumentIds(queue: UploadQueue): Set<string> {
+  const ids = new Set<string>();
+  for (const item of queue.items) {
+    if (
+      item.documentId &&
+      (item.status === 'queued' || item.status === 'uploading' || item.status === 'processing')
+    ) {
+      ids.add(item.documentId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Adds a single replacement file for an existing document as a new version. Refuses when the batch
+ * is full or when the same document already has an active upload/processing item in the queue.
+ */
+export function addVersionFile(
+  queue: UploadQueue,
+  candidate: { id: string; file: FileRef },
+  target: VersionTarget,
+): AddVersionResult {
+  if (activeDocumentIds(queue).has(target.documentId)) {
+    return { queue, added: false, reason: 'already_in_queue' };
+  }
+  if (batchSize(queue) >= MAX_FILES_PER_BATCH) {
+    return { queue, added: false, reason: 'batch_full' };
+  }
+  const problem = checkFile(candidate.file);
+  const base: UploadItem = {
+    id: candidate.id,
+    kind: 'new_version',
+    scope: WORKSPACE_SCOPE,
+    preparedBy: null,
+    file: candidate.file,
+    status: 'queued',
+    failure: null,
+    stage: null,
+    documentId: target.documentId,
+    targetTitle: target.title,
+    targetVersionNo: target.currentVersionNo,
+  };
+  const item = problem
+    ? failed(base, 'client', { message: problem.message, action: 'replace', code: problem.code, traceId: null })
+    : base;
+  return { queue: { items: [...queue.items, item] }, added: true, reason: null };
 }
 
 /** Ids to start now: queued items, in order, while fewer than `limit` are uploading. */

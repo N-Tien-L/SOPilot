@@ -16,6 +16,7 @@ import { fileFor, forgetFile, pollErrors, rememberFile, trackUpload, useUploadSt
 import { classifyUploadError, type ErrorLike, type UploadFailure } from './failure';
 import {
   addFiles,
+  addVersionFile,
   applyDocumentStatus,
   clearFinished,
   markDocumentGone,
@@ -34,6 +35,7 @@ import {
   STATUS_UNKNOWN,
   WORKSPACE_SCOPE,
   type UploadScope,
+  type VersionTarget,
 } from './queue';
 
 const store = () => useUploadStore.getState();
@@ -55,10 +57,15 @@ function followUpFailure(error: unknown, verb: 'retry' | 'delete'): UploadFailur
   return failure;
 }
 
-function refreshDocuments(workspaceId: string): void {
+function refreshDocuments(workspaceId: string, documentId?: string): void {
   const client = getQueryClient();
   void client.invalidateQueries({ queryKey: workspaceKey(workspaceId, 'documents') });
   void client.invalidateQueries({ queryKey: workspaceKey(workspaceId, 'workspace') });
+  if (documentId) {
+    void client.invalidateQueries({ queryKey: workspaceKey(workspaceId, 'document', documentId) });
+  } else {
+    void client.invalidateQueries({ queryKey: workspaceKey(workspaceId, 'document') });
+  }
 }
 
 /** Starts as many queued uploads as the concurrency cap allows. Safe to call at any time. */
@@ -88,7 +95,7 @@ async function runUpload(id: string): Promise<void> {
       : await uploadDocument(file, item.scope, item.preparedBy, controller.signal);
     if (controller.signal.aborted) return;
     store().update((q) => markUploaded(q, id, document.id));
-    refreshDocuments(workspaceId);
+    refreshDocuments(workspaceId, document.id);
   } catch (error) {
     if (controller.signal.aborted) return;
     store().update((q) => markUploadFailed(q, id, classifyUploadError(errorLike(error))));
@@ -123,6 +130,25 @@ export function selectFiles(
       : null,
   );
   pump();
+}
+
+/** Queues a new version file for an existing document and starts uploading right away. */
+export function selectVersionFile(target: VersionTarget, file: File): boolean {
+  const id = crypto.randomUUID();
+  const result = addVersionFile(store().queue, { id, file: { name: file.name, size: file.size } }, target);
+  if (!result.added) {
+    store().setNotice(
+      result.reason === 'already_in_queue'
+        ? `A new version for "${target.title}" is already in the upload queue.`
+        : `A batch holds up to ${MAX_FILES_PER_BATCH} files. Clear finished files to add more.`,
+    );
+    return false;
+  }
+  rememberFile(id, file);
+  store().update(() => result.queue);
+  store().setNotice(null);
+  pump();
+  return true;
 }
 
 /** Retry or Resend: sends the same file again; files that already succeeded are not touched. */
@@ -176,7 +202,8 @@ export async function retryProcessing(id: string): Promise<void> {
 export async function deleteUploaded(id: string): Promise<UploadFailure | null> {
   const item = store().queue.items.find((i) => i.id === id);
   const workspaceId = currentWorkspaceId();
-  if (!item?.documentId || !workspaceId) return null;
+  // Safety: never delete a pre-existing document from a failed new-version upload item.
+  if (!item?.documentId || item.kind === 'new_version' || !workspaceId) return null;
   try {
     await deleteDocument(item.documentId);
   } catch (error) {

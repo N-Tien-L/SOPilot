@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, Download, FileCode2, FileText, FolderKanban, HardDrive, Loader2, Pencil, Search, Sparkles, Upload } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Download, FileCode2, FilePlus2, FileText, FolderKanban, HardDrive, Loader2, Pencil, RefreshCw, Search, Sparkles, Upload } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { TabList } from '@/components/app/TabList';
 import { CategoriesPanel } from '@/components/documents/CategoriesPanel';
@@ -61,6 +61,88 @@ function DownloadButton({ id }: { id: string }) {
   );
 }
 
+function UploadMenuButton() {
+  const [open, setOpen] = useState(false);
+  const openDialog = useUploadStore((s) => s.openDialog);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  function choose(mode: 'new' | 'version') {
+    setOpen(false);
+    openDialog(mode);
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Button
+        variant="primary"
+        icon={<Upload size={15} aria-hidden />}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="inline-flex items-center gap-1">
+          Upload
+          <ChevronDown size={14} aria-hidden className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </Button>
+      {open ? (
+        <div
+          role="menu"
+          aria-label="Upload options"
+          className="absolute right-0 z-30 mt-1.5 w-64 rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-lg)]"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => choose('new')}
+            className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+          >
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary-strong">
+              <FilePlus2 size={15} aria-hidden />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">Upload new documents</span>
+              <span className="block text-xs text-muted-foreground">Add new PDF or Markdown files</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => choose('version')}
+            className="mt-0.5 flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+          >
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary-strong">
+              <RefreshCw size={15} aria-hidden />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">Upload new version</span>
+              <span className="block text-xs text-muted-foreground">Update an existing document</span>
+            </span>
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * One list of documents. `view` is read-only. `manage` adds Upload and Edit, and is what a publisher
  * works in: `ownerDepartmentId` pins it to one department's documents; `departmentFilter` lets an
@@ -82,7 +164,6 @@ function DocumentList({
   const [department, setDepartment] = useState('');
   const [q, setQ] = useState(initialQ);
   const [editing, setEditing] = useState<DocumentView | null>(null);
-  const setUploadOpen = useUploadStore((s) => s.setDialogOpen);
   const me = useMyMember();
   const role = useSessionStore((s) => s.workspace?.role);
   const publishers = usePublishers();
@@ -127,11 +208,7 @@ function DocumentList({
             'Documents you can read in this workspace.'
           )}
         </p>
-        {canUpload ? (
-          <Button variant="primary" icon={<Upload size={15} aria-hidden />} onClick={() => setUploadOpen(true)}>
-            Upload
-          </Button>
-        ) : null}
+        {canUpload ? <UploadMenuButton /> : null}
       </div>
 
       {/* Summary Counters */}

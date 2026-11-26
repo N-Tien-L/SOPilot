@@ -17,11 +17,22 @@ vi.mock('@/lib/query/client', () => ({
 }));
 
 import * as api from '@/lib/api/endpoints';
-import { MAX_POLL_ERRORS, pollProcessing, removeUpload, retryProcessing, retryUpload, selectFiles } from './controller';
+import {
+  deleteUploaded,
+  MAX_POLL_ERRORS,
+  pollProcessing,
+  removeUpload,
+  retryProcessing,
+  retryUpload,
+  selectFiles,
+  selectVersionFile,
+} from './controller';
 import { confirmDiscardUploads } from './guard';
 import { countItems, MAX_CONCURRENT_UPLOADS, processingDocumentIds } from './queue';
 
 const upload = vi.mocked(api.uploadDocument);
+const uploadVersion = vi.mocked(api.uploadDocumentVersion);
+const deleteDoc = vi.mocked(api.deleteDocument);
 const getDocument = vi.mocked(api.getDocument);
 const retryDocument = vi.mocked(api.retryDocument);
 
@@ -268,5 +279,40 @@ describe('guard: workspace switch and sign-out', () => {
     removeUpload(useUploadStore.getState().queue.items[0].id);
     vi.stubGlobal('window', { confirm: vi.fn() });
     expect(confirmDiscardUploads()).toBe(true);
+  });
+});
+
+describe('controller: new version upload', () => {
+  const target = { documentId: 'doc-9', title: 'Travel SOP', currentVersionNo: 1 };
+
+  it('calls uploadDocumentVersion and never uploadDocument', async () => {
+    uploadVersion.mockResolvedValueOnce(doc('doc-9', 'UPLOADED'));
+    const ok = selectVersionFile(target, files(1)[0]);
+    expect(ok).toBe(true);
+    expect(upload).not.toHaveBeenCalled();
+    expect(uploadVersion).toHaveBeenCalledWith('doc-9', expect.any(File), expect.anything());
+    await flush();
+    expect(useUploadStore.getState().queue.items[0]).toMatchObject({
+      kind: 'new_version',
+      documentId: 'doc-9',
+      status: 'processing',
+    });
+  });
+
+  it('rejects queueing a second active version for the same document and sets a notice', () => {
+    uploadVersion.mockImplementation(() => new Promise(() => undefined));
+    expect(selectVersionFile(target, files(1)[0])).toBe(true);
+    expect(selectVersionFile(target, files(1)[0])).toBe(false);
+    expect(useUploadStore.getState().notice).toContain('Travel SOP');
+  });
+
+  it('safety: deleteUploaded refuses to delete an existing document for a failed new_version item', async () => {
+    uploadVersion.mockRejectedValueOnce(new ApiError(409, 'unchanged', 'DOCUMENT_UNCHANGED'));
+    selectVersionFile(target, files(1)[0]);
+    await flush();
+    const item = useUploadStore.getState().queue.items[0];
+    expect(item.status).toBe('failed');
+    await deleteUploaded(item.id);
+    expect(deleteDoc).not.toHaveBeenCalled();
   });
 });

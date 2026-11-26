@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeDocumentIds,
   addFiles,
+  addVersionFile,
   applyDocumentStatus,
   clearFinished,
   countItems,
@@ -368,5 +370,59 @@ describe('removeItem', () => {
     expect(removeItem(q, 'f4').items).toHaveLength(3);
     q = markUploadFailed(q, 'f1', transient);
     expect(removeItem(q, 'f1').items.some((i) => i.id === 'f1')).toBe(false);
+  });
+});
+
+describe('new version uploads', () => {
+  const target = { documentId: 'doc-42', title: 'Expense Policy', currentVersionNo: 2 };
+
+  it('queues a new_version item with the existing document id and target metadata', () => {
+    const res = addVersionFile(emptyQueue, { id: 'v1', file: { name: 'expense-v3.pdf', size: 2048 } }, target);
+    expect(res.added).toBe(true);
+    expect(res.queue.items[0]).toMatchObject({
+      id: 'v1',
+      kind: 'new_version',
+      documentId: 'doc-42',
+      targetTitle: 'Expense Policy',
+      targetVersionNo: 2,
+      status: 'queued',
+    });
+    expect(activeDocumentIds(res.queue).has('doc-42')).toBe(true);
+  });
+
+  it('refuses a second active version upload for the same document until the first finishes or fails', () => {
+    const first = addVersionFile(emptyQueue, { id: 'v1', file: { name: 'a.pdf', size: 100 } }, target);
+    const dup = addVersionFile(first.queue, { id: 'v2', file: { name: 'b.pdf', size: 100 } }, target);
+    expect(dup).toMatchObject({ added: false, reason: 'already_in_queue' });
+
+    const settled = applyDocumentStatus(markUploaded(pump(first.queue), 'v1', 'doc-42'), 'doc-42', {
+      status: 'READY',
+      failureCode: null,
+    });
+    expect(activeDocumentIds(settled).has('doc-42')).toBe(false);
+    const next = addVersionFile(settled, { id: 'v3', file: { name: 'c.pdf', size: 100 } }, { ...target, currentVersionNo: 3 });
+    expect(next.added).toBe(true);
+  });
+
+  it('refuses when the batch is full', () => {
+    const full = addFiles(emptyQueue, batch(MAX_FILES_PER_BATCH)).queue;
+    const res = addVersionFile(full, { id: 'v1', file: { name: 'a.pdf', size: 100 } }, target);
+    expect(res).toMatchObject({ added: false, reason: 'batch_full' });
+  });
+
+  it('preserves new_version metadata when replacing a failed file', () => {
+    const first = addVersionFile(emptyQueue, { id: 'v1', file: { name: 'bad.docx', size: 100 } }, target);
+    expect(first.added).toBe(true);
+    expect(first.queue.items[0]).toMatchObject({ status: 'failed', stage: 'client', kind: 'new_version', documentId: 'doc-42' });
+
+    const replaced = replaceFile(first.queue, 'v1', { name: 'fixed.pdf', size: 500 });
+    expect(replaced.items[0]).toMatchObject({
+      status: 'queued',
+      kind: 'new_version',
+      documentId: 'doc-42',
+      targetTitle: 'Expense Policy',
+      targetVersionNo: 2,
+      file: { name: 'fixed.pdf', size: 500 },
+    });
   });
 });

@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, RefreshCw } from 'lucide-react';
 import { ErrorNote } from '@/components/app/ErrorNote';
 import { MetadataDialog } from '@/components/documents/MetadataDialog';
 import { FadeIn } from '@/components/motion/Primitives';
@@ -10,10 +10,11 @@ import { Badge, Button, Skeleton, Tabs } from '@/components/ui';
 import { ContentViewer, NotAvailable } from '@/components/viewer/ContentViewer';
 import { ProcessingReport } from '@/components/viewer/ProcessingReport';
 import { ApiError } from '@/lib/api/errors';
-import { canEditDetails } from '@/lib/admin/metadata';
+import { canEditDetails, canWriteDocument } from '@/lib/admin/metadata';
 import { documentStatusLabel } from '@/lib/chat/labels';
 import { useDocument, useMyMember } from '@/lib/query/hooks';
 import { useSessionStore } from '@/store/session-store';
+import { useUploadStore } from '@/store/upload-store';
 import { versionNotice } from '@/lib/viewer/labels';
 
 // FR-31: "Content recognized by the system". It opens only when the document has a current
@@ -25,6 +26,10 @@ function DocumentContentPage({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const me = useMyMember();
   const role = useSessionStore((s) => s.workspace?.role);
+  const openUploadDialog = useUploadStore((s) => s.openDialog);
+  const canPublishNewVersion = Boolean(d && canWriteDocument(me.data?.publisherOf, d));
+  const versionBusy =
+    d?.latestVersion.status === 'UPLOADED' || d?.latestVersion.status === 'PROCESSING';
 
   let body: React.ReactNode;
   if (doc.isLoading) body = <Skeleton count={4} height={36} />;
@@ -87,11 +92,31 @@ function DocumentContentPage({ id }: { id: string }) {
               {d?.preparedBy ? ` · Prepared by ${d.preparedBy}` : ''}
             </p>
           </div>
-          {d && canEditDetails(me.data?.publisherOf, role, d) ? (
-            <Button size="sm" variant="outline" icon={<Pencil size={14} aria-hidden />} onClick={() => setEditing(true)}>
-              Edit details
-            </Button>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {d && canPublishNewVersion ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={versionBusy}
+                title={versionBusy ? 'A version is currently processing.' : undefined}
+                icon={<RefreshCw size={14} aria-hidden />}
+                onClick={() =>
+                  openUploadDialog('version', {
+                    documentId: d.id,
+                    title: d.title,
+                    currentVersionNo: d.latestVersion.versionNo,
+                  })
+                }
+              >
+                New version
+              </Button>
+            ) : null}
+            {d && canEditDetails(me.data?.publisherOf, role, d) ? (
+              <Button size="sm" variant="outline" icon={<Pencil size={14} aria-hidden />} onClick={() => setEditing(true)}>
+                Edit details
+              </Button>
+            ) : null}
+          </div>
         </div>
       </FadeIn>
 
